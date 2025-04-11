@@ -91,7 +91,9 @@ def get_student():
         result = [dict(zip(columns, row)) for row in rows]
         return jsonify(result)
     except Exception as e:
+        print("❌ Exception:", e)  # This will show in Vercel logs
         return jsonify({"error": str(e)}), 500
+
 
 # For local testing
 if __name__ == '__main__':
