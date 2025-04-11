@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify, render_template_string
-import pyodbc
+from sqlalchemy import create_engine
 import os
 from dotenv import load_dotenv
 
@@ -7,18 +7,16 @@ load_dotenv()
 
 app = Flask(__name__)
 
+# Connect using SQLAlchemy + pytds
 def get_db_connection():
-    conn_str = (
-        "DRIVER={ODBC Driver 18 for SQL Server};"
-        "SERVER=heimatau.database.windows.net;"
-        "DATABASE=WSFL;"
-        f"UID={os.getenv('WSNZDBUSER')};"
-        f"PWD={os.getenv('WSNZDBPASS')};"
-        "Encrypt=yes;"
-        "TrustServerCertificate=no;"
-        "Connection Timeout=30;"
-    )
-    return pyodbc.connect(conn_str)
+    user = os.getenv("WSNZDBUSER")
+    password = os.getenv("WSNZDBPASS")
+    server = "heimatau.database.windows.net"
+    database = "WSFL"
+    connection_url = f"mssql+pytds://{user}:{password}@{server}/{database}"
+    engine = create_engine(connection_url)
+    conn = engine.raw_connection()
+    return conn
 
 @app.route('/')
 def home():
@@ -29,9 +27,9 @@ def home():
         <title>WSFL Student Lookup</title>
         <style>
             body { font-family: sans-serif; padding: 2rem; }
-            input[type="text"] { padding: 0.5rem; font-size: 1rem; }
+            input[type="text"] { padding: 0.5rem; font-size: 1rem; width: 200px; }
             button { padding: 0.5rem 1rem; font-size: 1rem; }
-            pre { background: #f0f0f0; padding: 1rem; margin-top: 1rem; }
+            pre { background: #f0f0f0; padding: 1rem; margin-top: 1rem; white-space: pre-wrap; }
         </style>
     </head>
     <body>
@@ -48,7 +46,11 @@ def home():
             fetch(`/student?nsn=${nsn}`)
                 .then(res => res.json())
                 .then(data => {
-                    document.getElementById("result").textContent = JSON.stringify(data, null, 2);
+                    if (data.length === 0) {
+                        document.getElementById("result").textContent = "No student found.";
+                    } else {
+                        document.getElementById("result").textContent = JSON.stringify(data, null, 2);
+                    }
                 })
                 .catch(err => {
                     document.getElementById("result").textContent = "Error: " + err;
@@ -67,11 +69,12 @@ def get_student():
 
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM Student WHERE NSN = ?", nsn)
+    cursor.execute("SELECT * FROM Student WHERE NSN = %s", (nsn,))
     columns = [col[0] for col in cursor.description]
-    result = [dict(zip(columns, row)) for row in cursor.fetchall()]
+    rows = cursor.fetchall()
     conn.close()
 
+    result = [dict(zip(columns, row)) for row in rows]
     return jsonify(result)
 
 if __name__ == '__main__':
