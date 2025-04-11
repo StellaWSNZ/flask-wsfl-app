@@ -34,9 +34,9 @@ def home():
 
 @app.route('/student')
 def get_student():
-    nsn = request.args.get('nsn')
+    nsn = request.args.get("nsn")
     if not nsn:
-        return jsonify({'error': 'Missing NSN'}), 400
+        return jsonify({"error": "Missing NSN"}), 400
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -46,7 +46,10 @@ def get_student():
         conn.close()
         return jsonify([dict(zip(columns, row)) for row in rows])
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        import traceback
+        traceback.print_exc()  # 👈 This will show the full traceback in Render logs
+        return jsonify({"error": str(e)}), 500
+
 
 # Run on proper host and port
 if __name__ == '__main__':
