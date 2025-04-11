@@ -73,7 +73,8 @@ def home():
     </html>
     """)
 
-# 🔍 Student data lookup route
+import traceback
+
 @app.route('/student')
 def get_student():
     nsn = request.args.get('nsn')
@@ -91,8 +92,11 @@ def get_student():
         result = [dict(zip(columns, row)) for row in rows]
         return jsonify(result)
     except Exception as e:
-        print("❌ Exception:", e)  # This will show in Vercel logs
+        # 💥 Log the full traceback so Vercel will show it
+        print("❌ Exception occurred:")
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
+
 
 
 # For local testing
