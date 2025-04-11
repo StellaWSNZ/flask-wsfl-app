@@ -14,7 +14,9 @@ def get_db_connection():
     password = os.getenv("WSNZDBPASS")
     server = "heimatau.database.windows.net"
     database = "WSFL"
-    engine = create_engine(f"mssql+pytds://{user}:{password}@{server}/{database}")
+    engine = create_engine(
+        f"mssql+pytds://{user}:{password}@{server}/{database}?encrypt=true&trustservercertificate=false"
+    )
     return engine.raw_connection()
 
 # Basic form and result box
