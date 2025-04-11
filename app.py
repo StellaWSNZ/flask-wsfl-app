@@ -1,70 +1,56 @@
 from flask import Flask, request, jsonify, render_template_string
-from sqlalchemy import create_engine
+import pyodbc
 import os
 from dotenv import load_dotenv
-import traceback
 
 load_dotenv()
 
 app = Flask(__name__)
 
-# Connect to Azure SQL using SQLAlchemy + pytds
+# 🔌 Connect to Azure SQL with encryption
 def get_db_connection():
-    user = os.getenv("WSNZDBUSER")
-    password = os.getenv("WSNZDBPASS")
-    server = "heimatau.database.windows.net"
-    database = "WSFL"
-    engine = create_engine(
-        f"mssql+pytds://{user}:{password}@{server}/{database}?encrypt=true&trustservercertificate=false"
+    conn_str = (
+        "Driver={ODBC Driver 18 for SQL Server};"
+        "Server=tcp:heimatau.database.windows.net,1433;"
+        "Database=WSFL;"
+        f"Uid={os.getenv('WSNZDBUSER')};"
+        f"Pwd={os.getenv('WSNZDBPASS')};"
+        "Encrypt=yes;"
+        "TrustServerCertificate=no;"
+        "Connection Timeout=30;"
     )
-    return engine.raw_connection()
+    return pyodbc.connect(conn_str)
 
-# Basic form and result box
+# 🧪 Test UI
 @app.route('/')
 def home():
     return render_template_string('''
-<html>
-  <body>
+    <html><body>
     <h2>Student Lookup</h2>
-    <input id="nsn" placeholder="Enter NSN">
-    <button onclick="lookup()">Search</button>
-    <pre id="out"></pre>
+    <form action="/student">
+        <input name="nsn" placeholder="Enter NSN">
+        <button type="submit">Search</button>
+    </form>
+    </body></html>
+    ''')
 
-    <script>
-    function lookup() {
-      const nsn = document.getElementById("nsn").value;
-      fetch("/student?nsn=" + nsn)
-        .then(r => r.json())
-        .then(data => {
-          document.getElementById("out").textContent = JSON.stringify(data, null, 2);
-        })
-        .catch(e => {
-          document.getElementById("out").textContent = "Error: " + e;
-        });
-    }
-    </script>
-  </body>
-</html>
-''')
-
-# API route
+# 🔍 Query by NSN
 @app.route('/student')
 def get_student():
     nsn = request.args.get('nsn')
     if not nsn:
-        return jsonify({'error': 'Missing NSN'}), 400
+        return jsonify({"error": "Missing NSN"}), 400
 
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM Student WHERE NSN = %s", (nsn,))
+        cursor.execute("SELECT * FROM Student WHERE NSN = ?", (nsn,))
         columns = [col[0] for col in cursor.description]
         rows = cursor.fetchall()
         conn.close()
         return jsonify([dict(zip(columns, row)) for row in rows])
     except Exception as e:
-        traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
