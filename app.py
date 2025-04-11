@@ -8,85 +8,49 @@ load_dotenv()
 
 app = Flask(__name__)
 
-# 🔌 Database connection using SQLAlchemy + pytds
+# Connect to Azure SQL using SQLAlchemy + pytds
 def get_db_connection():
     user = os.getenv("WSNZDBUSER")
     password = os.getenv("WSNZDBPASS")
     server = "heimatau.database.windows.net"
     database = "WSFL"
-    connection_url = f"mssql+pytds://{user}:{password}@{server}/{database}"
-    engine = create_engine(connection_url)
-    conn = engine.raw_connection()
-    return conn
+    engine = create_engine(f"mssql+pytds://{user}:{password}@{server}/{database}")
+    return engine.raw_connection()
 
-# 🌐 Home page with NSN search form
+# Basic form and result box
 @app.route('/')
 def home():
     return render_template_string('''
-<!DOCTYPE html>
 <html>
-<head>
-    <title>WSFL Student Lookup</title>
-    <style>
-        body { font-family: sans-serif; padding: 2rem; max-width: 600px; }
-        input[type="text"] { padding: 0.5rem; font-size: 1rem; width: 200px; }
-        button { padding: 0.5rem 1rem; font-size: 1rem; }
-        pre { background: #f0f0f0; padding: 1rem; margin-top: 1rem; white-space: pre-wrap; }
-    </style>
-</head>
-<body>
-    <h1>Search for a Student by NSN</h1>
-    <form id="searchForm">
-        <input type="text" id="nsnInput" placeholder="Enter NSN" />
-        <button type="submit">Search</button>
-    </form>
-    <pre id="result">Results will appear here...</pre>
+  <body>
+    <h2>Student Lookup</h2>
+    <input id="nsn" placeholder="Enter NSN">
+    <button onclick="lookup()">Search</button>
+    <pre id="out"></pre>
 
-    {% raw %}
     <script>
-    document.getElementById("searchForm").addEventListener("submit", function(e) {
-        e.preventDefault();
-        const nsn = document.getElementById("nsnInput").value.trim();
-        if (!nsn) return;
-
-        fetch(`/student?nsn=${nsn}`)
-            .then(async res => {
-                const contentType = res.headers.get("content-type");
-                if (!res.ok) {
-                    const text = await res.text();
-                    throw new Error(`Server Error (${res.status}): ${text}`);
-                }
-                if (!contentType || !contentType.includes("application/json")) {
-                    const text = await res.text();
-                    throw new Error("Expected JSON, got:\n\n" + text);
-                }
-                return res.json();
-            })
-            .then(data => {
-                console.log("✅ Data received:", data);
-                if (data.length === 0) {
-                    document.getElementById("result").textContent = "No student found.";
-                } else {
-                    document.getElementById("result").textContent = JSON.stringify(data, null, 2);
-                }
-            })
-            .catch(err => {
-                document.getElementById("result").textContent = "Error: " + err.message;
-            });
-    });
+    function lookup() {
+      const nsn = document.getElementById("nsn").value;
+      fetch("/student?nsn=" + nsn)
+        .then(r => r.json())
+        .then(data => {
+          document.getElementById("out").textContent = JSON.stringify(data, null, 2);
+        })
+        .catch(e => {
+          document.getElementById("out").textContent = "Error: " + e;
+        });
+    }
     </script>
-    {% endraw %}
-</body>
+  </body>
 </html>
 ''')
 
-
-# 🔍 Student lookup API
+# API route
 @app.route('/student')
 def get_student():
     nsn = request.args.get('nsn')
     if not nsn:
-        return jsonify({'error': 'Missing NSN parameter'}), 400
+        return jsonify({'error': 'Missing NSN'}), 400
 
     try:
         conn = get_db_connection()
@@ -95,14 +59,10 @@ def get_student():
         columns = [col[0] for col in cursor.description]
         rows = cursor.fetchall()
         conn.close()
-
-        result = [dict(zip(columns, row)) for row in rows]
-        return jsonify(result)
+        return jsonify([dict(zip(columns, row)) for row in rows])
     except Exception as e:
-        print("❌ Exception occurred:")
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({'error': str(e)}), 500
 
-# Only needed for local dev (ignored by Vercel)
 if __name__ == '__main__':
     app.run(debug=True)
