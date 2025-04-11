@@ -10,15 +10,16 @@ app = Flask(__name__)
 # 🔌 Connect using ODBC
 def get_db_connection():
     conn_str = (
-        "Driver={ODBC Driver 18 for SQL Server};"
-        "Server=tcp:heimatau.database.windows.net,1433;"
-        "Database=WSFL;"
-        f"Uid={os.getenv('WSNZDBUSER')};"
-        f"Pwd={os.getenv('WSNZDBPASS')};"
-        "Encrypt=yes;"
-        "TrustServerCertificate=no;"
-        "Connection Timeout=30;"
-    )
+    "Driver=/opt/microsoft/msodbcsql18/lib64/libmsodbcsql-18.3.so;"
+    "Server=tcp:heimatau.database.windows.net,1433;"
+    "Database=WSFL;"
+    f"Uid={os.getenv('WSNZDBUSER')};"
+    f"Pwd={os.getenv('WSNZDBPASS')};"
+    "Encrypt=yes;"
+    "TrustServerCertificate=no;"
+    "Connection Timeout=30;"
+)
+
     return pyodbc.connect(conn_str)
 
 @app.route('/')

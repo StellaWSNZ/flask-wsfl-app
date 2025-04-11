@@ -8,9 +8,14 @@ curl https://packages.microsoft.com/config/debian/12/prod.list | sudo tee /etc/a
 sudo apt-get update
 ACCEPT_EULA=Y sudo apt-get install -y msodbcsql18
 
-# Show installed drivers (to check name)
-echo "🔍 Available ODBC Drivers:"
+# Show available drivers
+echo "🔍 ODBC Drivers:"
 odbcinst -q -d
 
-# Start the app
+# Show path to installed driver
+echo "🔍 Driver .so files:"
+find / -name "libmsodbcsql-*.so" 2>/dev/null
+
+# Start your app
 python3 app.py --host=0.0.0.0 --port=10000
+
