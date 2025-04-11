@@ -2,12 +2,13 @@ from flask import Flask, request, jsonify, render_template_string
 from sqlalchemy import create_engine
 import os
 from dotenv import load_dotenv
+import traceback
 
 load_dotenv()
 
 app = Flask(__name__)
 
-# 🧩 Database connection
+# 🔌 Database connection using SQLAlchemy + pytds
 def get_db_connection():
     user = os.getenv("WSNZDBUSER")
     password = os.getenv("WSNZDBPASS")
@@ -18,7 +19,7 @@ def get_db_connection():
     conn = engine.raw_connection()
     return conn
 
-# 🌐 Home page with search form
+# 🌐 Home page with NSN search form
 @app.route('/')
 def home():
     return render_template_string("""
@@ -35,13 +36,16 @@ def home():
     </head>
     <body>
         <h1>Search for a Student by NSN</h1>
-        <input type="text" id="nsnInput" placeholder="Enter NSN" />
-        <button onclick="searchNSN()">Search</button>
+        <form id="searchForm">
+            <input type="text" id="nsnInput" placeholder="Enter NSN" />
+            <button type="submit">Search</button>
+        </form>
         <pre id="result">Results will appear here...</pre>
 
         <script>
-        function searchNSN() {
-            const nsn = document.getElementById("nsnInput").value;
+        document.getElementById("searchForm").addEventListener("submit", function(e) {
+            e.preventDefault();
+            const nsn = document.getElementById("nsnInput").value.trim();
             if (!nsn) return;
 
             fetch(`/student?nsn=${nsn}`)
@@ -67,14 +71,13 @@ def home():
                 .catch(err => {
                     document.getElementById("result").textContent = "Error: " + err.message;
                 });
-        }
+        });
         </script>
     </body>
     </html>
     """)
 
-import traceback
-
+# 🔍 Student lookup API
 @app.route('/student')
 def get_student():
     nsn = request.args.get('nsn')
@@ -92,13 +95,10 @@ def get_student():
         result = [dict(zip(columns, row)) for row in rows]
         return jsonify(result)
     except Exception as e:
-        # 💥 Log the full traceback so Vercel will show it
         print("❌ Exception occurred:")
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
-
-
-# For local testing
+# Only needed for local dev (ignored by Vercel)
 if __name__ == '__main__':
     app.run(debug=True)
