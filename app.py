@@ -7,7 +7,7 @@ load_dotenv()
 
 app = Flask(__name__)
 
-# 🔌 Connect to Azure SQL with encryption
+# 🔌 Connect using ODBC
 def get_db_connection():
     conn_str = (
         "Driver={ODBC Driver 18 for SQL Server};"
@@ -21,26 +21,21 @@ def get_db_connection():
     )
     return pyodbc.connect(conn_str)
 
-# 🧪 Test UI
 @app.route('/')
 def home():
     return render_template_string('''
-    <html><body>
-    <h2>Student Lookup</h2>
-    <form action="/student">
-        <input name="nsn" placeholder="Enter NSN">
-        <button type="submit">Search</button>
-    </form>
-    </body></html>
+        <h2>Student Lookup</h2>
+        <form action="/student">
+            <input name="nsn" placeholder="Enter NSN">
+            <button type="submit">Search</button>
+        </form>
     ''')
 
-# 🔍 Query by NSN
 @app.route('/student')
 def get_student():
     nsn = request.args.get('nsn')
     if not nsn:
-        return jsonify({"error": "Missing NSN"}), 400
-
+        return jsonify({'error': 'Missing NSN'}), 400
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -50,9 +45,9 @@ def get_student():
         conn.close()
         return jsonify([dict(zip(columns, row)) for row in rows])
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({'error': str(e)}), 500
 
+# Run on proper host and port
 if __name__ == '__main__':
-    import os
     port = int(os.environ.get("PORT", 10000))
-    app.run(debug=True, host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=port, debug=True)
