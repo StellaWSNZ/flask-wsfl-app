@@ -115,7 +115,7 @@ def process_uploaded_csv(nsn_list, term, calendaryear):
     merged = merged[merged['NSN'].notna()]
 
     # Create label column for pivot
-    merged['label'] = merged['CompetencyID'].astype(str) + "-" + merged['YearGroupID'].astype(str)
+    merged['label'] = merged['CompetencyDesc'].astype(str) + "- (" + merged['YearGroupDesc'].astype(str) + ')'
 
     # Pivot to wide format
     wide = merged.pivot(index="NSN", columns="label", values="CompetencyStatusID").fillna(0).astype(int)
