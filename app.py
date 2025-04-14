@@ -9,7 +9,7 @@ load_dotenv()
 
 app = Flask(__name__)
 
-# Connect using ODBC
+# 🔌 Connect using ODBC
 def get_db_connection():
     conn_str = (
         "Driver={ODBC Driver 18 for SQL Server};"
@@ -23,7 +23,7 @@ def get_db_connection():
     )
     return pyodbc.connect(conn_str)
 
-# Home page: NSN search + CSV upload
+# 🏠 Home page with both NSN search and file upload
 @app.route('/')
 def home():
     return render_template_string('''
@@ -40,7 +40,7 @@ def home():
         </form>
     ''')
 
-# NSN lookup
+# 🔍 Look up student by NSN
 @app.route('/student')
 def get_student():
     nsn = request.args.get("nsn")
@@ -59,7 +59,7 @@ def get_student():
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
-# CSV upload and render
+# 📤 Upload CSV and render as HTML table
 @app.route('/upload', methods=['POST'])
 def upload():
     try:
@@ -98,7 +98,7 @@ def upload():
         traceback.print_exc()
         return f"Upload failed: {e}", 500
 
-# Run locally
+# 🏃 Run app
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
     app.run(host='0.0.0.0', port=port, debug=True)
