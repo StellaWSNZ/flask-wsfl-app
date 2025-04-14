@@ -105,13 +105,14 @@ def process_uploaded_csv(nsn_list, term, calendaryear):
     merged = df.merge(relevant[['CompetencyID', 'YearGroupID']], on=['CompetencyID', 'YearGroupID'], how='right')
 
     # Add missing NSNs with outer merge
-    # Ensure both NSN columns are int
     nsn_df = pd.DataFrame({'NSN': nsn_list})
-    nsn_df['NSN'] = nsn_df['NSN'].astype(int)
-    merged['NSN'] = merged['NSN'].astype(int)
+    nsn_df['NSN'] = pd.to_numeric(nsn_df['NSN'], errors='coerce')
 
-    # Outer join to retain all NSNs, even with no matching competencies
+    if 'NSN' in merged.columns:
+        merged['NSN'] = pd.to_numeric(merged['NSN'], errors='coerce')
+
     merged = pd.merge(nsn_df, merged, on='NSN', how='left')
+    merged = merged[merged['NSN'].notna()]
 
     # Create label column for pivot
     merged['label'] = merged['CompetencyID'].astype(str) + "-" + merged['YearGroupID'].astype(str)
@@ -121,6 +122,7 @@ def process_uploaded_csv(nsn_list, term, calendaryear):
 
     conn.close()
     return wide.reset_index()
+
 
 
 @app.route('/upload', methods=['POST'])
@@ -135,7 +137,7 @@ def upload():
         if "NSN" not in df.columns:
             return "CSV must contain 'NSN' column", 400
 
-        nsn_list = df["NSN"].dropna().astype(str).unique().tolist()
+        nsn_list = pd.to_numeric(df["NSN"], errors="coerce").dropna().astype(int).unique().tolist()
         term = 1
         calendaryear = 2025
 
