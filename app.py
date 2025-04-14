@@ -105,7 +105,13 @@ def process_uploaded_csv(nsn_list, term, calendaryear):
     merged = df.merge(relevant[['CompetencyID', 'YearGroupID']], on=['CompetencyID', 'YearGroupID'], how='right')
 
     # Add missing NSNs with outer merge
-    merged = pd.merge(pd.DataFrame({'NSN': nsn_list}), merged, on='NSN', how='left')
+    # Ensure both NSN columns are int
+    nsn_df = pd.DataFrame({'NSN': nsn_list})
+    nsn_df['NSN'] = nsn_df['NSN'].astype(int)
+    merged['NSN'] = merged['NSN'].astype(int)
+
+    # Outer join to retain all NSNs, even with no matching competencies
+    merged = pd.merge(nsn_df, merged, on='NSN', how='left')
 
     # Create label column for pivot
     merged['label'] = merged['CompetencyID'].astype(str) + "-" + merged['YearGroupID'].astype(str)
@@ -134,7 +140,10 @@ def upload():
         calendaryear = 2025
 
         wide_df = process_uploaded_csv(nsn_list, term, calendaryear)
-        html_table = wide_df.to_html(classes="table table-bordered", index=False)
+        if wide_df.empty:
+            html_table = '<div class="alert alert-warning">No matching competencies found for the uploaded NSNs.</div>'
+        else:
+            html_table = wide_df.to_html(classes="table table-bordered", index=False)
 
         return render_template_string(f'''
             <!DOCTYPE html>
