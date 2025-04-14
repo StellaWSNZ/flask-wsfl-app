@@ -23,24 +23,54 @@ def get_db_connection():
     )
     return pyodbc.connect(conn_str)
 
-# 🏠 Home page with both NSN search and file upload
+# 🏠 Home page with NSN search and file upload
 @app.route('/')
 def home():
     return render_template_string('''
-        <h2>Student Lookup</h2>
-        <form action="/student">
-            <input name="nsn" placeholder="Enter NSN">
-            <button type="submit">Search</button>
-        </form>
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <title>Student Tools</title>
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+        </head>
+        <body class="bg-light">
+            <div class="container py-5">
+                <h1 class="mb-4 text-center">Student Tools</h1>
 
-        <h2>Upload CSV</h2>
-        <form action="/upload" method="post" enctype="multipart/form-data">
-            <input type="file" name="csv_file" accept=".csv">
-            <button type="submit">Upload</button>
-        </form>
+                <div class="card mb-4">
+                    <div class="card-header">🔍 Student Lookup</div>
+                    <div class="card-body">
+                        <form action="/student" class="row g-3">
+                            <div class="col-auto">
+                                <input name="nsn" class="form-control" placeholder="Enter NSN">
+                            </div>
+                            <div class="col-auto">
+                                <button type="submit" class="btn btn-primary">Search</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">📤 Upload CSV</div>
+                    <div class="card-body">
+                        <form action="/upload" method="post" enctype="multipart/form-data" class="row g-3">
+                            <div class="col-auto">
+                                <input type="file" name="csv_file" class="form-control" accept=".csv">
+                            </div>
+                            <div class="col-auto">
+                                <button type="submit" class="btn btn-success">Upload</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </body>
+        </html>
     ''')
 
-# 🔍 Look up student by NSN
+# 🔍 Student lookup
 @app.route('/student')
 def get_student():
     nsn = request.args.get("nsn")
@@ -59,7 +89,7 @@ def get_student():
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
-# 📤 Upload CSV and render as HTML table
+# 📤 Upload CSV
 @app.route('/upload', methods=['POST'])
 def upload():
     try:
@@ -72,27 +102,25 @@ def upload():
             return "Only CSV files are supported", 400
 
         df = pd.read_csv(file)
-        html_table = df.to_html(classes="data", index=False)
+        html_table = df.to_html(classes="table table-striped", index=False)
 
         return render_template_string(f'''
-            <h2>CSV Upload Preview</h2>
-            {html_table}
-            <br><a href="/">← Back</a>
-            <style>
-              .data {{
-                border-collapse: collapse;
-                width: 100%;
-              }}
-              .data th, .data td {{
-                border: 1px solid #ccc;
-                padding: 8px;
-              }}
-              .data th {{
-                background-color: #f0f0f0;
-              }}
-            </style>
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <title>CSV Preview</title>
+                <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+            </head>
+            <body class="bg-light">
+                <div class="container py-5">
+                    <h2 class="mb-4">CSV Upload Preview</h2>
+                    {html_table}
+                    <a class="btn btn-secondary mt-3" href="/">← Back</a>
+                </div>
+            </body>
+            </html>
         ''')
-
     except Exception as e:
         import traceback
         traceback.print_exc()
