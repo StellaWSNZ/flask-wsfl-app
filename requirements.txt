@@ -1,4 +1,3 @@
 Flask
 python-dotenv
 pyodbc
-pandas
