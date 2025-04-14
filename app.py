@@ -54,60 +54,6 @@ def get_student():
         return jsonify({"error": str(e)}), 500
 
 
-@app.route('/')
-def home():
-    return render_template_string('''
-        <h2>Student Lookup</h2>
-        <form action="/student">
-            <input name="nsn" placeholder="Enter NSN">
-            <button type="submit">Search</button>
-        </form>
-
-        <h2>Upload CSV</h2>
-        <form action="/upload" method="post" enctype="multipart/form-data">
-            <input type="file" name="csv_file" accept=".csv">
-            <button type="submit">Upload</button>
-        </form>
-    ''')
-
-@app.route('/upload', methods=['POST'])
-def upload():
-    try:
-        file = request.files.get("csv_file")
-        if not file:
-            return "No file uploaded", 400
-
-        filename = secure_filename(file.filename)
-        if not filename.lower().endswith(".csv"):
-            return "Only CSV files are supported", 400
-
-        df = pd.read_csv(file)
-        html_table = df.to_html(classes="data", index=False)
-
-        return render_template_string(f'''
-            <h2>CSV Upload Preview</h2>
-            {html_table}
-            <br><a href="/">← Back</a>
-            <style>
-              .data {{
-                border-collapse: collapse;
-                width: 100%;
-              }}
-              .data th, .data td {{
-                border: 1px solid #ccc;
-                padding: 8px;
-              }}
-              .data th {{
-                background-color: #f0f0f0;
-              }}
-            </style>
-        ''')
-
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return f"Upload failed: {e}", 500
-
 
 # Run on proper host and port
 if __name__ == '__main__':
