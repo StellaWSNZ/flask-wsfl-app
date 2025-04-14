@@ -102,7 +102,7 @@ def process_uploaded_csv(nsn_list, term, calendaryear):
     relevant = pd.read_sql("EXEC GetRelevantCompetencies ?, ?", conn, params=[calendaryear, term])
 
     # Merge to filter only relevant combinations
-    merged = df.merge(relevant[['CompetencyID', 'YearGroupID']], on=['CompetencyID', 'YearGroupID'], how='right')
+    merged = df.merge(relevant[['CompetencyID', 'YearGroupID', 'CompetencyDesc','YearGroupDesc']], on=['CompetencyID', 'YearGroupID'], how='right')
 
     # Add missing NSNs with outer merge
     nsn_df = pd.DataFrame({'NSN': nsn_list})
