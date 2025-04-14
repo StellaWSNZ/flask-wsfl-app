@@ -89,7 +89,34 @@ def get_student():
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
-# 📤 Upload CSV
+def process_uploaded_csv(nsn_list, term, calendaryear):
+    conn = get_db_connection()
+
+    # Fetch all StudentCompetency records for NSNs
+    query_comp = "SELECT * FROM StudentCompetency WHERE NSN IN ({})".format(
+        ",".join(["?"] * len(nsn_list))
+    )
+    df = pd.read_sql(query_comp, conn, params=nsn_list)
+
+    # Fetch relevant competencies
+    relevant = pd.read_sql("EXEC GetRelevantCompetencies ?, ?", conn, params=[calendaryear, term])
+
+    # Merge to filter only relevant combinations
+    merged = df.merge(relevant[['CompetencyID', 'YearGroupID']], on=['CompetencyID', 'YearGroupID'], how='right')
+
+    # Add missing NSNs with outer merge
+    merged = pd.merge(pd.DataFrame({'NSN': nsn_list}), merged, on='NSN', how='left')
+
+    # Create label column for pivot
+    merged['label'] = merged['CompetencyID'].astype(str) + "-" + merged['YearGroupID'].astype(str)
+
+    # Pivot to wide format
+    wide = merged.pivot(index="NSN", columns="label", values="CompetencyStatusID").fillna(0).astype(int)
+
+    conn.close()
+    return wide.reset_index()
+
+
 @app.route('/upload', methods=['POST'])
 def upload():
     try:
@@ -97,34 +124,40 @@ def upload():
         if not file:
             return "No file uploaded", 400
 
-        filename = secure_filename(file.filename)
-        if not filename.lower().endswith(".csv"):
-            return "Only CSV files are supported", 400
-
         df = pd.read_csv(file)
-        html_table = df.to_html(classes="table table-striped", index=False)
+
+        if "NSN" not in df.columns:
+            return "CSV must contain 'NSN' column", 400
+
+        nsn_list = df["NSN"].dropna().astype(str).unique().tolist()
+        term = 1
+        calendaryear = 2025
+
+        wide_df = process_uploaded_csv(nsn_list, term, calendaryear)
+        html_table = wide_df.to_html(classes="table table-bordered", index=False)
 
         return render_template_string(f'''
             <!DOCTYPE html>
-            <html lang="en">
+            <html>
             <head>
-                <meta charset="UTF-8">
-                <title>CSV Preview</title>
                 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+                <title>NSN Competency Table</title>
             </head>
             <body class="bg-light">
                 <div class="container py-5">
-                    <h2 class="mb-4">CSV Upload Preview</h2>
+                    <h2 class="mb-4">Competency Overview</h2>
                     {html_table}
                     <a class="btn btn-secondary mt-3" href="/">← Back</a>
                 </div>
             </body>
             </html>
         ''')
+
     except Exception as e:
         import traceback
         traceback.print_exc()
         return f"Upload failed: {e}", 500
+
 
 # 🏃 Run app
 if __name__ == '__main__':
