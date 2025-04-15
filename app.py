@@ -139,8 +139,8 @@ def process_uploaded_csv(df, term, calendaryear):
         # If valid
         results.append(student_rows)
 
-    df_valid = pd.DataFrame(results)
-    df_errors = pd.DataFrame(errors)
+        df_valid = pd.concat(results, ignore_index=True)
+        df_errors = pd.DataFrame(errors)
 
     return df_valid, df_errors
     conn = get_db_connection()
