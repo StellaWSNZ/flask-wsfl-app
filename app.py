@@ -158,7 +158,7 @@ def process_uploaded_csv(df, term, calendaryear):
                         'Ethnicity': result_row.get('Ethnicity'),
                         **comp_row  # Add all competency columns
                     }
-
+                    
                     valid_data.append(full_row)
 
 
