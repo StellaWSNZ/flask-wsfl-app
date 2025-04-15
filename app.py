@@ -226,11 +226,12 @@ def upload():
         term = 1
         calendaryear = 2025
 
-        # Pass entire dataframe for validation
-        html_table, df_errors = process_uploaded_csv(df, term, calendaryear)
-    	
-        valid_html = html_table
+        df_valid, df_errors = process_uploaded_csv(df, term, calendaryear)
 
+        valid_html = (
+            df_valid.to_html(classes="table table-bordered table-sm", index=False)
+            if not df_valid.empty else "<p class='text-muted'>No valid records found.</p>"
+        )
 
         error_html = (
             df_errors.to_html(classes="table table-bordered table-sm text-danger", index=False)
