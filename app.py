@@ -55,7 +55,7 @@ def home():
                 <div class="card">
                     <div class="card-header">📤 Upload CSV</div>
                     <div class="card-body">
-                        <<form action="/upload" method="post" enctype="multipart/form-data" class="row g-3" onsubmit="return checkFileSelected()">
+                        <form action="/upload" method="post" enctype="multipart/form-data" class="row g-3" onsubmit="return checkFileSelected()">
                             <div class="col-auto">
                                 <input type="file" name="csv_file" class="form-control" accept=".csv" id="csv_file_input">
                             </div>
@@ -99,7 +99,50 @@ def get_student():
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
-def process_uploaded_csv(nsn_list, term, calendaryear):
+def process_uploaded_csv(df, term, calendaryear):
+    conn = get_db_connection()
+
+    # Ensure NSNs are numeric
+    df['NSN'] = pd.to_numeric(df['NSN'], errors='coerce')
+    df = df[df['NSN'].notna()]
+    nsn_list = df['NSN'].astype(int).unique().tolist()
+
+    # Get relevant data from database
+    student_comp = pd.read_sql(
+        "SELECT * FROM StudentCompetency WHERE NSN IN ({})".format(",".join(["?"] * len(nsn_list))),
+        conn, params=nsn_list
+    )
+    competencies = pd.read_sql("EXEC GetRelevantCompetencies ?, ?", conn, params=[calendaryear, term])
+
+    conn.close()
+
+    # 🧪 Per-row logic
+    results = []
+    errors = []
+
+    for _, row in df.iterrows():
+        nsn = int(row['NSN'])
+
+        # You could run checks like:
+        student_rows = student_comp[student_comp['NSN'] == nsn]
+        if student_rows.empty:
+            row['Error'] = "NSN not found in StudentCompetency table"
+            errors.append(row)
+            continue
+
+        # (Optional) validate other fields from original CSV
+        # Example: if 'CompetencyID' in row and row['CompetencyID'] not in student_rows['CompetencyID'].values:
+        #     row['Error'] = "CompetencyID mismatch"
+        #     errors.append(row)
+        #     continue
+
+        # If valid
+        results.append(student_rows)
+
+    df_valid = pd.DataFrame(results)
+    df_errors = pd.DataFrame(errors)
+
+    return df_valid, df_errors
     conn = get_db_connection()
 
     # Fetch all StudentCompetency records for NSNs
@@ -146,38 +189,7 @@ def process_uploaded_csv(nsn_list, term, calendaryear):
 
     conn.close()
     return wide.reset_index()
-    conn = get_db_connection()
-
-    # Fetch all StudentCompetency records for NSNs
-    query_comp = "SELECT * FROM StudentCompetency WHERE NSN IN ({})".format(
-        ",".join(["?"] * len(nsn_list))
-    )
-    df = pd.read_sql(query_comp, conn, params=nsn_list)
-
-    # Fetch relevant competencies
-    relevant = pd.read_sql("EXEC GetRelevantCompetencies ?, ?", conn, params=[calendaryear, term])
-
-    # Merge to filter only relevant combinations
-    merged = df.merge(relevant[['CompetencyID', 'YearGroupID', 'CompetencyDesc','YearGroupDesc']], on=['CompetencyID', 'YearGroupID'], how='right')
-
-    # Add missing NSNs with outer merge
-    nsn_df = pd.DataFrame({'NSN': nsn_list})
-    nsn_df['NSN'] = pd.to_numeric(nsn_df['NSN'], errors='coerce')
-
-    if 'NSN' in merged.columns:
-        merged['NSN'] = pd.to_numeric(merged['NSN'], errors='coerce')
-
-    merged = pd.merge(nsn_df, merged, on='NSN', how='left')
-    merged = merged[merged['NSN'].notna()]
-
-    # Create label column for pivot
-    merged['label'] = merged['CompetencyDesc'].astype(str) + " (" + merged['YearGroupDesc'].astype(str) + ")"
-
-    # Pivot to wide format
-    wide = merged.pivot(index="NSN", columns="label", values="CompetencyStatusID").fillna(0).astype(int)
-
-    conn.close()
-    return wide.reset_index()
+    
 
 
 
@@ -193,55 +205,38 @@ def upload():
         if "NSN" not in df.columns:
             return "CSV must contain 'NSN' column", 400
 
-        nsn_list = pd.to_numeric(df["NSN"], errors="coerce").dropna().astype(int).unique().tolist()
         term = 1
         calendaryear = 2025
 
-        wide_df = process_uploaded_csv(nsn_list, term, calendaryear)
-        if wide_df.empty:
-            html_table = '<div class="alert alert-warning">No matching competencies found for the uploaded NSNs.</div>'
-        else:
-            # Build first row with YearGroupDesc (based on column labels)
-            # Build column metadata
-            column_names = wide_df.columns.tolist()
-            nsn_col = column_names[0]
-            competency_cols = column_names[1:]
+        # Pass entire dataframe for validation
+        df_valid, df_errors = process_uploaded_csv(df, term, calendaryear)
 
-            # Extract top and second row headers
-            competency_descs = [''] + [col.split(' (')[0].strip() for col in competency_cols]
-            yeargroup_descs = [''] + [col.split('(')[-1].replace(')', '').strip() for col in competency_cols]
+        valid_html = (
+            df_valid.to_html(classes="table table-bordered table-sm", index=False)
+            if not df_valid.empty else "<p class='text-warning'>No valid records found.</p>"
+        )
 
-            # Rename columns to raw strings so we can control headers manually
-            display_df = wide_df.copy()
-            display_df.columns = [f'col{i}' for i in range(len(display_df.columns))]
-
-            # Generate the HTML table without headers
-            html_table = display_df.to_html(classes="table table-bordered", header=False, index=False)
-
-            # Inject custom header rows
-            split_html = html_table.split('<tbody>')
-            thead = '<thead>'
-            thead += '<tr>' + ''.join(f'<th>{desc}</th>' for desc in competency_descs) + '</tr>'
-            thead += '<tr>' + ''.join(f'<th>{desc}</th>' for desc in yeargroup_descs) + '</tr>'
-            thead += '</thead>'
-
-            # Final assembled HTML
-            html_table = split_html[0] + thead + '<tbody>' + split_html[1]
-
-
+        error_html = (
+            df_errors.to_html(classes="table table-bordered table-sm text-danger", index=False)
+            if not df_errors.empty else "<p class='text-success'>No errors found.</p>"
+        )
 
         return render_template_string(f'''
             <!DOCTYPE html>
             <html>
             <head>
                 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-                <title>NSN Competency Table</title>
+                <title>Upload Results</title>
             </head>
             <body class="bg-light">
                 <div class="container py-5">
-                    <h2 class="mb-4">Competency Overview</h2>
-                    {html_table}
-                    <a class="btn btn-secondary mt-3" href="/">← Back</a>
+                    <h2 class="mb-4">✅ Valid Records</h2>
+                    {valid_html}
+
+                    <h2 class="mt-5 text-danger">⚠️ Errors</h2>
+                    {error_html}
+
+                    <a class="btn btn-secondary mt-4" href="/">← Back</a>
                 </div>
             </body>
             </html>
@@ -257,3 +252,5 @@ def upload():
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
     app.run(host='0.0.0.0', port=port, debug=True)
+
+
