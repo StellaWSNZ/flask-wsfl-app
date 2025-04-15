@@ -121,24 +121,34 @@ def process_uploaded_csv(df, term, calendaryear):
 
     for _, row in df.iterrows():
         try:
+            # 🔁 Fully fetch the result BEFORE doing another SQL call
             cursor.execute("EXEC CheckNSNMatch ?, ?, ?, ?, ?, ?",
-                           row['NSN'], row['FirstName'], row.get('PreferredName', ''),
-                           row['LastName'], row['BirthDate'], row.get('Ethnicity', ''))
+                        row['NSN'], row['FirstName'], row.get('PreferredName', ''),
+                        row['LastName'], row['BirthDate'], row.get('Ethnicity', ''))
 
             columns = [desc[0] for desc in cursor.description]
-            result = cursor.fetchall() 
-            result_row = dict(zip(columns, result[0])) if result else {}
+            result = cursor.fetchall()  # This clears the cursor state
+
+            if not result:
+                errors.append({"NSN": row.get('NSN', None), "Error": "No result returned"})
+                continue
+
+            result_row = dict(zip(columns, result[0]))
+
 
             if 'Error' in result_row and result_row['Error']:
                 errors.append(result_row)
+
             elif result_row.get('Message') == 'NSN not found in Student table':
                 valid_data.append({'NSN': result_row['NSN'], **{label: 0 for label in labels}})
             else:
+                # Now it's safe to query again
                 comp = pd.read_sql("SELECT * FROM StudentCompetency WHERE NSN = ?", conn, params=[result_row['NSN']])
                 comp = comp.merge(label_map, on=['CompetencyID', 'YearGroupID'], how='inner')
                 comp_row = comp.set_index('label')['CompetencyStatusID'].reindex(labels).fillna(0).astype(int).to_dict()
                 comp_row['NSN'] = result_row['NSN']
                 valid_data.append(comp_row)
+
 
         except Exception as e:
             errors.append({"NSN": row.get('NSN', None), "Error": str(e)})
