@@ -192,26 +192,32 @@ def upload():
             html_table = '<div class="alert alert-warning">No matching competencies found for the uploaded NSNs.</div>'
         else:
             # Build first row with YearGroupDesc (based on column labels)
+            # Build column metadata
             column_names = wide_df.columns.tolist()
             nsn_col = column_names[0]
             competency_cols = column_names[1:]
 
-            # Extract YearGroupDesc from column labels
-            yeargroup_row = ['NSN'] + [col.split('(')[-1].replace(')', '').strip() for col in competency_cols]
-            header_row = ['NSN'] + [col for col in competency_cols]
+            # Extract top and second row headers
+            competency_descs = ['NSN'] + [col.split(' (')[0].strip() for col in competency_cols]
+            yeargroup_descs = [''] + [col.split('(')[-1].replace(')', '').strip() for col in competency_cols]
 
-            # Create a new dataframe for display with custom header
+            # Rename columns to raw strings so we can control headers manually
             display_df = wide_df.copy()
-            display_df.columns = header_row
+            display_df.columns = [f'col{i}' for i in range(len(display_df.columns))]
 
-            # Convert to HTML with an extra row inserted manually for YearGroupDesc
-            table_html = display_df.to_html(classes="table table-bordered", index=False)
-            split_table = table_html.split('<thead>')
+            # Generate the HTML table without headers
+            html_table = display_df.to_html(classes="table table-bordered", header=False, index=False)
 
-            custom_header = '<thead><tr>' + ''.join(f'<th>{yg}</th>' for yg in yeargroup_row) + '</tr>'
-            custom_header += '<tr>' + ''.join(f'<th>{col}</th>' for col in header_row) + '</tr></thead>'
+            # Inject custom header rows
+            split_html = html_table.split('<tbody>')
+            thead = '<thead>'
+            thead += '<tr>' + ''.join(f'<th>{desc}</th>' for desc in competency_descs) + '</tr>'
+            thead += '<tr>' + ''.join(f'<th>{desc}</th>' for desc in yeargroup_descs) + '</tr>'
+            thead += '</thead>'
 
-            html_table = split_table[0] + custom_header + split_table[1].split('</thead>')[1]
+            # Final assembled HTML
+            html_table = split_html[0] + thead + '<tbody>' + split_html[1]
+
 
 
         return render_template_string(f'''
