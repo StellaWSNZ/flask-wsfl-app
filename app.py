@@ -107,43 +107,66 @@ def process_uploaded_csv(df, term, calendaryear):
     df = df[df['NSN'].notna()]
     nsn_list = df['NSN'].astype(int).unique().tolist()
 
-    # Get relevant data from database
+    # Fetch data from the database
     student_comp = pd.read_sql(
         "SELECT * FROM StudentCompetency WHERE NSN IN ({})".format(",".join(["?"] * len(nsn_list))),
         conn, params=nsn_list
     )
     competencies = pd.read_sql("EXEC GetRelevantCompetencies ?, ?", conn, params=[calendaryear, term])
-
     conn.close()
 
-    # 🧪 Per-row logic
-    results = []
+    # Validate each row: only include if student exists in StudentCompetency
     errors = []
-
     for _, row in df.iterrows():
         nsn = int(row['NSN'])
-
-        # You could run checks like:
-        student_rows = student_comp[student_comp['NSN'] == nsn]
-        if student_rows.empty:
+        if student_comp[student_comp['NSN'] == nsn].empty:
             row['Error'] = "NSN not found in StudentCompetency table"
             errors.append(row.to_dict())
 
-            continue
+    df_errors = pd.DataFrame(errors)
+    df_valid = df[~df['NSN'].isin(df_errors['NSN'])] if not df_errors.empty else df.copy()
 
-        # (Optional) validate other fields from original CSV
-        # Example: if 'CompetencyID' in row and row['CompetencyID'] not in student_rows['CompetencyID'].values:
-        #     row['Error'] = "CompetencyID mismatch"
-        #     errors.append(row)
-        #     continue
+    # Merge valid NSNs with competencies
+    merged = student_comp.merge(
+        competencies[['CompetencyID', 'YearGroupID', 'CompetencyDesc', 'YearGroupDesc']],
+        on=['CompetencyID', 'YearGroupID'],
+        how='inner'
+    )
 
-        # If valid
-        results.append(student_rows)
+    # Filter only NSNs in the valid list
+    merged = merged[merged['NSN'].isin(df_valid['NSN'])]
 
-        df_valid = pd.concat(results, ignore_index=True)
-        df_errors = pd.DataFrame(errors)
+    # Create label column for pivot
+    merged['label'] = merged['CompetencyDesc'].astype(str) + " (" + merged['YearGroupDesc'].astype(str) + ")"
+    merged['col_order'] = merged['YearGroupID'].astype(str).str.zfill(2) + "-" + merged['CompetencyID'].astype(str).str.zfill(4)
+    label_order = merged[['label', 'col_order']].drop_duplicates().sort_values('col_order')['label'].tolist()
 
-    return df_valid, df_errors
+    # Pivot table
+    wide = merged.pivot(index="NSN", columns="label", values="CompetencyStatusID").fillna(0).astype(int)
+    wide = wide[label_order].reset_index()
+
+    # Extract headers
+    competency_descs = [''] + [col.split(' (')[0] for col in label_order]
+    yeargroup_descs = [''] + [col.split('(')[-1].replace(')', '') for col in label_order]
+
+    # Rename columns for rendering
+    display_df = wide.copy()
+    display_df.columns = [f'col{i}' for i in range(len(display_df.columns))]
+
+    # Generate HTML without headers
+    html_table = display_df.to_html(classes="table table-bordered table-sm", index=False, header=False)
+    split_html = html_table.split('<tbody>')
+
+    # Create custom headers
+    thead = '<thead>'
+    thead += '<tr>' + ''.join(f'<th>{desc}</th>' for desc in competency_descs) + '</tr>'
+    thead += '<tr>' + ''.join(f'<th>{desc}</th>' for desc in yeargroup_descs) + '</tr>'
+    thead += '</thead>'
+
+    html_with_headers = split_html[0] + thead + '<tbody>' + split_html[1]
+
+    return html_with_headers, df_errors
+
     conn = get_db_connection()
 
     # Fetch all StudentCompetency records for NSNs
@@ -210,12 +233,10 @@ def upload():
         calendaryear = 2025
 
         # Pass entire dataframe for validation
-        df_valid, df_errors = process_uploaded_csv(df, term, calendaryear)
+        html_table, df_errors = process_uploaded_csv(df, term, calendaryear)
+    	
+        valid_html = html_table
 
-        valid_html = (
-            df_valid.to_html(classes="table table-bordered table-sm", index=False)
-            if not df_valid.empty else "<p class='text-warning'>No valid records found.</p>"
-        )
 
         error_html = (
             df_errors.to_html(classes="table table-bordered table-sm text-danger", index=False)
