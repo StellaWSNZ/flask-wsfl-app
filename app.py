@@ -147,8 +147,19 @@ def process_uploaded_csv(df, term, calendaryear):
                     comp = pd.read_sql("SELECT * FROM StudentCompetency WHERE NSN = ?", conn2, params=[result_row['NSN']])
                     comp = comp.merge(label_map, on=['CompetencyID', 'YearGroupID'], how='inner')
                     comp_row = comp.set_index('label')['CompetencyStatusID'].reindex(labels).fillna(0).astype(int).to_dict()
-                    comp_row['NSN'] = result_row['NSN']
-                    valid_data.append(comp_row)
+
+                    # Add personal info fields up front
+                    full_row = {
+                        'NSN': result_row.get('NSN'),
+                        'FirstName': result_row.get('FirstName'),
+                        'LastName': result_row.get('LastName'),
+                        'PreferredName': result_row.get('PreferredName'),
+                        'BirthDate': result_row.get('BirthDate'),
+                        'Ethnicity': result_row.get('Ethnicity'),
+                        **comp_row  # Add all competency columns
+                    }
+
+                    valid_data.append(full_row)
 
 
         except Exception as e:
