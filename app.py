@@ -101,71 +101,53 @@ def get_student():
 
 def process_uploaded_csv(df, term, calendaryear):
     conn = get_db_connection()
+    cursor = conn.cursor()
 
-    # Ensure NSNs are numeric
-    df['NSN'] = pd.to_numeric(df['NSN'], errors='coerce')
-    df = df[df['NSN'].notna()]
-    nsn_list = df['NSN'].astype(int).unique().tolist()
+    errors = []
+    valid_data = []
 
-    # Fetch data from the database
-    student_comp = pd.read_sql(
-        "SELECT * FROM StudentCompetency WHERE NSN IN ({})".format(",".join(["?"] * len(nsn_list))),
-        conn, params=nsn_list
-    )
+    # Get all relevant competencies to build consistent column structure
     competencies = pd.read_sql("EXEC GetRelevantCompetencies ?, ?", conn, params=[calendaryear, term])
+    label_map = (
+        competencies.assign(
+            label=lambda d: d['CompetencyDesc'].astype(str) + " (" + d['YearGroupDesc'].astype(str) + ")",
+            col_order=lambda d: d['YearGroupID'].astype(str).str.zfill(2) + "-" + d['CompetencyID'].astype(str).str.zfill(4)
+        )
+        [['CompetencyID', 'YearGroupID', 'label', 'col_order']]
+        .drop_duplicates()
+        .sort_values('col_order')
+    )
+    labels = label_map['label'].tolist()
+
+    for _, row in df.iterrows():
+        try:
+            cursor.execute("EXEC CheckNSNMatch ?, ?, ?, ?, ?, ?",
+                           row['NSN'], row['FirstName'], row.get('PreferredName', ''),
+                           row['LastName'], row['BirthDate'], row.get('Ethnicity', ''))
+
+            columns = [desc[0] for desc in cursor.description]
+            result_row = dict(zip(columns, cursor.fetchone()))
+
+            if 'Error' in result_row and result_row['Error']:
+                errors.append(result_row)
+            elif result_row.get('Message') == 'NSN not found in Student table':
+                valid_data.append({'NSN': result_row['NSN'], **{label: 0 for label in labels}})
+            else:
+                comp = pd.read_sql("SELECT * FROM StudentCompetency WHERE NSN = ?", conn, params=[result_row['NSN']])
+                comp = comp.merge(label_map, on=['CompetencyID', 'YearGroupID'], how='inner')
+                comp_row = comp.set_index('label')['CompetencyStatusID'].reindex(labels).fillna(0).astype(int).to_dict()
+                comp_row['NSN'] = result_row['NSN']
+                valid_data.append(comp_row)
+
+        except Exception as e:
+            errors.append({"NSN": row.get('NSN', None), "Error": str(e)})
+
     conn.close()
 
-    # Validate each row: only include if student exists in StudentCompetency
-    errors = []
-    for _, row in df.iterrows():
-        nsn = int(row['NSN'])
-        if student_comp[student_comp['NSN'] == nsn].empty:
-            row['Error'] = "NSN not found in StudentCompetency table"
-            errors.append(row.to_dict())
-
+    df_valid = pd.DataFrame(valid_data)
     df_errors = pd.DataFrame(errors)
-    df_valid = df[~df['NSN'].isin(df_errors['NSN'])] if not df_errors.empty else df.copy()
 
-    # Merge valid NSNs with competencies
-    merged = student_comp.merge(
-        competencies[['CompetencyID', 'YearGroupID', 'CompetencyDesc', 'YearGroupDesc']],
-        on=['CompetencyID', 'YearGroupID'],
-        how='inner'
-    )
-
-    # Filter only NSNs in the valid list
-    merged = merged[merged['NSN'].isin(df_valid['NSN'])]
-
-    # Create label column for pivot
-    merged['label'] = merged['CompetencyDesc'].astype(str) + " (" + merged['YearGroupDesc'].astype(str) + ")"
-    merged['col_order'] = merged['YearGroupID'].astype(str).str.zfill(2) + "-" + merged['CompetencyID'].astype(str).str.zfill(4)
-    label_order = merged[['label', 'col_order']].drop_duplicates().sort_values('col_order')['label'].tolist()
-
-    # Pivot table
-    wide = merged.pivot(index="NSN", columns="label", values="CompetencyStatusID").fillna(0).astype(int)
-    wide = wide[label_order].reset_index()
-
-    # Extract headers
-    competency_descs = [''] + [col.split(' (')[0] for col in label_order]
-    yeargroup_descs = [''] + [col.split('(')[-1].replace(')', '') for col in label_order]
-
-    # Rename columns for rendering
-    display_df = wide.copy()
-    display_df.columns = [f'col{i}' for i in range(len(display_df.columns))]
-
-    # Generate HTML without headers
-    html_table = display_df.to_html(classes="table table-bordered table-sm", index=False, header=False)
-    split_html = html_table.split('<tbody>')
-
-    # Create custom headers
-    thead = '<thead>'
-    thead += '<tr>' + ''.join(f'<th>{desc}</th>' for desc in competency_descs) + '</tr>'
-    thead += '<tr>' + ''.join(f'<th>{desc}</th>' for desc in yeargroup_descs) + '</tr>'
-    thead += '</thead>'
-
-    html_with_headers = split_html[0] + thead + '<tbody>' + split_html[1]
-
-    return html_with_headers, df_errors
+    return df_valid, df_errors
 
     conn = get_db_connection()
 
