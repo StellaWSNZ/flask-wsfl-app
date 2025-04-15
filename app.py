@@ -55,14 +55,24 @@ def home():
                 <div class="card">
                     <div class="card-header">📤 Upload CSV</div>
                     <div class="card-body">
-                        <form action="/upload" method="post" enctype="multipart/form-data" class="row g-3">
+                        <<form action="/upload" method="post" enctype="multipart/form-data" class="row g-3" onsubmit="return checkFileSelected()">
                             <div class="col-auto">
-                                <input type="file" name="csv_file" class="form-control" accept=".csv">
+                                <input type="file" name="csv_file" class="form-control" accept=".csv" id="csv_file_input">
                             </div>
                             <div class="col-auto">
                                 <button type="submit" class="btn btn-success">Upload</button>
                             </div>
                         </form>
+                        <script>
+                            function checkFileSelected() {
+                                const fileInput = document.getElementById("csv_file_input");
+                                if (!fileInput.value) {
+                                    alert("Please select a CSV file to upload.");
+                                    return false;
+                                }
+                                return true;
+                            }
+                        </script>
                     </div>
                 </div>
             </div>
@@ -198,7 +208,7 @@ def upload():
             competency_cols = column_names[1:]
 
             # Extract top and second row headers
-            competency_descs = ['NSN'] + [col.split(' (')[0].strip() for col in competency_cols]
+            competency_descs = [''] + [col.split(' (')[0].strip() for col in competency_cols]
             yeargroup_descs = [''] + [col.split('(')[-1].replace(')', '').strip() for col in competency_cols]
 
             # Rename columns to raw strings so we can control headers manually
