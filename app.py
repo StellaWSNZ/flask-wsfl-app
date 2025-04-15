@@ -143,11 +143,12 @@ def process_uploaded_csv(df, term, calendaryear):
                 valid_data.append({'NSN': result_row['NSN'], **{label: 0 for label in labels}})
             else:
                 # Now it's safe to query again
-                comp = pd.read_sql("SELECT * FROM StudentCompetency WHERE NSN = ?", conn, params=[result_row['NSN']])
-                comp = comp.merge(label_map, on=['CompetencyID', 'YearGroupID'], how='inner')
-                comp_row = comp.set_index('label')['CompetencyStatusID'].reindex(labels).fillna(0).astype(int).to_dict()
-                comp_row['NSN'] = result_row['NSN']
-                valid_data.append(comp_row)
+                 with get_db_connection() as conn2:
+                    comp = pd.read_sql("SELECT * FROM StudentCompetency WHERE NSN = ?", conn2, params=[result_row['NSN']])
+                    comp = comp.merge(label_map, on=['CompetencyID', 'YearGroupID'], how='inner')
+                    comp_row = comp.set_index('label')['CompetencyStatusID'].reindex(labels).fillna(0).astype(int).to_dict()
+                    comp_row['NSN'] = result_row['NSN']
+                    valid_data.append(comp_row)
 
 
         except Exception as e:
