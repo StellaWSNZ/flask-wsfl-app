@@ -191,7 +191,28 @@ def upload():
         if wide_df.empty:
             html_table = '<div class="alert alert-warning">No matching competencies found for the uploaded NSNs.</div>'
         else:
-            html_table = wide_df.to_html(classes="table table-bordered", index=False)
+            # Build first row with YearGroupDesc (based on column labels)
+            column_names = wide_df.columns.tolist()
+            nsn_col = column_names[0]
+            competency_cols = column_names[1:]
+
+            # Extract YearGroupDesc from column labels
+            yeargroup_row = ['NSN'] + [col.split('(')[-1].replace(')', '').strip() for col in competency_cols]
+            header_row = ['NSN'] + [col for col in competency_cols]
+
+            # Create a new dataframe for display with custom header
+            display_df = wide_df.copy()
+            display_df.columns = header_row
+
+            # Convert to HTML with an extra row inserted manually for YearGroupDesc
+            table_html = display_df.to_html(classes="table table-bordered", index=False)
+            split_table = table_html.split('<thead>')
+
+            custom_header = '<thead><tr>' + ''.join(f'<th>{yg}</th>' for yg in yeargroup_row) + '</tr>'
+            custom_header += '<tr>' + ''.join(f'<th>{col}</th>' for col in header_row) + '</tr></thead>'
+
+            html_table = split_table[0] + custom_header + split_table[1].split('</thead>')[1]
+
 
         return render_template_string(f'''
             <!DOCTYPE html>
