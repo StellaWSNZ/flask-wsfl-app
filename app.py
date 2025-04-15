@@ -126,7 +126,8 @@ def process_uploaded_csv(df, term, calendaryear):
                            row['LastName'], row['BirthDate'], row.get('Ethnicity', ''))
 
             columns = [desc[0] for desc in cursor.description]
-            result_row = dict(zip(columns, cursor.fetchone()))
+            result = cursor.fetchall() 
+            result_row = dict(zip(columns, result[0])) if result else {}
 
             if 'Error' in result_row and result_row['Error']:
                 errors.append(result_row)
