@@ -127,7 +127,8 @@ def process_uploaded_csv(df, term, calendaryear):
         student_rows = student_comp[student_comp['NSN'] == nsn]
         if student_rows.empty:
             row['Error'] = "NSN not found in StudentCompetency table"
-            errors.append(row)
+            errors.append(row.to_dict())
+
             continue
 
         # (Optional) validate other fields from original CSV
