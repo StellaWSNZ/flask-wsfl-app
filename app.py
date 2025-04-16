@@ -147,7 +147,16 @@ def process_uploaded_csv(df, term, calendaryear):
                 errors.append(result_row)
 
             elif result_row.get('Message') == 'NSN not found in Student table':
-                valid_data.append({'NSN': result_row['NSN'], **{label: 0 for label in labels}})
+                valid_data.append({
+                    'NSN': result_row['NSN'],
+                    'FirstName': result_row.get('FirstName'),
+                    'LastName': result_row.get('LastName'),
+                    'PreferredName': result_row.get('PreferredName'),
+                    'BirthDate': result_row.get('BirthDate'),
+                    'Ethnicity': result_row.get('Ethnicity'),
+                    'YearLevel': result_row.get('YearLevel'),
+                    **{label: 0 for label in labels}
+                })
             else:
                 # Now it's safe to query again
                  with get_db_connection() as conn2:
