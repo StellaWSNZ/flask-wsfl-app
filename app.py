@@ -110,7 +110,7 @@ def process_uploaded_csv(df, term, calendaryear):
     competencies = pd.read_sql("EXEC GetRelevantCompetencies ?, ?", conn, params=[calendaryear, term])
     label_map = (
         competencies.assign(
-            label=lambda d: d['CompetencyDesc'].astype(str) + "(Years" + d['YearGroupDesc'].astype(str) + ")",
+            label=lambda d: d['CompetencyDesc'].astype(str) + "<br> ("+ d['YearGroupDesc'].astype(str) + ")",
             col_order=lambda d: d['YearGroupID'].astype(str).str.zfill(2) + "-" + d['CompetencyID'].astype(str).str.zfill(4)
         )
         [['CompetencyID', 'YearGroupID', 'label', 'col_order']]
@@ -258,7 +258,7 @@ def upload():
         df_valid, df_errors = process_uploaded_csv(df, term, calendaryear)
 
         valid_html = (
-            df_valid.to_html(classes="table table-bordered table-sm", index=False)
+            df_valid.to_html(classes="table table-bordered table-sm", index=False, escape =False)
             if not df_valid.empty else "<p class='text-muted'>No valid records found.</p>"
         )
 
