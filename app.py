@@ -55,14 +55,33 @@ def home():
                 <div class="card">
                     <div class="card-header">📤 Upload CSV</div>
                     <div class="card-body">
-                        <form action="/upload" method="post" enctype="multipart/form-data" class="row g-3" onsubmit="return checkFileSelected()">
-                            <div class="col-auto">
+                       <form action="/upload" method="post" enctype="multipart/form-data" class="row g-3 align-items-end" onsubmit="return checkFileSelected()">
+                            <div class="col-md-auto">
+                                <label for="csv_file_input" class="form-label">CSV File</label>
                                 <input type="file" name="csv_file" class="form-control" accept=".csv" id="csv_file_input">
                             </div>
-                            <div class="col-auto">
+                            <div class="col-md-auto">
+                                <label for="year_input" class="form-label">Year</label>
+                                <select name="year" class="form-select" id="year_input">
+                                    {% for y in range(2023, 2026) %}
+                                        <option value="{{ y }}" {% if y == 2025 %}selected{% endif %}>{{ y }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-auto">
+                                <label for="term_input" class="form-label">Term</label>
+                                <select name="term" class="form-select" id="term_input">
+                                    <option value="1" selected>Term 1</option>
+                                    <option value="2">Term 2</option>
+                                    <option value="3">Term 3</option>
+                                    <option value="4">Term 4</option>
+                                </select>
+                            </div>
+                            <div class="col-md-auto">
                                 <button type="submit" class="btn btn-success">Upload</button>
                             </div>
                         </form>
+
                         <script>
                             function checkFileSelected() {
                                 const fileInput = document.getElementById("csv_file_input");
