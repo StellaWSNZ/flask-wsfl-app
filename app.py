@@ -238,7 +238,7 @@ def upload():
             return "No file uploaded", 400
 
         df = pd.read_csv(file)
-        df['BirthDate'] = pd.to_datetime(df['BirthDate'], errors='coerce', dayfirst=True).dt.date
+        # df['BirthDate'] = pd.to_datetime(df['BirthDate'], errors='coerce', dayfirst=True).dt.date
 
         if "NSN" not in df.columns:
             return "CSV must contain 'NSN' column", 400
