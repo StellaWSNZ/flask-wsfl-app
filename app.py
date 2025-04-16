@@ -110,7 +110,7 @@ def process_uploaded_csv(df, term, calendaryear):
     competencies = pd.read_sql("EXEC GetRelevantCompetencies ?, ?", conn, params=[calendaryear, term])
     label_map = (
         competencies.assign(
-            label=lambda d: d['CompetencyDesc'].astype(str) + " (" + d['YearGroupDesc'].astype(str) + ")",
+            label=lambda d: d['CompetencyDesc'].astype(str) + "<br>(Years" + d['YearGroupDesc'].astype(str) + ")",
             col_order=lambda d: d['YearGroupID'].astype(str).str.zfill(2) + "-" + d['CompetencyID'].astype(str).str.zfill(4)
         )
         [['CompetencyID', 'YearGroupID', 'label', 'col_order']]
@@ -121,10 +121,17 @@ def process_uploaded_csv(df, term, calendaryear):
 
     for _, row in df.iterrows():
         try:
-            # 🔁 Fully fetch the result BEFORE doing another SQL call
-            cursor.execute("EXEC CheckNSNMatch ?, ?, ?, ?, ?, ?",
-                        row['NSN'], row['FirstName'], row.get('PreferredName', ''),
-                        row['LastName'], row['BirthDate'], row.get('Ethnicity', ''))
+            # Fully fetch the result BEFORE doing another SQL call
+            cursor.execute(
+                "EXEC CheckNSNMatch ?, ?, ?, ?, ?, ?",
+                row['NSN'] or None,
+                row['FirstName'] or None,
+                row.get('PreferredName') or None,
+                row['LastName'] or None,
+                row['BirthDate'] or None,
+                row.get('Ethnicity') or None  # if this is a float column, use float(row.get('Ethnicity', 0)) or None
+            )
+
 
             columns = [desc[0] for desc in cursor.description]
             result = cursor.fetchall()  # This clears the cursor state
@@ -158,7 +165,7 @@ def process_uploaded_csv(df, term, calendaryear):
                         'Ethnicity': result_row.get('Ethnicity'),
                         **comp_row  # Add all competency columns
                     }
-                    
+
                     valid_data.append(full_row)
 
 
