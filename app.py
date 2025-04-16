@@ -264,7 +264,8 @@ def upload():
         file = request.files.get("csv_file")
         if not file:
             return "No file uploaded", 400
-
+        term = int(request.form.get("term", 1))
+        calendaryear = int(request.form.get("year", 2025))  
         df = pd.read_csv(file)
         df['BirthDate'] = pd.to_datetime(df['BirthDate'], errors='coerce', dayfirst=True).dt.date
 
