@@ -163,6 +163,7 @@ def process_uploaded_csv(df, term, calendaryear):
                         'PreferredName': result_row.get('PreferredName'),
                         'BirthDate': result_row.get('BirthDate'),
                         'Ethnicity': result_row.get('Ethnicity'),
+                        'YearLevel': result_row.get('YearLevel'),
                         **comp_row  # Add all competency columns
                     }
 
