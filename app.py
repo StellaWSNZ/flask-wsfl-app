@@ -110,7 +110,7 @@ def process_uploaded_csv(df, term, calendaryear):
     competencies = pd.read_sql("EXEC GetRelevantCompetencies ?, ?", conn, params=[calendaryear, term])
     label_map = (
         competencies.assign(
-            label=lambda d: d['CompetencyDesc'].astype(str) + "<br>(Years" + d['YearGroupDesc'].astype(str) + ")",
+            label=lambda d: d['CompetencyDesc'].astype(str) + "(Years" + d['YearGroupDesc'].astype(str) + ")",
             col_order=lambda d: d['YearGroupID'].astype(str).str.zfill(2) + "-" + d['CompetencyID'].astype(str).str.zfill(4)
         )
         [['CompetencyID', 'YearGroupID', 'label', 'col_order']]
