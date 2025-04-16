@@ -128,7 +128,7 @@ def process_uploaded_csv(df, term, calendaryear):
                 row['FirstName'] or None,
                 row.get('PreferredName') or None,
                 row['LastName'] or None,
-                row['BirthDate'] or None,
+                row['BirthDate'] if pd.notna(row['BirthDate']) else None
                 row.get('Ethnicity') or None  # if this is a float column, use float(row.get('Ethnicity', 0)) or None
             )
 
