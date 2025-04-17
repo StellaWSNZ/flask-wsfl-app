@@ -27,7 +27,7 @@ def get_db_connection():
 @app.route('/')
 def home():
     conn = get_db_connection()
-    provider = pd.read_sql("SELECT DISTINCT Description from Provider", conn)
+    providers = pd.read_sql("SELECT DISTINCT Description from Provider", conn)
     conn.close()
 
     return render_template_string('''
