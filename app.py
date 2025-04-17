@@ -204,7 +204,8 @@ def process_uploaded_csv(df, term, calendaryear):
             errors.append({"NSN": row.get('NSN', None), "Error": str(e)})
 
     conn.close()
-
+    if 'YearLevel' in df_valid.columns:
+        df_valid['YearLevel'] = df_valid['YearLevel'].fillna('').astype(str).str.replace(r'\.0$', '', regex=True)
     df_valid = pd.DataFrame(valid_data)
     df_errors = pd.DataFrame(errors)
 
