@@ -26,6 +26,10 @@ def get_db_connection():
 # 🏠 Home page with NSN search and file upload
 @app.route('/')
 def home():
+    conn = get_db_connection()
+    provider = pd.read_sql("SELECT DISTINCT Description from Provider", conn)
+    conn.close()
+
     return render_template_string('''
         <!DOCTYPE html>
         <html lang="en">
@@ -78,6 +82,15 @@ def home():
                                 </select>
                             </div>
                             <div class="col-md-auto">
+                                 <label for="provider">Search Provider:</label>
+                                <input list="provider-list" id="provider" name="provider" class="form-control">
+                                <datalist id="provider-list">
+                                    {% for name in providers %}
+                                        <option value="{{ name }}">
+                                    {% endfor %}
+                                </datalist>
+                            </div>
+                            <div class="col-md-auto">
                                 <button type="submit" class="btn btn-success">Upload</button>
                             </div>
                         </form>
@@ -97,7 +110,7 @@ def home():
             </div>
         </body>
         </html>
-    ''')
+    ''', providers=providers)
 
 # 🔍 Student lookup
 @app.route('/student')
