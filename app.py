@@ -142,13 +142,15 @@ def process_uploaded_csv(df, term, calendaryear):
         try:
             # Fully fetch the result BEFORE doing another SQL call
             cursor.execute(
-                "EXEC CheckNSNMatch ?, ?, ?, ?, ?, ?",
+                "EXEC CheckNSNMatch ?, ?, ?, ?, ?, ?,?,?",
                 row['NSN'] or None,
                 row['FirstName'] or None,
                 row.get('PreferredName') or None,
                 row['LastName'] or None,
                 row['BirthDate'] if pd.notna(row['BirthDate']) else None,
-                row.get('Ethnicity') or None  # if this is a float column, use float(row.get('Ethnicity', 0)) or None
+                row.get('Ethnicity') or None,  # if this is a float column, use float(row.get('Ethnicity', 0)) or None
+                calendaryear,
+                term
             )
 
 
