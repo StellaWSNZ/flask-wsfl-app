@@ -179,7 +179,7 @@ def process_uploaded_csv(df, term, calendaryear):
             else:
                 # Now it's safe to query again
                  with get_db_connection() as conn2:
-                    comp = pd.read_sql("SELECT * FROM StudentCompetency WHERE NSN = ?", conn2, params=[result_row['NSN']])
+                    comp = pd.read_sql("EXEC GetStudentCompetencyStatus ?, ?, ?", conn2, params=[result_row['NSN'], term, calendaryear])
                     comp = comp.merge(label_map, on=['CompetencyID', 'YearGroupID'], how='inner')
                     comp_row = comp.set_index('label')['CompetencyStatusID'].reindex(labels).fillna(0).astype(int).to_dict()
 
@@ -260,6 +260,9 @@ def process_uploaded_csv(df, term, calendaryear):
 
 @app.route('/upload', methods=['POST'])
 def upload():
+    term = int(request.form.get("term", 1))
+    calendaryear = int(request.form.get("year", 2025))
+
     try:
         file = request.files.get("csv_file")
         if not file:
