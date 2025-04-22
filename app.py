@@ -266,7 +266,7 @@ def process_uploaded_csv(df, term, calendaryear):
         s2 = cols.pop(cols.index("Scenario Two - Selected"))
 
         # Insert at 4th-to-last and 2nd-to-last
-        cols.insert(-3, s1)
+        cols.insert(-4, s1)
 
         cols.insert(-1, s2)
 
