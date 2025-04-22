@@ -247,7 +247,7 @@ def process_uploaded_csv(df, term, calendaryear):
                     comp = pd.read_sql("EXEC GetStudentCompetencyStatus ?, ?, ?", conn2, params=[result_row['NSN'], term, calendaryear])
                     comp = comp.merge(label_map, on=['CompetencyID', 'YearGroupID'], how='inner')
                     comp_row = comp.set_index('label')['CompetencyStatusID'].reindex(labels).fillna(0).astype(int).to_dict()
-                    comp_row['CompetencyStatusID'] = comp_row['CompetencyStatusID'].apply(lambda x: 'Y' if x == 1 else '')
+                    comp_row = {k: ('Y' if v == 1 else '') for k, v in comp_row.items()}
 
                     # Add personal info fields up front
                     full_row = {
@@ -277,54 +277,7 @@ def process_uploaded_csv(df, term, calendaryear):
 
     return df_valid, df_errors
 
-    conn = get_db_connection()
-
-    # Fetch all StudentCompetency records for NSNs
-    query_comp = "SELECT * FROM StudentCompetency WHERE NSN IN ({})".format(
-        ",".join(["?"] * len(nsn_list))
-    )
-    df = pd.read_sql(query_comp, conn, params=nsn_list)
-
-    # Fetch relevant competencies
-    relevant = pd.read_sql(
-        "EXEC GetRelevantCompetencies ?, ?", conn, params=[calendaryear, term]
-    )
-
-    # Merge to filter only relevant combinations
-    merged = df.merge(
-        relevant[['CompetencyID', 'YearGroupID', 'CompetencyDesc', 'YearGroupDesc']],
-        on=['CompetencyID', 'YearGroupID'],
-        how='right'
-    )
-
-    # Add missing NSNs with outer merge
-    nsn_df = pd.DataFrame({'NSN': nsn_list})
-    nsn_df['NSN'] = pd.to_numeric(nsn_df['NSN'], errors='coerce')
-
-    if 'NSN' in merged.columns:
-        merged['NSN'] = pd.to_numeric(merged['NSN'], errors='coerce')
-
-    merged = pd.merge(nsn_df, merged, on='NSN', how='left')
-    merged = merged[merged['NSN'].notna()]
-
-    # Create label column for pivot
-    merged['label'] = merged['CompetencyDesc'].astype(str) + " (" + merged['YearGroupDesc'].astype(str) + ")"
-
-    # Create column sort key
-    merged['col_order'] = merged['YearGroupID'].astype(str).str.zfill(2) + "-" + merged['CompetencyID'].astype(str).str.zfill(4)
-
-    label_order = merged[['label', 'col_order']].drop_duplicates().sort_values('col_order')['label'].tolist()
-
-    # Pivot to wide format
-    wide = merged.pivot(index="NSN", columns="label", values="CompetencyStatusID").fillna(0).astype(int)
-
-    # Reorder columns
-    wide = wide[label_order]
-
-    conn.close()
-    return wide.reset_index()
     
-
 
 
 @app.route('/upload', methods=['POST'])
