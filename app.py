@@ -298,7 +298,7 @@ def process_uploaded_csv(df, term, calendaryear):
         s2 = cols.pop(cols.index("Scenario Two - Selected"))
 
         # Insert at 4th-to-last and 2nd-to-last
-        cols.insert(-4, s2)
+        cols.insert(-1, s2)
         cols.insert(-2, s1)
 
         df_valid = df_valid[cols]
