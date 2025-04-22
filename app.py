@@ -238,7 +238,9 @@ def process_uploaded_csv(df, term, calendaryear):
                     'BirthDate': result_row.get('BirthDate'),
                     'Ethnicity': result_row.get('Ethnicity'),
                     'YearLevel': result_row.get('YearLevel'),
-                    **{label: '' for label in labels}
+                    **{label: '' for label in labels},
+                    "Scenario One - Selected": "",
+                    "Scenario Two - Selected": ""
                 })
             else:
                 # Now it's safe to query again
