@@ -247,6 +247,7 @@ def process_uploaded_csv(df, term, calendaryear):
                     comp = pd.read_sql("EXEC GetStudentCompetencyStatus ?, ?, ?", conn2, params=[result_row['NSN'], term, calendaryear])
                     comp = comp.merge(label_map, on=['CompetencyID', 'YearGroupID'], how='inner')
                     comp_row = comp.set_index('label')['CompetencyStatusID'].reindex(labels).fillna(0).astype(int).to_dict()
+                    comp_row['CompetencyStatusID'] = comp_row['CompetencyStatusID'].apply(lambda x: 'Y' if x == 1 else '')
 
                     # Add personal info fields up front
                     full_row = {
