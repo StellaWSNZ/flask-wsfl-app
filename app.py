@@ -381,13 +381,25 @@ last_error_df = pd.DataFrame()
 
 def process_and_store_results(df, term, calendaryear):
     global last_valid_df, last_error_df
-    processing_status["current"] = 0
-    processing_status["total"] = len(df)
-    processing_status["done"] = False    
-    
-    valid, errors = process_uploaded_csv(df, term, calendaryear)
-    last_valid_df = valid
-    last_error_df = errors
+
+    try:
+        processing_status["current"] = 0
+        processing_status["total"] = len(df)
+        processing_status["done"] = False    
+
+        valid, errors = process_uploaded_csv(df, term, calendaryear)
+        last_valid_df = valid
+        last_error_df = errors
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        last_valid_df = pd.DataFrame()
+        last_error_df = pd.DataFrame([{"Error": str(e)}])
+
+    finally:
+        processing_status["done"] = True
+
 
 @app.route('/progress')
 def get_progress():
