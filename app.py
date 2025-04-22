@@ -1,10 +1,25 @@
-from flask import Flask, request, jsonify, render_template_string
-import pyodbc
-import os
-from dotenv import load_dotenv
-import pandas as pd
-from werkzeug.utils import secure_filename
-import threading
+"""
+📄 Flask App Overview:
+This web app allows users to upload a CSV of student data. It validates each row using stored procedures,
+retrieves matching competency and scenario data, and displays the results (valid/invalid) with a Bootstrap interface.
+
+👩‍🏫 Key Features:
+- Upload CSVs with student NSNs and metadata
+- Async processing with threading to avoid UI delay
+- Uses stored procedures for data integrity (CheckNSNMatch, GetStudentCompetencyStatus)
+- Front-end shows real-time progress bar
+- Displays results in a styled table (valid data and errors)
+"""
+
+
+# Loading required packages
+from flask import Flask, request, jsonify, render_template_string  # Web framework & templating
+import pyodbc         # For ODBC database connection to Azure SQL Server
+import os             # For reading environment variables
+from dotenv import load_dotenv  # Load .env file for credentials
+import pandas as pd   # For reading CSVs and processing tabular data
+from werkzeug.utils import secure_filename  # Safe handling of uploaded filenames
+import threading      # Allows background processing (non-blocking upload handling)
 
 
 processing_status = {
@@ -17,7 +32,8 @@ load_dotenv()
 
 app = Flask(__name__)
 
-# 🔌 Connect using ODBC
+
+# Secure database connection (variables stored in .env and render setup)
 def get_db_connection():
     conn_str = (
         "Driver={ODBC Driver 18 for SQL Server};"
@@ -31,7 +47,11 @@ def get_db_connection():
     )
     return pyodbc.connect(conn_str)
 
-# 🏠 Home page with NSN search and file upload
+# Render home page
+# - CSV file uploader
+# - Year and Term selectors
+# - Provider dropdown populated from the database
+# - JS validation and progress bar logic included 
 @app.route('/')
 def home():
     conn = get_db_connection()
@@ -144,7 +164,17 @@ def home():
         </html>
     ''', providers=provider_names)
 
+# Main logic to process each row from the uploaded CSV:
+# 1. Use `CheckNSNMatch` stored procedure to validate student info.
+# 2. If student is valid:
+#    - Fetch scenario info from StudentScenario
+#    - Fetch competency status using `GetStudentCompetencyStatus`
+#    - Reconstruct row with ordered competency and scenario data
+# 3. If NSN not found, default all competencies to blank and log basic info
+# 4. Catch and store any errors
 
+# Adds scenario columns back in at 2nd-to-last and 4th-to-last positions
+# This maintains a user-friendly column layout in the final table
 def process_uploaded_csv(df, term, calendaryear):
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -267,7 +297,6 @@ def process_uploaded_csv(df, term, calendaryear):
 
         # Insert at 4th-to-last and 2nd-to-last
         cols.insert(-4, s1)
-
         cols.insert(-1, s2)
 
         df_valid = df_valid[cols]
@@ -280,7 +309,10 @@ def process_uploaded_csv(df, term, calendaryear):
 
     
 
-
+# Handles file upload from the form:
+# - Parses CSV and birthdates
+# - Kicks off async processing
+# - Displays dynamic progress page using JS polling to track upload progress
 @app.route('/upload', methods=['POST'])
 def upload():
     global processing_status
@@ -364,6 +396,10 @@ def get_progress():
         "done": processing_status["done"]
     })
 
+# Displays:
+# - Valid records (as a Bootstrap-styled HTML table)
+# - Errors (if any) in a separate table
+# - Includes a back button to return to the homepage
 @app.route('/results')
 def results():
     valid_html = (
