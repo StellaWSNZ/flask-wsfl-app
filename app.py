@@ -52,20 +52,6 @@ def home():
             <div class="container py-5">
                 <h1 class="mb-4 text-center">Student Tools</h1>
 
-                <div class="card mb-4">
-                    <div class="card-header">🔍 Student Lookup</div>
-                    <div class="card-body">
-                        <form action="/student" class="row g-3">
-                            <div class="col-auto">
-                                <input name="nsn" class="form-control" placeholder="Enter NSN">
-                            </div>
-                            <div class="col-auto">
-                                <button type="submit" class="btn btn-primary">Search</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-
                 <div class="card">
                     <div class="card-header">📤 Upload CSV</div>
                     <div class="card-body">
@@ -158,24 +144,6 @@ def home():
         </html>
     ''', providers=provider_names)
 
-# 🔍 Student lookup
-@app.route('/student')
-def get_student():
-    nsn = request.args.get("nsn")
-    if not nsn:
-        return jsonify({"error": "Missing NSN"}), 400
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM Student WHERE NSN = ?", (nsn,))
-        columns = [col[0] for col in cursor.description]
-        rows = cursor.fetchall()
-        conn.close()
-        return jsonify([dict(zip(columns, row)) for row in rows])
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
 
 def process_uploaded_csv(df, term, calendaryear):
     conn = get_db_connection()
