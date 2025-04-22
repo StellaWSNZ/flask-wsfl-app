@@ -28,6 +28,8 @@ def get_db_connection():
 def home():
     conn = get_db_connection()
     providers = pd.read_sql("SELECT DISTINCT Description from Provider", conn)
+    provider_names = providers['Description'].dropna().tolist()
+
     conn.close()
 
     return render_template_string('''
@@ -110,7 +112,7 @@ def home():
             </div>
         </body>
         </html>
-    ''', providers=providers)
+    ''', providers=provider_names)
 
 # 🔍 Student lookup
 @app.route('/student')
