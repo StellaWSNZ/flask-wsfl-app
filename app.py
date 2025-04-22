@@ -290,6 +290,18 @@ def process_uploaded_csv(df, term, calendaryear):
     conn.close()
    
     df_valid = pd.DataFrame(valid_data)
+    if not df_valid.empty:
+        cols = df_valid.columns.tolist()
+        
+        # Remove scenario columns temporarily
+        s1 = cols.pop(cols.index("Scenario One - Selected"))
+        s2 = cols.pop(cols.index("Scenario Two - Selected"))
+
+        # Insert at 4th-to-last and 2nd-to-last
+        cols.insert(-4, s2)
+        cols.insert(-2, s1)
+
+        df_valid = df_valid[cols]
     if 'YearLevel' in df_valid.columns:
         df_valid['YearLevel'] = df_valid['YearLevel'].fillna('').astype(str).str.replace(r'\.0$', '', regex=True)
     df_errors = pd.DataFrame(errors)
