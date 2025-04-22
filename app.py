@@ -4,6 +4,14 @@ import os
 from dotenv import load_dotenv
 import pandas as pd
 from werkzeug.utils import secure_filename
+import threading
+
+
+processing_status = {
+    "current": 0,
+    "total": 0,
+    "done": False
+}
 
 load_dotenv()
 
@@ -84,7 +92,7 @@ def home():
                                 </select>
                             </div>
                             <div class="col-md-auto">
-                                <label for="provider">Search Provider:</label>
+                                <label for="provider"  class="form-label">Search Provider:</label>
                                 <select id="provider" name="provider" class="form-select">
                                     {% for name in providers %}
                                         <option value="{{ name }}">{{ name }}</option>
@@ -107,9 +115,46 @@ def home():
                             }
                         </script>
                     </div>
+                    <div class="progress w-100 mt-3" id="uploadProgress" style="display:none;">
+                        <div id="progressBar" class="progress-bar" role="progressbar" 
+                            style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                            0%
+                    </div>
+                    </div>
                 </div>
             </div>
         </body>
+                                  <script>
+  function checkFileSelected() {
+    const fileInput = document.getElementById("csv_file_input");
+    if (!fileInput.value) {
+      alert("Please select a CSV file to upload.");
+      return false;
+    }
+
+    // Show progress bar
+    document.getElementById("uploadProgress").style.display = "block";
+
+    // Start polling progress
+    const interval = setInterval(() => {
+      fetch("/progress")
+        .then(response => response.json())
+        .then(data => {
+          const percent = Math.floor((data.current / data.total) * 100);
+          const bar = document.getElementById("progressBar");
+          bar.style.width = percent + "%";
+          bar.innerText = percent + "%";
+          bar.setAttribute("aria-valuenow", percent);
+          if (data.done) {
+            clearInterval(interval);
+          }
+        });
+    }, 500); // poll every 0.5 seconds
+
+    return true;
+  }
+</script>
+
         </html>
     ''', providers=provider_names)
 
@@ -135,7 +180,9 @@ def get_student():
 def process_uploaded_csv(df, term, calendaryear):
     conn = get_db_connection()
     cursor = conn.cursor()
-
+    processing_status["current"] = 0
+    processing_status["total"] = len(df)
+    processing_status["done"] = False
     errors = []
     valid_data = []
 
@@ -153,6 +200,8 @@ def process_uploaded_csv(df, term, calendaryear):
     labels = label_map['label'].tolist()
 
     for _, row in df.iterrows():
+        processing_status["current"] += 1
+
         try:
             # Fully fetch the result BEFORE doing another SQL call
             cursor.execute(
@@ -223,6 +272,7 @@ def process_uploaded_csv(df, term, calendaryear):
     if 'YearLevel' in df_valid.columns:
         df_valid['YearLevel'] = df_valid['YearLevel'].fillna('').astype(str).str.replace(r'\.0$', '', regex=True)
     df_errors = pd.DataFrame(errors)
+    processing_status["done"] = True
 
     return df_valid, df_errors
 
@@ -278,62 +328,119 @@ def process_uploaded_csv(df, term, calendaryear):
 
 @app.route('/upload', methods=['POST'])
 def upload():
+    global processing_status
     term = int(request.form.get("term", 1))
-    calendaryear = int(request.form.get("year", 2025))
+    calendaryear = int(request.form.get("year", 2025))  
 
     try:
         file = request.files.get("csv_file")
         if not file:
             return "No file uploaded", 400
-        term = int(request.form.get("term", 1))
-        calendaryear = int(request.form.get("year", 2025))  
+
         df = pd.read_csv(file)
         df['BirthDate'] = pd.to_datetime(df['BirthDate'], errors='coerce', dayfirst=True).dt.date
 
         if "NSN" not in df.columns:
             return "CSV must contain 'NSN' column", 400
 
-        term = 1
-        calendaryear = 2025
+        # Start processing in a separate thread
+        thread = threading.Thread(target=process_and_store_results, args=(df, term, calendaryear))
+        thread.start()
 
-        df_valid, df_errors = process_uploaded_csv(df, term, calendaryear)
-
-        valid_html = (
-            df_valid.to_html(classes="table table-bordered table-sm", index=False, escape =False)
-            if not df_valid.empty else "<p class='text-muted'>No valid records found.</p>"
-        )
-
-        error_html = (
-            df_errors.to_html(classes="table table-bordered table-sm text-danger", index=False)
-            if not df_errors.empty else "<p class='text-success'>No errors found.</p>"
-        )
-
-        return render_template_string(f'''
+        # Immediately show progress page
+        return render_template_string('''
             <!DOCTYPE html>
             <html>
             <head>
                 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-                <title>Upload Results</title>
+                <title>Processing CSV...</title>
             </head>
             <body class="bg-light">
                 <div class="container py-5">
-                    <h2 class="mb-4">✅ Valid Records</h2>
-                    {valid_html}
-
-                    <h2 class="mt-5 text-danger">⚠️ Errors</h2>
-                    {error_html}
-
-                    <a class="btn btn-secondary mt-4" href="/">← Back</a>
+                    <h2>⏳ Processing your file...</h2>
+                    <div class="progress w-100 mt-3" id="uploadProgress">
+                        <div id="progressBar" class="progress-bar" role="progressbar" 
+                            style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                    </div>
+                    <script>
+                        const interval = setInterval(() => {
+                            fetch("/progress")
+                              .then(response => response.json())
+                              .then(data => {
+                                const percent = Math.floor((data.current / data.total) * 100);
+                                const bar = document.getElementById("progressBar");
+                                bar.style.width = percent + "%";
+                                bar.innerText = percent + "%";
+                                bar.setAttribute("aria-valuenow", percent);
+                                if (data.done) {
+                                  clearInterval(interval);
+                                  window.location.href = "/results";  // redirect to results
+                                }
+                              });
+                        }, 500);
+                    </script>
                 </div>
             </body>
             </html>
         ''')
-
     except Exception as e:
         import traceback
         traceback.print_exc()
         return f"Upload failed: {e}", 500
 
+last_valid_df = pd.DataFrame()
+last_error_df = pd.DataFrame()
+
+def process_and_store_results(df, term, calendaryear):
+    global last_valid_df, last_error_df
+    processing_status["current"] = 0
+    processing_status["total"] = len(df)
+    processing_status["done"] = False    
+    
+    valid, errors = process_uploaded_csv(df, term, calendaryear)
+    last_valid_df = valid
+    last_error_df = errors
+
+@app.route('/progress')
+def get_progress():
+    return jsonify({
+        "current": processing_status["current"],
+        "total": processing_status["total"],
+        "done": processing_status["done"]
+    })
+
+@app.route('/results')
+def results():
+    valid_html = (
+        last_valid_df.to_html(classes="table table-bordered table-sm", index=False, escape=False)
+        if not last_valid_df.empty else "<p class='text-muted'>No valid records found.</p>"
+    )
+
+    error_html = (
+        last_error_df.to_html(classes="table table-bordered table-sm text-danger", index=False)
+        if not last_error_df.empty else "<p class='text-success'>No errors found.</p>"
+    )
+
+    return render_template_string(f'''
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+            <title>Upload Results</title>
+        </head>
+        <body class="bg-light">
+            <div class="container py-5">
+                <h2 class="mb-4">✅ Valid Records</h2>
+                {valid_html}
+
+                <h2 class="mt-5 text-danger">⚠️ Errors</h2>
+                {error_html}
+
+                <a class="btn btn-secondary mt-4" href="/">← Back</a>
+            </div>
+        </body>
+        </html>
+    ''')
 
 # 🏃 Run app
 if __name__ == '__main__':
