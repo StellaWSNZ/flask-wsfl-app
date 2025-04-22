@@ -211,7 +211,7 @@ def process_uploaded_csv(df, term, calendaryear):
                 row.get('PreferredName') or None,
                 row['LastName'] or None,
                 row['BirthDate'] if pd.notna(row['BirthDate']) else None,
-                row.get('Ethnicity') or None,  # if this is a float column, use float(row.get('Ethnicity', 0)) or None
+                row.get('Ethnicity') or None, 
                 calendaryear,
                 term
             )
@@ -244,10 +244,29 @@ def process_uploaded_csv(df, term, calendaryear):
             else:
                 # Now it's safe to query again
                  with get_db_connection() as conn2:
+
+                    # Fetch scenario selections
+                    scenario_query = pd.read_sql(
+                        "SELECT ScenarioIndex, ScenarioID FROM StudentScenario WHERE NSN = ?", 
+                        conn2, 
+                        params=[result_row['NSN']]
+                    )
+
+                    # Initialize empty scenario fields
+                    scenario_data = {"Scenario One - Selected": "", "Scenario Two - Selected": ""}
+
+                    if not scenario_query.empty:
+                        for _, srow in scenario_query.iterrows():
+                            if srow['ScenarioIndex'] == 1:
+                                scenario_data["Scenario One - Selected"] = srow['ScenarioID']
+                            elif srow['ScenarioIndex'] == 2:
+                                scenario_data["Scenario Two - Selected"] = srow['ScenarioID']
+
                     comp = pd.read_sql("EXEC GetStudentCompetencyStatus ?, ?, ?", conn2, params=[result_row['NSN'], term, calendaryear])
                     comp = comp.merge(label_map, on=['CompetencyID', 'YearGroupID'], how='inner')
                     comp_row = comp.set_index('label')['CompetencyStatusID'].reindex(labels).fillna(0).astype(int).to_dict()
                     comp_row = {k: ('Y' if v == 1 else '') for k, v in comp_row.items()}
+
 
                     # Add personal info fields up front
                     full_row = {
@@ -258,7 +277,8 @@ def process_uploaded_csv(df, term, calendaryear):
                         'BirthDate': result_row.get('BirthDate'),
                         'Ethnicity': result_row.get('Ethnicity'),
                         'YearLevel': result_row.get('YearLevel'),
-                        **comp_row  # Add all competency columns
+                        **comp_row,  # Add all competency columns
+                        **scenario_data
                     }
 
                     valid_data.append(full_row)
