@@ -248,7 +248,7 @@ def process_uploaded_csv(df, term, calendaryear):
 
                     # Fetch scenario selections
                     scenario_query = pd.read_sql(
-                        "EXEC FlaskHelperFunctions ?", 
+                        "EXEC FlaskHelperFunctions ?,?", 
                         conn2, 
                         params=['StudentScenario',result_row['NSN']]
                     )
