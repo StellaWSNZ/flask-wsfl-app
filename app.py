@@ -239,7 +239,7 @@ def process_uploaded_csv(df, term, calendaryear):
                     'BirthDate': result_row.get('BirthDate'),
                     'Ethnicity': result_row.get('Ethnicity'),
                     'YearLevel': result_row.get('YearLevel'),
-                    **{label: 0 for label in labels}
+                    **{label: '' for label in labels}
                 })
             else:
                 # Now it's safe to query again
