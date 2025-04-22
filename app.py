@@ -1,9 +1,9 @@
 """
-📄 Flask App Overview:
+Flask App Overview:
 This web app allows users to upload a CSV of student data. It validates each row using stored procedures,
 retrieves matching competency and scenario data, and displays the results (valid/invalid) with a Bootstrap interface.
 
-👩‍🏫 Key Features:
+Key Features:
 - Upload CSVs with student NSNs and metadata
 - Async processing with threading to avoid UI delay
 - Uses stored procedures for data integrity (CheckNSNMatch, GetStudentCompetencyStatus)
@@ -55,7 +55,8 @@ def get_db_connection():
 @app.route('/')
 def home():
     conn = get_db_connection()
-    providers = pd.read_sql("SELECT DISTINCT Description from Provider", conn)
+
+    providers = pd.read_sql("EXEC FlaskHelperFunctions ?", conn, params=['ProviderDropdown'])
     provider_names = providers['Description'].dropna().tolist()
 
     conn.close()
@@ -245,9 +246,9 @@ def process_uploaded_csv(df, term, calendaryear):
 
                     # Fetch scenario selections
                     scenario_query = pd.read_sql(
-                        "SELECT ScenarioIndex, ScenarioID FROM StudentScenario WHERE NSN = ?", 
+                        "EXEC FlaskHelperFunctions ?", 
                         conn2, 
-                        params=[result_row['NSN']]
+                        params=['StudentScenario',result_row['NSN']]
                     )
 
                     # Initialize empty scenario fields
