@@ -299,7 +299,7 @@ def process_uploaded_csv(df, term, calendaryear):
 
         # Insert at 4th-to-last and 2nd-to-last
         cols.insert(-1, s2)
-        cols.insert(-2, s1)
+        cols.insert(-3, s1)
 
         df_valid = df_valid[cols]
     if 'YearLevel' in df_valid.columns:
