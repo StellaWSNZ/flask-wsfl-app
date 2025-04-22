@@ -84,13 +84,12 @@ def home():
                                 </select>
                             </div>
                             <div class="col-md-auto">
-                                 <label for="provider">Search Provider:</label>
-                                <input list="provider-list" id="provider" name="provider" class="form-control">
-                                <datalist id="provider-list">
+                                <label for="provider">Search Provider:</label>
+                                <select id="provider" name="provider" class="form-select">
                                     {% for name in providers %}
-                                        <option value="{{ name }}">
+                                        <option value="{{ name }}">{{ name }}</option>
                                     {% endfor %}
-                                </datalist>
+                                </select>
                             </div>
                             <div class="col-md-auto">
                                 <button type="submit" class="btn btn-success">Upload</button>
