@@ -293,13 +293,16 @@ def process_uploaded_csv(df, term, calendaryear):
     df_valid = pd.DataFrame(valid_data)
     if not df_valid.empty:
         cols = df_valid.columns.tolist()
-        
+        for col in ["Scenario One - Selected", "Scenario Two - Selected"]:
+            if col in df_valid.columns:
+                df_valid[col] = df_valid[col].replace(0, '')
+
         # Remove scenario columns temporarily
         s1 = cols.pop(cols.index("Scenario One - Selected"))
         s2 = cols.pop(cols.index("Scenario Two - Selected"))
 
         # Insert at 4th-to-last and 2nd-to-last
-        cols.insert(-4, s1)
+        cols.insert(-2, s1)
         cols.insert(-1, s2)
 
         df_valid = df_valid[cols]
