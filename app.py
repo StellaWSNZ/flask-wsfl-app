@@ -464,7 +464,6 @@ def download_excel():
             last_valid_df.to_excel(writer, index=False, sheet_name='Competency Report')
         if not last_error_df.empty:
             last_error_df.to_excel(writer, index=False, sheet_name='Errors')
-        writer.save()
 
     output.seek(0)
     return send_file(
