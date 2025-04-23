@@ -461,7 +461,56 @@ def download_excel():
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
         if not last_valid_df.empty:
-            last_valid_df.to_excel(writer, index=False, sheet_name='Competency Report')
+            last_valid_df.to_excel(writer, index=False, header=False, sheet_name='Competency Report', startrow= 11)
+            worksheet = writer.sheets['Competency Report']
+            workbook = writer.book
+
+            # Create standard header format
+            header_format = workbook.add_format({
+                'bold': True,
+                'align': 'center',
+                'valign': 'bottom',
+                'border': 0
+            })
+
+            for col_idx, col in enumerate(last_valid_df.columns):
+                if "<br>" in col:
+                    desc, year = col.split("<br>")
+                    desc = desc.strip()
+                    year = year.strip(" ()")
+                    worksheet.write(9, col_idx, desc, header_format)  # row 9
+                    worksheet.write(10, col_idx, year, header_format)  # row 10
+                else:
+                    worksheet.write(9, col_idx, "", header_format)    # row 9
+                    worksheet.write(10, col_idx, col, header_format)   # row 10
+
+            worksheet.freeze_panes(11, 0)
+            downward_format = workbook.add_format({
+                'text_wrap': True,
+                'rotation': 90,  # rotate downward
+                'align': 'center',
+                'valign': 'middle',
+                'bold': True,
+                'border': 0
+            })
+
+            # Merge each column from row 1 to 10 (index 0 to 9)
+            for col_idx in range(7, len(last_valid_df.columns) - 4):
+                col_name = last_valid_df.columns[col_idx]
+                header_val = col_name.split("<br>")[0].strip()
+
+                # Merge from row 0 to 9 in this column
+                worksheet.merge_range(0, col_idx, 9, col_idx, header_val, downward_format)
+
+            for col_idx in range(len(last_valid_df.columns) - 4, len(last_valid_df.columns)):
+                col_name = last_valid_df.columns[col_idx]
+                header_val = col_name.split("<br>")[0].strip()
+
+                # Merge from row 0 to 9 in this column
+                worksheet.merge_range(0, col_idx, 9, col_idx, header_val, downward_format)
+            worksheet.set_row(1, 143.6) 
+            worksheet.set_column(0,5,20)
+            
         if not last_error_df.empty:
             last_error_df.to_excel(writer, index=False, sheet_name='Errors')
 
@@ -472,6 +521,7 @@ def download_excel():
         as_attachment=True,
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
+
 
 # 🏃 Run app
 if __name__ == '__main__':
