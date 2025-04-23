@@ -13,14 +13,14 @@ Key Features:
 
 
 # Loading required packages
-from flask import Flask, request, jsonify, render_template_string  # Web framework & templating
+from flask import Flask, request, jsonify, render_template_string, send_file # Web framework & templating
 import pyodbc         # For ODBC database connection to Azure SQL Server
 import os             # For reading environment variables
 from dotenv import load_dotenv  # Load .env file for credentials
 import pandas as pd   # For reading CSVs and processing tabular data
 from werkzeug.utils import secure_filename  # Safe handling of uploaded filenames
 import threading      # Allows background processing (non-blocking upload handling)
-
+import io 
 
 processing_status = {
     "current": 0,
@@ -446,10 +446,33 @@ def results():
                 {error_html}
 
                 <a class="btn btn-secondary mt-4" href="/">← Back</a>
+                <a class="btn btn-primary mt-4" href="/download_excel">⬇️ Download Excel</a>
+
             </div>
         </body>
         </html>
     ''')
+
+@app.route('/download_excel')
+def download_excel():
+    if last_valid_df.empty and last_error_df.empty:
+        return "No data to export", 400
+
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        if not last_valid_df.empty:
+            last_valid_df.to_excel(writer, index=False, sheet_name='Competency Report')
+        if not last_error_df.empty:
+            last_error_df.to_excel(writer, index=False, sheet_name='Errors')
+        writer.save()
+
+    output.seek(0)
+    return send_file(
+        output,
+        download_name="student_upload_results.xlsx",
+        as_attachment=True,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
 
 # 🏃 Run app
 if __name__ == '__main__':
