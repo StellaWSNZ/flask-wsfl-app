@@ -507,7 +507,7 @@ def download_excel():
                 header_val = col_name.split("<br>")[0].strip()
 
                 # Merge from row 0 to 9 in this column
-                worksheet.merge_range(0, col_idx, 9, col_idx, header_val, downward_format)
+                worksheet.merge_range(4, col_idx, 9, col_idx, header_val, downward_format)
             worksheet.set_row(1, 143.6) 
             worksheet.set_column(0,5,20)
             
