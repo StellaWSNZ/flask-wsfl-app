@@ -27,7 +27,8 @@ processing_status = {
     "total": 0,
     "done": False
 }
-
+term = None
+calenderyear = None
 load_dotenv()
 
 app = Flask(__name__)
@@ -322,6 +323,7 @@ def process_uploaded_csv(df, term, calendaryear):
 @app.route('/upload', methods=['POST'])
 def upload():
     global processing_status
+    global term, calendaryear
     term = int(request.form.get("term", 1))
     calendaryear = int(request.form.get("year", 2025))  
 
@@ -508,10 +510,35 @@ def download_excel():
 
                 # Merge from row 0 to 9 in this column
                 worksheet.merge_range(2, col_idx, 9, col_idx, header_val, downward_format)
-            worksheet.set_row(0, 143.6) 
-            worksheet.set_column(0,5,20)
-            worksheet.insert_image('A1', 'DarkLogo.png')
+            worksheet.set_row(0, 70) 
+            worksheet.set_column(0,5,15)
+            worksheet.insert_image('A1', 'DarkLogo.png', {
+                'x_scale': 0.2,  # Scale width to 50%
+                'y_scale': 0.2   # Scale height to 50%
+            })
 
+            # Define formats
+            label_bold = workbook.add_format({'bold': True})
+            label_normal = workbook.add_format({})  # fallback if needed
+
+            # Define data
+            school_info = [
+                (5, 0, 'School Name:', 'NAME'),
+                (6, 0, 'MOE Number:', 'NUMBER'),
+                (7, 0, 'Calendar Year:', calendaryear)
+            ]
+
+            teacher_info = [
+                (5, 3, 'Teacher Name:', 'NAME'),
+                (6, 3, 'Class Name:', 'NUMBER'),
+                (7, 3, 'School Term:', term)
+            ]
+
+            # Write cells
+            for row, col, label, value in school_info + teacher_info:
+                fmt = label_bold if label.endswith(':') else label_normal
+                worksheet.write(row, col, label, fmt)
+                worksheet.write(row, col + 1, value)
         if not last_error_df.empty:
             last_error_df.to_excel(writer, index=False, sheet_name='Errors')
 
