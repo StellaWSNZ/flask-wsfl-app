@@ -510,7 +510,8 @@ def download_excel():
                 worksheet.merge_range(2, col_idx, 9, col_idx, header_val, downward_format)
             worksheet.set_row(0, 143.6) 
             worksheet.set_column(0,5,20)
-            
+            worksheet.insert_image('A1', 'DarkLogo.png')
+
         if not last_error_df.empty:
             last_error_df.to_excel(writer, index=False, sheet_name='Errors')
 
