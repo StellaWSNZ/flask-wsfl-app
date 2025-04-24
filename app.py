@@ -495,11 +495,9 @@ def download_excel():
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
         if not last_valid_df.empty:
-            last_valid_df.to_excel(writer, index=False, header=False, sheet_name='Competency Report', startrow= 11)
+            last_valid_df.to_excel(writer, index=False, header=True, sheet_name='Competency Report', startrow= 9, )
             worksheet = writer.sheets['Competency Report']
             workbook = writer.book
-
-            # Create standard header format
             header_format = workbook.add_format({
                 'bold': True,
                 'align': 'center',
@@ -507,23 +505,28 @@ def download_excel():
                 'border': 0
             })
 
+            # Write column headers on row 9 (1-based Excel index)
+            for col_num, col_name in enumerate(last_valid_df.columns):
+                worksheet.write(9, col_num, col_name, header_format)
+
+
             for col_idx, col in enumerate(last_valid_df.columns):
                 if "<br>" in col:
                     desc, year = col.split("<br>")
                     desc = desc.strip()
                     year = year.strip(" ()")
                     
-                    worksheet.write(9, col_idx, desc, header_format)  # row 9
-                    worksheet.write(10, col_idx, year, header_format)  # row 10
+                    worksheet.write(8, col_idx, desc, header_format)  # row 9
+                    worksheet.write(9, col_idx, year, header_format)  # row 10
                 else:
-                    worksheet.write(9, col_idx, col, header_format)    # row 9
+                    worksheet.write(8, col_idx, col, header_format)    # row 9
                     if "Scenario" in col:
-                        worksheet.write(10, col_idx, "7-8", header_format)  # row 10
+                        worksheet.write(9, col_idx, "7-8", header_format)  # row 10
                     else:
-                        worksheet.write(10, col_idx, "", header_format)  # row 10
+                        worksheet.write(8, col_idx, "", header_format)  # row 10
 
 
-            worksheet.freeze_panes(11, 0)
+            worksheet.freeze_panes(10, 0)
             downward_format = workbook.add_format({
                 'text_wrap': True,
                 'rotation': 90,  # rotate downward
@@ -539,14 +542,14 @@ def download_excel():
                 header_val = col_name.split("<br>")[0].strip()
 
                 # Merge from row 0 to 9 in this column
-                worksheet.merge_range(0, col_idx, 9, col_idx, header_val, downward_format)
+                worksheet.merge_range(0, col_idx, 8, col_idx, header_val, downward_format)
 
             for col_idx in range(len(last_valid_df.columns) - 4, len(last_valid_df.columns)):
                 col_name = last_valid_df.columns[col_idx]
                 header_val = col_name.split("<br>")[0].strip()
 
                 # Merge from row 0 to 9 in this column
-                worksheet.merge_range(3, col_idx, 9, col_idx, header_val, downward_format)
+                worksheet.merge_range(3, col_idx, 8, col_idx, header_val, downward_format)
             col_start = len(last_valid_df.columns) - 4
             col_end = len(last_valid_df.columns) - 1
 
