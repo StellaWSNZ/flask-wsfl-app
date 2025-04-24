@@ -512,11 +512,16 @@ def download_excel():
                     desc, year = col.split("<br>")
                     desc = desc.strip()
                     year = year.strip(" ()")
+                    
                     worksheet.write(9, col_idx, desc, header_format)  # row 9
                     worksheet.write(10, col_idx, year, header_format)  # row 10
                 else:
-                    worksheet.write(9, col_idx, "", header_format)    # row 9
-                    worksheet.write(10, col_idx, col, header_format)   # row 10
+                    worksheet.write(9, col_idx, col, header_format)    # row 9
+                    if "Scenario" in col:
+                        worksheet.write(10, col_idx, "7-8", header_format)  # row 10
+                    else:
+                        worksheet.write(10, col_idx, "", header_format)  # row 10
+
 
             worksheet.freeze_panes(11, 0)
             downward_format = workbook.add_format({
@@ -541,7 +546,19 @@ def download_excel():
                 header_val = col_name.split("<br>")[0].strip()
 
                 # Merge from row 0 to 9 in this column
-                worksheet.merge_range(2, col_idx, 9, col_idx, header_val, downward_format)
+                worksheet.merge_range(3, col_idx, 9, col_idx, header_val, downward_format)
+            col_start = len(last_valid_df.columns) - 4
+            col_end = len(last_valid_df.columns) - 1
+
+            worksheet.merge_range(0, col_start, 2, col_end,
+                                'Demonstrate use of multiple skills to respond to two different scenarios',
+                                workbook.add_format({
+                'bold': True,
+                'align': 'center',
+                'valign': 'bottom',
+                'text_wrap': True,
+                'border': 0
+            }))
             worksheet.set_row(0, 70) 
             worksheet.set_column(0,5,15)
             worksheet.insert_image('A1', 'DarkLogo.png', {
