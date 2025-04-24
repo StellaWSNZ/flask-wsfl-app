@@ -617,7 +617,8 @@ def download_excel():
     output.seek(0)
     return send_file(
         output,
-        download_name=school_name + "_"+term+ "_"+calendaryear+".xlsx",
+        download_name = school_name + "_Term" + str(term) + "_" + str(calendaryear) + ".xlsx"
+,
         as_attachment=True,
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
