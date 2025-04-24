@@ -492,8 +492,11 @@ def download_excel():
     if last_valid_df.empty and last_error_df.empty:
         return "No data to export", 400
 
+
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+
+        
         if not last_valid_df.empty:
             last_valid_df.to_excel(writer, index=False, header=True, sheet_name='Competency Report', startrow= 9, )
             worksheet = writer.sheets['Competency Report']
@@ -504,7 +507,7 @@ def download_excel():
                 'valign': 'bottom',
                 'border': 0
             })
-
+            
             # Write column headers on row 9 (1-based Excel index)
             for col_num, col_name in enumerate(last_valid_df.columns):
                 worksheet.write(9, col_num, col_name, header_format)
@@ -592,12 +595,29 @@ def download_excel():
                 worksheet.write(row, col, label, fmt)
                 worksheet.write(row, col + 1, value)
         if not last_error_df.empty:
-            last_error_df.to_excel(writer, index=False, sheet_name='Errors')
+            last_error_df.to_excel(writer, sheet_name='Errors', startrow=1, index=False, header=False)
+            worksheet_errors = writer.sheets['Errors']
+
+            # Define a custom format for headers
+            header_format_errors = workbook.add_format({
+                'bold': True,
+                'align': 'center',
+                'valign': 'bottom',
+                'text_wrap': True,
+                'border': 0  # 👈 no black outline
+            })
+
+            # Manually write headers in row 0
+            for col_num, col_name in enumerate(last_error_df.columns):
+                worksheet_errors.write(0, col_num, col_name, header_format_errors)
+            worksheet_errors.set_column(0,5,15)
+            worksheet_errors.set_column(6,6,50)
+
 
     output.seek(0)
     return send_file(
         output,
-        download_name="student_upload_results.xlsx",
+        download_name=school_name + "_"+term+ "_"+calendaryear+".xlsx",
         as_attachment=True,
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
