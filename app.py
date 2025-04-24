@@ -27,8 +27,12 @@ processing_status = {
     "total": 0,
     "done": False
 }
-term = None
-calenderyear = None
+
+school_name = None
+moe_number = None
+teacher_name = None
+class_name = None
+
 load_dotenv()
 
 app = Flask(__name__)
@@ -59,7 +63,8 @@ def home():
 
     providers = pd.read_sql("EXEC FlaskHelperFunctions ?", conn, params=['ProviderDropdown'])
     provider_names = providers['Description'].dropna().tolist()
-
+    schools = pd  .read_sql("EXEC FlaskHelperFunctions ?", conn, params=['SchoolDropdown'])
+    school_names = schools['School'].dropna().tolist()
     conn.close()
 
     return render_template_string('''
@@ -106,6 +111,24 @@ def home():
                                         <option value="{{ name }}">{{ name }}</option>
                                     {% endfor %}
                                 </select>
+                            </div>
+                             <div class="col-md-auto">
+                                <label for="teacher_name" class="form-label">Teacher Name</label>
+                                <input type="text" class="form-control" id="teacher_name" name="teacher_name" placeholder="Enter teacher name">
+                            </div>
+
+                            <div class="col-md-auto">
+                                <label for="class_name" class="form-label">Class Name</label>
+                                <input type="text" class="form-control" id="class_name" name="class_name" placeholder="Enter class name">
+                            </div>     
+                            <div class="col-md-auto">
+                                <label for="school"  class="form-label">Search School:</label>
+                                <select id="school" name="school" class="form-select">
+                                    {% for name in schools %}
+                                        <option value="{{ name }}">{{ name }}</option>
+                                    {% endfor %}
+                                </select>
+
                             </div>
                             <div class="col-md-auto">
                                 <button type="submit" class="btn btn-success">Upload</button>
@@ -164,7 +187,7 @@ def home():
 </script>
 
         </html>
-    ''', providers=provider_names)
+    ''', providers=provider_names,  schools=school_names)
 
 # Main logic to process each row from the uploaded CSV:
 # 1. Use `CheckNSNMatch` stored procedure to validate student info.
@@ -322,10 +345,19 @@ def process_uploaded_csv(df, term, calendaryear):
 # - Displays dynamic progress page using JS polling to track upload progress
 @app.route('/upload', methods=['POST'])
 def upload():
-    global processing_status
-    global term, calendaryear
+    global processing_status, term, calendaryear
+    global school_name, moe_number, teacher_name, class_name
     term = int(request.form.get("term", 1))
-    calendaryear = int(request.form.get("year", 2025))  
+    calendaryear = int(request.form.get("year", 2025))
+    school_name = request.form.get("school", "")
+    teacher_name = request.form.get("teacher_name", "")
+    class_name = request.form.get("class_name", "")
+
+    # Extract MOENumber from school string if in format "SchoolName (MOENumber)"
+    import re
+    match = re.match(r"^(.*?)\s+\((\d+)\)$", school_name)
+    if match:
+        school_name, moe_number = match.groups()  
 
     try:
         file = request.files.get("csv_file")
@@ -523,14 +555,14 @@ def download_excel():
 
             # Define data
             school_info = [
-                (5, 0, 'School Name:', 'NAME'),
-                (6, 0, 'MOE Number:', 'NUMBER'),
+                (5, 0, 'School Name:', school_name),
+                (6, 0, 'MOE Number:', moe_number),
                 (7, 0, 'Calendar Year:', calendaryear)
             ]
 
             teacher_info = [
-                (5, 3, 'Teacher Name:', 'NAME'),
-                (6, 3, 'Class Name:', 'NUMBER'),
+                (5, 3, 'Teacher Name:', teacher_name),
+                (6, 3, 'Class Name:', class_name),
                 (7, 3, 'School Term:', term)
             ]
 
