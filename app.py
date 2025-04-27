@@ -85,11 +85,11 @@ def home():
                        <form action="/upload" method="post" enctype="multipart/form-data" class="row g-3 align-items-end" onsubmit="return checkFileSelected()">
                             <div class="col-md-auto">
                                 <label for="csv_file_input" class="form-label">CSV File</label>
-                                <input type="file" name="csv_file" class="form-control" accept=".csv" id="csv_file_input">
+                                <input type="file" name="csv_file" class="form-control" accept=".csv" id="csv_file_input" required>
                             </div>
                             <div class="col-md-auto">
                                 <label for="year_input" class="form-label">Year</label>
-                                <select name="year" class="form-select" id="year_input">
+                                <select name="year" class="form-select" id="year_input" required>
                                     {% for y in range(2023, 2026) %}
                                         <option value="{{ y }}" {% if y == 2025 %}selected{% endif %}>{{ y }}</option>
                                     {% endfor %}
@@ -97,7 +97,7 @@ def home():
                             </div>
                             <div class="col-md-auto">
                                 <label for="term_input" class="form-label">Term</label>
-                                <select name="term" class="form-select" id="term_input">
+                                <select name="term" class="form-select" id="term_input" required>
                                     <option value="1" selected>Term 1</option>
                                     <option value="2">Term 2</option>
                                     <option value="3">Term 3</option>
@@ -105,8 +105,10 @@ def home():
                                 </select>
                             </div>
                             <div class="col-md-auto">
-                                <label for="provider" class="form-label">Provider:</label>
+                                <label for="provider" class="form-label">Provider:</label required>
                                 <select id="provider" class="form-select" name="provider" onchange="loadSchools()">
+                                <option disabled selected value></option>
+
                                 {% for name in providers %}
                                     <option value="{{ name }}">{{ name }}</option>
                                 {% endfor %}
@@ -124,7 +126,7 @@ def home():
                             <div class="col-md-auto">
                                 
                                 <label for="school" class="form-label">School:</label>
-                                <select id="school" class="form-select" name="school">
+                                <select id="school" class="form-select" name="school" required>
                                 <option value="">Select a school</option>
                                 </select>
 
@@ -518,7 +520,7 @@ def results():
 
 @app.route('/get_schools')
 def get_schools():
-    provider = request.args.get('provider')  # Read ?provider=Aktive
+    provider = request.args.get('provider')  
 
     if not provider:
         return jsonify([])
@@ -628,7 +630,7 @@ def download_excel():
             # Define data
             school_info = [
                 (5, 0, 'School Name:', school_name),
-                (6, 0, 'MOE Number:', moe_number),
+                (6, 0, 'MOE Number:', int(moe_number)),
                 (7, 0, 'Calendar Year:', calendaryear)
             ]
 
