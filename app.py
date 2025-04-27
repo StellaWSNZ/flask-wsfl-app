@@ -105,11 +105,11 @@ def home():
                                 </select>
                             </div>
                             <div class="col-md-auto">
-                                <label for="provider"  class="form-label">Search Provider:</label>
-                                <select id="provider" name="provider" class="form-select">
-                                    {% for name in providers %}
-                                        <option value="{{ name }}">{{ name }}</option>
-                                    {% endfor %}
+                                <label for="provider" class="form-label">Provider:</label>
+                                <select id="provider" class="form-select" name="provider" onchange="loadSchools()">
+                                {% for name in providers %}
+                                    <option value="{{ name }}">{{ name }}</option>
+                                {% endfor %}
                                 </select>
                             </div>
                              <div class="col-md-auto">
@@ -122,11 +122,10 @@ def home():
                                 <input type="text" class="form-control" id="class_name" name="class_name" placeholder="Enter class name">
                             </div>     
                             <div class="col-md-auto">
-                                <label for="school"  class="form-label">Search School:</label>
-                                <select id="school" name="school" class="form-select">
-                                    {% for name in schools %}
-                                        <option value="{{ name }}">{{ name }}</option>
-                                    {% endfor %}
+                                
+                                <label for="school" class="form-label">School:</label>
+                                <select id="school" class="form-select" name="school">
+                                <option value="">Select a school</option>
                                 </select>
 
                             </div>
@@ -136,6 +135,34 @@ def home():
                         </form>
 
                         <script>
+                                  
+                            function loadSchools() {
+                                const provider = document.getElementById("provider").value;
+                                const schoolDropdown = document.getElementById("school");
+
+                                // Clear old schools
+                                schoolDropdown.innerHTML = "";
+
+                                if (!provider) return;
+
+                                // Fetch new schools
+                                fetch(`/get_schools?provider=${encodeURIComponent(provider)}`)
+                                    .then(response => response.json())
+                                    .then(data => {
+                                    if (data.length > 0) {
+                                        data.forEach(function(school) {
+                                        const option = document.createElement("option");
+                                        option.value = school;
+                                        option.text = school;
+                                        schoolDropdown.appendChild(option);
+                                        });
+                                    } else {
+                                        const option = document.createElement("option");
+                                        option.text = "No schools found";
+                                        schoolDropdown.appendChild(option);
+                                    }
+                                    });
+}
                             function checkFileSelected() {
                                 const fileInput = document.getElementById("csv_file_input");
                                 if (!fileInput.value) {
@@ -487,6 +514,28 @@ def results():
         </html>
     ''')
 
+
+
+@app.route('/get_schools')
+def get_schools():
+    provider = request.args.get('provider')  # Read ?provider=Aktive
+
+    if not provider:
+        return jsonify([])
+
+    conn = get_db_connection()
+
+    query = """
+    EXEC [FlaskHelperFunctions] @Request = ?, @Text = ?
+    """
+    schools = pd.read_sql(query, conn, params=['FilterSchool',provider])
+    conn.close()
+
+    # Convert to a simple list
+    school_list = schools['School'].dropna().tolist()
+    return jsonify(school_list)
+
+
 @app.route('/download_excel')
 def download_excel():
     if last_valid_df.empty and last_error_df.empty:
@@ -604,7 +653,7 @@ def download_excel():
                 'align': 'center',
                 'valign': 'bottom',
                 'text_wrap': True,
-                'border': 0  # 👈 no black outline
+                'border': 0 
             })
 
             # Manually write headers in row 0
@@ -617,14 +666,14 @@ def download_excel():
     output.seek(0)
     return send_file(
         output,
-        download_name = school_name + "_Term" + str(term) + "_" + str(calendaryear) + ".xlsx"
+        download_name = school_name + " Term " + str(term) + " " + str(calendaryear) + ".xlsx"
 ,
         as_attachment=True,
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
 
 
-# 🏃 Run app
+# Run app
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
     app.run(host='0.0.0.0', port=port, debug=True)
