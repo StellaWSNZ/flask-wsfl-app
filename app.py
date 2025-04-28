@@ -280,8 +280,9 @@ def process_uploaded_csv(df, term, calendaryear):
 
 
             if 'Error' in result_row and result_row['Error']:
+                
                 errors.append(result_row)
-
+                
             elif result_row.get('Message') == 'NSN not found in Student table':
                 valid_data.append({
                     'NSN': result_row['NSN'],
@@ -361,6 +362,9 @@ def process_uploaded_csv(df, term, calendaryear):
         df_valid = df_valid[cols]
     if 'YearLevel' in df_valid.columns:
         df_valid['YearLevel'] = df_valid['YearLevel'].fillna('').astype(str).str.replace(r'\.0$', '', regex=True)
+    for row in errors:
+        if row['YearLevel'] is not None:
+            row['YearLevel'] = int(row['YearLevel'])
     df_errors = pd.DataFrame(errors)
     processing_status["done"] = True
 
