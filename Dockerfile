@@ -3,15 +3,15 @@ FROM python:3.11-slim-bullseye
 # System dependencies and Microsoft ODBC Driver
 RUN apt-get update && \
     apt-get install -y \
-        curl \
-        gnupg \
-        gnupg2 \
-        apt-transport-https \
-        locales \
-        unixodbc-dev \
-        libgssapi-krb5-2 \
-        libunwind8 \
-        libssl1.1 && \
+    curl \
+    gnupg \
+    gnupg2 \
+    apt-transport-https \
+    locales \
+    unixodbc-dev \
+    libgssapi-krb5-2 \
+    libunwind8 \
+    libssl1.1 && \
     echo "en_US.UTF-8 UTF-8" > /etc/locale.gen && \
     locale-gen && \
     mkdir -p /etc/apt/keyrings && \
@@ -28,5 +28,6 @@ ENV LANG en_US.UTF-8
 WORKDIR /app
 COPY . /app
 RUN pip install --upgrade pip && pip install -r requirements.txt
+RUN pip install pyodbc   # <-- Add this line
 
 CMD ["python", "app.py"]
