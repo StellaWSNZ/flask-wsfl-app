@@ -1,5 +1,5 @@
 Flask
 python-dotenv
-pyodbc
+sqlalchemy
 pandas
 XlsxWriter

@@ -14,7 +14,7 @@ Key Features:
 
 # Loading required packages
 from flask import Flask, request, jsonify, render_template_string, send_file # Web framework & templating
-import pyodbc         # For ODBC database connection to Azure SQL Server
+from sqlalchemy import create_engine, text       # For ODBC database connection to Azure SQL Server
 import os             # For reading environment variables
 from dotenv import load_dotenv  # Load .env file for credentials
 import pandas as pd   # For reading CSVs and processing tabular data
@@ -39,19 +39,15 @@ app = Flask(__name__)
 
 
 # Secure database connection (variables stored in .env and render setup)
-def get_db_connection():
-    conn_str = (
-        "Driver={ODBC Driver 18 for SQL Server};"
-        "Server=tcp:heimatau.database.windows.net,1433;"
-        "Database=WSFL;"
-        f"Uid={os.getenv('WSNZDBUSER')};"
-        f"Pwd={os.getenv('WSNZDBPASS')};"
-        "Encrypt=yes;"
-        "TrustServerCertificate=no;"
-        "Connection Timeout=30;"
-    )
-    return pyodbc.connect(conn_str)
 
+def get_db_engine():
+    connection_string = (
+        "mssql+pyodbc://"
+        f"{os.getenv('WSNZDBUSER')}:{os.getenv('WSNZDBPASS')}"
+        "@heimatau.database.windows.net:1433/WSFL"
+        "?driver=ODBC+Driver+18+for+SQL+Server"
+    )
+    return create_engine(connection_string, fast_executemany=True)
 # Render home page
 # - CSV file uploader
 # - Year and Term selectors
@@ -59,13 +55,25 @@ def get_db_connection():
 # - JS validation and progress bar logic included 
 @app.route('/')
 def home():
-    conn = get_db_connection()
+    engine = get_db_engine()
 
-    providers = pd.read_sql("EXEC FlaskHelperFunctions ?", conn, params=['ProviderDropdown'])
-    provider_names = providers['Description'].dropna().tolist()
-    schools = pd  .read_sql("EXEC FlaskHelperFunctions ?", conn, params=['SchoolDropdown'])
-    school_names = schools['School'].dropna().tolist()
-    conn.close()
+    with engine.connect() as connection:
+        # Get provider names
+        result = connection.execute(
+            text("EXEC FlaskHelperFunctions :Request"),
+            {"Request": "ProviderDropdown"}
+        )
+        providers = pd.DataFrame(result.fetchall(), columns=result.keys())
+        provider_names = providers['Description'].dropna().tolist()
+
+        # Get school names
+        result = connection.execute(
+            text("EXEC FlaskHelperFunctions :Request"),
+            {"Request": "SchoolDropdown"}
+        )
+        schools = pd.DataFrame(result.fetchall(), columns=result.keys())
+        school_names = schools['School'].dropna().tolist()
+
 
     return render_template_string('''
         <!DOCTYPE html>
@@ -230,53 +238,62 @@ def home():
 # Adds scenario columns back in at 2nd-to-last and 4th-to-last positions
 # This maintains a user-friendly column layout in the final table
 def process_uploaded_csv(df, term, calendaryear):
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    engine = get_db_engine()
     processing_status["current"] = 0
     processing_status["total"] = len(df)
     processing_status["done"] = False
     errors = []
     valid_data = []
 
-    # Get all relevant competencies to build consistent column structure
-    competencies = pd.read_sql("EXEC GetRelevantCompetencies ?, ?", conn, params=[calendaryear, term])
-    label_map = (
-        competencies.assign(
-            label=lambda d: d['CompetencyDesc'].astype(str) + "<br> ("+ d['YearGroupDesc'].astype(str) + ")",
-            col_order=lambda d: d['YearGroupID'].astype(str).str.zfill(2) + "-" + d['CompetencyID'].astype(str).str.zfill(4)
+    with engine.connect() as connection:
+        # Get all competencies
+        result = connection.execute(
+            text("EXEC GetRelevantCompetencies :CalendarYear, :Term"),
+            {"CalendarYear": calendaryear, "Term": term}
         )
-        [['CompetencyID', 'YearGroupID', 'label', 'col_order']]
-        .drop_duplicates()
-        .sort_values('col_order')
-    )
-    labels = label_map['label'].tolist()
+        competencies = pd.DataFrame(result.fetchall(), columns=result.keys())
+
+        label_map = (
+            competencies.assign(
+                label=lambda d: d['CompetencyDesc'].astype(str) + "<br> (" + d['YearGroupDesc'].astype(str) + ")",
+                col_order=lambda d: d['YearGroupID'].astype(str).str.zfill(2) + "-" + d['CompetencyID'].astype(str).str.zfill(4)
+            )
+            [['CompetencyID', 'YearGroupID', 'label', 'col_order']]
+            .drop_duplicates()
+            .sort_values('col_order')
+        )
+        labels = label_map['label'].tolist()
+
 
     for _, row in df.iterrows():
         processing_status["current"] += 1
 
         try:
             # Fully fetch the result BEFORE doing another SQL call
-            cursor.execute(
-                "EXEC CheckNSNMatch ?, ?, ?, ?, ?, ?,?,?",
-                row['NSN'] or None,
-                row['FirstName'] or None,
-                row.get('PreferredName') or None,
-                row['LastName'] or None,
-                row['BirthDate'] if pd.notna(row['BirthDate']) else None,
-                row.get('Ethnicity') or None, 
-                calendaryear,
-                term
-            )
+            with engine.connect() as connection:
+                # Call CheckNSNMatch
+                result = connection.execute(
+                    text("""EXEC CheckNSNMatch 
+                        :NSN, :FirstName, :PreferredName, :LastName,
+                        :BirthDate, :Ethnicity, :CalendarYear, :Term
+                    """),
+                    {
+                        "NSN": row['NSN'] or None,
+                        "FirstName": row['FirstName'] or None,
+                        "PreferredName": row.get('PreferredName') or None,
+                        "LastName": row['LastName'] or None,
+                        "BirthDate": row['BirthDate'] if pd.notna(row['BirthDate']) else None,
+                        "Ethnicity": row.get('Ethnicity') or None,
+                        "CalendarYear": calendaryear,
+                        "Term": term
+                    }
+                )
+                result_row = dict(result.mappings().first())
 
 
-            columns = [desc[0] for desc in cursor.description]
-            result = cursor.fetchall()  # This clears the cursor state
+        
+            
 
-            if not result:
-                errors.append({"NSN": row.get('NSN', None), "Error": "No result returned"})
-                continue
-
-            result_row = dict(zip(columns, result[0]))
 
 
             if 'Error' in result_row and result_row['Error']:
@@ -298,30 +315,42 @@ def process_uploaded_csv(df, term, calendaryear):
                 })
             else:
                 # Now it's safe to query again
-                 with get_db_connection() as conn2:
-
-                    # Fetch scenario selections
-                    scenario_query = pd.read_sql(
-                        "EXEC FlaskHelperFunctions ?,?", 
-                        conn2, 
-                        params=['StudentScenario',result_row['NSN']]
+                 with engine.connect() as connection:
+                    # Fetch Scenario
+                    
+                    scenario_result = connection.execute(
+                        text("EXEC FlaskHelperFunctions :Request, :Number"),
+                        {"Request": "StudentScenario", "Number": result_row['NSN']}
                     )
 
-                    # Initialize empty scenario fields
-                    scenario_data = {"Scenario One - Selected": "", "Scenario Two - Selected": ""}
+                    scenario_query = pd.DataFrame(scenario_result.fetchall(), columns=scenario_result.keys())
 
-                    if not scenario_query.empty:
-                        for _, srow in scenario_query.iterrows():
-                            if srow['ScenarioIndex'] == 1:
-                                scenario_data["Scenario One - Selected"] = srow['ScenarioID']
-                            elif srow['ScenarioIndex'] == 2:
-                                scenario_data["Scenario Two - Selected"] = srow['ScenarioID']
-
-                    comp = pd.read_sql("EXEC GetStudentCompetencyStatus ?, ?, ?", conn2, params=[result_row['NSN'], term, calendaryear])
+                    # Build dictionary
+                    if scenario_query.shape[0] > 0:
+                        scenario_data = {
+                            "Scenario One - Selected": scenario_query.iloc[0].get("Scenario1", ""),
+                            "Scenario Two - Selected": scenario_query.iloc[0].get("Scenario2", "")
+                        }
+                    else:
+                        scenario_data = {
+                            "Scenario One - Selected": "",
+                            "Scenario Two - Selected": ""
+                        }
+                    # Fetch Competency Status
+                    comp_result = connection.execute(
+                        text("EXEC GetStudentCompetencyStatus :NSN, :Term, :CalendarYear"),
+                        {"NSN": result_row['NSN'], "Term": term, "CalendarYear": calendaryear}
+                    )
+                    comp = pd.DataFrame(comp_result.fetchall(), columns=comp_result.keys())
                     comp = comp.merge(label_map, on=['CompetencyID', 'YearGroupID'], how='inner')
                     comp_row = comp.set_index('label')['CompetencyStatusID'].reindex(labels).fillna(0).astype(int).to_dict()
                     comp_row = {k: ('Y' if v == 1 else '') for k, v in comp_row.items()}
+                    #print(f"NSN {result_row['NSN']} - Competencies columns: {comp.columns.tolist()}")
+                    #print(f"Competencies fetched: {len(comp)} rows")
 
+                    if 'label' not in comp.columns:
+                        raise ValueError("Competencies not found for NSN")
+                   
 
                     # Add personal info fields up front
                     full_row = {
@@ -342,7 +371,6 @@ def process_uploaded_csv(df, term, calendaryear):
         except Exception as e:
             errors.append({"NSN": row.get('NSN', None), "Error": str(e)})
 
-    conn.close()
    
     df_valid = pd.DataFrame(valid_data)
     if not df_valid.empty:
@@ -363,8 +391,9 @@ def process_uploaded_csv(df, term, calendaryear):
     if 'YearLevel' in df_valid.columns:
         df_valid['YearLevel'] = df_valid['YearLevel'].fillna('').astype(str).str.replace(r'\.0$', '', regex=True)
     for row in errors:
-        if row['YearLevel'] is not None:
+        if 'YearLevel' in row and row['YearLevel'] is not None:
             row['YearLevel'] = int(row['YearLevel'])
+
     df_errors = pd.DataFrame(errors)
     processing_status["done"] = True
 
@@ -521,7 +550,6 @@ def results():
     ''')
 
 
-
 @app.route('/get_schools')
 def get_schools():
     provider = request.args.get('provider')  
@@ -529,17 +557,17 @@ def get_schools():
     if not provider:
         return jsonify([])
 
-    conn = get_db_connection()
+    engine = get_db_engine()
+    with engine.connect() as connection:
+        result = connection.execute(
+            text("EXEC FlaskHelperFunctions :Request,  @Text=:Text"),
+            {"Request": "FilterSchool", "Text": provider}
+        )
+        schools = pd.DataFrame(result.fetchall(), columns=result.keys())
 
-    query = """
-    EXEC [FlaskHelperFunctions] @Request = ?, @Text = ?
-    """
-    schools = pd.read_sql(query, conn, params=['FilterSchool',provider])
-    conn.close()
-
-    # Convert to a simple list
     school_list = schools['School'].dropna().tolist()
     return jsonify(school_list)
+
 
 
 @app.route('/download_excel')
