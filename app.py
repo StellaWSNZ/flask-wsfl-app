@@ -15,6 +15,7 @@ Key Features:
 # Loading required packages
 from flask import Flask, request, jsonify, render_template_string, send_file # Web framework & templating
 from sqlalchemy import create_engine, text       # For ODBC database connection to Azure SQL Server
+import pyodbc
 import os             # For reading environment variables
 from dotenv import load_dotenv  # Load .env file for credentials
 import pandas as pd   # For reading CSVs and processing tabular data

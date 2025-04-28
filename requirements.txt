@@ -1,5 +1,6 @@
 Flask
 python-dotenv
+pydoc
 sqlalchemy
 pandas
 XlsxWriter
