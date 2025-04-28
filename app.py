@@ -694,8 +694,8 @@ def download_excel():
             # Manually write headers in row 0
             for col_num, col_name in enumerate(last_error_df.columns):
                 worksheet_errors.write(0, col_num, col_name, header_format_errors)
-            worksheet_errors.set_column(0,5,15)
-            worksheet_errors.set_column(6,6,50)
+            worksheet_errors.set_column(0,6,15)
+            worksheet_errors.set_column(7,7,50)
 
 
     output.seek(0)
