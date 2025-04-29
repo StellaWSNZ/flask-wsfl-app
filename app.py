@@ -22,6 +22,18 @@ import pandas as pd   # For reading CSVs and processing tabular data
 from werkzeug.utils import secure_filename  # Safe handling of uploaded filenames
 import threading      # Allows background processing (non-blocking upload handling)
 import io 
+import base64
+import matplotlib.pyplot as plt
+import textwrap
+from graphing import (
+    load_competencies,
+    load_provider_name,
+    load_provider_results,
+    make_grid,
+    draw_key,
+    PAGE_SIZE,  # if you need PAGE_SIZE too
+    N_COLS, N_ROWS, ROW_HEIGHTS, TITLE_SPACE, SUBTITLE_SPACE, DEBUG
+)
 
 processing_status = {
     "current": 0,
@@ -191,6 +203,42 @@ def home():
                     </div>
                     </div>
                 </div>
+                <div class="card mt-5">
+                    <div class="card-header">📈 Generate Competency Report</div>
+                    <div class="card-body">
+                        <form action="/generate_report" method="post" class="row g-3 align-items-end">
+                        <div class="col-md-auto">
+                            <label for="report_year_input" class="form-label">Year</label>
+                            <select name="year" class="form-select" id="report_year_input" required>
+                            {% for y in range(2023, 2026) %}
+                                <option value="{{ y }}" {% if y == 2025 %}selected{% endif %}>{{ y }}</option>
+                            {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-auto">
+                            <label for="report_term_input" class="form-label">Term</label>
+                            <select name="term" class="form-select" id="report_term_input" required>
+                            <option value="1">Term 1</option>
+                            <option value="2">Term 2</option>
+                            <option value="3">Term 3</option>
+                            <option value="4" selected>Term 4</option>
+                            </select>
+                        </div>
+                        <div class="col-md-auto">
+                            <label for="report_provider" class="form-label">Provider</label>
+                            <select name="provider" class="form-select" id="report_provider" required>
+                            {% for name in providers %}
+                                <option value="{{ name }}">{{ name }}</option>
+                            {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-auto">
+                            <button type="submit" class="btn btn-primary">View Report</button>
+                        </div>
+                        </form>
+                    </div>
+                    </div>
+
             </div>
         </body>
                                   <script>
@@ -707,6 +755,106 @@ def download_excel():
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
 
+@app.route('/generate_report', methods=['POST'])
+def generate_report():
+    year = int(request.form['year'])
+    term = int(request.form['term'])
+    provider_name = request.form['provider']
+
+    engine = get_db_engine()
+
+    with engine.connect() as connection:
+        result = connection.execute(
+            text("SELECT ProviderID FROM Provider WHERE Description = :Description"),
+            {"Description": provider_name}
+        )
+        row = result.fetchone()
+
+    if row is None:
+        return "Provider not found", 400
+
+    provider_id = int(row.ProviderID)
+    print('ProviderID ' + str(provider_id))
+
+    # Now load your data
+    competencies_df = load_competencies(engine, year, term)
+    competencies_df = competencies_df[competencies_df['WaterBased'] == 1]
+    providerresults = load_provider_results(engine, year, term, provider_id)
+
+    fig, ax = plt.subplots(figsize=PAGE_SIZE)
+
+    make_grid(ax, N_COLS, N_ROWS, ROW_HEIGHTS, TITLE_SPACE, SUBTITLE_SPACE, competencies_df, providerresults, DEBUG)
+
+    ax.text(
+        N_COLS / 2,
+        N_ROWS + (TITLE_SPACE / 2),
+        "Competency Report for " + provider_name,
+        ha='center', va='center',
+        fontsize=14, weight='demibold'
+    )
+
+    buf = io.BytesIO()
+    plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
+    fig.savefig(buf, format="png")
+    buf.seek(0)
+    plt.close(fig)
+
+    # Save a second PDF version (for download)
+    pdf_buf = io.BytesIO()
+    fig, ax = plt.subplots(figsize=PAGE_SIZE)
+    make_grid(ax, N_COLS, N_ROWS, ROW_HEIGHTS, TITLE_SPACE, SUBTITLE_SPACE, competencies_df, providerresults, DEBUG)
+    ax.text(
+        N_COLS / 2,
+        N_ROWS + (TITLE_SPACE / 2),
+        "Competency Report for " + provider_name,
+        ha='center', va='center',
+        fontsize=14, weight='demibold'
+    )
+    plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
+    fig.savefig(pdf_buf, format="pdf")
+    pdf_buf.seek(0)
+    plt.close(fig)
+
+    # Save to Flask session? Could — for now store it temporarily
+    global last_pdf_generated
+    last_pdf_generated = pdf_buf
+
+    # Render the image in HTML
+    return render_template_string('''
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Competency Report</title>
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+        </head>
+        <body class="bg-light">
+            <div class="container py-5">
+                <h1 class="mb-4">📊 Competency Report</h1>
+                <img src="data:image/png;base64,{{ img_data }}" class="img-fluid border rounded shadow-sm"/>
+                <div class="mt-4">
+                    <a href="/download_pdf" class="btn btn-success">⬇️ Download PDF</a>
+                    <a href="/" class="btn btn-secondary">← Back Home</a>
+                </div>
+            </div>
+        </body>
+        </html>
+    ''', img_data=base64.b64encode(buf.getvalue()).decode('utf-8'))
+
+
+last_pdf_generated = None
+
+@app.route('/download_pdf')
+def download_pdf():
+    if last_pdf_generated is None:
+        return "No PDF generated yet.", 400
+
+    last_pdf_generated.seek(0)
+    return send_file(
+        last_pdf_generated,
+        download_name="Competency_Report.pdf",
+        as_attachment=True,
+        mimetype='application/pdf'
+    )
 
 # Run app
 if __name__ == '__main__':
