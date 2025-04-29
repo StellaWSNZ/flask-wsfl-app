@@ -61,6 +61,11 @@ def get_db_engine():
         "?driver=ODBC+Driver+18+for+SQL+Server"
     )
     return create_engine(connection_string, fast_executemany=True)
+
+@app.route('/favicon.ico')
+def favicon():
+    return send_file(os.path.join(app.root_path, 'static', 'favicon.ico'), mimetype='image/vnd.microsoft.icon')
+
 # Render home page
 # - CSV file uploader
 # - Year and Term selectors
