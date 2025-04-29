@@ -48,7 +48,7 @@ class_name = None
 
 load_dotenv()
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static')
 
 
 # Secure database connection (variables stored in .env and render setup)
@@ -94,6 +94,8 @@ def home():
         <head>
             <meta charset="UTF-8">
             <title>Student Tools</title>
+            <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+
             <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
         </head>
         <body class="bg-light">
@@ -490,6 +492,7 @@ def upload():
             <!DOCTYPE html>
             <html>
             <head>
+                <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
                 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
                 <title>Processing CSV...</title>
             </head>
@@ -579,6 +582,8 @@ def results():
         <!DOCTYPE html>
         <html>
         <head>
+            <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+
             <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
             <title>Upload Results</title>
         </head>
@@ -825,6 +830,8 @@ def generate_report():
         <html>
         <head>
             <title>Competency Report</title>
+            <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+
             <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
         </head>
         <body class="bg-light">
