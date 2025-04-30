@@ -13,7 +13,7 @@ Key Features:
 
 
 # Loading required packages
-from flask import Flask, request, jsonify, render_template_string, send_file # Web framework & templating
+from flask import Flask, request, jsonify, render_template_string, render_template, send_file # Web framework & templating
 from sqlalchemy import create_engine, text       # For ODBC database connection to Azure SQL Server
 import pyodbc
 import os             # For reading environment variables
@@ -93,194 +93,7 @@ def home():
         school_names = schools['School'].dropna().tolist()
 
 
-    return render_template_string('''
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <title>Student Tools</title>
-            <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
-
-            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-        </head>
-        <body class="bg-light">
-            <div class="container py-5">
-                <h1 class="mb-4 text-center">Student Tools</h1>
-
-                <div class="card">
-                    <div class="card-header">📤 Upload CSV</div>
-                    <div class="card-body">
-                       <form action="/upload" method="post" enctype="multipart/form-data" class="row g-3 align-items-end" onsubmit="return checkFileSelected()">
-                            <div class="col-md-auto">
-                                <label for="csv_file_input" class="form-label">CSV File</label>
-                                <input type="file" name="csv_file" class="form-control" accept=".csv" id="csv_file_input" required>
-                            </div>
-                            <div class="col-md-auto">
-                                <label for="year_input" class="form-label">Year</label>
-                                <select name="year" class="form-select" id="year_input" required>
-                                    {% for y in range(2023, 2026) %}
-                                        <option value="{{ y }}" {% if y == 2025 %}selected{% endif %}>{{ y }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div class="col-md-auto">
-                                <label for="term_input" class="form-label">Term</label>
-                                <select name="term" class="form-select" id="term_input" required>
-                                    <option value="1" selected>Term 1</option>
-                                    <option value="2">Term 2</option>
-                                    <option value="3">Term 3</option>
-                                    <option value="4">Term 4</option>
-                                </select>
-                            </div>
-                            <div class="col-md-auto">
-                                <label for="provider" class="form-label">Provider:</label required>
-                                <select id="provider" class="form-select" name="provider" onchange="loadSchools()">
-                                <option disabled selected value></option>
-
-                                {% for name in providers %}
-                                    <option value="{{ name }}">{{ name }}</option>
-                                {% endfor %}
-                                </select>
-                            </div>
-                             <div class="col-md-auto">
-                                <label for="teacher_name" class="form-label">Teacher Name</label>
-                                <input type="text" class="form-control" id="teacher_name" name="teacher_name" placeholder="Enter teacher name">
-                            </div>
-
-                            <div class="col-md-auto">
-                                <label for="class_name" class="form-label">Class Name</label>
-                                <input type="text" class="form-control" id="class_name" name="class_name" placeholder="Enter class name">
-                            </div>     
-                            <div class="col-md-auto">
-                                
-                                <label for="school" class="form-label">School:</label>
-                                <select id="school" class="form-select" name="school" required>
-                                <option value="">Select a school</option>
-                                </select>
-
-                            </div>
-                            <div class="col-md-auto">
-                                <button type="submit" class="btn btn-success">Upload</button>
-                            </div>
-                        </form>
-
-                        <script>
-                                  
-                            function loadSchools() {
-                                const provider = document.getElementById("provider").value;
-                                const schoolDropdown = document.getElementById("school");
-
-                                // Clear old schools
-                                schoolDropdown.innerHTML = "";
-
-                                if (!provider) return;
-
-                                // Fetch new schools
-                                fetch(`/get_schools?provider=${encodeURIComponent(provider)}`)
-                                    .then(response => response.json())
-                                    .then(data => {
-                                    if (data.length > 0) {
-                                        data.forEach(function(school) {
-                                        const option = document.createElement("option");
-                                        option.value = school;
-                                        option.text = school;
-                                        schoolDropdown.appendChild(option);
-                                        });
-                                    } else {
-                                        const option = document.createElement("option");
-                                        option.text = "No schools found";
-                                        schoolDropdown.appendChild(option);
-                                    }
-                                    });
-}
-                            function checkFileSelected() {
-                                const fileInput = document.getElementById("csv_file_input");
-                                if (!fileInput.value) {
-                                    alert("Please select a CSV file to upload.");
-                                    return false;
-                                }
-                                return true;
-                            }
-                        </script>
-                    </div>
-                    <div class="progress w-100 mt-3" id="uploadProgress" style="display:none;">
-                        <div id="progressBar" class="progress-bar" role="progressbar" 
-                            style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
-                            0%
-                    </div>
-                    </div>
-                </div>
-                <div class="card mt-5">
-                    <div class="card-header">📈 Generate Competency Report</div>
-                    <div class="card-body">
-                        <form action="/generate_report" method="post" class="row g-3 align-items-end">
-                        <div class="col-md-auto">
-                            <label for="report_year_input" class="form-label">Year</label>
-                            <select name="year" class="form-select" id="report_year_input" required>
-                            {% for y in range(2023, 2026) %}
-                                <option value="{{ y }}" {% if y == 2025 %}selected{% endif %}>{{ y }}</option>
-                            {% endfor %}
-                            </select>
-                        </div>
-                        <div class="col-md-auto">
-                            <label for="report_term_input" class="form-label">Term</label>
-                            <select name="term" class="form-select" id="report_term_input" required>
-                            <option value="1">Term 1</option>
-                            <option value="2">Term 2</option>
-                            <option value="3">Term 3</option>
-                            <option value="4" selected>Term 4</option>
-                            </select>
-                        </div>
-                        <div class="col-md-auto">
-                            <label for="report_provider" class="form-label">Provider</label>
-                            <select name="provider" class="form-select" id="report_provider" required>
-                            {% for name in providers %}
-                                <option value="{{ name }}">{{ name }}</option>
-                            {% endfor %}
-                            </select>
-                        </div>
-                        <div class="col-md-auto">
-                            <button type="submit" class="btn btn-primary">View Report</button>
-                        </div>
-                        </form>
-                    </div>
-                    </div>
-
-            </div>
-        </body>
-                                  <script>
-  function checkFileSelected() {
-    const fileInput = document.getElementById("csv_file_input");
-    if (!fileInput.value) {
-      alert("Please select a CSV file to upload.");
-      return false;
-    }
-
-    // Show progress bar
-    document.getElementById("uploadProgress").style.display = "block";
-
-    // Start polling progress
-    const interval = setInterval(() => {
-      fetch("/progress")
-        .then(response => response.json())
-        .then(data => {
-          const percent = Math.floor((data.current / data.total) * 100);
-          const bar = document.getElementById("progressBar");
-          bar.style.width = percent + "%";
-          bar.innerText = percent + "%";
-          bar.setAttribute("aria-valuenow", percent);
-          if (data.done) {
-            clearInterval(interval);
-          }
-        });
-    }, 500); // poll every 0.5 seconds
-
-    return true;
-  }
-</script>
-
-        </html>
-    ''', providers=provider_names,  schools=school_names)
+    return render_template("index.html", providers=provider_names,  schools=school_names)
 
 # Main logic to process each row from the uploaded CSV:
 # 1. Use `CheckNSNMatch` stored procedure to validate student info.
@@ -493,42 +306,7 @@ def upload():
         thread.start()
 
         # Immediately show progress page
-        return render_template_string('''
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
-                <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-                <title>Processing CSV...</title>
-            </head>
-            <body class="bg-light">
-                <div class="container py-5">
-                    <h2>⏳ Processing your file...</h2>
-                    <div class="progress w-100 mt-3" id="uploadProgress">
-                        <div id="progressBar" class="progress-bar" role="progressbar" 
-                            style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
-                    </div>
-                    <script>
-                        const interval = setInterval(() => {
-                            fetch("/progress")
-                              .then(response => response.json())
-                              .then(data => {
-                                const percent = Math.floor((data.current / data.total) * 100);
-                                const bar = document.getElementById("progressBar");
-                                bar.style.width = percent + "%";
-                                bar.innerText = percent + "%";
-                                bar.setAttribute("aria-valuenow", percent);
-                                if (data.done) {
-                                  clearInterval(interval);
-                                  window.location.href = "/results";  // redirect to results
-                                }
-                              });
-                        }, 500);
-                    </script>
-                </div>
-            </body>
-            </html>
-        ''')
+        return render_template("uploadclasslist.html")
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -583,30 +361,8 @@ def results():
         if not last_error_df.empty else "<p class='text-success'>No errors found.</p>"
     )
 
-    return render_template_string(f'''
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    return render_template("displayresults.html", valid_html=valid_html, error_html=error_html)
 
-            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-            <title>Upload Results</title>
-        </head>
-        <body class="bg-light">
-            <div class="container py-5">
-                <h2 class="mb-4">✅ Valid Records</h2>
-                {valid_html}
-
-                <h2 class="mt-5 text-danger">⚠️ Errors</h2>
-                {error_html}
-
-                <a class="btn btn-secondary mt-4" href="/">← Back</a>
-                <a class="btn btn-primary mt-4" href="/download_excel">⬇️ Download Excel</a>
-
-            </div>
-        </body>
-        </html>
-    ''')
 
 
 @app.route('/get_schools')
@@ -709,7 +465,7 @@ def download_excel():
             }))
             worksheet.set_row(0, 70) 
             worksheet.set_column(0,5,15)
-            worksheet.insert_image('A1', 'DarkLogo.png', {
+            worksheet.insert_image('A1', 'Static/DarkLogo.png', {
                 'x_scale': 0.2,  # Scale width to 50%
                 'y_scale': 0.2   # Scale height to 50%
             })
@@ -830,27 +586,7 @@ def generate_report():
     last_pdf_generated = pdf_buf
 
     # Render the image in HTML
-    return render_template_string('''
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Competency Report</title>
-            <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
-
-            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-        </head>
-        <body class="bg-light">
-            <div class="container py-5">
-                <h1 class="mb-4">📊 Competency Report</h1>
-                <img src="data:image/png;base64,{{ img_data }}" class="img-fluid border rounded shadow-sm"/>
-                <div class="mt-4">
-                    <a href="/download_pdf" class="btn btn-success">⬇️ Download PDF</a>
-                    <a href="/" class="btn btn-secondary">← Back Home</a>
-                </div>
-            </div>
-        </body>
-        </html>
-    ''', img_data=base64.b64encode(buf.getvalue()).decode('utf-8'))
+    return render_template("generatereports.html", img_data=base64.b64encode(buf.getvalue()).decode('utf-8'))
 
 
 last_pdf_generated = None
