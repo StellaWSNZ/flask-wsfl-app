@@ -465,7 +465,7 @@ def download_excel():
             }))
             worksheet.set_row(0, 70) 
             worksheet.set_column(0,5,15)
-            worksheet.insert_image('A1', 'Static/DarkLogo.png', {
+            worksheet.insert_image('A1', 'static/DarkLogo.png', {
                 'x_scale': 0.2,  # Scale width to 50%
                 'y_scale': 0.2   # Scale height to 50%
             })
