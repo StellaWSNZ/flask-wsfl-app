@@ -34,6 +34,7 @@ from graphing import (
     PAGE_SIZE,  # if you need PAGE_SIZE too
     N_COLS, N_ROWS, ROW_HEIGHTS, TITLE_SPACE, SUBTITLE_SPACE, DEBUG
 )
+from competency_plot import get_db_engine, load_competency_rates, make_figure
 
 processing_status = {
     "current": 0,
@@ -527,6 +528,47 @@ def download_excel():
         as_attachment=True,
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
+
+@app.route('/download_competency_pdf')
+def download_competency_pdf():
+    year = int(request.args.get("year"))
+    term = int(request.args.get("term"))
+    dropdown_string = request.args.get("dropdown")
+
+    engine = get_db_engine()
+    with engine.connect() as connection:
+        result = connection.execute(
+            text("EXEC GetCompetencyIDsFromDropdown :DropdownValue"),
+            {"DropdownValue": dropdown_string}
+        )
+        row = result.fetchone()
+        if row is None:
+            return "Invalid dropdown selection", 400
+
+        competency_id = row.CompetencyID
+        year_group_id = row.YearGroupID
+
+    df = load_competency_rates(engine, year, term, competency_id, year_group_id)
+
+    if df.empty:
+        return "No data found", 400
+
+    comp_desc = df['CompetencyDesc'].unique()[0].replace(" ", "_").replace("/", "_")
+    year_group = df['YearGroupDesc'].unique()[0].replace(" ", "")
+    title = f"{df['CompetencyDesc'].unique()[0]} ({year_group})"
+
+    fig = make_figure(df, title)
+
+    output = io.BytesIO()
+    plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
+    fig.savefig(output, format="pdf")
+    plt.close(fig)
+    output.seek(0)
+
+    filename = f"{year}_{term}_{comp_desc}.pdf"
+    return send_file(output, download_name=filename, as_attachment=True, mimetype="application/pdf")
+
+
 @app.route('/generate_report', methods=['POST'])
 def generate_report():
     report_type = request.form['report_type']
@@ -575,8 +617,44 @@ def generate_report():
         return render_template("comingsoon.html", message="National Performance Report coming soon.")
 
     elif report_type == "Competency":
-        return render_template("comingsoon.html", message="Competency Performance Report coming soon.")
+        
+        year = int(request.form['year'])
+        term = int(request.form['term'])
+        dropdown_string = request.form.get("competency")
+        print(dropdown_string)
+        engine = get_db_engine()
 
+        with engine.connect() as connection:
+            result = connection.execute(
+                text("EXEC GetCompetencyIDsFromDropdown :DropdownValue"),
+                {"DropdownValue": dropdown_string}
+            )
+            print(result)
+            row = result.fetchone()
+            competency_id = row.CompetencyID
+            year_group_id = row.YearGroupID
+
+        # Load data
+        con = get_db_engine()
+        df = load_competency_rates(con, year, term, competency_id, year_group_id)
+
+        if df.empty:
+            return "No data available for the selected inputs", 400
+
+        comp_desc = df['CompetencyDesc'].unique()[0]
+        year_group = df['YearGroupDesc'].unique()[0]
+        title = f"{comp_desc} ({year_group})"
+
+        # Create figure and return base64
+        fig = make_figure(df, title)
+        buf = io.BytesIO()
+        plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
+        fig.savefig(buf, format="png")
+        plt.close(fig)
+        buf.seek(0)
+
+        img_data = base64.b64encode(buf.read()).decode("utf-8")
+        return render_template("competencyreport.html", img_data=img_data,year=year, term=term, dropdown=dropdown_string)
     else:
         return "Invalid report type selected", 400
 last_pdf_generated = None
