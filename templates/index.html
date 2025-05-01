@@ -7,7 +7,7 @@
 
 <div class="row g-4">
   <!-- Upload CSV -->
-  <div class="col-md-4">
+  <div class="col-md-6">
     <div class="card h-100">
       <div class="card-header">📤 Upload CSV</div>
       <div class="card-body">
@@ -60,46 +60,64 @@
             <button type="submit" class="btn btn-success w-100">Upload</button>
           </div>
         </form>
-
-        <div class="progress w-100 mt-3" id="uploadProgress" style="display:none;">
-          <div id="progressBar" class="progress-bar" role="progressbar" 
-              style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
-        </div>
       </div>
     </div>
   </div>
 
   <!-- Generate Report -->
-  <div class="col-md-4">
+  <div class="col-md-6">
     <div class="card h-100">
-      <div class="card-header">📈 Generate Competency Report</div>
+      <div class="card-header">📈 Generate Report</div>
       <div class="card-body">
         <form action="/generate_report" method="post" class="row g-3 align-items-end">
+          <div class="col-12">
+            <label for="report_type" class="form-label">Report Type</label>
+            <select name="report_type" class="form-select" id="report_type" required>
+              <option value="Provider">Provider Performance</option>
+              <option value="National">National Performance</option>
+              <option value="Competency">Competency Performance</option>
+            </select>
+          </div>
+
           <div class="col-6">
-            <label for="report_year_input" class="form-label">Year</label>
-            <select name="year" class="form-select" id="report_year_input" required>
+            <label for="report_year" class="form-label">Year</label>
+            <select name="year" class="form-select" id="report_year" required>
               {% for y in range(2023, 2026) %}
               <option value="{{ y }}" {% if y == 2025 %}selected{% endif %}>{{ y }}</option>
               {% endfor %}
             </select>
           </div>
+
           <div class="col-6">
-            <label for="report_term_input" class="form-label">Term</label>
-            <select name="term" class="form-select" id="report_term_input" required>
-              <option value="1">Term 1</option>
+            <label for="report_term" class="form-label">Term</label>
+            <select name="term" class="form-select" id="report_term" required>
+              <option value="1" selected>Term 1</option>
               <option value="2">Term 2</option>
               <option value="3">Term 3</option>
-              <option value="4" selected>Term 4</option>
+              <option value="4">Term 4</option>
             </select>
           </div>
-          <div class="col-12">
+
+          <!-- Provider dropdown (only for Provider Performance) -->
+          <div class="col-12" id="provider-options">
             <label for="report_provider" class="form-label">Provider</label>
-            <select name="provider" class="form-select" id="report_provider" required>
+            <select name="provider" class="form-select" id="report_provider">
               {% for name in providers %}
               <option value="{{ name }}">{{ name }}</option>
               {% endfor %}
             </select>
           </div>
+
+          <!-- Competency dropdown (only for Competency Performance) -->
+          <div class="col-12" id="competency-options" style="display: none;">
+            <label for="competency" class="form-label">Competency</label>
+            <select name="competency" class="form-select" id="competency">
+              {% for comp in competencies %}
+              <option value="{{ comp }}">{{ comp }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
           <div class="col-12">
             <button type="submit" class="btn btn-primary w-100">View Report</button>
           </div>
@@ -107,18 +125,11 @@
       </div>
     </div>
   </div>
-
-  <!-- Placeholder -->
-  <div class="col-md-4">
-    <div class="card h-100 text-center text-muted">
-      <div class="card-header">🛠 Coming Soon</div>
-      <div class="card-body d-flex flex-column justify-content-center">
-        <p class="lead">New features are in development!</p>
-      </div>
-    </div>
-  </div>
 </div>
 
+{% endblock %}
+
+{% block scripts %}
 <script>
   function loadSchools() {
     const provider = document.getElementById("provider").value;
@@ -165,5 +176,20 @@
     }, 500);
     return true;
   }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    const reportType = document.getElementById("report_type");
+    const providerOptions = document.getElementById("provider-options");
+    const competencyOptions = document.getElementById("competency-options");
+
+    function updateVisibility() {
+      const type = reportType.value;
+      providerOptions.style.display = type === "Provider" ? "block" : "none";
+      competencyOptions.style.display = type === "Competency" ? "block" : "none";
+    }
+
+    reportType.addEventListener("change", updateVisibility);
+    updateVisibility();
+  });
 </script>
 {% endblock %}
