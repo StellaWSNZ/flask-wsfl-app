@@ -92,8 +92,15 @@ def home():
         schools = pd.DataFrame(result.fetchall(), columns=result.keys())
         school_names = schools['School'].dropna().tolist()
 
+        result = connection.execute(
+            text("EXEC FlaskHelperFunctions :Request"),
+            {"Request": "CompetencyDropdown"}
+        )
+        Competency = pd.DataFrame(result.fetchall(), columns=result.keys())
+        Competency = Competency['Competency'].dropna().tolist()
 
-    return render_template("index.html", providers=provider_names,  schools=school_names)
+
+    return render_template("index.html", providers=provider_names,  schools=school_names, competencies = Competency)
 
 # Main logic to process each row from the uploaded CSV:
 # 1. Use `CheckNSNMatch` stored procedure to validate student info.
@@ -520,75 +527,58 @@ def download_excel():
         as_attachment=True,
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
-
 @app.route('/generate_report', methods=['POST'])
 def generate_report():
+    report_type = request.form['report_type']
     year = int(request.form['year'])
     term = int(request.form['term'])
-    provider_name = request.form['provider']
 
-    engine = get_db_engine()
+    if report_type == "Provider":
+        provider_name = request.form['provider']
+        
+        # (existing provider report logic remains here — shortened for clarity)
+        engine = get_db_engine()
+        with engine.connect() as connection:
+            result = connection.execute(
+                text("SELECT ProviderID FROM Provider WHERE Description = :Description"),
+                {"Description": provider_name}
+            )
+            row = result.fetchone()
 
-    with engine.connect() as connection:
-        result = connection.execute(
-            text("SELECT ProviderID FROM Provider WHERE Description = :Description"),
-            {"Description": provider_name}
+        if row is None:
+            return "Provider not found", 400
+
+        provider_id = int(row.ProviderID)
+        competencies_df = load_competencies(engine, year, term)
+        competencies_df = competencies_df[competencies_df['WaterBased'] == 1]
+        providerresults = load_provider_results(engine, year, term, provider_id)
+
+        # generate figure and render as before
+        fig, ax = plt.subplots(figsize=PAGE_SIZE)
+        make_grid(ax, N_COLS, N_ROWS, ROW_HEIGHTS, TITLE_SPACE, SUBTITLE_SPACE, competencies_df, providerresults, DEBUG)
+        ax.text(
+            N_COLS / 2,
+            N_ROWS + (TITLE_SPACE / 2),
+            "Competency Report for " + provider_name,
+            ha='center', va='center',
+            fontsize=14, weight='demibold'
         )
-        row = result.fetchone()
+        buf = io.BytesIO()
+        plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
+        fig.savefig(buf, format="png")
+        buf.seek(0)
+        plt.close(fig)
 
-    if row is None:
-        return "Provider not found", 400
+        return render_template("generatereports.html", img_data=base64.b64encode(buf.getvalue()).decode("utf-8"))
 
-    provider_id = int(row.ProviderID)
-    print('ProviderID ' + str(provider_id))
+    elif report_type == "National":
+        return render_template("comingsoon.html", message="National Performance Report coming soon.")
 
-    # Now load your data
-    competencies_df = load_competencies(engine, year, term)
-    competencies_df = competencies_df[competencies_df['WaterBased'] == 1]
-    providerresults = load_provider_results(engine, year, term, provider_id)
+    elif report_type == "Competency":
+        return render_template("comingsoon.html", message="Competency Performance Report coming soon.")
 
-    fig, ax = plt.subplots(figsize=PAGE_SIZE)
-
-    make_grid(ax, N_COLS, N_ROWS, ROW_HEIGHTS, TITLE_SPACE, SUBTITLE_SPACE, competencies_df, providerresults, DEBUG)
-
-    ax.text(
-        N_COLS / 2,
-        N_ROWS + (TITLE_SPACE / 2),
-        "Competency Report for " + provider_name,
-        ha='center', va='center',
-        fontsize=14, weight='demibold'
-    )
-
-    buf = io.BytesIO()
-    plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
-    fig.savefig(buf, format="png")
-    buf.seek(0)
-    plt.close(fig)
-
-    # Save a second PDF version (for download)
-    pdf_buf = io.BytesIO()
-    fig, ax = plt.subplots(figsize=PAGE_SIZE)
-    make_grid(ax, N_COLS, N_ROWS, ROW_HEIGHTS, TITLE_SPACE, SUBTITLE_SPACE, competencies_df, providerresults, DEBUG)
-    ax.text(
-        N_COLS / 2,
-        N_ROWS + (TITLE_SPACE / 2),
-        "Competency Report for " + provider_name,
-        ha='center', va='center',
-        fontsize=14, weight='demibold'
-    )
-    plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
-    fig.savefig(pdf_buf, format="pdf")
-    pdf_buf.seek(0)
-    plt.close(fig)
-
-    # Save to Flask session? Could — for now store it temporarily
-    global last_pdf_generated
-    last_pdf_generated = pdf_buf
-
-    # Render the image in HTML
-    return render_template("generatereports.html", img_data=base64.b64encode(buf.getvalue()).decode('utf-8'))
-
-
+    else:
+        return "Invalid report type selected", 400
 last_pdf_generated = None
 
 @app.route('/download_pdf')
