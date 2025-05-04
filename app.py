@@ -27,9 +27,9 @@ import matplotlib
 matplotlib.use("Agg")  # Use non-GUI backend
 import matplotlib.pyplot as plt
 import textwrap
-from graphing import create_competency_report
-from competency_plot import get_db_engine, load_competency_rates, make_figure
-from nationalreport import generate_national_report
+from providernationalplot import create_competency_report
+from competencyplot import get_db_engine, load_competency_rates, make_figure
+from nationalplot import generate_national_report
 
 processing_status = {
     "current": 0,
