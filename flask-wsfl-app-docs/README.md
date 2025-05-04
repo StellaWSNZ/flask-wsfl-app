@@ -26,9 +26,11 @@ This Flask web application allows education providers to upload student data, va
   - Provider/school/teacher metadata filled in
   - Embedded logo in the top-left
 
-- **PDF Summary Report**  
-  Renders a PNG + downloadable PDF graph summary showing competency coverage by provider.
-
+- **Reporting**  
+  Renders a PNG + downloadable PDF.
+  - **Provider Summary Report:** PNG + PDF graphs showing competency performance by year group.
+  - **National Summary Report:** Aggregated view of competencies at a national level.
+  - **Single Competency Report:** Focused view by year group for one competency.
 ---
 
 ## Tech Stack
