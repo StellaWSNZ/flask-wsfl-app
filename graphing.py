@@ -54,6 +54,30 @@ def load_provider_name(con, providerID):
     provider = pd.DataFrame(data, columns=columns)
     return provider.loc[providerID, 'Description']
 
+def create_competency_report(term, calendaryear, provider_id, output_filename="Competency_Report.pdf"):
+    con = get_db_engine()
+
+    competencies_df = load_competencies(con, calendaryear, term)
+    competencies_df = competencies_df[competencies_df['WaterBased'] == 1]
+
+    provider_name = load_provider_name(con, provider_id)
+    providerresults = load_provider_results(con, calendaryear, term, provider_id)
+
+    fig, ax = plt.subplots(figsize=PAGE_SIZE)
+
+    make_grid(ax, N_COLS, N_ROWS, ROW_HEIGHTS, TITLE_SPACE, SUBTITLE_SPACE, competencies_df, providerresults, DEBUG)
+
+    ax.text(
+        N_COLS / 2,
+        N_ROWS + (TITLE_SPACE / 2),
+        "Competency Report for " + provider_name,
+        ha='center', va='center',
+        fontsize=14, weight='demibold'
+    )
+
+    save_and_open_pdf(fig, output_filename)
+    return output_filename  # or return fig if you want to return the figure
+
 def load_provider_results(con, calendaryear, term, providerid):
     with con.connect() as connection:
         result = connection.execute(
@@ -62,7 +86,30 @@ def load_provider_results(con, calendaryear, term, providerid):
         )
         data = result.fetchall()
         columns = result.keys()
+        #print(pd.DataFrame(data, columns=columns).head())
     return pd.DataFrame(data, columns=columns)
+
+# graphing.py
+def create_competency_report(term, year, provider_id, provider_name=None):
+    con = get_db_engine()
+    competencies_df = load_competencies(con, year, term)
+    competencies_df = competencies_df[competencies_df['WaterBased'] == 1]
+    providerresults = load_provider_results(con, year, term, provider_id)
+
+    if provider_name is None:
+        provider_name = load_provider_name(con, provider_id)
+
+    fig, ax = plt.subplots(figsize=PAGE_SIZE)
+    make_grid(ax, N_COLS, N_ROWS, ROW_HEIGHTS, TITLE_SPACE, SUBTITLE_SPACE, competencies_df, providerresults, DEBUG)
+
+    ax.text(
+        N_COLS / 2,
+        N_ROWS + (TITLE_SPACE / 2),
+        "Competency Report for " + provider_name,
+        ha='center', va='center',
+        fontsize=14, weight='demibold'
+    )
+    return fig
 
 
 def get_colour(var):
@@ -155,10 +202,9 @@ def make_yeargroup_plot(ax, x, y_top, cell_height, title, df_relcomp, df_results
     df = pd.merge(
         df_relcomp,
         df_results,
-        on=['YearGroupID', 'CompetencyID'],
+        on=['YearGroupID', 'CompetencyID', 'CompetencyDesc','YearGroupDesc'],
         how='inner'
     )
-
     vars = ['National Rate (LY)', 'Provider Rate (YTD)', 'Provider Target']
     df = df[df['ResultType'].isin(vars)]
     df = df.sort_values(by=['YearGroupID', 'CompetencyID'])

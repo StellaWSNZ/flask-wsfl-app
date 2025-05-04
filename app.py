@@ -23,25 +23,21 @@ from werkzeug.utils import secure_filename  # Safe handling of uploaded filename
 import threading      # Allows background processing (non-blocking upload handling)
 import io 
 import base64
+import matplotlib
+matplotlib.use("Agg")  # Use non-GUI backend
 import matplotlib.pyplot as plt
 import textwrap
-from graphing import (
-    load_competencies,
-    load_provider_name,
-    load_provider_results,
-    make_grid,
-    draw_key,
-    PAGE_SIZE,  # if you need PAGE_SIZE too
-    N_COLS, N_ROWS, ROW_HEIGHTS, TITLE_SPACE, SUBTITLE_SPACE, DEBUG
-)
+from graphing import create_competency_report
 from competency_plot import get_db_engine, load_competency_rates, make_figure
+from nationalreport import generate_national_report
 
 processing_status = {
     "current": 0,
     "total": 0,
     "done": False
 }
-
+last_pdf_generated = None
+last_pdf_filename = None
 school_name = None
 moe_number = None
 teacher_name = None
@@ -571,6 +567,7 @@ def download_competency_pdf():
 
 @app.route('/generate_report', methods=['POST'])
 def generate_report():
+    global last_pdf_generated, last_pdf_filename 
     report_type = request.form['report_type']
     year = int(request.form['year'])
     term = int(request.form['term'])
@@ -578,7 +575,6 @@ def generate_report():
     if report_type == "Provider":
         provider_name = request.form['provider']
         
-        # (existing provider report logic remains here — shortened for clarity)
         engine = get_db_engine()
         with engine.connect() as connection:
             result = connection.execute(
@@ -591,37 +587,47 @@ def generate_report():
             return "Provider not found", 400
 
         provider_id = int(row.ProviderID)
-        competencies_df = load_competencies(engine, year, term)
-        competencies_df = competencies_df[competencies_df['WaterBased'] == 1]
-        providerresults = load_provider_results(engine, year, term, provider_id)
 
-        # generate figure and render as before
-        fig, ax = plt.subplots(figsize=PAGE_SIZE)
-        make_grid(ax, N_COLS, N_ROWS, ROW_HEIGHTS, TITLE_SPACE, SUBTITLE_SPACE, competencies_df, providerresults, DEBUG)
-        ax.text(
-            N_COLS / 2,
-            N_ROWS + (TITLE_SPACE / 2),
-            "Competency Report for " + provider_name,
-            ha='center', va='center',
-            fontsize=14, weight='demibold'
-        )
+        # ⬇️ Replace long logic with call to graphing function
+        fig = create_competency_report(term, year, provider_id, provider_name)
+
         buf = io.BytesIO()
         plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
         fig.savefig(buf, format="png")
         buf.seek(0)
         plt.close(fig)
 
+        last_pdf_generated = buf
+        last_pdf_filename = f"Provider_Report_{provider_name}_{term}_{year}.pdf"
+
         return render_template("generatereports.html", img_data=base64.b64encode(buf.getvalue()).decode("utf-8"))
 
     elif report_type == "National":
-        return render_template("comingsoon.html", message="National Performance Report coming soon.")
+        fig = generate_national_report(term, year)
+
+        png_buf = io.BytesIO()
+        pdf_buf = io.BytesIO()
+
+        plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
+        fig.savefig(png_buf, format="png")
+        fig.savefig(pdf_buf, format="pdf")
+        plt.close(fig)
+
+        png_buf.seek(0)
+        pdf_buf.seek(0)
+
+        last_pdf_generated = pdf_buf
+        last_pdf_filename = f"National_Report_{term}_{year}.pdf"
+
+        img_data = base64.b64encode(png_buf.read()).decode("utf-8")
+        return render_template("generatereports.html", img_data=img_data)
 
     elif report_type == "Competency":
         
         year = int(request.form['year'])
         term = int(request.form['term'])
         dropdown_string = request.form.get("competency")
-        print(dropdown_string)
+        #print(dropdown_string)
         engine = get_db_engine()
 
         with engine.connect() as connection:
@@ -629,7 +635,7 @@ def generate_report():
                 text("EXEC GetCompetencyIDsFromDropdown :DropdownValue"),
                 {"DropdownValue": dropdown_string}
             )
-            print(result)
+            #print(result)
             row = result.fetchone()
             competency_id = row.CompetencyID
             year_group_id = row.YearGroupID
@@ -640,7 +646,7 @@ def generate_report():
 
         if df.empty:
             return "No data available for the selected inputs", 400
-
+        
         comp_desc = df['CompetencyDesc'].unique()[0]
         year_group = df['YearGroupDesc'].unique()[0]
         title = f"{comp_desc} ({year_group})"
@@ -652,12 +658,13 @@ def generate_report():
         fig.savefig(buf, format="png")
         plt.close(fig)
         buf.seek(0)
-
+        last_pdf_generated = buf
+        last_pdf_filename = f"Competency_Report_{term}_{year}.pdf"
         img_data = base64.b64encode(buf.read()).decode("utf-8")
         return render_template("competencyreport.html", img_data=img_data,year=year, term=term, dropdown=dropdown_string)
     else:
         return "Invalid report type selected", 400
-last_pdf_generated = None
+
 
 @app.route('/download_pdf')
 def download_pdf():
@@ -667,7 +674,7 @@ def download_pdf():
     last_pdf_generated.seek(0)
     return send_file(
         last_pdf_generated,
-        download_name="Competency_Report.pdf",
+        download_name=last_pdf_filename or "Report.pdf",
         as_attachment=True,
         mimetype='application/pdf'
     )
