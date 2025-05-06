@@ -5,3 +5,4 @@ sqlalchemy
 pandas
 XlsxWriter
 matplotlib
+bcrypt
