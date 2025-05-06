@@ -13,7 +13,7 @@ Key Features:
 
 
 # Loading required packages
-from flask import Flask, request, jsonify, render_template_string, render_template, send_file # Web framework & templating
+from flask import Flask, request, jsonify, render_template_string, render_template, send_file, session, redirect, url_for, flash # Web framework & templating
 from sqlalchemy import create_engine, text       # For ODBC database connection to Azure SQL Server
 import pyodbc
 import os             # For reading environment variables
@@ -27,6 +27,9 @@ import matplotlib
 matplotlib.use("Agg")  # Use non-GUI backend
 import matplotlib.pyplot as plt
 import textwrap
+import bcrypt
+from functools import wraps
+
 from providernationalplot import create_competency_report
 from competencyplot import get_db_engine, load_competency_rates, make_figure
 from nationalplot import generate_national_report
@@ -42,10 +45,12 @@ school_name = None
 moe_number = None
 teacher_name = None
 class_name = None
+REQUIRE_LOGIN = True
 
 load_dotenv()
 
 app = Flask(__name__, static_folder='static')
+app.secret_key = os.getenv("SECRET_KEY", "changeme123")  # Replace this in production!
 
 
 # Secure database connection (variables stored in .env and render setup)
@@ -59,6 +64,49 @@ def get_db_engine():
     )
     return create_engine(connection_string, fast_executemany=True)
 
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if REQUIRE_LOGIN and not session.get("logged_in"):
+            return redirect(url_for("login"))
+        return f(*args, **kwargs)
+    return decorated_function
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if not REQUIRE_LOGIN:
+        return redirect(url_for("home"))
+
+    if request.method == 'POST':
+        email = request.form.get('username')  # assuming this is the email
+        password = request.form.get('password').encode('utf-8')  # encode to bytes
+        engine = get_db_engine()
+        # Query to get the hashed password
+        with engine.connect() as conn:
+            result = conn.execute(
+                text("SELECT HashPassword, Role FROM FlaskLogin WHERE Email = :email"),
+                {"email": email}
+            ).fetchone()
+
+        if result:
+            stored_hash = result[0].encode('utf-8')  # bcrypt expects bytes
+            role = result[1]
+
+            # Check the password
+            if bcrypt.checkpw(password, stored_hash):
+                session["logged_in"] = True
+                session["user_role"] = role
+                return redirect(url_for("home"))
+
+        flash("Invalid credentials", "danger")
+
+    return render_template("login.html")
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for("login"))
+
 @app.route('/favicon.ico')
 def favicon():
     return send_file(os.path.join(app.root_path, 'static', 'favicon.ico'), mimetype='image/vnd.microsoft.icon')
@@ -69,7 +117,11 @@ def favicon():
 # - Provider dropdown populated from the database
 # - JS validation and progress bar logic included 
 @app.route('/')
+@login_required
 def home():
+    print("REQUIRE_LOGIN:", REQUIRE_LOGIN)
+    print("Logged in session:", session.get("logged_in"))
+
     engine = get_db_engine()
 
     with engine.connect() as connection:
