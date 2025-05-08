@@ -3,6 +3,7 @@ import pandas as pd
 import os
 from sqlalchemy import create_engine, text
 import textwrap
+from datetime import date
 
 # ===================
 # CONFIGURATION
@@ -15,6 +16,7 @@ N_COLS = 2
 N_ROWS = 2
 DEBUG = False
 OUTPUT_FILENAME = "Competency_Report.pdf"
+
 
 TERM = 4
 CALENDARYEAR = 2024
@@ -53,30 +55,6 @@ def load_provider_name(con, providerID):
         columns = result.keys()
     provider = pd.DataFrame(data, columns=columns)
     return provider.loc[providerID, 'Description']
-
-def create_competency_report(term, calendaryear, provider_id, output_filename="Competency_Report.pdf"):
-    con = get_db_engine()
-
-    competencies_df = load_competencies(con, calendaryear, term)
-    competencies_df = competencies_df[competencies_df['WaterBased'] == 1]
-
-    provider_name = load_provider_name(con, provider_id)
-    providerresults = load_provider_results(con, calendaryear, term, provider_id)
-
-    fig, ax = plt.subplots(figsize=PAGE_SIZE)
-
-    make_grid(ax, N_COLS, N_ROWS, ROW_HEIGHTS, TITLE_SPACE, SUBTITLE_SPACE, competencies_df, providerresults, DEBUG)
-
-    ax.text(
-        N_COLS / 2,
-        N_ROWS + (TITLE_SPACE / 2),
-        "Competency Report for " + provider_name,
-        ha='center', va='center',
-        fontsize=14, weight='demibold'
-    )
-
-    save_and_open_pdf(fig, output_filename)
-    return output_filename  # or return fig if you want to return the figure
 
 def load_provider_results(con, calendaryear, term, providerid):
     with con.connect() as connection:
@@ -149,10 +127,10 @@ def make_grid(ax, n_cols, n_rows, row_heights, title_space, subtitle_space, df, 
 def draw_key(ax, x, y):
     labels = ['National Rate (LY)', 'Provider Rate (YTD)', 'Provider Target']
     colors = ['#2EBDC2', '#356FB6', '#BBE6E9']
-    box_size = 0.04
+    box_size = 0.03
     padding = 0.01
     spacing = 0.25
-
+    # (11.69, 8.27)
     # Calculate total width of the key
     total_width = len(labels) * spacing - (spacing - 1) * 0.01   
     start_x = x - total_width / 2
@@ -160,11 +138,11 @@ def draw_key(ax, x, y):
     for i, (label, color) in enumerate(zip(labels, colors)):
         box_x = start_x + i * spacing
         ax.add_patch(plt.Rectangle(
-            (box_x, y), box_size, box_size,
+            (box_x, y), box_size, box_size * ( 11.69/8.27 ),
             facecolor=color, edgecolor='black'
         ))
         ax.text(
-            box_x + box_size + padding, y + box_size / 2,
+            box_x + box_size + padding, y + box_size *  ( 11.69/8.27 ) / 2,
             label, va='center', ha='left', fontsize=7
         )    
 
@@ -305,13 +283,23 @@ def save_and_open_pdf(fig, filename):
     plt.close(fig)  # Clean up
     print(f"✅ PDF saved as {filename}")
 
+def sanitize_filename(s):
+    return s.replace(" ", "_").replace("/", "_")  # remove problematic characters
+
+provider_name = load_provider_name(get_db_engine(), PROVIDER_ID)
+safe_provider = sanitize_filename(provider_name)
+today = date.today().isoformat().replace("-", ".")
+
+OUTPUT_FILENAME = f"{safe_provider}_Term{TERM}_{CALENDARYEAR}_CompetencyReport_{today}.pdf"
+print(OUTPUT_FILENAME)
+
 # ===================
 # MAIN
 # ===================
 
 def main():
     con = get_db_engine()
-
+    
     competencies_df = load_competencies(con, CALENDARYEAR, TERM)
     competencies_df = competencies_df[competencies_df['WaterBased'] == 1]
 

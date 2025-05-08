@@ -28,6 +28,6 @@ ENV LANG en_US.UTF-8
 WORKDIR /app
 COPY . /app
 RUN pip install --upgrade pip && pip install -r requirements.txt
-RUN pip install pyodbc   # <-- Add this line
+RUN pip install pyodbc  
 
 CMD ["python", "app.py"]
