@@ -119,8 +119,8 @@ def favicon():
 @app.route('/')
 @login_required
 def home():
-    print("REQUIRE_LOGIN:", REQUIRE_LOGIN)
-    print("Logged in session:", session.get("logged_in"))
+    #print("REQUIRE_LOGIN:", REQUIRE_LOGIN)
+    #print("Logged in session:", session.get("logged_in"))
 
     engine = get_db_engine()
 
