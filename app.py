@@ -924,6 +924,7 @@ def view_class(class_id, term, year):
 
         # Final tidy up
         df_combined = pd.DataFrame(all_records)
+        df_combined = df_combined.sort_values("LastName", ascending=True)
 
         # Reorder scenario columns to match the spreadsheet logic
         if "Scenario One - Selected" in df_combined.columns and "Scenario Two - Selected" in df_combined.columns:
@@ -937,109 +938,6 @@ def view_class(class_id, term, year):
     return render_template("provider_class_detail.html", students=df_combined.to_dict(orient="records"), columns=df_combined.columns.tolist())
 
 
-
-def view_class(class_id, term, year):
-    engine = get_db_engine()
-
-    with engine.connect() as conn:
-        # Step 1: Get all students for that class
-        result = conn.execute(text("""
-            SELECT 
-                s.NSN, 
-                s.FirstName, 
-                s.LastName, 
-                s.PreferredName, 
-                s.DateOfBirth, 
-                e.Description AS Ethnicity, 
-                sy.YearLevelID
-            FROM StudentClass scm
-            JOIN Student s ON s.NSN = scm.NSN
-            JOIN Class c ON c.ClassID = scm.ClassID
-            JOIN StudentYearLevel sy ON sy.NSN = scm.NSN 
-                                      AND sy.Term = c.Term 
-                                      AND sy.CalendarYear = c.CalendarYear
-            JOIN Ethnicity e ON e.EthnicityID = s.EthnicityID
-            WHERE scm.ClassID = :class_id 
-              AND c.Term = :term 
-              AND c.CalendarYear = :year
-        """), {"class_id": class_id, "term": term, "year": year})
-
-        students = pd.DataFrame(result.fetchall(), columns=result.keys())
-
-        if students.empty:
-            flash("No students found.", "warning")
-            return redirect(url_for("provider_classes"))
-
-        # Step 2: Get all relevant competency labels
-        comp_result = conn.execute(text("EXEC GetRelevantCompetencies :CalendarYear, :Term"),
-                                   {"CalendarYear": year, "Term": term})
-        comp_df = pd.DataFrame(comp_result.fetchall(), columns=comp_result.keys())
-        comp_df["label"] = comp_df["CompetencyDesc"] + "<br> (" + comp_df["YearGroupDesc"] + ")"
-        comp_df["col_order"] = comp_df["YearGroupID"].astype(str).str.zfill(2) + "-" + comp_df["CompetencyID"].astype(str).str.zfill(4)
-        comp_df = comp_df.sort_values("col_order")
-        labels = comp_df["label"].tolist()
-
-        all_records = []
-
-        # Step 3: Loop through each student and compile full record
-        for _, student in students.iterrows():
-            nsn = student["NSN"]
-
-            # Competency status
-            comp_status_result = conn.execute(text("""
-                EXEC GetStudentCompetencyStatus :NSN, :Term, :CalendarYear
-            """), {"NSN": nsn, "Term": term, "CalendarYear": year})
-            comp_data = pd.DataFrame(comp_status_result.fetchall(), columns=comp_status_result.keys())
-
-            if comp_data.empty:
-                comp_row = {label: '' for label in labels}
-            else:
-                comp_data = comp_data.merge(comp_df[["CompetencyID", "YearGroupID", "label"]],
-                                            on=["CompetencyID", "YearGroupID"], how="inner")
-                comp_row = comp_data.set_index("label")["CompetencyStatusID"].reindex(labels).fillna(0).astype(int)
-                comp_row = {k: 'Y' if v == 1 else '' for k, v in comp_row.items()}
-
-            # Scenario data
-            scenario_result = conn.execute(text("""
-                EXEC FlaskHelperFunctions :Request, :Number
-            """), {"Request": "StudentScenario", "Number": nsn})
-            scenario_df = pd.DataFrame(scenario_result.fetchall(), columns=scenario_result.keys())
-
-            if not scenario_df.empty:
-                scenario1 = scenario_df.iloc[0].get("Scenario1", "")
-                scenario2 = scenario_df.iloc[0].get("Scenario2", "")
-            else:
-                scenario1 = ""
-                scenario2 = ""
-
-            # Merge all info
-            merged_row = {
-                "NSN": nsn,
-                "FirstName": student["FirstName"],
-                "LastName": student["LastName"],
-                "PreferredName": student["PreferredName"],
-                "DateOfBirth": student["DateOfBirth"],
-                "Ethnicity": student["Ethnicity"],
-                "YearLevelID": student["YearLevelID"],
-                **comp_row,
-                "Scenario One - Selected": scenario1,
-                "Scenario Two - Selected": scenario2
-            }
-            all_records.append(merged_row)
-
-        # Final tidy up
-        df_combined = pd.DataFrame(all_records)
-
-        # Reorder scenario columns to match the spreadsheet logic
-        if "Scenario One - Selected" in df_combined.columns and "Scenario Two - Selected" in df_combined.columns:
-            cols = df_combined.columns.tolist()
-            s1 = cols.pop(cols.index("Scenario One - Selected"))
-            s2 = cols.pop(cols.index("Scenario Two - Selected"))
-            cols.insert(-2, s1)
-            cols.insert(-1, s2)
-            df_combined = df_combined[cols]
-
-    return render_template("provider_class_detail.html", students=df_combined.to_dict(orient="records"), columns=df_combined.columns.tolist())
 
 @app.route('/download_pdf')
 @login_required
