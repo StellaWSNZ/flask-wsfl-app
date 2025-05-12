@@ -69,20 +69,23 @@ def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if REQUIRE_LOGIN and not session.get("logged_in"):
-            return redirect(url_for("login"))
+            return redirect(url_for("login", next=request.url))
         return f(*args, **kwargs)
     return decorated_function
+
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if not REQUIRE_LOGIN:
         return redirect(url_for("home"))
 
+    next_url = request.args.get('next')
+
     if request.method == 'POST':
-        email = request.form.get('username')  # assuming this is the email
-        password = request.form.get('password').encode('utf-8')  # encode to bytes
+        email = request.form.get('username')
+        password = request.form.get('password').encode('utf-8')
         engine = get_db_engine()
-        # Query to get the hashed password
+
         with engine.connect() as conn:
             result = conn.execute(
                 text("SELECT HashPassword, Role FROM FlaskLogin WHERE Email = :email"),
@@ -90,30 +93,39 @@ def login():
             ).fetchone()
 
         if result:
-            stored_hash = result[0].encode('utf-8')  # bcrypt expects bytes
+            stored_hash = result[0].encode('utf-8')
             role = result[1]
 
-            # Check the password
             if bcrypt.checkpw(password, stored_hash):
                 session["logged_in"] = True
                 session["user_role"] = role
+
+                # Redirect to original page if valid
+                if next_url:
+                    return redirect(next_url)
                 return redirect(url_for("home"))
 
         flash("Invalid credentials", "danger")
 
-    return render_template("login.html")
+    return render_template("login.html", next=next_url)
+
 
 
 @app.route('/provider')
+@login_required
 def provider():
+    if session.get("user_role") == "TEA":
+        return redirect(url_for("home"))
     return render_template("provider.html")
 
 @app.route('/school')
+@login_required
 def school():
+    if session.get("user_role") == "PRO":
+        return redirect(url_for("home"))
     return render_template("school.html")
 
-
-@app.route('/logout')
+@app.route('/logout', methods=['GET', 'POST'])
 def logout():
     session.clear()
     return redirect(url_for("login"))
@@ -417,6 +429,7 @@ def get_progress():
 # - Errors (if any) in a separate table
 # - Includes a back button to return to the homepage
 @app.route('/results')
+@login_required
 def results():
     valid_html = (
         last_valid_df.to_html(classes="table table-bordered table-sm", index=False, escape=False)
@@ -453,6 +466,7 @@ def get_schools():
 
 
 @app.route('/download_excel')
+@login_required
 def download_excel():
     if last_valid_df.empty and last_error_df.empty:
         return "No data to export", 400
@@ -589,6 +603,7 @@ def download_excel():
     )
 
 @app.route('/download_competency_pdf')
+@login_required
 def download_competency_pdf():
     year = int(request.args.get("year"))
     term = int(request.args.get("term"))
@@ -730,6 +745,7 @@ def generate_report():
 
 
 @app.route('/download_pdf')
+@login_required
 def download_pdf():
     if last_pdf_generated is None:
         return "No PDF generated yet.", 400
@@ -741,6 +757,10 @@ def download_pdf():
         as_attachment=True,
         mimetype='application/pdf'
     )
+
+@app.context_processor
+def inject_user_role():
+    return dict(user_role=session.get("user_role"))
 
 # Run app
 if __name__ == '__main__':

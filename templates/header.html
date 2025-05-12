@@ -21,7 +21,7 @@
         <!-- Logo and Brand Name -->
         <a class="navbar-brand d-flex align-items-center" href="/">
           <img
-            src="{{ url_for('static', filename='lightlogo.png') }}"
+            src="{{ url_for('static', filename='LightLogo.png') }}"
             alt="Logo"
             style="height: 50px; margin-right: 20px"
           />
@@ -42,6 +42,7 @@
 
         <!-- Navigation Links -->
         <div class="collapse navbar-collapse" id="navbarNav">
+          <!-- Navigation Links -->
           <ul class="navbar-nav ms-auto">
             <li class="nav-item">
               <a
@@ -50,6 +51,8 @@
                 >Dashboard</a
               >
             </li>
+
+            {% if select_role != "TEA" %}
             <li class="nav-item">
               <a
                 class="nav-link {% if 'provider' in request.path %}active{% endif %}"
@@ -57,12 +60,22 @@
                 >Provider Tools</a
               >
             </li>
+            {% endif %} {% if select_role != "PRO" %}
             <li class="nav-item">
               <a
                 class="nav-link {% if 'school' in request.path %}active{% endif %}"
                 href="/school"
                 >School Tools</a
               >
+            </li>
+            {% endif %}
+
+            <li class="nav-item">
+              <form action="/logout" method="post" class="d-inline">
+                <button type="submit" class="btn btn-outline-light btn-sm ms-3">
+                  Logout
+                </button>
+              </form>
             </li>
           </ul>
         </div>
