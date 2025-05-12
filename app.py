@@ -480,7 +480,7 @@ def create_user():
         hashed_pw = bcrypt.hashpw(password, bcrypt.gensalt()).decode("utf-8")
 
         engine = get_db_engine()
-        with engine.connect() as conn:
+        with engine.begin() as conn:
             # Check for duplicate email
             existing = conn.execute(
                 text("SELECT 1 FROM FlaskLogin WHERE Email = :email"),
@@ -488,18 +488,19 @@ def create_user():
             ).fetchone()
 
             if existing:
-                flash("Email already exists.", "warning")
-            else:
-                with engine.begin() as conn:
-                    conn.execute(
-                        text("INSERT INTO FlaskLogin (Email, HashPassword, Role) VALUES (:email, :hash, :role)"),
-                        {"email": email, "hash": hashed_pw, "role": role}
-                    )
-
-                flash(f"User {email} created with role {role}.", "success")
+                flash("⚠️ Email already exists. Please use a different email.", "warning")
                 return redirect(url_for("create_user"))
 
+            # Insert new user
+            conn.execute(
+                text("INSERT INTO FlaskLogin (Email, HashPassword, Role) VALUES (:email, :hash, :role)"),
+                {"email": email, "hash": hashed_pw, "role": role}
+            )
+            flash(f"✅ User {email} created with role {role}.", "success")
+            return redirect(url_for("create_user"))
+
     return render_template("create_user.html")
+
 
 @app.route('/download_excel')
 @login_required

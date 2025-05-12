@@ -1,7 +1,25 @@
 {% extends "header.html" %} {% block title %}Create User{% endblock %} {% block
 content %}
+<!-- Flash message display block -->
+{% with messages = get_flashed_messages(with_categories=true) %} {% if messages
+%} {% for category, message in messages %}
+<div
+  class="alert alert-{{ category }} alert-dismissible fade show"
+  role="alert"
+>
+  {{ message }}
+  <button
+    type="button"
+    class="btn-close"
+    data-bs-dismiss="alert"
+    aria-label="Close"
+  ></button>
+</div>
+{% endfor %} {% endif %} {% endwith %}
+
+<!-- Create User Form -->
 <div class="card">
-  <div class="card-header bg-primary text-white">Create New User</div>
+  <div class="card-header bg-secondary text-white">Create New User</div>
   <div class="card-body">
     <form method="POST">
       <div class="mb-3">
@@ -24,4 +42,14 @@ content %}
     </form>
   </div>
 </div>
+{% endblock %} {% block scripts %}
+<script>
+  setTimeout(function () {
+    const alerts = document.querySelectorAll(".alert");
+    alerts.forEach(function (alertEl) {
+      const bsAlert = bootstrap.Alert.getOrCreateInstance(alertEl);
+      bsAlert.close(); // Triggers Bootstrap's fade-out and removal
+    });
+  }, 10000);
+</script>
 {% endblock %}
