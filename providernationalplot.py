@@ -18,8 +18,8 @@ DEBUG = False
 OUTPUT_FILENAME = "Competency_Report.pdf"
 
 
-TERM = 4
-CALENDARYEAR = 2024
+TERM = 1
+CALENDARYEAR = 2025
 PROVIDER_ID = 5
 
 # ===================
@@ -270,6 +270,16 @@ def make_yeargroup_plot(ax, x, y_top, cell_height, title, df_relcomp, df_results
         y_current -= competency_spacing
     draw_key(ax, cell_center, y_current-0.05)
 
+def load_all_providers(con):
+    with con.connect() as connection:
+        result = connection.execute(
+            text("EXEC FlaskHelperFunctions :Request"),
+            {"Request": "ProviderDropdown"}
+        )
+        data = result.fetchall()
+        columns = result.keys()
+    return pd.DataFrame(data, columns=columns).reset_index(drop=True)
+
 def save_and_open_pdf(fig, filename):
     plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
     fig.savefig(filename, format='pdf')
@@ -291,7 +301,6 @@ safe_provider = sanitize_filename(provider_name)
 today = date.today().isoformat().replace("-", ".")
 
 OUTPUT_FILENAME = f"{safe_provider}_Term{TERM}_{CALENDARYEAR}_CompetencyReport_{today}.pdf"
-print(OUTPUT_FILENAME)
 
 # ===================
 # MAIN
@@ -299,26 +308,36 @@ print(OUTPUT_FILENAME)
 
 def main():
     con = get_db_engine()
-    
-    competencies_df = load_competencies(con, CALENDARYEAR, TERM)
-    competencies_df = competencies_df[competencies_df['WaterBased'] == 1]
+    providers_df = load_all_providers(con)
 
-    provider_name = load_provider_name(con, PROVIDER_ID)
+    # Make output folder
+    output_folder = f"CompetencyReports_Term{TERM}_{CALENDARYEAR}"
+    os.makedirs(output_folder, exist_ok=True)
 
-    providerresults =load_provider_results(con, CALENDARYEAR, TERM, PROVIDER_ID) 
-    fig, ax = plt.subplots(figsize=PAGE_SIZE)
+    for idx, row in providers_df.iterrows():
+        provider_id = idx
+        provider_name = row['Description']
+        safe_provider = sanitize_filename(provider_name)
+        today = date.today().isoformat().replace("-", ".")
+        filename = f"{safe_provider}_Term{TERM}_{CALENDARYEAR}_CompetencyReport_{today}.pdf"
+        filepath = os.path.join(output_folder, filename)
 
-    make_grid(ax, N_COLS, N_ROWS, ROW_HEIGHTS, TITLE_SPACE, SUBTITLE_SPACE, competencies_df, providerresults, DEBUG)
+        competencies_df = load_competencies(con, CALENDARYEAR, TERM)
+        competencies_df = competencies_df[competencies_df['WaterBased'] == 1]
+        providerresults = load_provider_results(con, CALENDARYEAR, TERM, provider_id)
 
-    ax.text(
-        N_COLS / 2,
-        N_ROWS + (TITLE_SPACE / 2),
-        "Competency Report for " + provider_name,
-        ha='center', va='center',
-        fontsize=14, weight='demibold'
-    )
+        fig, ax = plt.subplots(figsize=PAGE_SIZE)
+        make_grid(ax, N_COLS, N_ROWS, ROW_HEIGHTS, TITLE_SPACE, SUBTITLE_SPACE, competencies_df, providerresults, DEBUG)
 
-    save_and_open_pdf(fig, OUTPUT_FILENAME)
+        ax.text(
+            N_COLS / 2,
+            N_ROWS + (TITLE_SPACE / 2),
+            "Competency Report for " + provider_name,
+            ha='center', va='center',
+            fontsize=14, weight='demibold'
+        )
+
+        save_and_open_pdf(fig, filepath)
 
 if __name__ == "__main__":
     main()
