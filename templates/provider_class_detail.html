@@ -6,7 +6,7 @@ block content %}
     <tr>
       {% for col in columns %} {% if col not in ['NSN', 'FirstName',
       'DateOfBirth', 'Ethnicity'] %}
-      <th>{{ col }}</th>
+      <th>{{ col | safe }}</th>
       {% endif %} {% endfor %}
     </tr>
   </thead>
@@ -15,7 +15,11 @@ block content %}
     <tr>
       {% for col in columns %} {% if col not in ['NSN', 'FirstName',
       'DateOfBirth', 'Ethnicity'] %}
-      <td>{{ row[col] }}</td>
+      <td>
+        {% if col in row and col not in ['LastName', 'PreferredName',
+        'YearLevelID'] %} <input type="checkbox" disabled {% if row[col] == 'Y'
+        %}checked{% endif %}> {% else %} {{ row[col] }} {% endif %}
+      </td>
       {% endif %} {% endfor %}
     </tr>
     {% endfor %}

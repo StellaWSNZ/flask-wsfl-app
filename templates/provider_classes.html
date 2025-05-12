@@ -6,7 +6,12 @@ content %}
   <div class="row g-2 align-items-end">
     <div class="col">
       <label for="moe_number" class="form-label">MOE Number</label>
-      <input type="number" name="moe_number" class="form-control" required />
+      <select name="moe_number" class="form-select" required>
+        <option disabled selected value>Select MOE Number</option>
+        {% for school in schools %}
+        <option value="{{ school.MOENumber }}">{{ school.School }}</option>
+        {% endfor %}
+      </select>
     </div>
     <div class="col">
       <label for="term" class="form-label">Term</label>

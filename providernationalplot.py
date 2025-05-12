@@ -273,8 +273,7 @@ def make_yeargroup_plot(ax, x, y_top, cell_height, title, df_relcomp, df_results
 def load_all_providers(con):
     with con.connect() as connection:
         result = connection.execute(
-            text("EXEC FlaskHelperFunctions :Request"),
-            {"Request": "ProviderDropdown"}
+            text("Select * from Provider")
         )
         data = result.fetchall()
         columns = result.keys()
@@ -315,7 +314,7 @@ def main():
     os.makedirs(output_folder, exist_ok=True)
 
     for idx, row in providers_df.iterrows():
-        provider_id = idx
+        provider_id = row['ProviderID']
         provider_name = row['Description']
         safe_provider = sanitize_filename(provider_name)
         today = date.today().isoformat().replace("-", ".")

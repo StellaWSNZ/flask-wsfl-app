@@ -191,7 +191,7 @@ def generate_national_report(term, calendaryear, from_db=True):
 if __name__ == "__main__":
     con = get_db_engine()
     df = load_national_results(con, CALENDARYEAR, TERM, DB)
-
+    
     df2 = df[['CompetencyDesc', 'YearGroupDesc']].drop_duplicates()
     row_heights = (
         df2['YearGroupDesc'].value_counts().sort_index() /

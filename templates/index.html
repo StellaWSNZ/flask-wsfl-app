@@ -4,9 +4,9 @@
 
 {% block content %}
 
-<div class="row g-4">
+<div class="row justify-content-center g-4">
   <!-- Upload CSV -->
-  <div class="col-md-6">
+  <div class="col-lg-3 col-md-5">
     <div class="card h-100">
       <div class="card-header">📤 Upload CSV</div>
       <div class="card-body">
@@ -64,7 +64,7 @@
   </div>
 
   <!-- Generate Report -->
-  <div class="col-md-6">
+  <div class="col-lg-3 col-md-5">
     <div class="card h-100">
       <div class="card-header">📈 Generate Report</div>
       <div class="card-body">
@@ -97,7 +97,6 @@
             </select>
           </div>
 
-          <!-- Provider dropdown (only for Provider Performance) -->
           <div class="col-12" id="provider-options">
             <label for="report_provider" class="form-label">Provider</label>
             <select name="provider" class="form-select" id="report_provider">
@@ -108,7 +107,6 @@
             <small class="form-text text-muted mt-1">Note: Generating may take up to 60 seconds.</small>
           </div>
 
-          <!-- Competency dropdown (only for Competency Performance) -->
           <div class="col-12" id="competency-options" style="display: none;">
             <label for="competency" class="form-label">Competency</label>
             <select name="competency" class="form-select" id="competency">
@@ -127,69 +125,4 @@
   </div>
 </div>
 
-{% endblock %}
-
-{% block scripts %}
-<script>
-  function loadSchools() {
-    const provider = document.getElementById("provider").value;
-    const schoolDropdown = document.getElementById("school");
-    schoolDropdown.innerHTML = "";
-    if (!provider) return;
-    fetch(`/get_schools?provider=${encodeURIComponent(provider)}`)
-      .then(response => response.json())
-      .then(data => {
-        if (data.length > 0) {
-          data.forEach(school => {
-            const option = document.createElement("option");
-            option.value = school;
-            option.text = school;
-            schoolDropdown.appendChild(option);
-          });
-        } else {
-          const option = document.createElement("option");
-          option.text = "No schools found";
-          schoolDropdown.appendChild(option);
-        }
-      });
-  }
-
-  function checkFileSelected() {
-    const fileInput = document.getElementById("csv_file_input");
-    if (!fileInput.value) {
-      alert("Please select a CSV file to upload.");
-      return false;
-    }
-
-    document.getElementById("uploadProgress").style.display = "block";
-    const interval = setInterval(() => {
-      fetch("/progress")
-        .then(response => response.json())
-        .then(data => {
-          const percent = Math.floor((data.current / data.total) * 100);
-          const bar = document.getElementById("progressBar");
-          bar.style.width = percent + "%";
-          bar.innerText = percent + "%";
-          bar.setAttribute("aria-valuenow", percent);
-          if (data.done) clearInterval(interval);
-        });
-    }, 500);
-    return true;
-  }
-
-  document.addEventListener("DOMContentLoaded", function () {
-    const reportType = document.getElementById("report_type");
-    const providerOptions = document.getElementById("provider-options");
-    const competencyOptions = document.getElementById("competency-options");
-
-    function updateVisibility() {
-      const type = reportType.value;
-      providerOptions.style.display = type === "Provider" ? "block" : "none";
-      competencyOptions.style.display = type === "Competency" ? "block" : "none";
-    }
-
-    reportType.addEventListener("change", updateVisibility);
-    updateVisibility();
-  });
-</script>
 {% endblock %}

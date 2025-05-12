@@ -88,18 +88,21 @@ def login():
 
         with engine.connect() as conn:
             result = conn.execute(
-                text("SELECT HashPassword, Role FROM FlaskLogin WHERE Email = :email"),
+                text("SELECT HashPassword, Role, ID FROM FlaskLogin WHERE Email = :email"),
                 {"email": email}
             ).fetchone()
 
         if result:
             stored_hash = result[0].encode('utf-8')
             role = result[1]
+            user_id = result[2]
 
             if bcrypt.checkpw(password, stored_hash):
                 session["logged_in"] = True
                 session["user_role"] = role
+                session["user_id"] = user_id
                 print(role)
+                print(user_id)
                 # Redirect to original page if valid
                 if next_url:
                     return redirect(next_url)
@@ -792,48 +795,40 @@ def provider_classes():
     students = []
     selected_class_id = None
 
-    if request.method == "POST":
-        moe_number = request.form.get("moe_number")
-        term = request.form.get("term")
-        year = request.form.get("calendaryear")
-        selected_class_id = request.form.get("class_id")
+    user_role = session.get("user_role")
+    user_id = session.get("user_id")  # stored during login
 
-        with engine.connect() as conn:
+    with engine.connect() as conn:
+        # ✅ CALL your stored procedure with optional Number param
+        result = conn.execute(
+            text("EXEC FlaskHelperFunctions :Request, :Number"),
+            {"Request": "SchoolDropdown", "Number": None if user_role == "ADM" else user_id}
+        )
+        schools = pd.DataFrame(result.fetchall(), columns=result.keys())
+
+        if request.method == "POST":
+            moe_number = request.form.get("moe_number")
+            term = request.form.get("term")
+            year = request.form.get("calendaryear")
+            selected_class_id = request.form.get("class_id")
+
             if not selected_class_id:
                 result = conn.execute(
                     text("SELECT ClassID, ClassName, TeacherName FROM Class WHERE MOENumber = :moe AND Term = :term AND CalendarYear = :year"),
                     {"moe": moe_number, "term": term, "year": year}
                 )
                 classes = [row._mapping for row in result.fetchall()]
+            # (you can keep the student fetch logic below here)
 
-            else:
-                result = conn.execute(
-                    text("""
-                        SELECT 
-                            s.NSN, 
-                            s.FirstName, 
-                            s.LastName, 
-                            s.PreferredName, 
-                            s.DateOfBirth, 
-                            e.Description AS Ethnicity, 
-                            sy.YearLevelID
-                        FROM StudentClass scm
-                        JOIN Student s ON s.NSN = scm.NSN
-                        JOIN Class c ON c.ClassID = scm.ClassID
-                        JOIN StudentYearLevel sy ON sy.NSN = scm.NSN 
-                                                  AND sy.Term = c.Term 
-                                                  AND sy.CalendarYear = c.CalendarYear
-                        JOIN Ethnicity e ON e.EthnicityID = s.EthnicityID
-                        WHERE scm.ClassID = :class_id 
-                          AND c.Term = :term 
-                          AND c.CalendarYear = :year
-                    """),
-                    {"class_id": selected_class_id, "term": term, "year": year}
-                )
-                students = [row._mapping for row in result.fetchall()]
+    # ✅ Pass schools to the template
+    return render_template(
+        "provider_classes.html",
+        schools=schools.to_dict(orient="records"),
+        classes=classes,
+        students=students,
+        selected_class_id=selected_class_id
+    )
 
-
-    return render_template("provider_classes.html", classes=classes, students=students, selected_class_id=selected_class_id)
 
 @app.route('/view_class/<int:class_id>/<int:term>/<int:year>')
 @login_required
@@ -924,6 +919,7 @@ def view_class(class_id, term, year):
                 "Scenario One - Selected": scenario1,
                 "Scenario Two - Selected": scenario2
             }
+            # print(merged_row)
             all_records.append(merged_row)
 
         # Final tidy up
