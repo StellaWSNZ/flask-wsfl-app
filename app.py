@@ -99,7 +99,7 @@ def login():
             if bcrypt.checkpw(password, stored_hash):
                 session["logged_in"] = True
                 session["user_role"] = role
-
+                print(role)
                 # Redirect to original page if valid
                 if next_url:
                     return redirect(next_url)
