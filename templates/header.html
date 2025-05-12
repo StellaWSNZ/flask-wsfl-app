@@ -15,7 +15,63 @@
     {% block head %}{% endblock %}
   </head>
   <body class="bg-light">
+    <!-- Navigation bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark py-3">
+      <div class="container-fluid">
+        <!-- Logo and Brand Name -->
+        <a class="navbar-brand d-flex align-items-center" href="/">
+          <img
+            src="{{ url_for('static', filename='lightlogo.png') }}"
+            alt="Logo"
+            style="height: 50px; margin-right: 20px"
+          />
+        </a>
+
+        <!-- Toggler -->
+        <button
+          class="navbar-toggler"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#navbarNav"
+          aria-controls="navbarNav"
+          aria-expanded="false"
+          aria-label="Toggle navigation"
+        >
+          <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <!-- Navigation Links -->
+        <div class="collapse navbar-collapse" id="navbarNav">
+          <ul class="navbar-nav ms-auto">
+            <li class="nav-item">
+              <a
+                class="nav-link {% if request.path == '/' %}active{% endif %}"
+                href="/"
+                >Dashboard</a
+              >
+            </li>
+            <li class="nav-item">
+              <a
+                class="nav-link {% if 'provider' in request.path %}active{% endif %}"
+                href="/provider"
+                >Provider Tools</a
+              >
+            </li>
+            <li class="nav-item">
+              <a
+                class="nav-link {% if 'school' in request.path %}active{% endif %}"
+                href="/school"
+                >School Tools</a
+              >
+            </li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main page container -->
     <div class="container py-5">{% block content %}{% endblock %}</div>
+
     {% block scripts %}{% endblock %}
   </body>
 </html>

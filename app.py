@@ -62,6 +62,7 @@ def get_db_engine():
         "@heimatau.database.windows.net:1433/WSFL"
         "?driver=ODBC+Driver+18+for+SQL+Server"
     )
+    # print(connection_string)
     return create_engine(connection_string, fast_executemany=True)
 
 def login_required(f):
@@ -101,6 +102,16 @@ def login():
         flash("Invalid credentials", "danger")
 
     return render_template("login.html")
+
+
+@app.route('/provider')
+def provider():
+    return render_template("provider.html")
+
+@app.route('/school')
+def school():
+    return render_template("school.html")
+
 
 @app.route('/logout')
 def logout():
