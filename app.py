@@ -935,7 +935,8 @@ def view_class(class_id, term, year):
             cols.insert(-1, s2)
             df_combined = df_combined[cols]
 
-    return render_template("provider_class_detail.html", students=df_combined.to_dict(orient="records"), columns=df_combined.columns.tolist())
+    return render_template("provider_class_detail.html", students=df_combined.to_dict(orient="records"),    columns=[col for col in df_combined.columns if col not in ["DateOfBirth", "Ethnicity", "FirstName", "NSN"]]
+)
 
 
 

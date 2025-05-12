@@ -1,29 +1,108 @@
 {% extends "header.html" %} {% block title %}Class Students{% endblock %} {%
 block content %}
+
 <h3>Students and Competencies</h3>
-<table class="table table-bordered table-sm">
-  <thead>
-    <tr>
-      {% for col in columns %} {% if col not in ['NSN', 'FirstName',
-      'DateOfBirth', 'Ethnicity'] %}
-      <th>{{ col | safe }}</th>
-      {% endif %} {% endfor %}
-    </tr>
-  </thead>
-  <tbody>
-    {% for row in students %}
-    <tr>
-      {% for col in columns %} {% if col not in ['NSN', 'FirstName',
-      'DateOfBirth', 'Ethnicity'] %}
-      <td>
-        {% if col in row and col not in ['LastName', 'PreferredName',
-        'YearLevelID'] %} <input type="checkbox" disabled {% if row[col] == 'Y'
-        %}checked{% endif %}> {% else %} {{ row[col] }} {% endif %}
-      </td>
-      {% endif %} {% endfor %}
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
+
+<style>
+  .scroll-table-wrapper {
+    overflow-x: auto;
+    max-width: 100%;
+    position: relative;
+  }
+
+  #studentsTable {
+    border-collapse: collapse;
+    width: max-content;
+    table-layout: fixed;
+  }
+
+  #studentsTable th,
+  #studentsTable td {
+    white-space: nowrap;
+    padding: 8px;
+    text-align: center;
+    vertical-align: middle;
+    border: 1px solid #ddd;
+  }
+
+  thead th {
+    position: sticky;
+    top: 0;
+    background-color: white;
+    z-index: 5;
+  }
+
+  /* Sticky columns */
+  #studentsTable th.col-0,
+  #studentsTable td.col-0 {
+    position: sticky;
+    left: 0;
+    background-color: white;
+    width: 200px;
+    z-index: 4;
+  }
+
+  #studentsTable th.col-1,
+  #studentsTable td.col-1 {
+    position: sticky;
+    left: 200px;
+    background-color: white;
+    width: 200px;
+    z-index: 4;
+  }
+
+  #studentsTable th.col-2,
+  #studentsTable td.col-2 {
+    position: sticky;
+    left: 400px;
+    background-color: white;
+    width: 120px;
+    z-index: 4;
+  }
+
+  input[type="checkbox"] {
+    transform: scale(1.2);
+    pointer-events: none;
+  }
+
+  /* Optional: make table header bold */
+  thead th {
+    font-weight: bold;
+  }
+</style>
+
+<div class="scroll-table-wrapper">
+  <table id="studentsTable" class="table table-bordered table-sm">
+    <thead>
+      <tr>
+        <th class="col-0">LastName</th>
+        <th class="col-1">PreferredName</th>
+        <th class="col-2">YearLevelID</th>
+        {% for col in columns[3:] %}
+        <th>{{ col }}</th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for student in students %}
+      <tr>
+        <td class="col-0">{{ student.LastName }}</td>
+        <td class="col-1">{{ student.PreferredName }}</td>
+        <td class="col-2">{{ student.YearLevelID }}</td>
+        {% for col in columns[3:] %}
+        <td>
+          {% set val = student[col]|default('')|string|trim %} {% if val == "Y"
+          %}
+          <input type="checkbox" checked disabled />
+          {% else %}
+          <input type="checkbox" disabled />
+          {% endif %}
+        </td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
 
 {% endblock %}
