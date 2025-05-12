@@ -53,13 +53,28 @@
             </li>
 
             {% if user_role != "TEA" %}
-            <li class="nav-item">
+            <li class="nav-item dropdown">
               <a
-                class="nav-link {% if 'provider' in request.path %}active{% endif %}"
-                href="/provider"
-                >Provider Tools</a
+                class="nav-link dropdown-toggle {% if 'provider' in request.path %}active{% endif %}"
+                href="#"
+                role="button"
+                data-bs-toggle="dropdown"
+                aria-expanded="false"
               >
+                Provider Tools
+              </a>
+              <ul class="dropdown-menu">
+                <li>
+                  <a class="dropdown-item" href="/provider">Overview</a>
+                </li>
+                <li>
+                  <a class="dropdown-item" href="/provider_classes"
+                    >Class Lookup</a
+                  >
+                </li>
+              </ul>
             </li>
+
             {% endif %} {% if user_role != "PRO" %}
             <li class="nav-item">
               <a

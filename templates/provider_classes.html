@@ -1,0 +1,72 @@
+{% extends "header.html" %} {% block title %}View Classes{% endblock %} {% block
+content %}
+
+<h3>Select Class</h3>
+<form method="POST">
+  <div class="row g-2 align-items-end">
+    <div class="col">
+      <label for="moe_number" class="form-label">MOE Number</label>
+      <input type="number" name="moe_number" class="form-control" required />
+    </div>
+    <div class="col">
+      <label for="term" class="form-label">Term</label>
+      <input type="number" name="term" class="form-control" required />
+    </div>
+    <div class="col">
+      <label for="calendaryear" class="form-label">Calendar Year</label>
+      <input type="number" name="calendaryear" class="form-control" required />
+    </div>
+    <div class="col-auto">
+      <button class="btn btn-primary" type="submit">Find Classes</button>
+    </div>
+  </div>
+</form>
+
+{% if classes %}
+<h4 class="mt-4">Select a Class</h4>
+<table class="table table-sm table-bordered">
+  <thead>
+    <tr>
+      <th>Class Name</th>
+      <th>Teacher</th>
+      <th>Action</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for cls in classes %}
+    <tr>
+      <td>{{ cls.ClassName }}</td>
+      <td>{{ cls.TeacherName }}</td>
+      <td>
+        <a
+          class="btn btn-sm btn-success"
+          href="{{ url_for('view_class', class_id=cls.ClassID, term=request.form['term'], year=request.form['calendaryear']) }}"
+        >
+          View Students
+        </a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %} {% if students %}
+<h4 class="mt-4">Students in Selected Class</h4>
+<table class="table table-bordered table-sm">
+  <thead>
+    <tr>
+      {% for key in students[0].keys() %}
+      <th>{{ key }}</th>
+      {% endfor %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for student in students %}
+    <tr>
+      {% for value in student.values() %}
+      <td>{{ value }}</td>
+      {% endfor %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %} {% endblock %}
