@@ -464,6 +464,42 @@ def get_schools():
     return jsonify(school_list)
 
 
+@app.route('/create_user', methods=['GET', 'POST'])
+@login_required
+def create_user():
+    if session.get("user_role") != "ADM":
+        flash("Unauthorized access", "danger")
+        return redirect(url_for("home"))
+
+    if request.method == "POST":
+        email = request.form.get("email")
+        password = request.form.get("password").encode("utf-8")
+        role = request.form.get("role")
+
+        # Hash the password
+        hashed_pw = bcrypt.hashpw(password, bcrypt.gensalt()).decode("utf-8")
+
+        engine = get_db_engine()
+        with engine.connect() as conn:
+            # Check for duplicate email
+            existing = conn.execute(
+                text("SELECT 1 FROM FlaskLogin WHERE Email = :email"),
+                {"email": email}
+            ).fetchone()
+
+            if existing:
+                flash("Email already exists.", "warning")
+            else:
+                with engine.begin() as conn:
+                    conn.execute(
+                        text("INSERT INTO FlaskLogin (Email, HashPassword, Role) VALUES (:email, :hash, :role)"),
+                        {"email": email, "hash": hashed_pw, "role": role}
+                    )
+
+                flash(f"User {email} created with role {role}.", "success")
+                return redirect(url_for("create_user"))
+
+    return render_template("create_user.html")
 
 @app.route('/download_excel')
 @login_required

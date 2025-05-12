@@ -52,7 +52,7 @@
               >
             </li>
 
-            {% if select_role != "TEA" %}
+            {% if user_role != "TEA" %}
             <li class="nav-item">
               <a
                 class="nav-link {% if 'provider' in request.path %}active{% endif %}"
@@ -60,12 +60,20 @@
                 >Provider Tools</a
               >
             </li>
-            {% endif %} {% if select_role != "PRO" %}
+            {% endif %} {% if user_role != "PRO" %}
             <li class="nav-item">
               <a
                 class="nav-link {% if 'school' in request.path %}active{% endif %}"
                 href="/school"
                 >School Tools</a
+              >
+            </li>
+            {% endif %}{% if user_role == "ADM" %}
+            <li class="nav-item">
+              <a
+                class="nav-link {% if 'create_user' in request.path %}active{% endif %}"
+                href="/create_user"
+                >Create User</a
               >
             </li>
             {% endif %}
