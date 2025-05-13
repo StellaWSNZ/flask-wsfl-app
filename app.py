@@ -644,7 +644,7 @@ def download_excel():
 
 @app.route('/download_competency_pdf')
 @login_required
-def download_competency_pdf():
+def download_competency_pdf(): 
     year = int(request.args.get("year"))
     term = int(request.args.get("term"))
     dropdown_string = request.args.get("dropdown")

@@ -6,7 +6,9 @@ block content %}
 <style>
   .scroll-table-wrapper {
     overflow-x: auto;
+    overflow-y: auto; /* Enable vertical scroll */
     max-width: 100%;
+    max-height: 80vh; /* Adjust as needed to fit your page layout */
     position: relative;
   }
 
@@ -18,11 +20,13 @@ block content %}
 
   #studentsTable th,
   #studentsTable td {
-    white-space: nowrap;
+    white-space: normal; /* allow wrapping */
     padding: 8px;
     text-align: center;
-    vertical-align: middle;
+    vertical-align: bottom;
     border: 1px solid #ddd;
+    word-wrap: break-word;
+    background-color: white;
   }
 
   thead th {
@@ -30,6 +34,7 @@ block content %}
     top: 0;
     background-color: white;
     z-index: 5;
+    font-weight: bold;
   }
 
   /* Sticky columns */
@@ -37,7 +42,9 @@ block content %}
   #studentsTable td.col-0 {
     position: sticky;
     left: 0;
-    background-color: white;
+    background-color: #f8f9fa;
+    border: 1px solid #ddd;
+
     width: 200px;
     z-index: 4;
   }
@@ -46,7 +53,9 @@ block content %}
   #studentsTable td.col-1 {
     position: sticky;
     left: 200px;
-    background-color: white;
+    background-color: #f8f9fa;
+    border: 1px solid #ddd;
+
     width: 200px;
     z-index: 4;
   }
@@ -55,19 +64,22 @@ block content %}
   #studentsTable td.col-2 {
     position: sticky;
     left: 400px;
-    background-color: white;
+    border: 1px solid #ddd;
+
+    background-color: #f8f9fa;
     width: 120px;
     z-index: 4;
+  }
+
+  /* Set all non-sticky columns (after col-2) to 175px */
+  #studentsTable th:not(.col-0):not(.col-1):not(.col-2),
+  #studentsTable td:not(.col-0):not(.col-1):not(.col-2) {
+    width: 175px;
   }
 
   input[type="checkbox"] {
     transform: scale(1.2);
     pointer-events: none;
-  }
-
-  /* Optional: make table header bold */
-  thead th {
-    font-weight: bold;
   }
 </style>
 
@@ -79,7 +91,7 @@ block content %}
         <th class="col-1">PreferredName</th>
         <th class="col-2">YearLevelID</th>
         {% for col in columns[3:] %}
-        <th>{{ col }}</th>
+        <th>{{ col|safe }}</th>
         {% endfor %}
       </tr>
     </thead>
@@ -91,12 +103,9 @@ block content %}
         <td class="col-2">{{ student.YearLevelID }}</td>
         {% for col in columns[3:] %}
         <td>
-          {% set val = student[col]|default('')|string|trim %} {% if val == "Y"
-          %}
-          <input type="checkbox" checked disabled />
-          {% else %}
-          <input type="checkbox" disabled />
-          {% endif %}
+          {% set val = student[col]|default('')|string|trim %} <input
+          type="checkbox" name="competency" value="{{ col }}" {% if val == "Y"
+          %}checked{% endif %} />
         </td>
         {% endfor %}
       </tr>
