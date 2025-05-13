@@ -1,7 +1,8 @@
-{% extends "header.html" %} {% block title %}Class Students{% endblock %} {%
-block content %}
+{% extends "header.html" %}
+{% block title %}Provider Class Detail{% endblock %}
+{% block content %}
 
-<h3>Students and Competencies</h3>
+<h3>Class Students and Competencies</h3>
 
 <style>
   .scroll-table-wrapper {
@@ -32,12 +33,11 @@ block content %}
   thead th {
     position: sticky;
     top: 0;
-    z-index: 10; /* Header should stay above all */
+    z-index: 10;
     background-color: white;
     font-weight: bold;
   }
 
-  /* Sticky first column: LastName */
   #studentsTable th.col-0,
   #studentsTable td.col-0 {
     position: sticky;
@@ -47,7 +47,6 @@ block content %}
     background-color: #f8f9fa;
   }
 
-  /* Sticky second column: PreferredName */
   #studentsTable th.col-1,
   #studentsTable td.col-1 {
     position: sticky;
@@ -57,7 +56,6 @@ block content %}
     background-color: #f8f9fa;
   }
 
-  /* Sticky third column: YearLevelID */
   #studentsTable th.col-2,
   #studentsTable td.col-2 {
     position: sticky;
@@ -67,14 +65,12 @@ block content %}
     background-color: #f8f9fa;
   }
 
-  /* Ensure header cells that are also sticky side columns stay above */
   #studentsTable th.col-0,
   #studentsTable th.col-1,
   #studentsTable th.col-2 {
-    z-index: 11; /* header + sticky column = top layer */
+    z-index: 11;
   }
 
-  /* All competency columns: fixed width */
   #studentsTable th:not(.col-0):not(.col-1):not(.col-2),
   #studentsTable td:not(.col-0):not(.col-1):not(.col-2) {
     width: 175px;
@@ -82,7 +78,10 @@ block content %}
 
   input[type="checkbox"] {
     transform: scale(1.2);
-    pointer-events: none; /* Remove this if you want them to be editable */
+  }
+
+  select {
+    width: 100%;
   }
 </style>
 
@@ -90,11 +89,11 @@ block content %}
   <table id="studentsTable" class="table table-bordered table-sm">
     <thead>
       <tr>
-        <th class="col-0">LastName</th>
-        <th class="col-1">PreferredName</th>
-        <th class="col-2">YearLevelID</th>
+        <th class="col-0">Last Name</th>
+        <th class="col-1">Preferred Name</th>
+        <th class="col-2">Year Level</th>
         {% for col in columns[3:] %}
-        <th>{{ col|safe }}</th>
+          <th>{{ col|safe }}</th>
         {% endfor %}
       </tr>
     </thead>
@@ -106,9 +105,23 @@ block content %}
         <td class="col-2">{{ student.YearLevelID }}</td>
         {% for col in columns[3:] %}
         <td>
-          {% set val = student[col]|default('')|string|trim %} <input
-          type="checkbox" name="competency" value="{{ col }}" {% if val == "Y"
-          %}checked{% endif %} />
+          {% set val = student[col]|default('')|string|trim %}
+          {% if col in ["Scenario One - Selected <br> (7-8)", "Scenario Two - Selected <br> (7-8)"] %}
+            <select class="form-control">
+              {% for i in range(5) %}
+                <option value="{{ i }}" {% if val == i|string %}selected{% endif %}>{{ i }}</option>
+              {% endfor %}
+            </select>
+          {% else %}
+            <input type="checkbox"
+              name="competency"
+              data-nsn="{{ student.NSN }}"
+              data-competency="{{ col }}"
+              data-competencyid="{{ competency_id_map[col]['CompetencyID'] }}"
+              data-yeargroupid="{{ competency_id_map[col]['YearGroupID'] }}"
+              {% if val == "Y" %}checked{% endif %}
+            />
+          {% endif %}
         </td>
         {% endfor %}
       </tr>
@@ -116,5 +129,47 @@ block content %}
     </tbody>
   </table>
 </div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+  document.querySelectorAll('input[type="checkbox"][name="competency"]').forEach(cb => {
+    cb.addEventListener("change", function () {
+      const nsn = this.dataset.nsn;
+      const headerName = this.dataset.competency;  // Use the header name here (e.g., "Competency 1")
+      const status = this.checked ? 1 : 0;
+
+      // Debugging: Print the data being sent
+      console.log("Sending data:", {
+        nsn: nsn,
+        headerName: headerName,
+        status: status
+      });
+
+      fetch('/update_competency', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          nsn: nsn,
+          header_name: headerName,  // Send header name instead of competency
+          status: status
+        })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (!data.success) {
+          alert("❌ Failed to update competency.");
+        }
+      })
+      .catch(err => {
+        console.error("Update error:", err);
+      });
+    });
+  });
+});
+
+
+</script>
 
 {% endblock %}

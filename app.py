@@ -261,8 +261,8 @@ def process_uploaded_csv(df, term, calendaryear):
                     'Ethnicity': result_row.get('Ethnicity'),
                     'YearLevel': result_row.get('YearLevel'),
                     **{label: '' for label in labels},
-                    "Scenario One - Selected": "",
-                    "Scenario Two - Selected": ""
+                    "Scenario One - Selected <br> (7-8)": "",
+                    "Scenario Two - Selected <br> (7-8)": ""
                 })
             else:
                 # Now it's safe to query again
@@ -279,13 +279,13 @@ def process_uploaded_csv(df, term, calendaryear):
                     # Build dictionary
                     if scenario_query.shape[0] > 0:
                         scenario_data = {
-                            "Scenario One - Selected": scenario_query.iloc[0].get("Scenario1", ""),
-                            "Scenario Two - Selected": scenario_query.iloc[0].get("Scenario2", "")
+                            "Scenario One - Selected <br> (7-8)": scenario_query.iloc[0].get("Scenario1", ""),
+                            "Scenario Two - Selected <br> (7-8)": scenario_query.iloc[0].get("Scenario2", "")
                         }
                     else:
                         scenario_data = {
-                            "Scenario One - Selected": "",
-                            "Scenario Two - Selected": ""
+                            "Scenario One - Selected <br> (7-8)": "",
+                            "Scenario Two - Selected <br> (7-8)": ""
                         }
                     # Fetch Competency Status
                     comp_result = connection.execute(
@@ -326,13 +326,13 @@ def process_uploaded_csv(df, term, calendaryear):
     df_valid = pd.DataFrame(valid_data)
     if not df_valid.empty:
         cols = df_valid.columns.tolist()
-        for col in ["Scenario One - Selected", "Scenario Two - Selected"]:
+        for col in ["Scenario One - Selected <br> (7-8)", "Scenario Two - Selected <br> (7-8)"]:
             if col in df_valid.columns:
                 df_valid[col] = df_valid[col].replace(0, '')
 
         # Remove scenario columns temporarily
-        s1 = cols.pop(cols.index("Scenario One - Selected"))
-        s2 = cols.pop(cols.index("Scenario Two - Selected"))
+        s1 = cols.pop(cols.index("Scenario One - Selected <br> (7-8)"))
+        s2 = cols.pop(cols.index("Scenario Two - Selected <br> (7-8)"))
 
         # Insert at 4th-to-last and 2nd-to-last
         cols.insert(-2, s1)
@@ -350,7 +350,42 @@ def process_uploaded_csv(df, term, calendaryear):
 
     return df_valid, df_errors
 
-    
+@app.route('/update_competency', methods=['POST'])
+@login_required
+def update_competency():
+    data = request.json
+
+    # Print received data
+    print("Received data:", data)
+
+    nsn = data.get("nsn")
+    header_name = data.get("header_name")
+    status = data.get("status")
+
+    # Print extracted values
+    print(f"NSN: {nsn}, Header Name: {header_name}, Status: {status}")
+
+    if not all([nsn, header_name, status]):
+        return jsonify({"success": False, "message": "Missing data"}), 400
+
+    # Just print, don't execute the query
+    print(f"Would update competency for NSN {nsn} with status '{status}' and header name '{header_name}'")
+
+    # Here, you would call your stored procedure and pass the header name, status, and nsn:
+    # engine = get_db_engine()
+    # with engine.connect() as conn:
+    #     conn.execute(
+    #         text("EXEC UpdateCompetency :NSN, :HeaderName, :Status"),
+    #         {
+    #             "NSN": nsn,
+    #             "HeaderName": header_name,
+    #             "Status": status
+    #         }
+    #     )
+
+    # Return a successful response without executing the SQL query
+    return jsonify({"success": True, "message": "Data received and printed successfully."})
+
 
 # Handles file upload from the form:
 # - Parses CSV and birthdates
@@ -836,8 +871,8 @@ def view_class(class_id, term, year):
     engine = get_db_engine()
 
     with engine.connect() as conn:
-        # Step 1: Get all students for that class
-        result = conn.execute(text("""
+        # Get all students for that class
+        result = conn.execute(text(""" 
             SELECT 
                 s.NSN, 
                 s.FirstName, 
@@ -864,7 +899,7 @@ def view_class(class_id, term, year):
             flash("No students found.", "warning")
             return redirect(url_for("provider_classes"))
 
-        # Step 2: Get all relevant competency labels
+        # Get all relevant competency labels
         comp_result = conn.execute(text("EXEC GetRelevantCompetencies :CalendarYear, :Term"),
                                    {"CalendarYear": year, "Term": term})
         comp_df = pd.DataFrame(comp_result.fetchall(), columns=comp_result.keys())
@@ -875,16 +910,17 @@ def view_class(class_id, term, year):
 
         all_records = []
 
-        # Step 3: Loop through each student and compile full record
+        # Loop through each student and fetch their competency and scenario data
         for _, student in students.iterrows():
             nsn = student["NSN"]
 
             # Competency status
-            comp_status_result = conn.execute(text("""
+            comp_result = conn.execute(text(""" 
                 EXEC GetStudentCompetencyStatus :NSN, :Term, :CalendarYear
             """), {"NSN": nsn, "Term": term, "CalendarYear": year})
-            comp_data = pd.DataFrame(comp_status_result.fetchall(), columns=comp_status_result.keys())
+            comp_data = pd.DataFrame(comp_result.fetchall(), columns=comp_result.keys())
 
+            # If no competency data, create an empty record
             if comp_data.empty:
                 comp_row = {label: '' for label in labels}
             else:
@@ -893,12 +929,13 @@ def view_class(class_id, term, year):
                 comp_row = comp_data.set_index("label")["CompetencyStatusID"].reindex(labels).fillna(0).astype(int)
                 comp_row = {k: 'Y' if v == 1 else '' for k, v in comp_row.items()}
 
-            # Scenario data
-            scenario_result = conn.execute(text("""
+            # Scenario data (same as original logic)
+            scenario_result = conn.execute(text(""" 
                 EXEC FlaskHelperFunctions :Request, :Number
             """), {"Request": "StudentScenario", "Number": nsn})
             scenario_df = pd.DataFrame(scenario_result.fetchall(), columns=scenario_result.keys())
 
+            # Default empty values if no scenarios are found
             if not scenario_df.empty:
                 scenario1 = scenario_df.iloc[0].get("Scenario1", "")
                 scenario2 = scenario_df.iloc[0].get("Scenario2", "")
@@ -906,7 +943,7 @@ def view_class(class_id, term, year):
                 scenario1 = ""
                 scenario2 = ""
 
-            # Merge all info
+            # Create the merged row with scenario and competency data
             merged_row = {
                 "NSN": nsn,
                 "FirstName": student["FirstName"],
@@ -916,10 +953,9 @@ def view_class(class_id, term, year):
                 "Ethnicity": student["Ethnicity"],
                 "YearLevelID": student["YearLevelID"],
                 **comp_row,
-                "Scenario One - Selected": scenario1,
-                "Scenario Two - Selected": scenario2
+                "Scenario One - Selected <br> (7-8)": scenario1,
+                "Scenario Two - Selected <br> (7-8)": scenario2
             }
-            # print(merged_row)
             all_records.append(merged_row)
 
         # Final tidy up
@@ -927,17 +963,23 @@ def view_class(class_id, term, year):
         df_combined = df_combined.sort_values("LastName", ascending=True)
 
         # Reorder scenario columns to match the spreadsheet logic
-        if "Scenario One - Selected" in df_combined.columns and "Scenario Two - Selected" in df_combined.columns:
+        if "Scenario One - Selected <br> (7-8)" in df_combined.columns and "Scenario Two - Selected <br> (7-8)" in df_combined.columns:
             cols = df_combined.columns.tolist()
-            s1 = cols.pop(cols.index("Scenario One - Selected"))
-            s2 = cols.pop(cols.index("Scenario Two - Selected"))
+            s1 = cols.pop(cols.index("Scenario One - Selected <br> (7-8)"))
+            s2 = cols.pop(cols.index("Scenario Two - Selected <br> (7-8)"))
             cols.insert(-2, s1)
             cols.insert(-1, s2)
             df_combined = df_combined[cols]
 
-    return render_template("provider_class_detail.html", students=df_combined.to_dict(orient="records"),    columns=[col for col in df_combined.columns if col not in ["DateOfBirth", "Ethnicity", "FirstName", "NSN"]]
-)
+    # Competency ID map
+    competency_id_map = comp_df.set_index("label")["CompetencyID"].to_dict()
 
+    return render_template(
+        "provider_class_detail.html",
+        students=df_combined.to_dict(orient="records"),
+        columns=[col for col in df_combined.columns if col not in ["DateOfBirth", "Ethnicity", "FirstName", "NSN"]],
+        competency_id_map=competency_id_map
+    )
 
 
 @app.route('/download_pdf')
