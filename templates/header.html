@@ -3,33 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <title>{% block title %} {% endblock %}</title>
-    <link
-      rel="icon"
-      type="image/x-icon"
-      href="{{ url_for('static', filename='favicon.ico') }}"
-    />
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" />
     <link
       href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
       rel="stylesheet"
     />
+
     <style>
-      /* General table styles */
-      #studentsTable {
-        border-collapse: collapse;
-        table-layout: fixed;
-        width: max-content;
-        min-width: 100%;
-      }
-
-      #studentsTable th,
-      #studentsTable td {
-        border: 1px solid #ddd;
-        padding: 6px 8px;
-        background: white;
-        white-space: nowrap;
-      }
-
-      /* Lock top header row */
+      /* Lock top row */
       #studentsTable thead th {
         position: sticky;
         top: 0;
@@ -37,50 +18,63 @@
         z-index: 10;
       }
 
-      /* Lock 1st column (LastName) */
-      #studentsTable td.col-0,
-      #studentsTable th.col-0 {
+      /* Lock first three columns */
+      #studentsTable th.col-0,
+      #studentsTable td.col-0 {
         position: sticky;
         left: 0;
         z-index: 5;
         background: white;
       }
-
-      /* Lock 2nd column (PreferredName) */
-      #studentsTable td.col-1,
-      #studentsTable th.col-1 {
+      #studentsTable th.col-1,
+      #studentsTable td.col-1 {
         position: sticky;
         left: 150px;
         z-index: 5;
         background: white;
       }
-
-      /* Lock 3rd column (YearLevelID) */
-      #studentsTable td.col-2,
-      #studentsTable th.col-2 {
+      #studentsTable th.col-2,
+      #studentsTable td.col-2 {
         position: sticky;
         left: 300px;
         z-index: 5;
         background: white;
       }
+
+      @media (max-width: 576px) {
+        .navbar .nav-link,
+        .navbar .dropdown-item {
+          text-align: center;
+          padding: 0.75rem 1rem;
+        }
+
+        .navbar-brand {
+          font-size: 1.1rem;
+        }
+
+        .navbar-nav {
+          gap: 0.25rem;
+        }
+      }
     </style>
+
     {% block head %}{% endblock %}
   </head>
+
   <body class="bg-light">
-    <!-- Navigation bar -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark py-3">
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark py-2">
       <div class="container-fluid">
-        <!-- Logo and Brand Name -->
         <a class="navbar-brand d-flex align-items-center" href="/">
           <img
             src="{{ url_for('static', filename='LightLogo.png') }}"
             alt="Logo"
-            style="height: 50px; margin-right: 20px"
+            class="img-fluid"
+            style="height: 40px; margin-right: 12px"
           />
           Student Tools
         </a>
 
-        <!-- Toggler for mobile -->
         <button
           class="navbar-toggler"
           type="button"
@@ -93,9 +87,8 @@
           <span class="navbar-toggler-icon"></span>
         </button>
 
-        <!-- Navbar Links -->
-        <div class="collapse navbar-collapse" id="navbarNav">
-          <ul class="navbar-nav ms-auto">
+        <div class="collapse navbar-collapse mt-2 mt-lg-0" id="navbarNav">
+          <ul class="navbar-nav ms-auto align-items-lg-center">
             <li class="nav-item">
               <a
                 class="nav-link {% if request.path == '/' %}active{% endif %}"
@@ -115,18 +108,17 @@
               >
                 Provider Tools
               </a>
-              <ul class="dropdown-menu">
+              <ul class="dropdown-menu dropdown-menu-end">
                 <li>
-                  <a class="dropdown-item" href="/provider">Overview</a>
+                  <a class="dropdown-item py-2" href="/provider">Overview</a>
                 </li>
                 <li>
-                  <a class="dropdown-item" href="/provider_classes"
+                  <a class="dropdown-item py-2" href="/provider_classes"
                     >Class Lookup</a
                   >
                 </li>
               </ul>
             </li>
-
             {% endif %} {% if user_role != "PRO" %}
             <li class="nav-item">
               <a
@@ -145,9 +137,12 @@
             </li>
             {% endif %}
 
-            <li class="nav-item">
-              <form action="/logout" method="post" class="d-inline">
-                <button type="submit" class="btn btn-outline-light btn-sm ms-3">
+            <li class="nav-item mt-2 mt-lg-0">
+              <form action="/logout" method="post" class="d-lg-inline d-block">
+                <button
+                  type="submit"
+                  class="btn btn-outline-light btn-sm w-100 w-lg-auto"
+                >
                   Logout
                 </button>
               </form>
@@ -157,14 +152,12 @@
       </div>
     </nav>
 
-    <!-- Page Content -->
-    <div class="container-fluid px-1 py-5">
+    <!-- Main Content -->
+    <div class="container-fluid px-2 py-4">
       {% block content %}{% endblock %}
     </div>
 
-    <!-- Bootstrap JS + Popper -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-
     {% block scripts %}{% endblock %}
   </body>
 </html>

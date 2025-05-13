@@ -2,7 +2,6 @@
 {% block title %} Student Competencies {% endblock %}
 {% block content %}
 <div class="container text-center my-4">
-  <h3>Class Overview</h3>
   <div class="alert alert-secondary d-inline-block px-4 py-3" role="alert">
     <strong>Class Name:</strong> {{ class_name }} |
     <strong>Teacher:</strong> {{ teacher_name }} |
@@ -25,15 +24,27 @@
     table-layout: fixed;
   }
 
-  #studentsTable th,
-  #studentsTable td {
-    padding: 8px;
-    text-align: center;
-    vertical-align: bottom;
+  #studentsTable th{
+    padding: 4px;
+    text-align: bottom;
+    vertical-align: middle;
+    line-height: 1;
     border: 1px solid #ddd;
     white-space: normal;
     word-wrap: break-word;
     background-color: white;
+    font-size: 0.85rem;
+  }
+  #studentsTable td {
+    padding: 4px;
+    text-align: center;
+    vertical-align: middle;
+    line-height: 1;
+    border: 1px solid #ddd;
+    white-space: normal;
+    word-wrap: break-word;
+    background-color: white;
+    font-size: 0.85rem;
   }
 
   thead th {
@@ -44,6 +55,7 @@
     font-weight: bold;
   }
 
+  /* Sticky first columns */
   #studentsTable th.col-0,
   #studentsTable td.col-0 {
     position: sticky;
@@ -82,14 +94,22 @@
     width: 175px;
   }
 
+  /* Shrink checkboxes */
   input[type="checkbox"] {
-    transform: scale(1.2);
+    transform: scale(1.1);
+    margin: 0;
   }
 
-  select {
-    width: 100%;
+  /* Shrink dropdowns */
+  #studentsTable select.form-control {
+    padding: 2px 4px;
+    font-size: 0.85rem;
+    height: auto;
+    margin: 0;
+    line-height: 1;
   }
 </style>
+
 
 <div class="scroll-table-wrapper">
   <table id="studentsTable" class="table table-bordered table-sm">
