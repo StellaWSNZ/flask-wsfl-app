@@ -6,9 +6,9 @@ block content %}
 <style>
   .scroll-table-wrapper {
     overflow-x: auto;
-    overflow-y: auto; /* Enable vertical scroll */
+    overflow-y: auto;
     max-width: 100%;
-    max-height: 80vh; /* Adjust as needed to fit your page layout */
+    max-height: 80vh;
     position: relative;
   }
 
@@ -20,11 +20,11 @@ block content %}
 
   #studentsTable th,
   #studentsTable td {
-    white-space: normal; /* allow wrapping */
     padding: 8px;
     text-align: center;
     vertical-align: bottom;
     border: 1px solid #ddd;
+    white-space: normal;
     word-wrap: break-word;
     background-color: white;
   }
@@ -32,46 +32,49 @@ block content %}
   thead th {
     position: sticky;
     top: 0;
+    z-index: 10; /* Header should stay above all */
     background-color: white;
-    z-index: 5;
     font-weight: bold;
   }
 
-  /* Sticky columns */
+  /* Sticky first column: LastName */
   #studentsTable th.col-0,
   #studentsTable td.col-0 {
     position: sticky;
     left: 0;
-    background-color: #f8f9fa;
-    border: 1px solid #ddd;
-
     width: 200px;
-    z-index: 4;
+    z-index: 5;
+    background-color: #f8f9fa;
   }
 
+  /* Sticky second column: PreferredName */
   #studentsTable th.col-1,
   #studentsTable td.col-1 {
     position: sticky;
     left: 200px;
-    background-color: #f8f9fa;
-    border: 1px solid #ddd;
-
     width: 200px;
-    z-index: 4;
+    z-index: 5;
+    background-color: #f8f9fa;
   }
 
+  /* Sticky third column: YearLevelID */
   #studentsTable th.col-2,
   #studentsTable td.col-2 {
     position: sticky;
     left: 400px;
-    border: 1px solid #ddd;
-
-    background-color: #f8f9fa;
     width: 120px;
-    z-index: 4;
+    z-index: 5;
+    background-color: #f8f9fa;
   }
 
-  /* Set all non-sticky columns (after col-2) to 175px */
+  /* Ensure header cells that are also sticky side columns stay above */
+  #studentsTable th.col-0,
+  #studentsTable th.col-1,
+  #studentsTable th.col-2 {
+    z-index: 11; /* header + sticky column = top layer */
+  }
+
+  /* All competency columns: fixed width */
   #studentsTable th:not(.col-0):not(.col-1):not(.col-2),
   #studentsTable td:not(.col-0):not(.col-1):not(.col-2) {
     width: 175px;
@@ -79,7 +82,7 @@ block content %}
 
   input[type="checkbox"] {
     transform: scale(1.2);
-    pointer-events: none;
+    pointer-events: none; /* Remove this if you want them to be editable */
   }
 </style>
 
