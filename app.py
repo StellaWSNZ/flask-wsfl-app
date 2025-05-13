@@ -360,7 +360,7 @@ def update_competency():
 
     nsn = data.get("nsn")
     header_name = data.get("header_name")
-    status = data.get("status")
+    status = data.get("status") 
 
     # Print extracted values
     print(f"NSN: {nsn}, Header Name: {header_name}, Status: {status}")
@@ -371,21 +371,28 @@ def update_competency():
     # Just print, don't execute the query
     print(f"Would update competency for NSN {nsn} with status '{status}' and header name '{header_name}'")
 
-    # Here, you would call your stored procedure and pass the header name, status, and nsn:
-    # engine = get_db_engine()
-    # with engine.connect() as conn:
-    #     conn.execute(
-    #         text("EXEC UpdateCompetency :NSN, :HeaderName, :Status"),
-    #         {
-    #             "NSN": nsn,
-    #             "HeaderName": header_name,
-    #             "Status": status
-    #         }
-    #     )
+    # UpdateAchievement NSN, Header, Value
 
     # Return a successful response without executing the SQL query
     return jsonify({"success": True, "message": "Data received and printed successfully."})
 
+@app.route("/update_scenario", methods=["POST"])
+def update_scenario():
+    data = request.get_json()
+    nsn = data.get("nsn")
+    header = data.get("header")
+    value = data.get("value")
+
+    print(f"Would update scenario for NSN {nsn}, header '{header}', and value '{value}'")
+
+    try:
+        # Uncomment this block when ready to write to the database
+        # UpdateAchievement NSN, Header, Value
+
+        return jsonify(success=True)
+    except Exception as e:
+        print("❌ Scenario update failed:", e)
+        return jsonify(success=False, error=str(e)), 500
 
 # Handles file upload from the form:
 # - Parses CSV and birthdates
@@ -869,6 +876,30 @@ def provider_classes():
 @login_required
 def view_class(class_id, term, year):
     engine = get_db_engine()
+    scenarios = []
+
+    with engine.connect() as conn:
+            # Fetch scenario information from the "Scenario" table
+        result = conn.execute(text("SELECT ScenarioID, Description FROM Scenario"))
+        scenarios = result.fetchall() 
+        class_info = conn.execute(text("""
+            SELECT ClassName, TeacherName, MOENumber
+            FROM Class
+            WHERE ClassID = :class_id
+        """), {"class_id": class_id}).fetchone()
+
+        school_result = conn.execute(text("""
+            SELECT SchoolName
+            FROM MOE_SchoolDirectory
+            WHERE MOENumber = :moe
+        """), {"moe": class_info.MOENumber}).fetchone()
+
+        class_name = class_info.ClassName
+        teacher_name = class_info.TeacherName
+        school_name = school_result.SchoolName if school_result else "(unknown)"
+        title_string = f"Class Name: {class_name} | Teacher Name: {teacher_name} | School Name: {school_name}"
+
+    engine = get_db_engine()
 
     with engine.connect() as conn:
         # Get all students for that class
@@ -978,7 +1009,10 @@ def view_class(class_id, term, year):
         "provider_class_detail.html",
         students=df_combined.to_dict(orient="records"),
         columns=[col for col in df_combined.columns if col not in ["DateOfBirth", "Ethnicity", "FirstName", "NSN"]],
-        competency_id_map=competency_id_map
+        competency_id_map=competency_id_map, scenarios=scenarios,
+    class_name=class_name,
+    teacher_name=teacher_name,
+    school_name=school_name, class_title=title_string 
     )
 
 

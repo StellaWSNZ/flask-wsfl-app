@@ -1,8 +1,14 @@
 {% extends "header.html" %}
-{% block title %}Provider Class Detail{% endblock %}
+{% block title %} Student Competencies {% endblock %}
 {% block content %}
-
-<h3>Class Students and Competencies</h3>
+<div class="container text-center my-4">
+  <h3>Class Overview</h3>
+  <div class="alert alert-secondary d-inline-block px-4 py-3" role="alert">
+    <strong>Class Name:</strong> {{ class_name }} |
+    <strong>Teacher:</strong> {{ teacher_name }} |
+    <strong>School:</strong> {{ school_name }}
+  </div>
+</div>
 
 <style>
   .scroll-table-wrapper {
@@ -107,11 +113,16 @@
         <td>
           {% set val = student[col]|default('')|string|trim %}
           {% if col in ["Scenario One - Selected <br> (7-8)", "Scenario Two - Selected <br> (7-8)"] %}
-            <select class="form-control">
-              {% for i in range(5) %}
-                <option value="{{ i }}" {% if val == i|string %}selected{% endif %}>{{ i }}</option>
-              {% endfor %}
-            </select>
+            <select class="form-control"
+        data-nsn="{{ student.NSN }}"
+        data-header="{{ col }}"
+        data-scenario-index="{{ 1 if 'Scenario One' in col else 2 }}">
+  {% for i in range(5) %}
+    <option value="{{ i }}" {% if val == i|string %}selected{% endif %}>{{ i }}</option>
+  {% endfor %}
+</select>
+
+
           {% else %}
             <input type="checkbox"
               name="competency"
@@ -129,47 +140,59 @@
     </tbody>
   </table>
 </div>
-
 <script>
   document.addEventListener("DOMContentLoaded", function () {
-  document.querySelectorAll('input[type="checkbox"][name="competency"]').forEach(cb => {
-    cb.addEventListener("change", function () {
-      const nsn = this.dataset.nsn;
-      const headerName = this.dataset.competency;  // Use the header name here (e.g., "Competency 1")
-      const status = this.checked ? 1 : 0;
 
-      // Debugging: Print the data being sent
-      console.log("Sending data:", {
-        nsn: nsn,
-        headerName: headerName,
-        status: status
-      });
+    // ✅ Checkbox handler
+    document.querySelectorAll('input[type="checkbox"][name="competency"]').forEach(cb => {
+      cb.addEventListener("change", function () {
+        const nsn = this.dataset.nsn;
+        const headerName = this.dataset.competency;
+        const status = this.checked ? 1 : 0;
 
-      fetch('/update_competency', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          nsn: nsn,
-          header_name: headerName,  // Send header name instead of competency
-          status: status
+        console.log("Sending competency update:", { nsn, headerName, status });
+
+        fetch('/update_competency', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nsn, header_name: headerName, status })
         })
-      })
-      .then(response => response.json())
-      .then(data => {
-        if (!data.success) {
-          alert("❌ Failed to update competency.");
-        }
-      })
-      .catch(err => {
-        console.error("Update error:", err);
+        .then(response => response.json())
+        .then(data => {
+          if (!data.success) {
+            alert("❌ Failed to update competency.");
+          }
+        })
+        .catch(err => console.error("Competency update error:", err));
       });
     });
+
+    // ✅ Dropdown handler
+    document.querySelectorAll('select[data-scenario-index]').forEach(select => {
+      select.addEventListener("change", function () {
+        const nsn = this.dataset.nsn;
+        const headerName = this.dataset.header;
+        const value = this.value;
+
+        console.log(`Would update scenario for NSN ${nsn}, header '${headerName}', and value '${value}'`);
+
+        fetch('/update_scenario', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nsn, header: headerName, value: parseInt(value) })
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (!data.success) {
+            alert("❌ Failed to update scenario.");
+          }
+        })
+        .catch(err => console.error("Scenario update error:", err));
+      });
+    });
+
   });
-});
-
-
 </script>
+
 
 {% endblock %}
