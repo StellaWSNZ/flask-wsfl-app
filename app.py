@@ -28,6 +28,8 @@ matplotlib.use("Agg")  # Use non-GUI backend
 import matplotlib.pyplot as plt
 import textwrap
 import bcrypt
+from datetime import datetime
+
 from functools import wraps
 
 from providernationalplot import create_competency_report
@@ -75,52 +77,57 @@ def login_required(f):
             return redirect(url_for("login", next=request.url))
         return f(*args, **kwargs)
     return decorated_function
-
-
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    if not REQUIRE_LOGIN:
-        return redirect(url_for("home"))
-
-    next_url = request.args.get('next')
+    next_url = request.args.get("next")
 
     if request.method == 'POST':
         email = request.form.get('username')
         password = request.form.get('password').encode('utf-8')
+
         engine = get_db_engine()
 
         with engine.connect() as conn:
             result = conn.execute(
-                text("SELECT HashPassword, Role, ID FROM FlaskLogin WHERE Email = :email"),
+                text("SELECT HashPassword FROM flasklogin WHERE Email = :email"),
                 {"email": email}
             ).fetchone()
 
         if result:
-            stored_hash = result[0].encode('utf-8')
-            role = result[1]
-            user_id = result[2]
+            stored_hash = result.HashPassword.encode('utf-8')
 
             if bcrypt.checkpw(password, stored_hash):
+                with engine.connect() as conn:
+                    user_info = conn.execute(
+                        text("EXEC FlaskLoginValidation :Email"),
+                        {"Email": email}
+                    ).fetchone()
+
                 session["logged_in"] = True
-                session["user_role"] = role
-                session["user_id"] = user_id
+                session["user_role"] = user_info.Role
+                session["user_id"] = user_info.ID
+                session["display_name"] = user_info.DisplayName
+                session["last_login_nzt"] = str(user_info.LastLogin_NZT)
+                session["desc"] = str(user_info.Desc)
 
-                if role == "PRO":
+                if user_info.Role == "PRO":
                     with engine.connect() as conn:
-                        result = conn.execute(text("SELECT Description FROM Provider WHERE ProviderID = :id"), {"id": user_id}).fetchone()
-                        if result:
-                            session["provider_name"] = result.Description
-                print(role)
-                print(user_id)
-                #print(session["provider_name"])
-                # Redirect to original page if valid
-                if next_url:
-                    return redirect(next_url)
-                return redirect(url_for("home"))
+                        prov = conn.execute(
+                            text("SELECT Description FROM Provider WHERE ProviderID = :id"),
+                            {"id": user_info.ID}
+                        ).fetchone()
+                        if prov:
+                            session["provider_name"] = prov.Description
 
+                return redirect(next_url or url_for("home"))
+
+        # ⛔ If login fails
         flash("Invalid credentials", "danger")
+        return render_template("login.html")  # ✅ safe fallback
 
-    return render_template("login.html", next=next_url)
+    return render_template("login.html")
+
+
 
 @app.route('/provider', methods=["GET", "POST"])
 @login_required
@@ -305,45 +312,45 @@ def logout():
 def favicon():
     return send_file(os.path.join(app.root_path, 'static', 'favicon.ico'), mimetype='image/vnd.microsoft.icon')
 
-# Render home page
-# - CSV file uploader
-# - Year and Term selectors
-# - Provider dropdown populated from the database
-# - JS validation and progress bar logic included 
+
+
 @app.route('/')
 @login_required
 def home():
-    #print("REQUIRE_LOGIN:", REQUIRE_LOGIN)
-    #print("Logged in session:", session.get("logged_in"))
+    role = session.get("user_role")
+    display_name = session.get("display_name")
+    subtitle = ""
+    if(session["user_role"]=="ADM"):
+        subtitle = "You are logged in as Admin. Last Logged in: " +  (datetime.fromisoformat(session["last_login_nzt"])).strftime('%A, %d %B %Y, %I:%M %p')
+    elif (session["user_role"]=="PRO"):
+        subtitle = "You are logged in as "+session["desc"]+" (provider) staff. Last Logged in: " +  (datetime.fromisoformat(session["last_login_nzt"])).strftime('%A, %d %B %Y, %I:%M %p')
+    elif (session["user_role"]=="MOE"):
+        subtitle = "You are logged in as "+session["desc"]+" (school) staff. Last Logged in: " +  (datetime.fromisoformat(session["last_login_nzt"])).strftime('%A, %d %B %Y, %I:%M %p')
+    
 
-    engine = get_db_engine()
+    if role == "ADM":
+        cards = [
+            {"title": "Create User", "text": "Add a new admin, MOE, or provider account.", "href": "/create_user", "image": "placeholder.png"},
+            {"title": "Generate Reports", "text": "Build reports on provider and competency performance.", "href": "/provider", "image": "placeholder.png"},
+            {"title": "Audit Activity", "text": "Review login history and recent activity.", "href": "/comingsoon.html", "image": "placeholder.png"},
+        ]
+    elif role == "MOE":
+        cards = [
+            {"title": "Upload Class List", "text": "Submit a class list and view student progress.", "href": "/", "image": "placeholder.png"},
+            {"title": "Generate Summary", "text": "Download summary reports for your schools.", "href": "/comingsoon.html", "image": "placeholder.png"},
+            {"title": "Support & Help", "text": "Access help documentation and contact support.", "href": "/comingsoon.html", "image": "placeholder.png"},
+        ]
+    elif role == "PRO":
+        cards = [
+            {"title": "View Your Classes", "text": "See detailed reports for your uploaded classes.", "href": "/provider_classes", "image": "viewclass.png"},
+            {"title": "Track Competencies", "text": "Track and manage student competency progress.", "href": "/provider", "image": "placeholder.png"},
+            {"title": "Submit Updates", "text": "Update scenario selections or statuses.", "href": "/comingsoon.html", "image": "placeholder.png"},
+        ]
+    else:
+        cards = []
 
-    with engine.connect() as connection:
-        # Get provider names
-        result = connection.execute(
-            text("EXEC FlaskHelperFunctions :Request"),
-            {"Request": "ProviderDropdown"}
-        )
-        providers = pd.DataFrame(result.fetchall(), columns=result.keys())
-        provider_names = providers['Description'].dropna().tolist()
+    return render_template("index.html", display_name=display_name, subtitle=subtitle, cards=cards)
 
-        # Get school names
-        result = connection.execute(
-            text("EXEC FlaskHelperFunctions :Request"),
-            {"Request": "SchoolDropdown"}
-        )
-        schools = pd.DataFrame(result.fetchall(), columns=result.keys())
-        school_names = schools['School'].dropna().tolist()
-
-        result = connection.execute(
-            text("EXEC FlaskHelperFunctions :Request"),
-            {"Request": "CompetencyDropdown"}
-        )
-        Competency = pd.DataFrame(result.fetchall(), columns=result.keys())
-        Competency = Competency['Competency'].dropna().tolist()
-
-
-    return render_template("index.html", providers=provider_names,  schools=school_names, competencies = Competency)
 
 # Main logic to process each row from the uploaded CSV:
 # 1. Use `CheckNSNMatch` stored procedure to validate student info.

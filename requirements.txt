@@ -6,3 +6,4 @@ pandas
 XlsxWriter
 matplotlib
 bcrypt
+datetime

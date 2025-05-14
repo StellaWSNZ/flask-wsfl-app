@@ -105,15 +105,25 @@
   </div>
 </div>
 
-<script>
+<<script>
   function toggleReportFields() {
     const type = document.getElementById('report_type').value;
-    document.getElementById('competency_section').style.display = type === 'Competency' ? 'block' : 'none';
+
+    // Toggle competency section
+    document.getElementById('competency_section').style.display =
+      type === 'Competency' ? 'block' : 'none';
+
+    // Toggle provider section only for ADM users
     {% if user_role == 'ADM' %}
-      document.getElementById('provider_section').style.display = type === 'Provider' ? 'block' : 'none';
+    const providerSection = document.getElementById('provider_section');
+    if (providerSection) {
+      providerSection.style.display = type === 'Provider' ? 'block' : 'none';
+    }
     {% endif %}
   }
+
   window.onload = toggleReportFields;
 </script>
+
 
 {% endblock %}

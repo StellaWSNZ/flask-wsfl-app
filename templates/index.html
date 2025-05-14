@@ -1,128 +1,33 @@
-{% extends "header.html" %}
+{% extends "header.html" %} {% block title %}Student Tools{% endblock %} {%
+block content %}
 
-{% block title %}Student Tools{% endblock %}
-
-{% block content %}
+<div class="p-5 mb-4 rounded-3" style="background-color: #d9edf7">
+  <div class="container-fluid py-5">
+    <h1 class="display-5 fw-bold">Welcome, {{ display_name }}!</h1>
+    <p class="col-md-8 fs-4">{{ subtitle }}</p>
+    <a class="btn btn-secondary" href="#reportForm" role="button"
+      >Continue where you left off</a
+    >
+  </div>
+</div>
 
 <div class="row justify-content-center g-4">
-  <!-- Upload CSV -->
+  {% for card in cards %}
   <div class="col-lg-3 col-md-5">
     <div class="card h-100">
-      <div class="card-header">📤 Upload CSV</div>
-      <div class="card-body">
-        <form action="/upload" method="post" enctype="multipart/form-data" class="row g-3 align-items-end" onsubmit="return checkFileSelected()">
-          <div class="col-12">
-            <label for="csv_file_input" class="form-label">CSV File</label>
-            <input type="file" name="csv_file" class="form-control" accept=".csv" id="csv_file_input" required>
-          </div>
-          <div class="col-6">
-            <label for="year_input" class="form-label">Year</label>
-            <select name="year" class="form-select" id="year_input" required>
-              {% for y in range(2023, 2026) %}
-              <option value="{{ y }}" {% if y == 2025 %}selected{% endif %}>{{ y }}</option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="col-6">
-            <label for="term_input" class="form-label">Term</label>
-            <select name="term" class="form-select" id="term_input" required>
-              <option value="1" selected>Term 1</option>
-              <option value="2">Term 2</option>
-              <option value="3">Term 3</option>
-              <option value="4">Term 4</option>
-            </select>
-          </div>
-          <div class="col-12">
-            <label for="provider" class="form-label">Provider</label>
-            <select id="provider" class="form-select" name="provider" onchange="loadSchools()" required>
-              <option disabled selected value></option>
-              {% for name in providers %}
-              <option value="{{ name }}">{{ name }}</option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="col-12">
-            <label for="school" class="form-label">School</label>
-            <select id="school" class="form-select" name="school" required>
-              <option value="">Select a school</option>
-            </select>
-          </div>
-          <div class="col-6">
-            <label for="teacher_name" class="form-label">Teacher Name</label>
-            <input type="text" class="form-control" id="teacher_name" name="teacher_name">
-          </div>
-          <div class="col-6">
-            <label for="class_name" class="form-label">Class Name</label>
-            <input type="text" class="form-control" id="class_name" name="class_name">
-          </div>
-          <div class="col-12">
-            <button type="submit" class="btn btn-success w-100">Upload</button>
-          </div>
-        </form>
+      <img
+        src="{{ url_for('static', filename='cardicons/' ~ card.image) }}"
+        class="card-img-top"
+        alt="{{ card.title }} icon"
+      />
+      <div class="card-header">{{ card.title }}</div>
+      <div class="card-body d-flex flex-column">
+        <p class="card-text mb-4">{{ card.text }}</p>
+        <a href="{{ card.href }}" class="btn btn-primary mt-auto">Click here</a>
       </div>
     </div>
   </div>
-
-  <!-- Generate Report -->
-  <div class="col-lg-3 col-md-5">
-    <div class="card h-100">
-      <div class="card-header">📈 Generate Report</div>
-      <div class="card-body">
-        <form action="/generate_report" method="post" class="row g-3 align-items-end">
-          <div class="col-12">
-            <label for="report_type" class="form-label">Report Type</label>
-            <select name="report_type" class="form-select" id="report_type" required>
-              <option value="Provider">Provider Performance</option>
-              <option value="National">National Performance</option>
-              <option value="Competency">Competency Performance</option>
-            </select>
-          </div>
-
-          <div class="col-6">
-            <label for="report_year" class="form-label">Year</label>
-            <select name="year" class="form-select" id="report_year" required>
-              {% for y in range(2023, 2026) %}
-              <option value="{{ y }}" {% if y == 2025 %}selected{% endif %}>{{ y }}</option>
-              {% endfor %}
-            </select>
-          </div>
-
-          <div class="col-6">
-            <label for="report_term" class="form-label">Term</label>
-            <select name="term" class="form-select" id="report_term" required>
-              <option value="1" selected>Term 1</option>
-              <option value="2">Term 2</option>
-              <option value="3">Term 3</option>
-              <option value="4">Term 4</option>
-            </select>
-          </div>
-
-          <div class="col-12" id="provider-options">
-            <label for="report_provider" class="form-label">Provider</label>
-            <select name="provider" class="form-select" id="report_provider">
-              {% for name in providers %}
-              <option value="{{ name }}">{{ name }}</option>
-              {% endfor %}
-            </select>
-            <small class="form-text text-muted mt-1">Note: Generating may take up to 60 seconds.</small>
-          </div>
-
-          <div class="col-12" id="competency-options" style="display: none;">
-            <label for="competency" class="form-label">Competency</label>
-            <select name="competency" class="form-select" id="competency">
-              {% for comp in competencies %}
-              <option value="{{ comp }}">{{ comp }}</option>
-              {% endfor %}
-            </select>
-          </div>
-
-          <div class="col-12">
-            <button type="submit" class="btn btn-primary w-100">View Report</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  </div>
+  {% endfor %}
 </div>
 
 {% endblock %}
