@@ -41,6 +41,9 @@ processing_status = {
 }
 last_pdf_generated = None
 last_pdf_filename = None
+last_png_generated = None
+last_png_filename = None
+
 school_name = None
 moe_number = None
 teacher_name = None
@@ -101,8 +104,15 @@ def login():
                 session["logged_in"] = True
                 session["user_role"] = role
                 session["user_id"] = user_id
+
+                if role == "PRO":
+                    with engine.connect() as conn:
+                        result = conn.execute(text("SELECT Description FROM Provider WHERE ProviderID = :id"), {"id": user_id}).fetchone()
+                        if result:
+                            session["provider_name"] = result.Description
                 print(role)
                 print(user_id)
+                #print(session["provider_name"])
                 # Redirect to original page if valid
                 if next_url:
                     return redirect(next_url)
@@ -112,14 +122,172 @@ def login():
 
     return render_template("login.html", next=next_url)
 
-
-
-@app.route('/provider')
+@app.route('/provider', methods=["GET", "POST"])
 @login_required
 def provider():
-    if session.get("user_role") == "TEA":
-        return redirect(url_for("home"))
-    return render_template("provider.html")
+    global last_pdf_generated, last_pdf_filename
+
+    engine = get_db_engine()
+    role = session.get("user_role")
+    user_id = session.get("user_id")
+
+    providers = []
+    competencies = []
+    img_data = None
+    report_type = None
+    term = None
+    year = None
+    provider_name = None
+    dropdown_string = None
+    with engine.connect() as conn:
+        if role == "ADM":
+            result = conn.execute(text("EXEC FlaskHelperFunctions :Request"), {"Request": "ProviderDropdown"})
+            providers = [row.Description for row in result]
+
+        result = conn.execute(text("EXEC FlaskHelperFunctions :Request"), {"Request": "CompetencyDropdown"})
+        competencies = [row.Competency for row in result]
+
+    if request.method == "POST":
+        report_type = request.form.get("report_type")
+        term = int(request.form.get("term"))
+        year = int(request.form.get("year"))
+        provider_name = request.form.get("provider") or session.get("provider_name")
+        global last_png_generated, last_png_filename, last_pdf_generated, last_pdf_filename
+
+        if report_type == "Provider":
+            with engine.connect() as conn:
+                result = conn.execute(
+                    text("SELECT ProviderID FROM Provider WHERE Description = :Description"),
+                    {"Description": provider_name}
+                )
+                row = result.fetchone()
+            if not row:
+                flash("Provider not found.", "danger")
+                return redirect(url_for("provider"))
+
+            provider_id = int(row.ProviderID)
+            fig = create_competency_report(term, year, provider_id, provider_name)
+
+            # Generate PNG
+            png_buf = io.BytesIO()
+            plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
+            fig.savefig(png_buf, format="png")
+            png_buf.seek(0)
+            img_data = base64.b64encode(png_buf.getvalue()).decode("utf-8")
+
+            # Store PNG globally
+            global last_png_generated
+            last_png_generated = io.BytesIO(png_buf.getvalue())  # make a copy for download
+
+            # Generate PDF
+            pdf_buf = io.BytesIO()
+            fig.savefig(pdf_buf, format="pdf")
+            pdf_buf.seek(0)
+
+            global last_pdf_generated, last_pdf_filename
+            last_pdf_generated = pdf_buf
+            last_pdf_filename = f"{report_type}_Report_{term}_{year}.pdf"
+
+            plt.close(fig)
+
+
+            last_pdf_generated = pdf_buf
+            last_pdf_filename = f"{report_type}_Report_{provider_name}_{term}_{year}.pdf"
+            plt.close(fig)
+
+        elif report_type == "Competency":
+            dropdown_string = request.form.get("competency")
+            
+            with engine.connect() as conn:
+                result = conn.execute(
+                    text("EXEC GetCompetencyIDsFromDropdown :DropdownValue"),
+                    {"DropdownValue": dropdown_string}
+                )
+                row = result.fetchone()
+
+                if not row:
+                    flash("Invalid competency selected.", "danger")
+                    return redirect(url_for("provider"))
+
+                competency_id = row.CompetencyID
+                year_group_id = row.YearGroupID
+
+            # 🔍 Load data from competencyplot
+            df = load_competency_rates(engine, year, term, competency_id, year_group_id)
+            if df.empty:
+                flash("No data found.", "warning")
+                return redirect(url_for("provider"))
+
+            title = f"{df['CompetencyDesc'].iloc[0]} ({df['YearGroupDesc'].iloc[0]})"
+            
+            # 📈 Generate figure using competencyplot.make_figure
+            fig = make_figure(df, title)
+
+            # 🖼️ PNG for display
+            png_buf = io.BytesIO()
+            plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
+            fig.savefig(png_buf, format="png")
+            png_buf.seek(0)
+            img_data = base64.b64encode(png_buf.read()).decode("utf-8")
+
+            # 💾 Store PNG buffer
+            last_png_generated = io.BytesIO(png_buf.getvalue())
+            last_png_filename = f"{report_type}_Report_{dropdown_string.replace(' ', '_')}_{term}_{year}.png"
+
+            # 🧾 PDF for download
+            pdf_buf = io.BytesIO()
+            fig.savefig(pdf_buf, format="pdf")
+            pdf_buf.seek(0)
+            #global last_pdf_generated, last_pdf_filename
+            last_pdf_generated = pdf_buf
+            last_pdf_filename = f"{report_type}_Report_{dropdown_string.replace(' ', '_')}_{term}_{year}.pdf"
+
+            plt.close(fig)
+
+
+    return render_template("provider.html",
+                       providers=providers,
+                       competencies=competencies,
+                       user_role=role,
+                       img_data=img_data,
+                       selected_report_type=report_type,
+                       selected_term=term,
+                       selected_year=year,
+                       selected_provider=provider_name,
+                       selected_competency=dropdown_string if report_type == "Competency" else None)
+
+
+
+@app.route('/provider/download_pdf')
+@login_required
+def provider_download_pdf():
+    if last_pdf_generated is None:
+        flash("No PDF report has been generated yet.", "warning")
+        return redirect(url_for("provider"))
+
+    last_pdf_generated.seek(0)
+    return send_file(
+        last_pdf_generated,
+        download_name=last_pdf_filename or "report.pdf",
+        as_attachment=True,
+        mimetype='application/pdf'
+    )
+
+@app.route('/provider/download_png')
+@login_required
+def provider_download_png():
+    if last_png_generated is None:
+        flash("No PNG report has been generated yet.", "warning")
+        return redirect(url_for("provider"))
+
+    last_png_generated.seek(0)
+    return send_file(
+        last_png_generated,
+        download_name=last_png_filename or last_pdf_filename.replace(".pdf", ".png") if last_pdf_filename else "report.png",
+        as_attachment=True,
+        mimetype="image/png"
+    )
+
 
 @app.route('/school')
 @login_required
@@ -733,7 +901,8 @@ def generate_report():
     term = int(request.form['term'])
 
     if report_type == "Provider":
-        provider_name = request.form['provider']
+        provider_name = request.form.get("provider") or session.get("provider_name")
+
         
         engine = get_db_engine()
         with engine.connect() as connection:

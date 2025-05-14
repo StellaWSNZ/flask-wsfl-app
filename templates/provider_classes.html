@@ -1,77 +1,111 @@
 {% extends "header.html" %} {% block title %}View Classes{% endblock %} {% block
 content %}
 
-<h3>Select Class</h3>
+<h3 class="text-center">Filter Classes</h3>
+
 <form method="POST">
-  <div class="row g-2 align-items-end">
-    <div class="col">
-      <label for="moe_number" class="form-label">MOE Number</label>
-      <select name="moe_number" class="form-select" required>
-        <option disabled selected value>Select MOE Number</option>
-        {% for school in schools %}
-        <option value="{{ school.MOENumber }}">{{ school.School }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="col">
-      <label for="term" class="form-label">Term</label>
-      <input type="number" name="term" class="form-control" required />
-    </div>
-    <div class="col">
-      <label for="calendaryear" class="form-label">Calendar Year</label>
-      <input type="number" name="calendaryear" class="form-control" required />
-    </div>
-    <div class="col-auto">
-      <button class="btn btn-primary" type="submit">Find Classes</button>
+  <div class="container">
+    <div class="row justify-content-center align-items-end g-3">
+      <div class="col-md-3">
+        <label for="moe_number" class="form-label">MOE Number</label>
+        <select name="moe_number" class="form-select" required>
+          <option disabled selected value>Select MOE Number</option>
+          {% for school in schools %}
+          <option value="{{ school.MOENumber }}">{{ school.School }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="col-md-2">
+        <label for="term" class="form-label">Term</label>
+        <select name="term" id="term" class="form-select" required>
+          <option value="" disabled selected>Select term</option>
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4">4</option>
+        </select>
+      </div>
+
+      <div class="col-md-2">
+        <label for="calendaryear" class="form-label">Calendar Year</label>
+        <select
+          name="calendaryear"
+          id="calendaryear"
+          class="form-select"
+          required
+        >
+          <option value="" disabled selected>Select year</option>
+          <option value="2025">2025</option>
+          <option value="2024">2024</option>
+          <option value="2023">2023</option>
+        </select>
+      </div>
+
+      <div class="col-md-auto">
+        <button class="btn btn-primary w-100" type="submit">
+          Find Classes
+        </button>
+      </div>
     </div>
   </div>
 </form>
 
 {% if classes %}
-<h4 class="mt-4">Select a Class</h4>
-<table class="table table-sm table-bordered">
-  <thead>
-    <tr>
-      <th>Class Name</th>
-      <th>Teacher</th>
-      <th>Action</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for cls in classes %}
-    <tr>
-      <td>{{ cls.ClassName }}</td>
-      <td>{{ cls.TeacherName }}</td>
-      <td>
-        <a
-          class="btn btn-sm btn-success"
-          href="{{ url_for('view_class', class_id=cls.ClassID, term=request.form['term'], year=request.form['calendaryear']) }}"
-        >
-          View Students
-        </a>
-      </td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
+<div class="container mt-4">
+  <h4 class="text-center mb-3">Select a Class</h4>
+  <div class="row justify-content-center">
+    <div class="col-md-8">
+      <table class="table table-sm table-bordered text-center">
+        <thead>
+          <tr>
+            <th>Class Name</th>
+            <th>Teacher</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for cls in classes %}
+          <tr>
+            <td>{{ cls.ClassName }}</td>
+            <td>{{ cls.TeacherName }}</td>
+            <td>
+              <a
+                class="btn btn-sm btn-success"
+                href="{{ url_for('view_class', class_id=cls.ClassID, term=request.form['term'], year=request.form['calendaryear']) }}"
+              >
+                View Students
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
 {% endif %} {% if students %}
-<h4 class="mt-4">Students in Selected Class</h4>
-<table class="table table-bordered table-sm">
-  <thead>
-    <tr>
-      {% for key in students[0].keys() %}
-      <th>{{ key }}</th>
-      {% endfor %}
-    </tr>
-  </thead>
-  <tbody>
-    {% for student in students %}
-    <tr>
-      {% for value in student.values() %}
-      <td>{{ value }}</td>
-      {% endfor %}
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
+<div class="container text-center mt-5">
+  <h4 class="mb-3">Students in Selected Class</h4>
+  <div class="table-responsive d-flex justify-content-center">
+    <table class="table table-bordered table-sm w-auto">
+      <thead>
+        <tr>
+          {% for key in students[0].keys() %}
+          <th>{{ key }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for student in students %}
+        <tr>
+          {% for value in student.values() %}
+          <td>{{ value }}</td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
 {% endif %} {% endblock %}
