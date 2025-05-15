@@ -29,6 +29,7 @@ import matplotlib.pyplot as plt
 import textwrap
 import bcrypt
 from datetime import datetime
+import json
 
 from functools import wraps
 
@@ -1229,24 +1230,27 @@ def get_schools_for_provider():
     print("✅ Returning schools:", schools)
     return jsonify(schools)
 
+
 @app.route('/classlistupload', methods=['GET', 'POST'])
 @login_required
 def classlistupload():
     engine = get_db_engine()
     preview_data = None
-    providers = []
-    schools = []
+    providers, schools = [], []
     selected_provider = selected_school = selected_term = selected_year = None
 
+    # Load providers dropdown
     with engine.connect() as conn:
         result = conn.execute(text("EXEC FlaskHelperFunctions :Request"), {"Request": "ProviderDropdown"})
         providers = [dict(row._mapping) for row in result]
 
     if request.method == 'POST':
+        action = request.form.get('action')  # 'preview' or 'validate'
         selected_provider = request.form.get('provider')
         selected_school = request.form.get('school')
         selected_term = request.form.get('term')
         selected_year = request.form.get('year')
+        column_mappings_json = request.form.get('column_mappings')
         file = request.files.get('csv_file')
 
         if selected_provider and selected_provider.isdigit():
@@ -1254,21 +1258,43 @@ def classlistupload():
         if selected_year and selected_year.isdigit():
             selected_year = int(selected_year)
 
+        # Populate school dropdown
         if selected_provider:
             with engine.connect() as conn:
-                sql = text("EXEC FlaskHelperFunctions :Request, @Number=:Number")
-                params = {"Request": "FilterSchoolID", "Number": selected_provider}
-                print("🔍 Executing SQL:", sql.text)
-                print("📦 With parameters:", params)
-
-                result = conn.execute(sql, params)
-
+                result = conn.execute(
+                    text("EXEC FlaskHelperFunctions :Request, @Number=:Number"),
+                    {"Request": "FilterSchoolID", "Number": selected_provider}
+                )
                 schools = [row.School for row in result]
 
-        if file and file.filename.endswith('.csv'):
+        if action == "preview" and file and file.filename.endswith('.csv'):
             df = pd.read_csv(file)
-            preview_data = df.head(10).to_dict(orient='records')
-        else:
+            session["raw_csv_json"] = df.to_json(orient="records")
+            preview_data = df.head(10).to_dict(orient="records")
+
+        elif action == "validate":
+            if not session.get("raw_csv_json"):
+                flash("No CSV file has been uploaded for validation.", "danger")
+            else:
+                try:
+                    raw_df = pd.read_json(StringIO(session["raw_csv_json"]))
+                    column_mappings = json.loads(column_mappings_json)
+                    df = raw_df.rename(columns=column_mappings)
+                    valid_cols = ["NSN", "FirstName", "LastName", "PreferredName", "BirthDate", "Ethnicity", "YearLevel"]
+                    df = df[[col for col in valid_cols if col in df.columns]]
+                    df_json = df.to_json(orient="records")
+
+                    with engine.connect() as conn:
+                        result = conn.execute(
+                            text("EXEC FlaskCheckNSN_JSON :InputJSON, :Term, :CalendarYear"),
+                            {"InputJSON": df_json, "Term": selected_term, "CalendarYear": selected_year}
+                        )
+                        preview_data = [dict(row._mapping) for row in result]
+
+                except Exception as e:
+                    flash(f"Error during validation: {str(e)}", "danger")
+
+        elif action == "preview":
             flash("Please upload a valid CSV file.", "danger")
 
     return render_template(
@@ -1281,6 +1307,7 @@ def classlistupload():
         selected_year=selected_year,
         preview_data=preview_data
     )
+
 
 
 @app.context_processor
