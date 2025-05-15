@@ -130,7 +130,7 @@
         </tbody>
       </table>
     </div>
-    <button type="button" id="exportCsvButton" class="btn btn-primary">Export to CSV</button>
+<button type="button" id="exportCsvButton" class="btn btn-primary">Export to CSV</button>
   </div>
   {% endif %}
 </div>
@@ -201,35 +201,23 @@
       });
   });
 
-  document
-    .getElementById("exportCsvButton")
-    .addEventListener("click", function () {
-      const rows = document.querySelectorAll("table tbody tr");
-      const csv = [];
-
-      // Get the headers
-      const headers = [];
-      document.querySelectorAll("table thead th").forEach((th) => {
-        headers.push(th.innerText);
-      });
-      csv.push(headers.join(","));
-
-      // Get the rows
-      rows.forEach((row) => {
-        const cells = row.querySelectorAll("td");
-        const rowData = [];
-        cells.forEach((cell) => {
-          rowData.push(cell.innerText.replace(/,/g, "")); // Clean commas if present
-        });
-        csv.push(rowData.join(","));
-      });
-
-      // Create a Blob for CSV and trigger download
-      const csvBlob = new Blob([csv.join("\n")], { type: "text/csv" });
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(csvBlob);
-      link.download = "preview_data.csv";
-      link.click();
-    });
+  document.getElementById("exportCsvButton").addEventListener("click", function() {
+    fetch('/export_csv', {
+        method: 'POST',  // Use POST to send data (if needed)
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ /* optional data to send, like filters */ })
+    })
+    .then(response => response.blob())
+    .then(blob => {
+        // Create a temporary link element
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'preview_data.csv';
+        link.click();  // Trigger the download
+    })
+    .catch(error => console.error('Error exporting CSV:', error));
+});
 </script>
 {% endblock %}
