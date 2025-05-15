@@ -22,6 +22,7 @@ import pandas as pd   # For reading CSVs and processing tabular data
 from werkzeug.utils import secure_filename  # Safe handling of uploaded filenames
 import threading      # Allows background processing (non-blocking upload handling)
 import io 
+from io import StringIO
 import base64
 import matplotlib
 matplotlib.use("Agg")  # Use non-GUI backend
@@ -1308,7 +1309,27 @@ def classlistupload():
         preview_data=preview_data
     )
 
+@app.route('/export_csv', methods=['POST'])
+def export_csv():
+    # Assuming 'preview_data' is available in the context, like in your table
+    preview_data = get_preview_data()  # Replace with actual data retrieval
 
+    # Convert data to a pandas DataFrame (if it's not already a DataFrame)
+    df = pd.DataFrame(preview_data)
+
+    # Create a StringIO buffer to write the CSV data to
+    csv_buffer = StringIO()
+    df.to_csv(csv_buffer, index=False)  # Don't include row indices in the CSV
+
+    # Move the pointer to the beginning of the buffer before sending it as a response
+    csv_buffer.seek(0)
+
+    # Create a response with the CSV data and set the appropriate headers for downloading
+    return Response(
+        csv_buffer.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment; filename=preview_data.csv"}
+    )
 
 @app.context_processor
 def inject_user_role():
