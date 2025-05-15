@@ -1,0 +1,140 @@
+{% extends "header.html" %}
+
+{% block title %}Upload Class List{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+  <h2 class="mb-4">Upload Class List</h2>
+  <form id="upload-form" action="/classlistupload" method="post" enctype="multipart/form-data" class="row g-3">
+    <div class="col-md-6">
+      <label for="provider" class="form-label">Provider</label>
+      <select id="provider" name="provider" class="form-select" required>
+        <option value="">Select a provider</option>
+        {% for provider in providers %}
+          <option value="{{ provider.ProviderID }}" {% if selected_provider == provider.ProviderID %}selected{% endif %}>{{ provider.Description }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="col-md-6">
+      <label for="school" class="form-label">School</label>
+      <select class="form-select" id="school" name="school" required>
+        <option selected disabled value="">Select a school</option>
+        {% for name in schools %}
+        <option value="{{ name }}" {% if selected_school == name %}selected{% endif %}>{{ name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="col-md-3">
+      <label for="term" class="form-label">Term</label>
+      <select class="form-select" id="term" name="term" required>
+        <option value="1" {% if selected_term == '1' %}selected{% endif %}>Term 1</option>
+        <option value="2" {% if selected_term == '2' %}selected{% endif %}>Term 2</option>
+        <option value="3" {% if selected_term == '3' %}selected{% endif %}>Term 3</option>
+        <option value="4" {% if selected_term == '4' %}selected{% endif %}>Term 4</option>
+      </select>
+    </div>
+
+    <div class="col-md-3">
+      <label for="year" class="form-label">Year</label>
+      <select class="form-select" id="year" name="year" required>
+        {% for y in range(2023, 2026) %}
+        <option value="{{ y }}" {% if selected_year == y %}selected{% endif %}>{{ y }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="col-md-6">
+      <label for="csv_file" class="form-label">Upload CSV File</label>
+      <input class="form-control" type="file" id="csv_file" name="csv_file" accept=".csv">
+    </div>
+
+    <div class="col-12">
+      <button type="submit" class="btn btn-success">Preview</button>
+    </div>
+  </form>
+
+  {% if preview_data %}
+  <div class="mt-5">
+    <h4>Preview</h4>
+    <div class="table-responsive">
+      <table class="table table-bordered table-striped">
+        <thead>
+          <tr>
+            {% for col in preview_data[0].keys() %}
+            <th>
+              {{ col }}
+              <div>
+                <select name="map_{{ col }}" class="form-select form-select-sm mt-1">
+                  <option value="">Clean Column Name</option>
+                  <option value="NSN">NSN</option>
+                  <option value="FirstName">First Name</option>
+                  <option value="LastName">Last Name</option>
+                  <option value="PreferredName">Preferred Name</option>
+                  <option value="BirthDate">Birth Date</option>
+                  <option value="Ethnicity">Ethnicity</option>
+                  <option value="YearLevel">Year Level</option>
+                </select>
+              </div>
+            </th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in preview_data %}
+          <tr>
+            {% for val in row.values() %}
+                <td>{{ '' if val is none or val|string == 'nan' else val }}</td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.getElementById("provider").addEventListener("change", function () {
+    const providerID = this.value;
+    fetch(`/get_schools_for_provider?provider_id=${providerID}`)
+      .then(response => response.json())
+      .then(data => {
+        const schoolDropdown = document.getElementById("school");
+        schoolDropdown.innerHTML = '<option value="">Select a school</option>';
+        data.forEach(school => {
+          const option = document.createElement("option");
+          option.value = school;
+          option.textContent = school;
+          schoolDropdown.appendChild(option);
+        });
+      });
+  });
+   function updateMappingOptions() {
+    const selects = document.querySelectorAll('select[name^="map_"]');
+    const selectedValues = Array.from(selects)
+      .map(s => s.value)
+      .filter(v => v !== "");
+
+    selects.forEach(select => {
+      const currentValue = select.value;
+      Array.from(select.options).forEach(option => {
+        if (option.value === "") return;
+        option.disabled = selectedValues.includes(option.value) && option.value !== currentValue;
+      });
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    const selects = document.querySelectorAll('select[name^="map_"]');
+    selects.forEach(select => {
+      select.addEventListener("change", updateMappingOptions);
+    });
+    updateMappingOptions();  // Initial run
+  });
+</script>
+{% endblock %}

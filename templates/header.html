@@ -120,13 +120,28 @@
               </ul>
             </li>
             {% endif %} {% if user_role != "PRO" %}
-            <li class="nav-item">
+            <li class="nav-item dropdown">
               <a
-                class="nav-link {% if 'school' in request.path %}active{% endif %}"
-                href="/school"
-                >School Tools</a
+                class="nav-link dropdown-toggle {% if 'school' in request.path or 'classlistupload' in request.path %}active{% endif %}"
+                href="#"
+                role="button"
+                data-bs-toggle="dropdown"
+                aria-expanded="false"
               >
+                School Tools
+              </a>
+              <ul class="dropdown-menu dropdown-menu-end">
+                <li>
+                  <a class="dropdown-item py-2" href="/school">View Summary</a>
+                </li>
+                <li>
+                  <a class="dropdown-item py-2" href="/classlistupload"
+                    >Upload Class List</a
+                  >
+                </li>
+              </ul>
             </li>
+
             {% endif %} {% if user_role == "ADM" %}
             <li class="nav-item">
               <a

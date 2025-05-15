@@ -330,9 +330,10 @@ def home():
 
     if role == "ADM":
         cards = [
-            {"title": "Create User", "text": "Add a new admin, MOE, or provider account.", "href": "/create_user", "image": "placeholder.png"},
             {"title": "Generate Reports", "text": "Build reports on provider and competency performance.", "href": "/provider", "image": "placeholder.png"},
             {"title": "Audit Activity", "text": "Review login history and recent activity.", "href": "/comingsoon.html", "image": "placeholder.png"},
+            {"title": "Create User", "text": "Add a new admin, MOE, or provider account.", "href": "/create_user", "image": "placeholder.png"},
+
         ]
     elif role == "MOE":
         cards = [
@@ -342,9 +343,9 @@ def home():
         ]
     elif role == "PRO":
         cards = [
-            {"title": "View Your Classes", "text": "See detailed reports for your uploaded classes.", "href": "/provider_classes", "image": "viewclass.png"},
-            {"title": "Track Competencies", "text": "Track and manage student competency progress.", "href": "/provider", "image": "placeholder.png"},
-            {"title": "Submit Updates", "text": "Update scenario selections or statuses.", "href": "/comingsoon.html", "image": "placeholder.png"},
+            {"title": "Student Competency Maintenence", "text": "Update competency achievements for your class.", "href": "/provider_classes", "image": "viewclass.png"},
+            {"title": "Live Reporting", "text": "Generate reporting for your provider.", "href": "/provider", "image": "placeholder.png"},
+            {"title": "Maintenance", "text": "Any issues with school and classes recorded.", "href": "/comingsoon.html", "image": "placeholder.png"},
         ]
     else:
         cards = []
@@ -1205,6 +1206,82 @@ def download_pdf():
         as_attachment=True,
         mimetype='application/pdf'
     )
+@app.route('/get_schools_for_provider')
+@login_required
+def get_schools_for_provider():
+    provider_id = request.args.get("provider_id")
+    print("🔍 Received provider_id:", provider_id)
+
+    if not provider_id:
+        return jsonify([])
+
+    engine = get_db_engine()
+    with engine.connect() as conn:
+        sql = text("EXEC FlaskHelperFunctions :Request, @Number=:Number")
+        params = {"Request": "FilterSchoolID", "Number": provider_id}
+        #print("🔍 Executing SQL:", sql.text)
+        #print("📦 With parameters:", params)
+
+        result = conn.execute(sql, params)
+
+        schools = [row.School for row in result]
+
+    print("✅ Returning schools:", schools)
+    return jsonify(schools)
+
+@app.route('/classlistupload', methods=['GET', 'POST'])
+@login_required
+def classlistupload():
+    engine = get_db_engine()
+    preview_data = None
+    providers = []
+    schools = []
+    selected_provider = selected_school = selected_term = selected_year = None
+
+    with engine.connect() as conn:
+        result = conn.execute(text("EXEC FlaskHelperFunctions :Request"), {"Request": "ProviderDropdown"})
+        providers = [dict(row._mapping) for row in result]
+
+    if request.method == 'POST':
+        selected_provider = request.form.get('provider')
+        selected_school = request.form.get('school')
+        selected_term = request.form.get('term')
+        selected_year = request.form.get('year')
+        file = request.files.get('csv_file')
+
+        if selected_provider and selected_provider.isdigit():
+            selected_provider = int(selected_provider)
+        if selected_year and selected_year.isdigit():
+            selected_year = int(selected_year)
+
+        if selected_provider:
+            with engine.connect() as conn:
+                sql = text("EXEC FlaskHelperFunctions :Request, @Number=:Number")
+                params = {"Request": "FilterSchoolID", "Number": selected_provider}
+                print("🔍 Executing SQL:", sql.text)
+                print("📦 With parameters:", params)
+
+                result = conn.execute(sql, params)
+
+                schools = [row.School for row in result]
+
+        if file and file.filename.endswith('.csv'):
+            df = pd.read_csv(file)
+            preview_data = df.head(10).to_dict(orient='records')
+        else:
+            flash("Please upload a valid CSV file.", "danger")
+
+    return render_template(
+        "classlistupload.html",
+        providers=providers,
+        schools=schools,
+        selected_provider=selected_provider,
+        selected_school=selected_school,
+        selected_term=selected_term,
+        selected_year=selected_year,
+        preview_data=preview_data
+    )
+
 
 @app.context_processor
 def inject_user_role():
