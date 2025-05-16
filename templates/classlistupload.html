@@ -5,7 +5,7 @@
 {% block content %}
 <div class="container mt-5">
   <h2 class="mb-4">Upload Class List</h2>
-  
+
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
       <div class="mt-3">
@@ -20,6 +20,7 @@
   {% endwith %}
 
   <form id="upload-form" action="/classlistupload" method="post" enctype="multipart/form-data" class="row g-3">
+    {% if user_role == 'ADM' %}
     <div class="col-md-6">
       <label for="provider" class="form-label">Provider</label>
       <select id="provider" name="provider" class="form-select" required>
@@ -29,7 +30,6 @@
         {% endfor %}
       </select>
     </div>
-
     <div class="col-md-6">
       <label for="school" class="form-label">School</label>
       <select class="form-select" id="school" name="school" required>
@@ -39,8 +39,9 @@
         {% endfor %}
       </select>
     </div>
+    {% endif %}
 
-    <div class="col-md-3">
+    <div class="col-md-2">
       <label for="term" class="form-label">Term</label>
       <select class="form-select" id="term" name="term" required>
         <option value="1" {% if selected_term == '1' %}selected{% endif %}>Term 1</option>
@@ -50,7 +51,7 @@
       </select>
     </div>
 
-    <div class="col-md-3">
+    <div class="col-md-1">
       <label for="year" class="form-label">Year</label>
       <select class="form-select" id="year" name="year" required>
         {% for y in range(2023, 2026) %}
@@ -59,9 +60,19 @@
       </select>
     </div>
 
-    <div class="col-md-6">
+    <div class="col-md-3">
+      <label for="teachername" class="form-label">Teacher Name</label>
+      <input type="text" class="form-control" id="teachername" name="teachername" required>
+    </div>
+
+    <div class="col-md-3">
+      <label for="classname" class="form-label">Class Name</label>
+      <input type="text" class="form-control" id="classname" name="classname" required>
+    </div>
+
+    <div class="col-md-3">
       <label for="csv_file" class="form-label">Upload CSV File</label>
-      <input class="form-control" type="file" id="csv_file" name="csv_file" accept=".csv">
+      <input type="file" class="form-control" id="csv_file" name="csv_file" accept=".csv" required>
     </div>
 
     <input type="hidden" id="column_mappings" name="column_mappings">
@@ -82,72 +93,23 @@
         <thead>
           <tr>
             {% for col in preview_data[0].keys() %}
-              <th>
-                {{ col }}
-                {% if col not in ['ErrorFields', 'ErrorMessage', 'Match'] and 'Match' not in preview_data[0].keys() %}
-                  <div>
-                    <select name="map_{{ col }}" class="form-select form-select-sm mt-1" data-remember="{{ col }}">
-                      <option value="">Clean Column Name</option>
-                      <option value="NSN">NSN</option>
-                      <option value="FirstName">First Name</option>
-                      <option value="LastName">Last Name</option>
-                      <option value="PreferredName">Preferred Name</option>
-                      <option value="BirthDate">Birth Date</option>
-                      <option value="Ethnicity">Ethnicity</option>
-                      <option value="YearLevel">Year Level</option>
-                    </select>
-                  </div>
-                {% endif %}
-              </th>
+              <th>{{ col }}</th>
             {% endfor %}
           </tr>
         </thead>
         <tbody>
           {% for row in preview_data %}
-            {% set error_columns = row.ErrorFields.split(',') if row.ErrorFields else [] %}
             <tr>
               {% for key, val in row.items() %}
-                {% if key == 'ErrorFields' %}
-                  <td class="{% if row.ErrorFields %}
-              {% if not row.Match %}text-danger fw-bold
-              {% else %}text-warning fw-bold
-              {% endif %}
-            {% else %}text-dark
-            {% endif %}">
-  {{ 'None' if not row.ErrorFields else row.ErrorFields }}
-</td>
-                {% elif key == 'ErrorMessage' %}
-                  <td class="{% if row.ErrorMessage and row.ErrorMessage != 'No error message' %}
-              {% if not row.Match %}text-danger fw-bold
-              {% else %}text-warning fw-bold
-              {% endif %}
-            {% else %}text-dark
-            {% endif %}">
-  {{ row.ErrorMessage if row.ErrorMessage else 'No error message' }}
-</td>
-                {% elif key == 'YearLevel' %}
-                  <td class="{% if row.YearLevel is none %}bg-danger text-dark{% endif %}">
-                    {{ row.YearLevel if row.YearLevel is not none else '' }}
-                  </td>
-                {% elif key == 'Match' %}
-                  <td>
-                      {{ 'Found' if row.Match == 1 else 'Not Found' }}
-                  </td>
-                {% else %}
-                  <td class="{% if key in error_columns and row.Match %}bg-warning text-dark {% elif key in error_columns and not row.Match %}bg-danger text-white {% endif %}">
-                    {{ '' if val is none or val|string == 'nan' else val }}
-                  </td>
-                {% endif %}
+                <td>{{ val }}</td>
               {% endfor %}
             </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
-<form method="POST" action="{{ url_for('export_excel') }}">
-    <button type="submit" class="btn btn-primary">Export to Excel</button>
-</form>  
-</div>
+    <button type="button" id="exportExcelButton" class="btn btn-primary" style="display:none;">Export to Excel</button>
+  </div>
   {% endif %}
 </div>
 {% endblock %}
@@ -216,24 +178,5 @@
           JSON.stringify(mapping);
       });
   });
-
-  document.getElementById("exportCsvButton").addEventListener("click", function() {
-    fetch('/export_csv', {
-        method: 'POST',  // Use POST to send data (if needed)
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ /* optional data to send, like filters */ })
-    })
-    .then(response => response.blob())
-    .then(blob => {
-        // Create a temporary link element
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = 'preview_data.csv';
-        link.click();  // Trigger the download
-    })
-    .catch(error => console.error('Error exporting CSV:', error));
-});
 </script>
 {% endblock %}

@@ -13,7 +13,7 @@ Key Features:
 
 
 # Loading required packages
-from flask import Flask, render_template, request, Response, flash, session, redirect, url_for, jsonify
+from flask import Flask, render_template, request, Response, flash, session, redirect, url_for, jsonify, send_file
 from sqlalchemy import create_engine, text       # For ODBC database connection to Azure SQL Server
 import pyodbc
 import os             # For reading environment variables
@@ -129,6 +129,27 @@ def login():
 
     return render_template("login.html")
 
+
+
+@app.route('/get_dropdown_options', methods=['GET'])
+def get_dropdown_options():
+    role = request.args.get('role')
+    engine = get_db_engine()
+    options = []
+
+    if role == 'PRO':
+        # Fetch providers from the database
+        with engine.connect() as conn:
+            result = conn.execute(text("SELECT ProviderID, Description FROM Provider"))
+            options = [{"id": row.ProviderID, "name": row.Description} for row in result]
+
+    elif role == 'MOE':
+        # Fetch schools from the MOE_SchoolDirectory
+        with engine.connect() as conn:
+            result = conn.execute(text("SELECT MOENumber, SchoolName FROM MOE_SchoolDirectory"))
+            options = [{"id": row.MOENumber, "name": row.SchoolName} for row in result]
+
+    return jsonify(options)
 
 
 @app.route('/provider', methods=["GET", "POST"])
@@ -686,6 +707,21 @@ def get_schools():
     school_list = schools['School'].dropna().tolist()
     return jsonify(school_list)
 
+@app.route('/get_provider_dropdown')
+def get_provider_dropdown():
+    engine = get_db_engine()
+    with engine.connect() as conn:
+        result = conn.execute(text("SELECT ProviderID, Description FROM Provider"))
+        providers = [{"id": row.ProviderID, "description": row.Description} for row in result]
+    return jsonify(providers)
+
+@app.route('/get_school_dropdown')
+def get_school_dropdown():
+    engine = get_db_engine()
+    with engine.connect() as conn:
+        result = conn.execute(text("SELECT MOENumber, SchoolName FROM MOE_SchoolDirectory"))
+        schools = [{"id": row.MOENumber, "description": row.SchoolName} for row in result]
+    return jsonify(schools)
 
 @app.route('/create_user', methods=['GET', 'POST'])
 @login_required
@@ -698,13 +734,17 @@ def create_user():
         email = request.form.get("email")
         password = request.form.get("password").encode("utf-8")
         role = request.form.get("role")
+        name = request.form.get("name")
+        selected_id = request.form.get("selected_id")  # The value from the dropdown
+        provider_or_school = request.form.get("role")  # To check if it's provider or school
 
         # Hash the password
         hashed_pw = bcrypt.hashpw(password, bcrypt.gensalt()).decode("utf-8")
 
         engine = get_db_engine()
+
+        # Check if the email already exists
         with engine.begin() as conn:
-            # Check for duplicate email
             existing = conn.execute(
                 text("SELECT 1 FROM FlaskLogin WHERE Email = :email"),
                 {"email": email}
@@ -714,10 +754,19 @@ def create_user():
                 flash("⚠️ Email already exists. Please use a different email.", "warning")
                 return redirect(url_for("create_user"))
 
-            # Insert new user
+            # Set the user ID
+            if role == "ADM":
+                user_id = None  # Admin gets None for ID
+            else:
+                user_id = selected_id  # Set the ID based on the selected Provider or School
+
+            # Insert new user into FlaskLogin with the generated ID
             conn.execute(
-                text("INSERT INTO FlaskLogin (Email, HashPassword, Role) VALUES (:email, :hash, :role)"),
-                {"email": email, "hash": hashed_pw, "role": role}
+                text("""
+                    INSERT INTO FlaskLogin (Email, HashPassword, Role, DisplayName, ID) 
+                    VALUES (:email, :hash, :role, :name, :user_id)
+                """),
+                {"email": email, "hash": hashed_pw, "role": role, "name": name, "user_id": user_id}
             )
             flash(f"✅ User {email} created with role {role}.", "success")
             return redirect(url_for("create_user"))
@@ -1232,7 +1281,6 @@ def get_schools_for_provider():
     return jsonify(schools)
 
 
-
 @app.route('/classlistupload', methods=['GET', 'POST'])
 @login_required
 def classlistupload():
@@ -1313,6 +1361,7 @@ def classlistupload():
         selected_year=selected_year,
         preview_data=preview_data
     )
+
 @app.route('/export_excel', methods=['POST'])
 def export_excel():
     # Retrieve preview data from the session

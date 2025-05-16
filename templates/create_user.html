@@ -1,55 +1,115 @@
-{% extends "header.html" %} {% block title %}Create User{% endblock %} {% block
+{% extends "header.html" %} {% block title %}Coming Soon{% endblock %} {% block
 content %}
-<!-- Flash message display block -->
-{% with messages = get_flashed_messages(with_categories=true) %} {% if messages
-%} {% for category, message in messages %}
-<div
-  class="alert alert-{{ category }} alert-dismissible fade show"
-  role="alert"
->
-  {{ message }}
-  <button
-    type="button"
-    class="btn-close"
-    data-bs-dismiss="alert"
-    aria-label="Close"
-  ></button>
-</div>
-{% endfor %} {% endif %} {% endwith %}
+<form id="upload-form" action="/classlistupload" method="post" enctype="multipart/form-data" class="row g-3">
+    {% if user_role == 'ADM' %}
+    <div class="col-md-6">
+      <label for="provider" class="form-label">Provider</label>
+      <select id="provider" name="provider" class="form-select" required>
+        <option value="">Select a provider</option>
+        {% for provider in providers %}
+          <option value="{{ provider.ProviderID }}" {% if selected_provider == provider.ProviderID %}selected{% endif %}>{{ provider.Description }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-6">
+      <label for="school" class="form-label">School</label>
+      <select class="form-select" id="school" name="school" required>
+        <option selected disabled value="">Select a school</option>
+        {% for name in schools %}
+          <option value="{{ name }}" {% if selected_school == name %}selected{% endif %}>{{ name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endif %}
 
-<!-- Create User Form -->
-<div class="card">
-  <div class="card-header bg-secondary text-white">Create New User</div>
-  <div class="card-body">
-    <form method="POST">
-      <div class="mb-3">
-        <label class="form-label">Email</label>
-        <input type="email" name="email" class="form-control" required />
-      </div>
-      <div class="mb-3">
-        <label class="form-label">Password</label>
-        <input type="password" name="password" class="form-control" required />
-      </div>
-      <div class="mb-3">
-        <label class="form-label">Role</label>
-        <select name="role" class="form-select" required>
-          <option value="ADM">Admin</option>
-          <option value="PRO">Provider</option>
-          <option value="TEA">Teacher</option>
-        </select>
-      </div>
-      <button type="submit" class="btn btn-success">Create User</button>
-    </form>
-  </div>
+    <div class="col-md-2">
+      <label for="term" class="form-label">Term</label>
+      <select class="form-select" id="term" name="term" required>
+        <option value="1" {% if selected_term == '1' %}selected{% endif %}>Term 1</option>
+        <option value="2" {% if selected_term == '2' %}selected{% endif %}>Term 2</option>
+        <option value="3" {% if selected_term == '3' %}selected{% endif %}>Term 3</option>
+        <option value="4" {% if selected_term == '4' %}selected{% endif %}>Term 4</option>
+      </select>
+    </div>
+
+    <div class="col-md-1">
+      <label for="year" class="form-label">Year</label>
+      <select class="form-select" id="year" name="year" required>
+        {% for y in range(2023, 2026) %}
+          <option value="{{ y }}" {% if selected_year == y %}selected{% endif %}>{{ y }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="col-md-3">
+  <label for="teachername" class="form-label">Teacher Name</label>
+  <input type="text" class="form-control" id="teachername" name="teachername" required value="{{ session.get('selected_teacher', '') }}">
 </div>
+
+<div class="col-md-3">
+  <label for="classname" class="form-label">Class Name</label>
+  <input type="text" class="form-control" id="classname" name="classname" required value="{{ session.get('selected_class', '') }}">
+</div>
+
+    <div class="col-md-3">
+      <label for="csv_file" class="form-label">Upload CSV File</label>
+      <input type="file" class="form-control" id="csv_file" name="csv_file" accept=".csv" required>
+    </div>
+
+    <input type="hidden" id="column_mappings" name="column_mappings">
+
+    <div class="col-12 d-flex justify-content-between">
+      <button type="submit" name="action" value="preview" class="btn btn-secondary">Preview File</button>
+      {% if preview_data and not preview_data[0].get('ErrorMessage') %}
+        <button type="submit" name="action" value="validate" class="btn btn-success">Validate Data</button>
+      {% endif %}
+    </div>
+  </form>
+
+
 {% endblock %} {% block scripts %}
 <script>
-  setTimeout(function () {
-    const alerts = document.querySelectorAll(".alert");
-    alerts.forEach(function (alertEl) {
-      const bsAlert = bootstrap.Alert.getOrCreateInstance(alertEl);
-      bsAlert.close(); // Triggers Bootstrap's fade-out and removal
-    });
-  }, 10000);
+  // Show the appropriate dropdown based on the role selected
+  document.getElementById("role").addEventListener("change", function () {
+    const role = this.value;
+    const idDropdown = document.getElementById("id_dropdown");
+    const dropdown = idDropdown.querySelector("select[name='selected_id']");
+    const label = document.getElementById("dropdown_label");
+
+    // Clear the previous options
+    dropdown.innerHTML = "";
+
+    if (role === "PRO" || role === "MOE") {
+      idDropdown.style.display = "block";
+      // Fetch the data based on the role selected (Provider or School)
+      if (role === "PRO") {
+        label.textContent = "Select Provider"; // Adjust label text for Providers
+        fetch("/get_provider_dropdown")
+          .then((response) => response.json())
+          .then((data) => {
+            data.forEach((item) => {
+              const option = document.createElement("option");
+              option.value = item.id;
+              option.textContent = item.description;
+              dropdown.appendChild(option);
+            });
+          });
+      } else if (role === "MOE") {
+        label.textContent = "Select School"; // Adjust label text for Schools
+        fetch("/get_school_dropdown")
+          .then((response) => response.json())
+          .then((data) => {
+            data.forEach((item) => {
+              const option = document.createElement("option");
+              option.value = item.id;
+              option.textContent = item.description;
+              dropdown.appendChild(option);
+            });
+          });
+      }
+    } else {
+      idDropdown.style.display = "none";
+    }
+  });
 </script>
 {% endblock %}

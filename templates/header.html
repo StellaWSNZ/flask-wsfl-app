@@ -97,7 +97,7 @@
               >
             </li>
 
-            {% if user_role != "TEA" %}
+            {% if user_role != "MOE" %}
             <li class="nav-item dropdown">
               <a
                 class="nav-link dropdown-toggle {% if 'provider' in request.path %}active{% endif %}"
@@ -143,13 +143,32 @@
             </li>
 
             {% endif %} {% if user_role == "ADM" %}
-            <li class="nav-item">
+
+            <li class="nav-item dropdown">
               <a
-                class="nav-link {% if 'create_user' in request.path %}active{% endif %}"
-                href="/create_user"
-                >Create User</a
+                class="nav-link dropdown-toggle {% if 'school' in request.path or 'classlistupload' in request.path %}active{% endif %}"
+                href="#"
+                role="button"
+                data-bs-toggle="dropdown"
+                aria-expanded="false"
               >
+                Admin Tools
+              </a>
+              <ul class="dropdown-menu dropdown-menu-end">
+                <li>
+                  <a
+                    class="nav-link {% if 'create_user' in request.path %}active{% endif %}"
+                    href="/create_user"
+                  >
+                    Create User
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item py-2" href="/comingsoon">Reporting</a>
+                </li>
+              </ul>
             </li>
+
             {% endif %}
 
             <li class="nav-item mt-2 mt-lg-0">
