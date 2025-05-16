@@ -13,7 +13,7 @@ Key Features:
 
 
 # Loading required packages
-from flask import Flask, request, jsonify, render_template_string, render_template, send_file, session, redirect, url_for, flash # Web framework & templating
+from flask import Flask, render_template, request, Response, flash, session
 from sqlalchemy import create_engine, text       # For ODBC database connection to Azure SQL Server
 import pyodbc
 import os             # For reading environment variables
@@ -22,7 +22,7 @@ import pandas as pd   # For reading CSVs and processing tabular data
 from werkzeug.utils import secure_filename  # Safe handling of uploaded filenames
 import threading      # Allows background processing (non-blocking upload handling)
 import io 
-from io import StringIO
+from io import StringIO, BytesIO
 import base64
 import matplotlib
 matplotlib.use("Agg")  # Use non-GUI backend
@@ -1232,6 +1232,7 @@ def get_schools_for_provider():
     return jsonify(schools)
 
 
+
 @app.route('/classlistupload', methods=['GET', 'POST'])
 @login_required
 def classlistupload():
@@ -1272,6 +1273,8 @@ def classlistupload():
             df = pd.read_csv(file)
             session["raw_csv_json"] = df.to_json(orient="records")
             preview_data = df.head(10).to_dict(orient="records")
+            # Store the preview data in the session for later use
+            session["preview_data"] = preview_data
 
         elif action == "validate":
             if not session.get("raw_csv_json"):
@@ -1291,6 +1294,8 @@ def classlistupload():
                             {"InputJSON": df_json, "Term": selected_term, "CalendarYear": selected_year}
                         )
                         preview_data = [dict(row._mapping) for row in result]
+                        # Store the validated preview data in the session
+                        session["preview_data"] = preview_data
 
                 except Exception as e:
                     flash(f"Error during validation: {str(e)}", "danger")
@@ -1308,27 +1313,45 @@ def classlistupload():
         selected_year=selected_year,
         preview_data=preview_data
     )
+@app.route('/export_excel', methods=['POST'])
+def export_excel():
+    # Retrieve preview data from the session
+    preview_data = session.get("preview_data", None)
 
-@app.route('/export_csv', methods=['POST'])
-def export_csv():
-    # Assuming 'preview_data' is available in the context, like in your table
-    preview_data = get_preview_data()  # Replace with actual data retrieval
+    if preview_data is None:
+        flash("No data available for export.", "danger")
+        return redirect(url_for('classlistupload'))
 
-    # Convert data to a pandas DataFrame (if it's not already a DataFrame)
+    # Convert the data into a pandas DataFrame
     df = pd.DataFrame(preview_data)
 
-    # Create a StringIO buffer to write the CSV data to
-    csv_buffer = StringIO()
-    df.to_csv(csv_buffer, index=False)  # Don't include row indices in the CSV
+    # Create a BytesIO buffer to store the Excel file
+    output = BytesIO()
 
-    # Move the pointer to the beginning of the buffer before sending it as a response
-    csv_buffer.seek(0)
+    # Create an Excel writer using XlsxWriter
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df.to_excel(writer, index=False, sheet_name='Sheet1')
 
-    # Create a response with the CSV data and set the appropriate headers for downloading
+        # Access the XlsxWriter workbook and worksheet
+        workbook = writer.book
+        worksheet = writer.sheets['Sheet1']
+
+        # Apply a simple border format for all columns (optional)
+        border_format = workbook.add_format({'border': 1})
+
+        # Set column widths to be auto-sized based on content
+        for col_num, col_name in enumerate(df.columns.values):
+            column_width = max(df[col_name].astype(str).map(len).max(), len(col_name))
+            worksheet.set_column(col_num, col_num, column_width, border_format)
+
+    # Rewind the buffer to the beginning
+    output.seek(0)
+
+    # Return the Excel file as a downloadable response
     return Response(
-        csv_buffer.getvalue(),
-        mimetype="text/csv",
-        headers={"Content-Disposition": "attachment; filename=preview_data.csv"}
+        output.getvalue(),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=preview_data.xlsx"}
     )
 
 @app.context_processor

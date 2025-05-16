@@ -84,7 +84,7 @@
             {% for col in preview_data[0].keys() %}
               <th>
                 {{ col }}
-                {% if col not in ['ErrorFields', 'ErrorMessage'] %}
+                {% if col not in ['ErrorFields', 'ErrorMessage', 'Match'] and 'Match' not in preview_data[0].keys() %}
                   <div>
                     <select name="map_{{ col }}" class="form-select form-select-sm mt-1" data-remember="{{ col }}">
                       <option value="">Clean Column Name</option>
@@ -108,16 +108,30 @@
             <tr>
               {% for key, val in row.items() %}
                 {% if key == 'ErrorFields' %}
-                  <td class="{% if not row.Match and row.ErrorFields %}text-danger fw-bold{% elif row.Match and row.ErrorFields %}text-warning fw-bold{% elif not row.ErrorFields %}text-dark{% endif %}">
-                    {{ 'None' if row.ErrorFields == None or row.ErrorFields == '' else row.ErrorFields }}
-                  </td>
+                  <td class="{% if row.ErrorFields %}
+              {% if not row.Match %}text-danger fw-bold
+              {% else %}text-warning fw-bold
+              {% endif %}
+            {% else %}text-dark
+            {% endif %}">
+  {{ 'None' if not row.ErrorFields else row.ErrorFields }}
+</td>
                 {% elif key == 'ErrorMessage' %}
-                  <td class="{% if val %}text-danger fw-bold{% endif %}">
-                    {{ val if val else 'No error message' }}
-                  </td>
+                  <td class="{% if row.ErrorMessage and row.ErrorMessage != 'No error message' %}
+              {% if not row.Match %}text-danger fw-bold
+              {% else %}text-warning fw-bold
+              {% endif %}
+            {% else %}text-dark
+            {% endif %}">
+  {{ row.ErrorMessage if row.ErrorMessage else 'No error message' }}
+</td>
                 {% elif key == 'YearLevel' %}
                   <td class="{% if row.YearLevel is none %}bg-danger text-dark{% endif %}">
                     {{ row.YearLevel if row.YearLevel is not none else '' }}
+                  </td>
+                {% elif key == 'Match' %}
+                  <td>
+                      {{ 'Found' if row.Match == 1 else 'Not Found' }}
                   </td>
                 {% else %}
                   <td class="{% if key in error_columns and row.Match %}bg-warning text-dark {% elif key in error_columns and not row.Match %}bg-danger text-white {% endif %}">
@@ -130,8 +144,10 @@
         </tbody>
       </table>
     </div>
-<button type="button" id="exportCsvButton" class="btn btn-primary">Export to CSV</button>
-  </div>
+<form method="POST" action="{{ url_for('export_excel') }}">
+    <button type="submit" class="btn btn-primary">Export to Excel</button>
+</form>  
+</div>
   {% endif %}
 </div>
 {% endblock %}
