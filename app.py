@@ -13,7 +13,7 @@ Key Features:
 
 
 # Loading required packages
-from flask import Flask, render_template, request, Response, flash, session, redirect, url_for
+from flask import Flask, render_template, request, Response, flash, session, redirect, url_for, jsonify
 from sqlalchemy import create_engine, text       # For ODBC database connection to Azure SQL Server
 import pyodbc
 import os             # For reading environment variables
