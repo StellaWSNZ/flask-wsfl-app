@@ -1284,10 +1284,12 @@ def get_schools_for_provider():
 @app.route('/classlistupload', methods=['GET', 'POST'])
 @login_required
 def classlistupload():
+    validated=False
+
     engine = get_db_engine()
     preview_data = None
     providers, schools = [], []
-    selected_provider = selected_school = selected_term = selected_year = None
+    selected_csv = selected_provider = selected_school = selected_term = selected_year = selected_teacher = selected_class = None
 
     # Load providers dropdown
     with engine.connect() as conn:
@@ -1300,8 +1302,13 @@ def classlistupload():
         selected_school = request.form.get('school')
         selected_term = request.form.get('term')
         selected_year = request.form.get('year')
+        selected_teacher = request.form.get('teachername')
+        selected_class = request.form.get('classname')
+
         column_mappings_json = request.form.get('column_mappings')
         file = request.files.get('csv_file')
+        print(file)
+        selected_csv = file if file and file.filename else None,
 
         if selected_provider and selected_provider.isdigit():
             selected_provider = int(selected_provider)
@@ -1325,6 +1332,7 @@ def classlistupload():
             session["preview_data"] = preview_data
 
         elif action == "validate":
+            validated = True
             if not session.get("raw_csv_json"):
                 flash("No CSV file has been uploaded for validation.", "danger")
             else:
@@ -1359,7 +1367,11 @@ def classlistupload():
         selected_school=selected_school,
         selected_term=selected_term,
         selected_year=selected_year,
-        preview_data=preview_data
+        selected_teacher = selected_teacher,
+        selected_class = selected_class,
+        selected_csv = selected_csv,
+        preview_data=preview_data,
+        validated = validated
     )
 
 @app.route('/export_excel', methods=['POST'])

@@ -21,33 +21,33 @@
 
   <form id="upload-form" action="/classlistupload" method="post" enctype="multipart/form-data" class="row g-3">
     {% if user_role == 'ADM' %}
-    <div class="col-md-6">
-      <label for="provider" class="form-label">Provider</label>
-      <select id="provider" name="provider" class="form-select" required>
-        <option value="">Select a provider</option>
-        {% for provider in providers %}
-          <option value="{{ provider.ProviderID }}" {% if selected_provider == provider.ProviderID %}selected{% endif %}>{{ provider.Description }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="col-md-6">
-      <label for="school" class="form-label">School</label>
-      <select class="form-select" id="school" name="school" required>
-        <option selected disabled value="">Select a school</option>
-        {% for name in schools %}
-          <option value="{{ name }}" {% if selected_school == name %}selected{% endif %}>{{ name }}</option>
-        {% endfor %}
-      </select>
-    </div>
+      <div class="col-md-6">
+        <label for="provider" class="form-label">Provider</label>
+        <select id="provider" name="provider" class="form-select" required>
+          <option value="">Select a provider</option>
+          {% for provider in providers %}
+            <option value="{{ provider.ProviderID }}" {% if selected_provider == provider.ProviderID %}selected{% endif %}>{{ provider.Description }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="col-md-6">
+        <label for="school" class="form-label">School</label>
+        <select class="form-select" id="school" name="school" required>
+          <option selected disabled value="">Select a school</option>
+          {% for name in schools %}
+            <option value="{{ name }}" {% if selected_school == name %}selected{% endif %}>{{ name }}</option>
+          {% endfor %}
+        </select>
+      </div>
     {% endif %}
 
     <div class="col-md-2">
       <label for="term" class="form-label">Term</label>
       <select class="form-select" id="term" name="term" required>
-        <option value="1" {% if selected_term == '1' %}selected{% endif %}>Term 1</option>
-        <option value="2" {% if selected_term == '2' %}selected{% endif %}>Term 2</option>
-        <option value="3" {% if selected_term == '3' %}selected{% endif %}>Term 3</option>
-        <option value="4" {% if selected_term == '4' %}selected{% endif %}>Term 4</option>
+        {% for t in [1,2,3,4] %}
+          <option value="{{ t }}" {% if selected_term == t|string %}selected{% endif %}>Term {{ t }}</option>
+        {% endfor %}
       </select>
     </div>
 
@@ -62,24 +62,24 @@
 
     <div class="col-md-3">
       <label for="teachername" class="form-label">Teacher Name</label>
-      <input type="text" class="form-control" id="teachername" name="teachername" required>
+      <input type="text" class="form-control" id="teachername" name="teachername" value="{{ selected_teacher | default('', true) | e }}" required>
     </div>
 
     <div class="col-md-3">
       <label for="classname" class="form-label">Class Name</label>
-      <input type="text" class="form-control" id="classname" name="classname" required>
+      <input type="text" class="form-control" id="classname" name="classname" value="{{ selected_class | default('', true) | e }}" required>
     </div>
 
     <div class="col-md-3">
       <label for="csv_file" class="form-label">Upload CSV File</label>
-      <input type="file" class="form-control" id="csv_file" name="csv_file" accept=".csv" required>
+      <input type="file" class="form-control" id="csv_file" name="csv_file" accept=".csv" {% if not preview_data %}required{% endif %}>
     </div>
 
     <input type="hidden" id="column_mappings" name="column_mappings">
 
     <div class="col-12 d-flex justify-content-between">
       <button type="submit" name="action" value="preview" class="btn btn-secondary">Preview File</button>
-      {% if preview_data and not preview_data[0].get('ErrorMessage') %}
+      {% if preview_data %}
         <button type="submit" name="action" value="validate" class="btn btn-success">Validate Data</button>
       {% endif %}
     </div>
@@ -90,25 +90,53 @@
     <h4>Preview</h4>
     <div class="table-responsive">
       <table class="table table-bordered table-striped">
-        <thead>
-          <tr>
-            {% for col in preview_data[0].keys() %}
-              <th>{{ col }}</th>
-            {% endfor %}
-          </tr>
-        </thead>
-        <tbody>
-          {% for row in preview_data %}
-            <tr>
-              {% for key, val in row.items() %}
-                <td>{{ val }}</td>
-              {% endfor %}
-            </tr>
-          {% endfor %}
-        </tbody>
+    <thead>
+  <tr>
+    {% for col in preview_data[0].keys() %}
+      {% if col != 'Match' %}
+        <th>{{ col }}</th>
+      {% endif %}
+    {% endfor %}
+    {% if validated %}
+      <th>Status</th>
+    {% endif %}
+  </tr>
+</thead>
+
+<tbody>
+  {% for row in preview_data %}
+    {% set error_columns = row.ErrorFields.split(',') if row.ErrorFields else [] %}
+    <tr>
+      {% for key, val in row.items() %}
+        {% if key != 'Match' %}
+          {% set clean_key = key.strip() %}
+          {% set is_error = clean_key in error_columns %}
+          {% set cell_class = '' %}
+          {% if is_error and row.Match == 1 %}
+            {% set cell_class = 'bg-warning text-dark' %}
+          {% elif is_error and row.Match == 0 %}
+            {% set cell_class = 'bg-danger text-white' %}
+          {% endif %}
+          <td class="{{ cell_class }}">
+            {{ '' if val is none or val|string == 'nan' else val }}
+          </td>
+        {% endif %}
+      {% endfor %}
+      {% if validated %}
+        <td>
+          {% if row.Match %}
+            <span class="badge bg-success">Ready</span>
+          {% else %}
+            <span class="badge bg-danger">Fix required</span>
+          {% endif %}
+        </td>
+      {% endif %}
+    </tr>
+  {% endfor %}
+</tbody>
+
       </table>
     </div>
-    <button type="button" id="exportExcelButton" class="btn btn-primary" style="display:none;">Export to Excel</button>
   </div>
   {% endif %}
 </div>
@@ -116,7 +144,7 @@
 
 {% block scripts %}
 <script>
-  document.getElementById("provider").addEventListener("change", function () {
+  document.getElementById("provider")?.addEventListener("change", function () {
     const providerID = this.value;
     fetch(`/get_schools_for_provider?provider_id=${providerID}`)
       .then((response) => response.json())
@@ -165,18 +193,15 @@
     });
     updateMappingOptions();
 
-    document
-      .getElementById("upload-form")
-      .addEventListener("submit", function () {
-        const mapping = {};
-        document.querySelectorAll('select[name^="map_"]').forEach((select) => {
-          const col = select.name.replace("map_", "");
-          if (select.value) mapping[col] = select.value;
-        });
-        localStorage.setItem("column_mappings", JSON.stringify(mapping));
-        document.getElementById("column_mappings").value =
-          JSON.stringify(mapping);
+    document.getElementById("upload-form").addEventListener("submit", function () {
+      const mapping = {};
+      document.querySelectorAll('select[name^="map_"]').forEach((select) => {
+        const col = select.name.replace("map_", "");
+        if (select.value) mapping[col] = select.value;
       });
+      localStorage.setItem("column_mappings", JSON.stringify(mapping));
+      document.getElementById("column_mappings").value = JSON.stringify(mapping);
+    });
   });
 </script>
 {% endblock %}
