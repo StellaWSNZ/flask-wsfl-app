@@ -726,7 +726,6 @@ def get_school_dropdown():
 @app.route('/create_user', methods=['GET', 'POST'])
 @login_required
 def create_user():
-    print(session.get("user_role"))
     if session.get("user_role") != "ADM":
         flash("Unauthorized access", "danger")
         return redirect(url_for("home"))
@@ -771,7 +770,6 @@ def create_user():
             )
             flash(f"✅ User {email} created with role {role}.", "success")
             return redirect(url_for("create_user"))
-    print("Rendering")
     return render_template("create_user.html")
 
 
@@ -1262,7 +1260,7 @@ def download_pdf():
 @login_required
 def get_schools_for_provider():
     provider_id = request.args.get("provider_id")
-    print("🔍 Received provider_id:", provider_id)
+    #print("🔍 Received provider_id:", provider_id)
 
     if not provider_id:
         return jsonify([])
@@ -1278,7 +1276,7 @@ def get_schools_for_provider():
 
         schools = [row.School for row in result]
 
-    print("✅ Returning schools:", schools)
+    #print("✅ Returning schools:", schools)
     return jsonify(schools)
 
 
@@ -1309,7 +1307,7 @@ def classlistupload():
 
         column_mappings_json = request.form.get('column_mappings')
         file = request.files.get('csv_file')
-        print(file)
+        #print(file)
         selected_csv = file if file and file.filename else None,
 
         if selected_provider and selected_provider.isdigit():

@@ -32,23 +32,89 @@ content %}
       </div>
       <div class="mb-3">
         <label class="form-label">Role</label>
-        <select name="role" class="form-select" required>
+        <select name="role" id="role-select" class="form-select" required>
           <option value="ADM">Admin</option>
           <option value="PRO">Provider</option>
-          <option value="TEA">Teacher</option>
+          <option value="MOE">School</option>
         </select>
       </div>
+
+      <div class="mb-3 d-none" id="provider-dropdown">
+        <label class="form-label">Select Provider</label>
+        <select
+          name="selected_id"
+          id="provider-select"
+          class="form-select"
+        ></select>
+      </div>
+
+      <div class="mb-3 d-none" id="school-dropdown">
+        <label class="form-label">Select School</label>
+        <select
+          name="selected_id"
+          id="school-select"
+          class="form-select"
+        ></select>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Display Name</label>
+        <input type="text" name="name" class="form-control" required />
+      </div>
+
       <button type="submit" class="btn btn-success">Create User</button>
     </form>
   </div>
 </div>
 {% endblock %} {% block scripts %}
 <script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const roleSelect = document.getElementById("role-select");
+    const providerDropdown = document.getElementById("provider-dropdown");
+    const schoolDropdown = document.getElementById("school-dropdown");
+    const providerSelect = document.getElementById("provider-select");
+    const schoolSelect = document.getElementById("school-select");
+
+    roleSelect.addEventListener("change", function () {
+      const selectedRole = this.value;
+      providerDropdown.classList.add("d-none");
+      schoolDropdown.classList.add("d-none");
+      providerSelect.innerHTML = "";
+      schoolSelect.innerHTML = "";
+
+      if (selectedRole === "PRO") {
+        fetch("/get_provider_dropdown")
+          .then((res) => res.json())
+          .then((data) => {
+            data.forEach((p) => {
+              const option = document.createElement("option");
+              option.value = p.id;
+              option.textContent = p.description;
+              providerSelect.appendChild(option);
+            });
+            providerDropdown.classList.remove("d-none");
+          });
+      } else if (selectedRole === "MOE") {
+        fetch("/get_school_dropdown")
+          .then((res) => res.json())
+          .then((data) => {
+            data.forEach((s) => {
+              const option = document.createElement("option");
+              option.value = s.id;
+              option.textContent = s.description;
+              schoolSelect.appendChild(option);
+            });
+            schoolDropdown.classList.remove("d-none");
+          });
+      }
+    });
+  });
+
   setTimeout(function () {
     const alerts = document.querySelectorAll(".alert");
     alerts.forEach(function (alertEl) {
       const bsAlert = bootstrap.Alert.getOrCreateInstance(alertEl);
-      bsAlert.close(); // Triggers Bootstrap's fade-out and removal
+      bsAlert.close();
     });
   }, 10000);
 </script>
