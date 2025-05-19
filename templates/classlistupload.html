@@ -90,27 +90,42 @@
     <h4>Preview</h4>
     <div class="table-responsive">
       <table class="table table-bordered table-striped">
-    <thead>
+<thead>
   <tr>
     {% for col in preview_data[0].keys() %}
-      {% if col != 'Match' %}
-        <th>{{ col }}</th>
-      {% endif %}
+      <th>{{ col }}</th>
     {% endfor %}
-    {% if validated %}
-      <th>Status</th>
-    {% endif %}
   </tr>
+
+  {% if not validated %}
+<tr>
+  {% for col in preview_data[0].keys() %}
+    <th>
+      <select class="form-select" name="map_{{ col }}" data-remember="{{ col }}">
+        <option value="">-- Select --</option>
+        <option value="NSN">NSN</option>
+        <option value="FirstName">FirstName</option>
+        <option value="LastName">LastName</option>
+        <option value="PreferredName">PreferredName</option>
+        <option value="BirthDate">BirthDate</option>
+        <option value="Ethnicity">Ethnicity</option>
+        <option value="YearLevel">YearLevel</option>
+      </select>
+    </th>
+  {% endfor %}
+</tr>
+{% endif %}
+
 </thead>
 
 <tbody>
   {% for row in preview_data %}
-    {% set error_columns = row.ErrorFields.split(',') if row.ErrorFields else [] %}
+  {% set error_columns = row.ErrorFields.split(',') | map('trim') | list if row.ErrorFields else [] %}
     <tr>
       {% for key, val in row.items() %}
         {% if key != 'Match' %}
           {% set clean_key = key.strip() %}
-          {% set is_error = clean_key in error_columns %}
+          {% set is_error = clean_key|lower in error_columns|map('lower') %}
           {% set cell_class = '' %}
           {% if is_error and row.Match == 1 %}
             {% set cell_class = 'bg-warning text-dark' %}

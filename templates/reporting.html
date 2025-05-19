@@ -1,5 +1,5 @@
 {% extends "header.html" %}
-{% block title %}Provider Reports{% endblock %}
+{% block title %}Reporting{% endblock %}
 {% block content %}
 
 <div class="container-fluid">
@@ -9,7 +9,7 @@
       <div class="card">
         <div class="card-header">Report Options</div>
         <div class="card-body">
-          <form action="/provider" method="POST" class="row g-3">
+          <form action="/reporting" method="POST" class="row g-3">
             <div class="col-12">
               <label for="report_type" class="form-label">Report Type</label>
               <select

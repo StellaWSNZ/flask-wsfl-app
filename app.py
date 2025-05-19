@@ -152,9 +152,9 @@ def get_dropdown_options():
     return jsonify(options)
 
 
-@app.route('/provider', methods=["GET", "POST"])
+@app.route('/reporting', methods=["GET", "POST"])
 @login_required
-def provider():
+def reporting():
     global last_pdf_generated, last_pdf_filename
 
     engine = get_db_engine()
@@ -288,7 +288,7 @@ def provider():
 
 
 
-@app.route('/provider/download_pdf')
+@app.route('/reporting/download_pdf')
 @login_required
 def provider_download_pdf():
     if last_pdf_generated is None:
@@ -303,7 +303,7 @@ def provider_download_pdf():
         mimetype='application/pdf'
     )
 
-@app.route('/provider/download_png')
+@app.route('/reporting/download_png')
 @login_required
 def provider_download_png():
     if last_png_generated is None:
@@ -353,7 +353,7 @@ def home():
 
     if role == "ADM":
         cards = [
-            {"title": "Generate Reports", "text": "Build reports on provider and competency performance.", "href": "/provider", "image": "placeholder.png"},
+            {"title": "Generate Reports", "text": "Build reports on provider and competency performance.", "href": "/reporting", "image": "placeholder.png"},
             {"title": "Audit Activity", "text": "Review login history and recent activity.", "href": "/comingsoon.html", "image": "placeholder.png"},
             {"title": "Create User", "text": "Add a new admin, MOE, or provider account.", "href": "/create_user", "image": "placeholder.png"},
 
@@ -367,7 +367,7 @@ def home():
     elif role == "PRO":
         cards = [
             {"title": "Student Competency Maintenence", "text": "Update competency achievements for your class.", "href": "/provider_classes", "image": "viewclass.png"},
-            {"title": "Live Reporting", "text": "Generate reporting for your provider.", "href": "/provider", "image": "placeholder.png"},
+            {"title": "Live Reporting", "text": "Generate reporting for your provider.", "href": "/reporting", "image": "placeholder.png"},
             {"title": "Maintenance", "text": "Any issues with school and classes recorded.", "href": "/comingsoon.html", "image": "placeholder.png"},
         ]
     else:
@@ -1288,6 +1288,7 @@ def classlistupload():
 
     engine = get_db_engine()
     preview_data = None
+    original_columns = [] 
     providers, schools = [], []
     selected_csv = selected_provider = selected_school = selected_term = selected_year = selected_teacher = selected_class = None
 
@@ -1330,6 +1331,7 @@ def classlistupload():
             preview_data = df.head(10).to_dict(orient="records")
             # Store the preview data in the session for later use
             session["preview_data"] = preview_data
+            original_columns = list(df.columns)
 
         elif action == "validate":
             validated = True
@@ -1339,9 +1341,22 @@ def classlistupload():
                 try:
                     raw_df = pd.read_json(StringIO(session["raw_csv_json"]))
                     column_mappings = json.loads(column_mappings_json)
-                    df = raw_df.rename(columns=column_mappings)
-                    valid_cols = ["NSN", "FirstName", "LastName", "PreferredName", "BirthDate", "Ethnicity", "YearLevel"]
-                    df = df[[col for col in valid_cols if col in df.columns]]
+                    valid_fields = ["NSN", "FirstName", "LastName", "PreferredName", "BirthDate", "Ethnicity", "YearLevel"]
+
+                    # Build reverse mapping: selected column name → expected name
+                    reverse_mapping = {v: k for k, v in column_mappings.items() if v in valid_fields}
+
+                    # Keep only columns mapped to valid fields
+                    usable_columns = [col for col in raw_df.columns if col in reverse_mapping]
+
+                    # Rename to expected names
+                    df = raw_df[usable_columns].rename(columns={col: reverse_mapping[col] for col in usable_columns})
+
+                    # Ensure all required columns are present
+                    for col in valid_fields:
+                        if col not in df.columns:
+                            df[col] = None  # Or np.nan
+
                     df_json = df.to_json(orient="records")
 
                     with engine.connect() as conn:
@@ -1371,7 +1386,8 @@ def classlistupload():
         selected_class = selected_class,
         selected_csv = selected_csv,
         preview_data=preview_data,
-        validated = validated
+        validated = validated,
+        original_columns = original_columns
     )
 
 @app.route('/export_excel', methods=['POST'])
