@@ -137,10 +137,12 @@
         data-nsn="{{ student.NSN }}"
         data-header="{{ col }}"
         data-scenario-index="{{ 1 if 'Scenario One' in col else 2 }}">
-  {% for i in range(5) %}
-    <option value="{{ i }}" {% if val == i|string %}selected{% endif %}>{{ i }}</option>
+       {% for scenario in scenarios %}
+    <option value="{{ scenario.id }}" {% if val == scenario.id|string %}selected{% endif %}>
+      {{ scenario.desc | safe}}
+    </option>
   {% endfor %}
-</select>
+      </select>
 
 
           {% else %}
@@ -161,6 +163,11 @@
   </table>
 </div>
 <script>
+  $(document).ready(function () {
+  $('.selectpicker').selectpicker();
+});
+
+
   document.addEventListener("DOMContentLoaded", function () {
 
     // ✅ Checkbox handler
@@ -213,6 +220,11 @@
 
   });
 </script>
-
+<style>
+  select option {
+  white-space: normal;
+  word-break: break-word;
+}
+</style>
 
 {% endblock %}

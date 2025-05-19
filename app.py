@@ -1108,8 +1108,8 @@ def view_class(class_id, term, year):
 
     with engine.connect() as conn:
             # Fetch scenario information from the "Scenario" table
-        result = conn.execute(text("SELECT ScenarioID, Description FROM Scenario"))
-        scenarios = result.fetchall() 
+        result = conn.execute(text("SELECT ScenarioID, HTMLScenario FROM Scenario"))
+        scenarios = [{"id": row.ScenarioID, "desc": row.HTMLScenario} for row in result]
         class_info = conn.execute(text("""
             SELECT ClassName, TeacherName, MOENumber
             FROM Class
