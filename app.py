@@ -275,7 +275,7 @@ def provider():
             plt.close(fig)
 
 
-    return render_template("provider.html",
+    return render_template("reporting.html",
                        providers=providers,
                        competencies=competencies,
                        user_role=role,
