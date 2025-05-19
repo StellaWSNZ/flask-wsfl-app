@@ -726,6 +726,7 @@ def get_school_dropdown():
 @app.route('/create_user', methods=['GET', 'POST'])
 @login_required
 def create_user():
+    print(session.get("user_role"))
     if session.get("user_role") != "ADM":
         flash("Unauthorized access", "danger")
         return redirect(url_for("home"))
@@ -770,7 +771,7 @@ def create_user():
             )
             flash(f"✅ User {email} created with role {role}.", "success")
             return redirect(url_for("create_user"))
-
+    print("Rendering")
     return render_template("create_user.html")
 
 
@@ -1389,6 +1390,122 @@ def classlistupload():
         validated = validated,
         original_columns = original_columns
     )
+
+
+@app.route('/classlistdownload', methods=['POST'])
+@login_required
+def classlistdownload():
+    if not session.get("preview_data"):
+        flash("No data available to export.", "danger")
+        return redirect(url_for("classlistupload"))
+
+    desired_order = [
+        "NSN",
+        "FirstName",
+        "PreferredName",
+        "LastName",
+        "Birthdate",
+        "Ethnicity",
+        "YearLevel",
+        "ErrorMessage",
+        "Match"
+    ]
+
+    # Reconstruct DataFrame
+    df = pd.DataFrame(session["preview_data"])
+    df = df.fillna("")
+
+    # Ensure only desired columns and in the correct order
+    columns_to_write = [col for col in desired_order if col in df.columns]
+
+    output = BytesIO()
+
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df[columns_to_write].to_excel(writer, sheet_name='Results', index=False, startrow=1, header=False)
+        workbook = writer.book
+        worksheet = writer.sheets['Results']
+
+        for col_num, col_name in enumerate(columns_to_write):
+            worksheet.write(0, col_num, col_name)
+
+        # Excel column name helper
+        def excel_col_letter(n):
+            name = ''
+            while n >= 0:
+                name = chr(n % 26 + 65) + name
+                n = n // 26 - 1
+            return name
+
+        max_row = len(df) + 1
+        max_col = len(columns_to_write)
+        last_col_letter = excel_col_letter(max_col - 1)
+
+        worksheet.add_table(f"A1:{last_col_letter}{max_row}", {
+            'columns': [{'header': col} for col in columns_to_write],
+            'style': 'Table Style Light 8',
+            'name': 'MyTable'
+        })
+
+        # Formats
+        wrap_top_format = workbook.add_format({'text_wrap': True, 'valign': 'top'})
+        red_format = workbook.add_format({'bg_color': '#D63A3A', 'font_color': '#FFFFFF', 'bold': True, 'valign': 'top'})
+        orange_format = workbook.add_format({'bg_color': "#EF9D32", 'font_color': '#FFFFFF', 'bold': True, 'valign': 'top'})
+        badge_format_error = workbook.add_format({'bold': True, 'align': 'center', 'valign': 'top', 'font_color': '#FFFFFF', 'bg_color': "#D63A3A", 'border': 1})
+        badge_format_ready = workbook.add_format({'bold': True, 'align': 'center', 'valign': 'top', 'font_color': '#FFFFFF', 'bg_color': "#49B00D", 'border': 1})
+
+        # Write formatted cells
+        for row in range(1, len(df) + 1):
+            error_fields = df.loc[row - 1, 'ErrorFields']
+            match_value = df.loc[row - 1, 'Match']
+            error_columns = [field.strip() for field in error_fields.split(',')] if pd.notna(error_fields) else []
+
+            for col in range(len(columns_to_write)):
+                col_name = columns_to_write[col]
+                value = df.iloc[row - 1][col_name]
+                if col_name == 'ErrorMessage' and (value is True or str(value).strip().lower() == 'true'):
+                    value = ""
+
+                if col_name in error_columns:
+                    fmt = orange_format if match_value == 1 else red_format
+                    worksheet.write(row, col, value, fmt)
+                else:
+                    worksheet.write(row, col, value)
+
+            # Badge
+            badge_col = len(columns_to_write) - 1
+            badge_value = 'Ready' if match_value == 1 else 'Fix required'
+            badge_format = badge_format_ready if match_value == 1 else badge_format_error
+            worksheet.write(row, badge_col, badge_value, badge_format)
+
+        # Column widths
+        column_widths = {
+            'NSN': 14,
+            'FirstName': 20,
+            'PreferredName': 20,
+            'LastName': 20,
+            'DateOfBirth': 18,
+            'Ethnicity': 14,
+            'Match': 12,
+            'ErrorMessage': 40
+        }
+
+        for col_num, col_name in enumerate(columns_to_write):
+            width = column_widths.get(col_name, None)
+            worksheet.set_column(col_num, col_num, width, wrap_top_format)
+
+        worksheet.set_column(max_col, max_col, 15, wrap_top_format)
+        for row in range(max_row):
+            worksheet.set_row(row, None, wrap_top_format)
+
+    output.seek(0)
+    return send_file(output, download_name="Fixes.xlsx", as_attachment=True)
+
+@app.route('/submitclass', methods=['POST'])
+@login_required
+def submitclass():
+    print("✅ Class submitted successfully!")  # For now
+    flash("Class submitted successfully!", "success")
+    return redirect(url_for("classlistupload"))
 
 @app.route('/export_excel', methods=['POST'])
 def export_excel():

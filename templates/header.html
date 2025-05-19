@@ -76,7 +76,6 @@
             class="img-fluid"
             style="height: 40px; margin-right: 12px"
           />
-          Student Tools
         </a>
 
         <button
@@ -160,7 +159,10 @@
               </a>
               <ul class="dropdown-menu dropdown-menu-end">
                 <li>
-                  <a class="dropdown-item py-2" href="/create_user">
+                  <a
+                    class="dropdown-item py-2"
+                    href="{{ url_for('create_user') }}"
+                  >
                     Create User
                   </a>
                 </li>

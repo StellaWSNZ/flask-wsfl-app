@@ -152,6 +152,21 @@
 
       </table>
     </div>
+    {% if validated and preview_data %}
+  {% set has_errors = preview_data | selectattr("Match", "equalto", false) | list | length > 0 %}
+
+  {% if has_errors %}
+    <form action="/classlistdownload" method="post">
+      <button type="submit" class="btn btn-danger mt-3">Export Fixes to Excel</button>
+    </form>
+  {% else %}
+    <form action="/submitclass" method="post">
+      <button type="submit" class="btn btn-success mt-3">Submit Class</button>
+    </form>
+  {% endif %}
+{% endif %}
+
+
   </div>
   {% endif %}
 </div>

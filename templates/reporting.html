@@ -104,26 +104,30 @@
     </div>
   </div>
 </div>
-
-<<script>
+<script>
   function toggleReportFields() {
     const type = document.getElementById('report_type').value;
 
     // Toggle competency section
-    document.getElementById('competency_section').style.display =
-      type === 'Competency' ? 'block' : 'none';
+    const competencySection = document.getElementById('competency_section');
+    if (competencySection) {
+      competencySection.style.display = type === 'Competency' ? 'block' : 'none';
+    }
 
     // Toggle provider section only for ADM users
     {% if user_role == 'ADM' %}
-    const providerSection = document.getElementById('provider_section');
-    if (providerSection) {
-      providerSection.style.display = type === 'Provider' ? 'block' : 'none';
-    }
+      const providerSection = document.getElementById('provider_section');
+      if (providerSection) {
+        providerSection.style.display = type === 'Provider' ? 'block' : 'none';
+      }
     {% endif %}
   }
 
+  // Run on page load
   window.onload = toggleReportFields;
 </script>
+
+
 
 
 {% endblock %}
