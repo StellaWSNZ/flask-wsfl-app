@@ -1326,6 +1326,7 @@ def classlistupload():
 
         if action == "preview" and file and file.filename.endswith('.csv'):
             df = pd.read_csv(file)
+
             session["raw_csv_json"] = df.to_json(orient="records")
             preview_data = df.head(10).to_dict(orient="records")
             # Store the preview data in the session for later use
@@ -1339,6 +1340,7 @@ def classlistupload():
             else:
                 try:
                     raw_df = pd.read_json(StringIO(session["raw_csv_json"]))
+                    
                     column_mappings = json.loads(column_mappings_json)
                     valid_fields = ["NSN", "FirstName", "LastName", "PreferredName", "BirthDate", "Ethnicity", "YearLevel"]
 
@@ -1355,13 +1357,18 @@ def classlistupload():
                     for col in valid_fields:
                         if col not in df.columns:
                             df[col] = None  # Or np.nan
+                    if "BirthDate" in df.columns:
+                        df["BirthDate"] = pd.to_datetime(df["BirthDate"], errors="coerce").dt.strftime("%Y-%m-%d")
 
                     df_json = df.to_json(orient="records")
+                    # Save a copy for debugging/inspection
+                    with open("last_validated_input.json", "w", encoding="utf-8") as f:
+                        f.write(df_json)
 
                     with engine.connect() as conn:
                         result = conn.execute(
-                            text("EXEC FlaskCheckNSN_JSON :InputJSON, :Term, :CalendarYear"),
-                            {"InputJSON": df_json, "Term": selected_term, "CalendarYear": selected_year}
+                            text("EXEC FlaskCheckNSN_JSON :InputJSON, :Term, :CalendarYear, :MOENumber"),
+                            {"InputJSON": df_json, "Term": selected_term, "CalendarYear": selected_year, "MOENumber": selected_school}
                         )
                         preview_data = [dict(row._mapping) for row in result]
                         # Store the validated preview data in the session
