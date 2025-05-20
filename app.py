@@ -1368,7 +1368,7 @@ def classlistupload():
                     with engine.connect() as conn:
                         result = conn.execute(
                             text("EXEC FlaskCheckNSN_JSON :InputJSON, :Term, :CalendarYear, :MOENumber"),
-                            {"InputJSON": df_json, "Term": selected_term, "CalendarYear": selected_year, "MOENumber": selected_school}
+                            {"InputJSON": df_json, "Term": selected_term, "CalendarYear": selected_year, "MOENumber": int(selected_school.split('(')[-1].rstrip(')'))}
                         )
                         preview_data = [dict(row._mapping) for row in result]
                         # Store the validated preview data in the session
