@@ -1340,18 +1340,21 @@ def classlistupload():
             else:
                 try:
                     raw_df = pd.read_json(StringIO(session["raw_csv_json"]))
-                    
+                    #print(raw_df)
                     column_mappings = json.loads(column_mappings_json)
                     valid_fields = ["NSN", "FirstName", "LastName", "PreferredName", "BirthDate", "Ethnicity", "YearLevel"]
 
                     # Build reverse mapping: selected column name → expected name
-                    reverse_mapping = {v: k for k, v in column_mappings.items() if v in valid_fields}
-
+                    reverse_mapping = {
+                        k: v for k, v in column_mappings.items()
+                        if v.strip().lower() in [field.lower() for field in valid_fields]
+                    }                    
+                    #print(reverse_mapping)
                     # Keep only columns mapped to valid fields
                     usable_columns = [col for col in raw_df.columns if col in reverse_mapping]
 
                     # Rename to expected names
-                    df = raw_df[usable_columns].rename(columns={col: reverse_mapping[col] for col in usable_columns})
+                    df = raw_df[usable_columns].rename(columns=reverse_mapping)
 
                     # Ensure all required columns are present
                     for col in valid_fields:
@@ -1359,11 +1362,17 @@ def classlistupload():
                             df[col] = None  # Or np.nan
                     if "BirthDate" in df.columns:
                         df["BirthDate"] = pd.to_datetime(df["BirthDate"], errors="coerce").dt.strftime("%Y-%m-%d")
+                    if "YearLevel" in df.columns:
+                        df["YearLevel"] = pd.to_numeric(df["YearLevel"], errors="coerce").astype("Int64")
+                        df["YearLevel"] = df["YearLevel"].where(pd.notnull(df["YearLevel"]), None)
+                    #print(df["YearLevel"])
+                    #print(df.dtypes)
+                    #print(df.to_json(orient="records"))
 
                     df_json = df.to_json(orient="records")
                     # Save a copy for debugging/inspection
-                    with open("last_validated_input.json", "w", encoding="utf-8") as f:
-                        f.write(df_json)
+                    #with open("last_validated_input.json", "w", encoding="utf-8") as f:
+                    #   f.write(df_json)
 
                     with engine.connect() as conn:
                         result = conn.execute(
