@@ -31,7 +31,7 @@ import textwrap
 import bcrypt
 from datetime import datetime
 import json
-
+import re
 from functools import wraps
 
 from providernationalplot import create_competency_report
@@ -619,7 +619,8 @@ def upload():
             return "No file uploaded", 400
 
         df = pd.read_csv(file)
-        df['BirthDate'] = pd.to_datetime(df['BirthDate'], errors='coerce', dayfirst=True).dt.date
+        
+        df["BirthDate"] = pd.to_datetime(df["BirthDate"], errors="coerce").dt.strftime("%Y-%m-%d")
 
         if "NSN" not in df.columns:
             return "CSV must contain 'NSN' column", 400
@@ -1304,6 +1305,10 @@ def classlistupload():
         selected_year = request.form.get('year')
         selected_teacher = request.form.get('teachername')
         selected_class = request.form.get('classname')
+        session["selected_class"] = selected_class
+        session["selected_teacher"] = selected_teacher
+        session["selected_year"] = selected_year
+        session["selected_term"] = selected_term
 
         column_mappings_json = request.form.get('column_mappings')
         file = request.files.get('csv_file')
@@ -1360,14 +1365,19 @@ def classlistupload():
                     for col in valid_fields:
                         if col not in df.columns:
                             df[col] = None  # Or np.nan
+                    if "Birthdate" in df.columns:
+                        df["Birthdate"] = pd.to_datetime(df["Birthdate"], errors="coerce").dt.strftime("%Y-%m-%d")
                     if "BirthDate" in df.columns:
                         df["BirthDate"] = pd.to_datetime(df["BirthDate"], errors="coerce").dt.strftime("%Y-%m-%d")
                     if "YearLevel" in df.columns:
                         df["YearLevel"] = pd.to_numeric(df["YearLevel"], errors="coerce").astype("Int64")
                         df["YearLevel"] = df["YearLevel"].where(pd.notnull(df["YearLevel"]), None)
+                        
+                    if "NSN" in df.columns:
+                        df["NSN"] = pd.to_numeric(df["NSN"], errors="coerce").astype("Int64")
                     #print(df["YearLevel"])
                     #print(df.dtypes)
-                    #print(df.to_json(orient="records"))
+                    print(df.to_json(orient="records"))
 
                     df_json = df.to_json(orient="records")
                     # Save a copy for debugging/inspection
@@ -1427,6 +1437,8 @@ def classlistdownload():
 
     # Reconstruct DataFrame
     df = pd.DataFrame(session["preview_data"])
+    df["Birthdate"] = pd.to_datetime(df["Birthdate"], errors="coerce").dt.date
+
     df = df.fillna("")
 
     # Ensure only desired columns and in the correct order
@@ -1464,8 +1476,18 @@ def classlistdownload():
         wrap_top_format = workbook.add_format({'text_wrap': True, 'valign': 'top'})
         red_format = workbook.add_format({'bg_color': '#D63A3A', 'font_color': '#FFFFFF', 'bold': True, 'valign': 'top'})
         orange_format = workbook.add_format({'bg_color': "#EF9D32", 'font_color': '#FFFFFF', 'bold': True, 'valign': 'top'})
+        orange_date_format = workbook.add_format({
+            'bg_color': "#EF9D32", 'font_color': '#FFFFFF', 'bold': True, 'valign': 'top',
+            'num_format': 'yyyy-mm-dd'
+        })
+        red_date_format = workbook.add_format({
+            'bg_color': '#D63A3A', 'font_color': '#FFFFFF', 'bold': True, 'valign': 'top',
+            'num_format': 'yyyy-mm-dd'
+        })
+
         badge_format_error = workbook.add_format({'bold': True, 'align': 'center', 'valign': 'top', 'font_color': '#FFFFFF', 'bg_color': "#D63A3A", 'border': 1})
         badge_format_ready = workbook.add_format({'bold': True, 'align': 'center', 'valign': 'top', 'font_color': '#FFFFFF', 'bg_color': "#49B00D", 'border': 1})
+        date_format = workbook.add_format({'num_format': 'yyyy-mm-dd', 'valign': 'top'})
 
         # Write formatted cells
         for row in range(1, len(df) + 1):
@@ -1476,14 +1498,32 @@ def classlistdownload():
             for col in range(len(columns_to_write)):
                 col_name = columns_to_write[col]
                 value = df.iloc[row - 1][col_name]
+                
                 if col_name == 'ErrorMessage' and (value is True or str(value).strip().lower() == 'true'):
                     value = ""
 
-                if col_name in error_columns:
-                    fmt = orange_format if match_value == 1 else red_format
-                    worksheet.write(row, col, value, fmt)
+                is_error_col = col_name.lower() in [e.lower() for e in error_columns]
+                is_match = str(match_value).strip().lower() in ["1", "true", "yes"]
+
+                if is_error_col:
+                    fmt = orange_format if is_match else red_format
                 else:
-                    worksheet.write(row, col, value)
+                    fmt = wrap_top_format  # fallback for normal cells
+
+                if col_name == "Birthdate":
+                    try:
+                        dt = pd.to_datetime(value)
+                        if pd.notnull(dt):
+                            if is_error_col:
+                                fmt = orange_date_format if is_match else red_date_format
+                            else:
+                                fmt = date_format
+                            worksheet.write_datetime(row, col, dt, fmt)
+                        else:
+                            worksheet.write(row, col, "", fmt)
+                    except Exception:
+                        worksheet.write(row, col, "", fmt)
+
 
             # Badge
             badge_col = len(columns_to_write) - 1
@@ -1497,7 +1537,7 @@ def classlistdownload():
             'FirstName': 20,
             'PreferredName': 20,
             'LastName': 20,
-            'DateOfBirth': 18,
+            'Birthdate': 18,
             'Ethnicity': 14,
             'Match': 12,
             'ErrorMessage': 40
@@ -1512,55 +1552,28 @@ def classlistdownload():
             worksheet.set_row(row, None, wrap_top_format)
 
     output.seek(0)
-    return send_file(output, download_name="Fixes.xlsx", as_attachment=True)
+    classname = sanitize_filename_part(session.get("selected_class"))
+    teachername = sanitize_filename_part(session.get("selected_teacher"))
+    year = sanitize_filename_part(session.get("selected_year"))
+    term = sanitize_filename_part(session.get("selected_term"))
 
+    filename = f"{classname or 'Class'}_{teachername or 'Teacher'}_{year or 'Year'}_T{term or 'Term'}.xlsx"
+    return send_file(
+        output,
+        download_name=filename,
+        as_attachment=True,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
 @app.route('/submitclass', methods=['POST'])
 @login_required
 def submitclass():
     print("✅ Class submitted successfully!")  # For now
     flash("Class submitted successfully!", "success")
     return redirect(url_for("classlistupload"))
+def sanitize_filename_part(value):
+    return re.sub(r'[^\w\-]', '_', str(value).strip())
 
-@app.route('/export_excel', methods=['POST'])
-def export_excel():
-    # Retrieve preview data from the session
-    preview_data = session.get("preview_data", None)
 
-    if preview_data is None:
-        flash("No data available for export.", "danger")
-        return redirect(url_for('classlistupload'))
-
-    # Convert the data into a pandas DataFrame
-    df = pd.DataFrame(preview_data)
-
-    # Create a BytesIO buffer to store the Excel file
-    output = BytesIO()
-
-    # Create an Excel writer using XlsxWriter
-    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        df.to_excel(writer, index=False, sheet_name='Sheet1')
-
-        # Access the XlsxWriter workbook and worksheet
-        workbook = writer.book
-        worksheet = writer.sheets['Sheet1']
-
-        # Apply a simple border format for all columns (optional)
-        border_format = workbook.add_format({'border': 1})
-
-        # Set column widths to be auto-sized based on content
-        for col_num, col_name in enumerate(df.columns.values):
-            column_width = max(df[col_name].astype(str).map(len).max(), len(col_name))
-            worksheet.set_column(col_num, col_num, column_width, border_format)
-
-    # Rewind the buffer to the beginning
-    output.seek(0)
-
-    # Return the Excel file as a downloadable response
-    return Response(
-        output.getvalue(),
-        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": "attachment; filename=preview_data.xlsx"}
-    )
 
 @app.context_processor
 def inject_user_role():
