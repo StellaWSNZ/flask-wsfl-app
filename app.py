@@ -1300,7 +1300,8 @@ def classlistupload():
     if request.method == 'POST':
         action = request.form.get('action')  # 'preview' or 'validate'
         selected_provider = request.form.get('provider')
-        selected_school = request.form.get('school')
+        selected_school = request.form.get('school') or session.get("user_id")
+
         selected_term = request.form.get('term')
         selected_year = request.form.get('year')
         selected_teacher = request.form.get('teachername')
@@ -1309,7 +1310,12 @@ def classlistupload():
         session["selected_teacher"] = selected_teacher
         session["selected_year"] = selected_year
         session["selected_term"] = selected_term
-
+        selected_school_str = str(selected_school)
+        moe_number = (
+            int(selected_school_str)
+            if selected_school_str.isdigit()
+            else int(selected_school_str.split('(')[-1].rstrip(')'))
+        )
         column_mappings_json = request.form.get('column_mappings')
         file = request.files.get('csv_file')
         #print(file)
@@ -1387,7 +1393,7 @@ def classlistupload():
                     with engine.connect() as conn:
                         result = conn.execute(
                             text("EXEC FlaskCheckNSN_JSON :InputJSON, :Term, :CalendarYear, :MOENumber"),
-                            {"InputJSON": df_json, "Term": selected_term, "CalendarYear": selected_year, "MOENumber": int(selected_school.split('(')[-1].rstrip(')'))}
+                            {"InputJSON": df_json, "Term": selected_term, "CalendarYear": selected_year, "MOENumber": moe_number}
                         )
                         preview_data = [dict(row._mapping) for row in result]
                         # Store the validated preview data in the session
