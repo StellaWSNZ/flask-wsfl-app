@@ -115,12 +115,10 @@
     }
 
     // Toggle provider section only for ADM users
-    {% if user_role == 'ADM' %}
       const providerSection = document.getElementById('provider_section');
       if (providerSection) {
         providerSection.style.display = type === 'Provider' ? 'block' : 'none';
       }
-    {% endif %}
   }
 
   // Run on page load

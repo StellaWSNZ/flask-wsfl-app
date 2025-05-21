@@ -1,0 +1,31 @@
+{% extends "header.html" %} {% block title %}Profile{% endblock %} {% block
+content %}
+<div
+  class="card shadow p-4 mx-auto"
+  style="max-width: 500px; background-color: rgba(255, 255, 255, 0.95)"
+>
+  <h4 class="mb-3 text-center">
+    <i class="bi bi-person-circle me-2"></i>Your Profile
+  </h4>
+
+  <ul class="list-group list-group-flush">
+    <li class="list-group-item">
+      <strong>Name:</strong> {{ user.display_name }}
+    </li>
+    <li class="list-group-item"><strong>Email:</strong> {{ user.email }}</li>
+    {% if user.admin == 1 %}
+    <li class="list-group-item">
+      <strong>Role:</strong> {{ user.role }} (Admin)
+    </li>
+    {% else %}
+    <li class="list-group-item"><strong>Role:</strong> {{ user.role }}</li>
+    {%endif %}
+    <li class="list-group-item">
+      <strong>Org/School:</strong> {{ user.desc }}
+    </li>
+    <li class="list-group-item">
+      <strong>Last Login:</strong> {{ user.last_login }}
+    </li>
+  </ul>
+</div>
+{% endblock %}

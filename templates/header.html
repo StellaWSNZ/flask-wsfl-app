@@ -18,6 +18,10 @@
       rel="stylesheet"
       href="{{ url_for('static', filename='css/custom.css') }}"
     />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css"
+    />
 
     {% block head %}{% endblock %}
   </head>
@@ -126,11 +130,23 @@
                 <li>
                   <a class="dropdown-item py-2" href="/comingsoon">Reporting</a>
                 </li>
+                <li>
+                  <a class="dropdown-item py-2" href="/comingsoon"
+                    >Manage Users</a
+                  >
+                </li>
               </ul>
             </li>
 
             {% endif %}
-
+            <li class="nav-item mt-2 mt-lg-0 me-2">
+              <a
+                href="/profile"
+                class="btn btn-outline-light btn-sm d-flex align-items-center"
+              >
+                <i class="bi bi-person-fill me-1"></i> Profile
+              </a>
+            </li>
             <li class="nav-item mt-2 mt-lg-0">
               <form action="/logout" method="post" class="d-lg-inline d-block">
                 <button

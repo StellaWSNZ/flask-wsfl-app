@@ -127,6 +127,9 @@ def login():
                 session["logged_in"] = True
                 session["user_role"] = user_info.Role
                 session["user_id"] = user_info.ID
+                session["user_admin"] = user_info.Admin
+                print(user_info.Admin)
+                session["user_email"] = email
                 session["display_name"] = user_info.DisplayName
                 session["last_login_nzt"] = str(user_info.LastLogin_NZT)
                 session["desc"] = str(user_info.Desc)
@@ -1649,6 +1652,19 @@ def reset_password(token):
         return redirect('/login')
 
     return render_template('reset_password.html', token=token)
+
+@app.route("/profile")
+@login_required
+def profile():
+    user_info = {
+        "email": session.get("user_email"),
+        "role": session.get("user_role"),
+        "admin": session.get("user_admin"),
+        "display_name": session.get("display_name"),
+        "desc": session.get("desc"),
+        "last_login": session.get("last_login_nzt")
+    }
+    return render_template("profile.html", user=user_info)
 
 # Run app
 if __name__ == '__main__':
