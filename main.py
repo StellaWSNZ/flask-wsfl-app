@@ -34,6 +34,13 @@ import json
 import re
 from functools import wraps
 
+from flask import Blueprint, request, render_template, redirect, url_for, flash
+from flask_mail import Message, Mail
+from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
+from werkzeug.security import generate_password_hash
+#from models import User  # adjust based on your user model
+
+
 from providernationalplot import create_competency_report
 from competencyplot import get_db_engine, load_competency_rates, make_figure
 from nationalplot import generate_national_report
@@ -59,6 +66,18 @@ load_dotenv()
 app = Flask(__name__, static_folder='static')
 app.secret_key = os.getenv("SECRET_KEY", "changeme123")  # Replace this in production!
 
+reset_bp = Blueprint('reset_bp', __name__)
+
+serializer = URLSafeTimedSerializer(app.secret_key)
+
+app.config['MAIL_SERVER'] = 'smtp.office365.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = 'stella@watersafety.org.nz'
+app.config['MAIL_PASSWORD'] = os.getenv("WSNZPASS")  # Put this in .env, don't hardcode!
+app.config['MAIL_DEFAULT_SENDER'] = 'stella@watersafety.org.nz'
+
+mail = Mail(app)
 
 # Secure database connection (variables stored in .env and render setup)
 
@@ -1579,11 +1598,57 @@ def submitclass():
 def sanitize_filename_part(value):
     return re.sub(r'[^\w\-]', '_', str(value).strip())
 
-
-
 @app.context_processor
 def inject_user_role():
     return dict(user_role=session.get("user_role"))
+
+def get_user_by_email(email):
+    engine = get_db_engine()
+    with engine.connect() as conn:
+        result = conn.execute(text("SELECT * FROM FlaskLogin WHERE Email = :email"), {"email": email}).fetchone()
+        return result
+
+def update_user_password(email, new_password):
+    hashed_pw = bcrypt.hashpw(new_password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    engine = get_db_engine()
+    with engine.begin() as conn:
+        conn.execute(
+            text("UPDATE FlaskLogin SET HashPassword = :hash WHERE Email = :email"),
+            {"hash": hashed_pw, "email": email}
+        )
+
+@app.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    if request.method == 'POST':
+        email = request.form['email']
+        user = get_user_by_email(email)
+        if user:
+            token = serializer.dumps(email, salt='reset-password')
+            reset_url = url_for('reset_password', token=token, _external=True)
+            msg = Message('Reset Your Password', recipients=[email])
+            msg.body = f'Click here to reset: {reset_url}'
+            mail.send(msg)
+            flash('Password reset link sent to your email.')
+        else:
+            flash('Email not found.')
+    return render_template('forgot_password.html')
+
+
+@app.route('/reset-password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    try:
+        email = serializer.loads(token, salt='reset-password', max_age=3600)
+    except:
+        flash('The reset link is invalid or expired.')
+        return redirect('/forgot-password')
+
+    if request.method == 'POST':
+        new_password = request.form['password']
+        update_user_password(email, new_password)
+        flash('Password updated.')
+        return redirect('/login')
+
+    return render_template('reset_password.html', token=token)
 
 # Run app
 if __name__ == '__main__':
