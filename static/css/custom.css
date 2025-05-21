@@ -1,0 +1,44 @@
+@font-face {
+  font-family: "PP Mori";
+  src: url("/static/fonts/ppmori-regular-webfont.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+}
+@font-face {
+  font-family: "PP Mori";
+  src: url("/static/fonts/ppmori-semibold-webfont.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+}
+
+:root {
+  --bs-primary: #1a427d;
+  --bs-primary-rgb: 26, 66, 125;
+    --bs-secondary: #4d5441;
+
+}
+
+body {
+  font-family: "PP Mori", "Segoe UI", sans-serif;
+}
+
+.btn-primary {
+  background-color: var(--bs-primary) !important;
+  border-color: var(--bs-primary) !important;
+  color: #fff !important;
+}
+
+
+.btn-secondary {
+  background-color: var(--bs-secondary) !important;
+  border-color: var(--bs-secondary) !important;
+  color: #fff !important;
+}
+
+.custom-navbar {
+  background-color: #1a427d !important;
+}
+
+.app-title {
+  font-size: 24px;
+}
