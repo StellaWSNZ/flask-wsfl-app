@@ -45,6 +45,35 @@
         background: white;
       }
 
+      @font-face {
+        font-family: "PP Mori";
+        src: url("{{ url_for('static', filename='fonts/PPMori-Regular-webfont.woff2') }}")
+          format("woff2");
+        font-weight: 400;
+        font-style: normal;
+      }
+
+      @font-face {
+        font-family: "PP Mori";
+        src: url("{{ url_for('static', filename='fonts/PPMori-SemiBold-webfont.woff2') }}")
+          format("woff2");
+        font-weight: 700;
+        font-style: normal;
+      }
+
+      body {
+        font-family: "PP Mori", "Segoe UI", sans-serif;
+        background-color: #eeeeee;
+        color: #212529;
+      }
+
+      h1,
+      h2,
+      h3,
+      h4 {
+        font-weight: 700;
+      }
+
       @media (max-width: 576px) {
         .navbar .nav-link,
         .navbar .dropdown-item {
@@ -61,10 +90,15 @@
         }
       }
       .custom-navbar {
-        background-color: #4d5441 !important;
+        background-color: #1a427d !important;
       }
       body {
-        background-color: #f5f3eb;
+        background-color: #eeeeee;
+      }
+      .btn-primary {
+        background-color: #4d5441 !important;
+        border-color: #4d5441 !important;
+        color: #fff !important;
       }
     </style>
 
