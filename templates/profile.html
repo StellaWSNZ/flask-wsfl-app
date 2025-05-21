@@ -19,10 +19,11 @@ content %}
     </li>
     {% else %}
     <li class="list-group-item"><strong>Role:</strong> {{ user.role }}</li>
-    {%endif %}
-    <li class="list-group-item">
-      <strong>Org/School:</strong> {{ user.desc }}
-    </li>
+    {%endif %} {% if user.role == "PRO" %}
+    <li class="list-group-item"><strong>Provider:</strong> {{ user.desc }}</li>
+    {% elif user.role == "MOE" %}
+    <li class="list-group-item"><strong>School:</strong> {{ user.desc }}</li>
+    {% endif %}
     <li class="list-group-item">
       <strong>Last Login:</strong> {{ user.last_login }}
     </li>
