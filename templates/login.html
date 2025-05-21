@@ -10,6 +10,9 @@
     />
   </head>
   <body class="login-bg d-flex justify-content-center align-items-center">
+    <img src="/static/LightLogo.png" alt="Logo" class="logo-top-left" />
+    <h1 class="app-title">Water Skills for Life Database</h1>
+
     <form
       method="POST"
       class="p-4 rounded shadow"
@@ -55,15 +58,43 @@
       </div>
 
       <button type="submit" class="btn btn-primary w-100">Login</button>
+      <div class="d-flex justify-content-between mt-3">
+        <a href="/register" class="small-link">Register</a>
+        <a href="/forgot-password" class="small-link">Forgot password?</a>
+      </div>
     </form>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <style>
       .login-bg {
         height: 100vh; /* or 100% if parent allows */
-        background-image: url("/static/backgrounddark.png");
+        background-image: url("/static/CoverNoPicturesNoTextNoLogo.png");
         background-size: cover;
         background-position: center;
+      }
+      .logo-top-left {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        width: 120px; /* adjust as needed */
+        height: auto;
+      }
+      .app-title {
+        position: absolute;
+        top: 30px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 24px;
+        font-weight: bold;
+        color: #ffffff;
+      }
+      .small-link {
+        font-size: 0.875rem;
+        color: #0d6efd;
+        text-decoration: none;
+      }
+      .small-link:hover {
+        text-decoration: underline;
       }
     </style>
   </body>
