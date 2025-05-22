@@ -58,24 +58,31 @@
           <h4 class="mb-3 text-center"><i class="bi bi-building me-2"></i>School Profile</h4>
           <p><strong>School Name:</strong> {{ user.desc }}</p>
           <p><strong>MOE Number:</strong> {{ user.user_id }}</p>
-
           {% if user.admin == 1 %}
           <div>
             <div class="mb-3">
-              <label for="school_address" class="form-label">Address</label>
+              <label for="school_address_input" class="form-label">Address</label>
               <input type="text" class="form-control" id="school_address_input" name="school_address" value="{{ user.school_address }}" readonly />
             </div>
             <div class="mb-3">
-              <label for="school_town" class="form-label">Town/City</label>
+              <label for="school_town_input" class="form-label">Town/City</label>
               <input type="text" class="form-control" id="school_town_input" name="school_town" value="{{ user.school_town }}" readonly />
             </div>
             <div class="mb-3">
-              <label for="school_type" class="form-label">School Type</label>
+              <label for="school_type_input" class="form-label">School Type</label>
               <select class="form-select" id="school_type_input" name="school_type" disabled>
                 {% for item in school_type_options %}
                 <option value="{{ item.SchoolTypeID }}" {% if item.SchoolTypeID|int == user.school_type|int %}selected{% endif %}>{{ item.Description }}</option>
                 {% endfor %}
               </select>
+            </div>
+            <div class="mb-3">
+              <label for="school_lat_input" class="form-label">Latitude</label>
+              <input type="text" class="form-control" id="school_lat_input" name="school_lat" value="{{ user.school_lat }}" readonly oninput="updateMap('school')" />
+            </div>
+            <div class="mb-3">
+              <label for="school_lon_input" class="form-label">Longitude</label>
+              <input type="text" class="form-control" id="school_lon_input" name="school_lon" value="{{ user.school_lon }}" readonly oninput="updateMap('school')" />
             </div>
           </div>
           <div class="text-center">
@@ -87,8 +94,9 @@
           <p><strong>Address:</strong> {{ user.school_address }}</p>
           <p><strong>Town/City:</strong> {{ user.school_town }}</p>
           <p><strong>School Type:</strong> {{ user.school_type }}</p>
+          <p><strong>Latitude:</strong> {{ user.school_lat }}</p>
+          <p><strong>Longitude:</strong> {{ user.school_lon }}</p>
           {% endif %}
-
           {% if user.school_lat and user.school_lon %}
           <div class="card mt-3">
             <div class="card-header bg-primary text-white">School Location Map</div>
@@ -112,15 +120,15 @@
           <div>
             <div class="mb-3">
               <label for="funder_address_input" class="form-label">Address</label>
-              <input type="text" class="form-control" id="funder_address_input" name="funder_address" value="{{ user.funder_address }}" readonly />
+              <input type="text" class="form-control" id="funder_address_input" name="funder_address" value="{{ user.funder_address }}" readonly oninput="updateMap('funder')" />
             </div>
             <div class="mb-3">
               <label for="funder_lat_input" class="form-label">Latitude</label>
-              <input type="text" class="form-control" id="funder_lat_input" name="funder_lat" value="{{ user.funder_lat }}" readonly />
+              <input type="text" class="form-control" id="funder_lat_input" name="funder_lat" value="{{ user.funder_lat }}" readonly oninput="updateMap('funder')" />
             </div>
             <div class="mb-3">
               <label for="funder_lon_input" class="form-label">Longitude</label>
-              <input type="text" class="form-control" id="funder_lon_input" name="funder_lon" value="{{ user.funder_lon }}" readonly />
+              <input type="text" class="form-control" id="funder_lon_input" name="funder_lon" value="{{ user.funder_lon }}" readonly oninput="updateMap('funder')" />
             </div>
           </div>
           <div class="text-center">
@@ -133,6 +141,15 @@
           <p><strong>Latitude:</strong> {{ user.funder_lat }}</p>
           <p><strong>Longitude:</strong> {{ user.funder_lon }}</p>
           {% endif %}
+
+          {% if user.funder_lat and user.funder_lon %}
+          <div class="card mt-3">
+            <div class="card-header bg-primary text-white">Funder Location Map</div>
+            <div class="card-body p-0">
+              <div id="funderMap" style="height: 300px; width: 100%"></div>
+            </div>
+          </div>
+          {% endif %}
         </div>
       </div>
       {% endif %}
@@ -141,57 +158,78 @@
 </div>
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-
 <script>
-  function toggleUserEdit(editing) {
-    ["firstname", "surname", "email"].forEach(field => {
-      document.getElementById(`${field}_input`).classList.toggle("d-none", !editing);
-      document.getElementById(`${field}_display`).classList.toggle("d-none", editing);
-    });
-    document.getElementById("editUserBtn").classList.toggle("d-none", editing);
-    document.getElementById("saveUserBtn").classList.toggle("d-none", !editing);
-    document.getElementById("exitUserBtn").classList.toggle("d-none", !editing);
-  }
-
-  function toggleSchoolEdit(editing) {
-    ["school_address_input", "school_town_input", "school_type_input"].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) {
-        if (el.tagName === "SELECT") {
-          el.disabled = !editing;
-        } else {
-          el.readOnly = !editing;
-        }
-      }
-    });
-    document.getElementById("editSchoolBtn").classList.toggle("d-none", editing);
-    document.getElementById("saveSchoolBtn").classList.toggle("d-none", !editing);
-    document.getElementById("exitSchoolBtn").classList.toggle("d-none", !editing);
-  }
-
-  function toggleFunderEdit(editing) {
-    ["funder_address_input", "funder_lat_input", "funder_lon_input"].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.readOnly = !editing;
-    });
-    document.getElementById("editFunderBtn").classList.toggle("d-none", editing);
-    document.getElementById("saveFunderBtn").classList.toggle("d-none", !editing);
-    document.getElementById("exitFunderBtn").classList.toggle("d-none", !editing);
-  }
-
-  document.addEventListener("DOMContentLoaded", function () {
-    const lat = parseFloat("{{ user.school_lat or 'NaN' }}");
-    const lon = parseFloat("{{ user.school_lon or 'NaN' }}");
-    const name = {{ user.desc | tojson | default('"Unknown School"') }};
-    if (!isNaN(lat) && !isNaN(lon)) {
-      const map = L.map('schoolMap').setView([lat, lon], 16);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors'
-      }).addTo(map);
-      L.marker([lat, lon]).addTo(map).bindPopup(name).openPopup();
-      setTimeout(() => map.invalidateSize(), 0);
+let schoolMap, schoolMarker, funderMap, funderMarker;
+function toggleUserEdit(editing) {
+  ["firstname", "surname", "email"].forEach(field => {
+    document.getElementById(`${field}_input`).classList.toggle("d-none", !editing);
+    document.getElementById(`${field}_display`).classList.toggle("d-none", editing);
+  });
+  document.getElementById("editUserBtn").classList.toggle("d-none", editing);
+  document.getElementById("saveUserBtn").classList.toggle("d-none", !editing);
+  document.getElementById("exitUserBtn").classList.toggle("d-none", !editing);
+}
+function toggleSchoolEdit(editing) {
+  ["school_address_input", "school_town_input", "school_type_input", "school_lat_input", "school_lon_input"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      if (el.tagName === "SELECT") el.disabled = !editing;
+      else el.readOnly = !editing;
     }
   });
+  document.getElementById("editSchoolBtn").classList.toggle("d-none", editing);
+  document.getElementById("saveSchoolBtn").classList.toggle("d-none", !editing);
+  document.getElementById("exitSchoolBtn").classList.toggle("d-none", !editing);
+}
+function toggleFunderEdit(editing) {
+  ["funder_address_input", "funder_lat_input", "funder_lon_input"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.readOnly = !editing;
+  });
+  document.getElementById("editFunderBtn").classList.toggle("d-none", editing);
+  document.getElementById("saveFunderBtn").classList.toggle("d-none", !editing);
+  document.getElementById("exitFunderBtn").classList.toggle("d-none", !editing);
+}
+function updateMap(type) {
+  const lat = parseFloat(document.getElementById(`${type}_lat_input`).value);
+  const lon = parseFloat(document.getElementById(`${type}_lon_input`).value);
+  if (!isNaN(lat) && !isNaN(lon)) {
+    if (type === "school" && schoolMap) {
+      schoolMap.setView([lat, lon], 16);
+      if (schoolMarker) schoolMap.removeLayer(schoolMarker);
+      schoolMarker = L.marker([lat, lon]).addTo(schoolMap);
+    }
+    if (type === "funder" && funderMap) {
+      funderMap.setView([lat, lon], 16);
+      if (funderMarker) funderMap.removeLayer(funderMarker);
+      funderMarker = L.marker([lat, lon]).addTo(funderMap);
+    }
+  }
+}
+document.addEventListener("DOMContentLoaded", function () {
+  const schoolLat = parseFloat("{{ user.school_lat or 'NaN' }}");
+  const schoolLon = parseFloat("{{ user.school_lon or 'NaN' }}");
+  const schoolName = {{ user.desc | tojson | default('"Unknown School"') }};
+  if (!isNaN(schoolLat) && !isNaN(schoolLon)) {
+    schoolMap = L.map('schoolMap').setView([schoolLat, schoolLon], 16);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(schoolMap);
+    schoolMarker = L.marker([schoolLat, schoolLon]).addTo(schoolMap).bindPopup(schoolName).openPopup();
+    setTimeout(() => schoolMap.invalidateSize(), 0);
+  }
+  const funderLat = parseFloat("{{ user.funder_lat or 'NaN' }}");
+  const funderLon = parseFloat("{{ user.funder_lon or 'NaN' }}");
+  const funderName = {{ user.desc | tojson | default('"Unknown Funder"') }};
+  if (!isNaN(funderLat) && !isNaN(funderLon)) {
+    funderMap = L.map('funderMap').setView([funderLat, funderLon], 16);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(funderMap);
+    funderMarker = L.marker([funderLat, funderLon]).addTo(funderMap).bindPopup(funderName).openPopup();
+    setTimeout(() => funderMap.invalidateSize(), 0);
+  }
+});
 </script>
 
 {% endblock %}
