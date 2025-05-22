@@ -1653,7 +1653,7 @@ def forgot_password():
             <img src="cid:wsfl_logo" alt="WSFL Logo" style="height:60px;margin-top:10px;">
             """
 
-            with app.open_resource("static/darklogo.png") as fp:
+            with app.open_resource("static/DarkLogo.png") as fp:
                  msg.attach(
                     "DarkLogo.png", 
                     "image/png", 
