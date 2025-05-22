@@ -211,7 +211,25 @@ content %}
   document.getElementById("exitSchoolBtn").classList.toggle("d-none", !editing);
 }
 
+function toggleUserEdit(editing) {
+  const fields = ["firstname", "surname", "email"];
 
+  fields.forEach(field => {
+    const input = document.getElementById(`${field}_input`);
+    const display = document.getElementById(`${field}_display`);
+    if (editing) {
+      input.classList.remove("d-none");
+      display.classList.add("d-none");
+    } else {
+      input.classList.add("d-none");
+      display.classList.remove("d-none");
+    }
+  });
+
+  document.getElementById("editUserBtn").classList.toggle("d-none", editing);
+  document.getElementById("saveUserBtn").classList.toggle("d-none", !editing);
+  document.getElementById("exitUserBtn").classList.toggle("d-none", !editing);
+}
   document.addEventListener("DOMContentLoaded", function () {
     const lat = parseFloat("{{ user.school_lat or 'NaN' }}");
     const lon = parseFloat("{{ user.school_lon or 'NaN' }}");
