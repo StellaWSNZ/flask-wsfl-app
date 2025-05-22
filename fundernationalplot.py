@@ -20,7 +20,7 @@ OUTPUT_FILENAME = "Competency_Report.pdf"
 
 TERM = 1
 CALENDARYEAR = 2025
-PROVIDER_ID = 5
+funder_id = 5
 
 # ===================
 # FUNCTIONS
@@ -45,22 +45,22 @@ def load_competencies(con, calendaryear, term):
         columns = result.keys()
     return pd.DataFrame(data, columns=columns)
 
-def load_provider_name(con, providerID):
+def load_funder_name(con, FunderID):
     with con.connect() as connection:
         result = connection.execute(
             text("EXEC FlaskHelperFunctions :Request"),
-            {"Request": "ProviderDropdown"}
+            {"Request": "FunderDropdown"}
         )
         data = result.fetchall()
         columns = result.keys()
-    provider = pd.DataFrame(data, columns=columns)
-    return provider.loc[providerID, 'Description']
+    funder = pd.DataFrame(data, columns=columns)
+    return funder.loc[FunderID, 'Description']
 
-def load_provider_results(con, calendaryear, term, providerid):
+def load_funder_results(con, calendaryear, term, FunderID):
     with con.connect() as connection:
         result = connection.execute(
-            text("EXEC GetProviderNationalRates2 :CalendarYear, :Term, :ProviderID"),
-            {"CalendarYear": calendaryear, "Term": term, "ProviderID": providerid}
+            text("EXEC GetFunderNationalRates2 :CalendarYear, :Term, :FunderID"),
+            {"CalendarYear": calendaryear, "Term": term, "FunderID": FunderID}
         )
         data = result.fetchall()
         columns = result.keys()
@@ -68,22 +68,22 @@ def load_provider_results(con, calendaryear, term, providerid):
     return pd.DataFrame(data, columns=columns)
 
 # graphing.py
-def create_competency_report(term, year, provider_id, provider_name=None):
+def create_competency_report(term, year, funder_id, funder_name=None):
     con = get_db_engine()
     competencies_df = load_competencies(con, year, term)
     competencies_df = competencies_df[competencies_df['WaterBased'] == 1]
-    providerresults = load_provider_results(con, year, term, provider_id)
+    fundersresults = load_funder_results(con, year, term, funder_id)
 
-    if provider_name is None:
-        provider_name = load_provider_name(con, provider_id)
+    if funder_name is None:
+        funder_name = load_funder_name(con, funder_id)
 
     fig, ax = plt.subplots(figsize=PAGE_SIZE)
-    make_grid(ax, N_COLS, N_ROWS, ROW_HEIGHTS, TITLE_SPACE, SUBTITLE_SPACE, competencies_df, providerresults, DEBUG)
+    make_grid(ax, N_COLS, N_ROWS, ROW_HEIGHTS, TITLE_SPACE, SUBTITLE_SPACE, competencies_df, fundersresults, DEBUG)
 
     ax.text(
         N_COLS / 2,
         N_ROWS + (TITLE_SPACE / 2),
-        "Competency Report for " + provider_name,
+        "Competency Report for " + funder_name,
         ha='center', va='center',
         fontsize=14, weight='demibold'
     )
@@ -93,8 +93,8 @@ def create_competency_report(term, year, provider_id, provider_name=None):
 def get_colour(var):
     colours = {
         'National Rate (LY)': "#2EBDC2",    # Blue
-        'Provider Rate (YTD)': "#356FB6",   # Teal
-        'Provider Target': "#BBE6E9"        # Light Blue
+        'Funder Rate (YTD)': "#356FB6",   # Teal
+        'Funder Target': "#BBE6E9"        # Light Blue
     }
     return colours.get(var, "#CCCCCC")  # default grey if not found
 
@@ -125,7 +125,7 @@ def make_grid(ax, n_cols, n_rows, row_heights, title_space, subtitle_space, df, 
                 idx += 1
 
 def draw_key(ax, x, y):
-    labels = ['National Rate (LY)', 'Provider Rate (YTD)', 'Provider Target']
+    labels = ['National Rate (LY)', 'Funder Rate (YTD)', 'Funder Target']
     colors = ['#2EBDC2', '#356FB6', '#BBE6E9']
     box_size = 0.03
     padding = 0.01
@@ -183,7 +183,7 @@ def make_yeargroup_plot(ax, x, y_top, cell_height, title, df_relcomp, df_results
         on=['YearGroupID', 'CompetencyID', 'CompetencyDesc','YearGroupDesc'],
         how='inner'
     )
-    vars = ['National Rate (LY)', 'Provider Rate (YTD)', 'Provider Target']
+    vars = ['National Rate (LY)', 'Funder Rate (YTD)', 'Funder Target']
     df = df[df['ResultType'].isin(vars)]
     df = df.sort_values(by=['YearGroupID', 'CompetencyID'])
     cell_left = x       # start of this grid cell
@@ -270,10 +270,10 @@ def make_yeargroup_plot(ax, x, y_top, cell_height, title, df_relcomp, df_results
         y_current -= competency_spacing
     draw_key(ax, cell_center, y_current-0.05)
 
-def load_all_providers(con):
+def load_all_funders(con):
     with con.connect() as connection:
         result = connection.execute(
-            text("Select * from Provider")
+            text("Select * from Funder")
         )
         data = result.fetchall()
         columns = result.keys()
@@ -295,11 +295,11 @@ def save_and_open_pdf(fig, filename):
 def sanitize_filename(s):
     return s.replace(" ", "_").replace("/", "_")  # remove problematic characters
 
-provider_name = load_provider_name(get_db_engine(), PROVIDER_ID)
-safe_provider = sanitize_filename(provider_name)
+funder_name = load_funder_name(get_db_engine(), funder_id)
+safe_funder = sanitize_filename(funder_name)
 today = date.today().isoformat().replace("-", ".")
 
-OUTPUT_FILENAME = f"{safe_provider}_Term{TERM}_{CALENDARYEAR}_CompetencyReport_{today}.pdf"
+OUTPUT_FILENAME = f"{safe_funder}_Term{TERM}_{CALENDARYEAR}_CompetencyReport_{today}.pdf"
 
 # ===================
 # MAIN
@@ -307,31 +307,31 @@ OUTPUT_FILENAME = f"{safe_provider}_Term{TERM}_{CALENDARYEAR}_CompetencyReport_{
 
 def main():
     con = get_db_engine()
-    providers_df = load_all_providers(con)
+    funders_df = load_all_funders(con)
 
     # Make output folder
     output_folder = f"CompetencyReports_Term{TERM}_{CALENDARYEAR}"
     os.makedirs(output_folder, exist_ok=True)
 
-    for idx, row in providers_df.iterrows():
-        provider_id = row['ProviderID']
-        provider_name = row['Description']
-        safe_provider = sanitize_filename(provider_name)
+    for idx, row in funders_df.iterrows():
+        funder_id = row['FunderID']
+        funder_name = row['Description']
+        safe_funder = sanitize_filename(funder_name)
         today = date.today().isoformat().replace("-", ".")
-        filename = f"{safe_provider}_Term{TERM}_{CALENDARYEAR}_CompetencyReport_{today}.pdf"
+        filename = f"{safe_funder}_Term{TERM}_{CALENDARYEAR}_CompetencyReport_{today}.pdf"
         filepath = os.path.join(output_folder, filename)
 
         competencies_df = load_competencies(con, CALENDARYEAR, TERM)
         competencies_df = competencies_df[competencies_df['WaterBased'] == 1]
-        providerresults = load_provider_results(con, CALENDARYEAR, TERM, provider_id)
+        fundersresults = load_funder_results(con, CALENDARYEAR, TERM, funder_id)
 
         fig, ax = plt.subplots(figsize=PAGE_SIZE)
-        make_grid(ax, N_COLS, N_ROWS, ROW_HEIGHTS, TITLE_SPACE, SUBTITLE_SPACE, competencies_df, providerresults, DEBUG)
+        make_grid(ax, N_COLS, N_ROWS, ROW_HEIGHTS, TITLE_SPACE, SUBTITLE_SPACE, competencies_df, fundersresults, DEBUG)
 
         ax.text(
             N_COLS / 2,
             N_ROWS + (TITLE_SPACE / 2),
-            "Competency Report for " + provider_name,
+            "Competency Report for " + funder_name,
             ha='center', va='center',
             fontsize=14, weight='demibold'
         )

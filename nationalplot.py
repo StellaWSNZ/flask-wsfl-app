@@ -41,7 +41,7 @@ def load_national_results(con, calendaryear, term, from_db=True):
             columns = result.keys()
         return pd.DataFrame(data, columns=columns)
     else:
-        return pd.read_csv("provider_rates.csv")
+        return pd.read_csv("funder_rates.csv")
 
 # ===================
 # VISUALIZATION FUNCTIONS

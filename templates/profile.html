@@ -1,32 +1,231 @@
 {% extends "header.html" %} {% block title %}Profile{% endblock %} {% block
 content %}
-<div
-  class="card shadow p-4 mx-auto"
-  style="max-width: 500px; background-color: rgba(255, 255, 255, 0.95)"
->
-  <h4 class="mb-3 text-center">
-    <i class="bi bi-person-circle me-2"></i>Your Profile
-  </h4>
 
-  <ul class="list-group list-group-flush">
-    <li class="list-group-item">
-      <strong>Name:</strong> {{ user.display_name }}
-    </li>
-    <li class="list-group-item"><strong>Email:</strong> {{ user.email }}</li>
-    {% if user.admin == 1 %}
-    <li class="list-group-item">
-      <strong>Role:</strong> {{ user.role }} (Admin)
-    </li>
-    {% else %}
-    <li class="list-group-item"><strong>Role:</strong> {{ user.role }}</li>
-    {%endif %} {% if user.role == "PRO" %}
-    <li class="list-group-item"><strong>Provider:</strong> {{ user.desc }}</li>
-    {% elif user.role == "MOE" %}
-    <li class="list-group-item"><strong>School:</strong> {{ user.desc }}</li>
-    {% endif %}
-    <li class="list-group-item">
-      <strong>Last Login:</strong> {{ user.last_login }}
-    </li>
-  </ul>
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+
+<div class="container">
+  <form method="POST" action="{{ url_for('update_profile') }}">
+    <input type="hidden" name="original_email" value="{{ user.email }}" />
+
+    <div class="row justify-content-center g-4">
+      <!-- USER PROFILE CARD -->
+      <div class="col-md-6">
+        <div
+          class="card shadow p-4 h-100"
+          style="background-color: rgba(255, 255, 255, 0.95)"
+        >
+          <h4 class="mb-3 text-center">
+            <i class="bi bi-person-circle me-2"></i>Your Profile
+          </h4>
+
+          <ul class="list-group list-group-flush">
+            <li class="list-group-item">
+              <strong>First Name:</strong>
+              <span id="firstname_display">{{ user.firstname }}</span>
+              <input
+                type="text"
+                class="form-control d-none"
+                id="firstname_input"
+                name="firstname"
+                value="{{ user.firstname }}"
+              />
+            </li>
+            <li class="list-group-item">
+              <strong>Last Name:</strong>
+              <span id="surname_display">{{ user.surname }}</span>
+              <input
+                type="text"
+                class="form-control d-none"
+                id="surname_input"
+                name="surname"
+                value="{{ user.surname }}"
+              />
+            </li>
+            <li class="list-group-item">
+              <strong>Email:</strong>
+              <span id="email_display">{{ user.email }}</span>
+              <input
+                type="email"
+                class="form-control d-none"
+                id="email_input"
+                name="email"
+                value="{{ user.email }}"
+              />
+            </li>
+            <li class="list-group-item">
+              <strong>Role:</strong> {{ user.role }}{% if user.admin == 1 %}
+              (Admin){% endif %}
+            </li>
+            {% if user.role == "FUN" %}
+            <li class="list-group-item">
+              <strong>Funder:</strong> {{ user.desc }}
+            </li>
+            {% elif user.role == "MOE" %}
+            <li class="list-group-item">
+              <strong>School:</strong> {{ user.desc }}
+            </li>
+            {% endif %}
+            <li class="list-group-item">
+              <strong>Last Login:</strong> {{ user.last_login }}
+            </li>
+          </ul>
+
+          <div class="mt-3 text-center">
+            <button
+              type="button"
+              class="btn btn-outline-primary"
+              id="editUserBtn"
+              onclick="toggleUserEdit(true)"
+            >
+              Edit Profile
+            </button>
+            <button
+              type="submit"
+              class="btn btn-success d-none"
+              id="saveUserBtn"
+            >
+              Save
+            </button>
+            <button
+              type="button"
+              class="btn btn-secondary d-none"
+              id="exitUserBtn"
+              onclick="toggleUserEdit(false)"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {% if user.role == "MOE" %}
+      <!-- SCHOOL PROFILE CARD -->
+      <div class="col-md-6">
+        <div
+          class="card shadow p-4 h-100"
+          style="background-color: rgba(255, 255, 255, 0.95)"
+        >
+          <h4 class="mb-3 text-center">
+            <i class="bi bi-building me-2"></i>School Profile
+          </h4>
+<p><strong>School Name:</strong> {{ user.desc }}</p>
+<p><strong>MOE Number:</strong> {{ user.user_id }}</p>
+          {% if user.admin == 1 %}
+          <div>
+            <div class="mb-3">
+              <label for="school_address" class="form-label">Address</label>
+              <input
+                type="text"
+                class="form-control"
+                id="school_address_input"
+                name="school_address"
+                value="{{ user.school_address }}"
+                readonly
+              />
+            </div>
+            <div class="mb-3">
+              <label for="school_town" class="form-label">Town/City</label>
+              <input
+                type="text"
+                class="form-control"
+                id="school_town_input"
+                name="school_town"
+                value="{{ user.school_town }}"
+                readonly
+              />
+            </div>
+            <div class="mb-3">
+              <label for="school_type" class="form-label">School Type</label>
+              <select class="form-select" id="school_type_input" name="school_type">
+  {% for item in school_type_options %}
+    <option value="{{ item.SchoolTypeID }}" {% if item.SchoolTypeID|int == user.school_type|int %}selected{% endif %}>
+      {{ item.Description }}
+    </option>
+  {% endfor %}
+</select>
+            </div>
+
+          </div>
+          <div class="text-center">
+            <button
+              type="button"
+              class="btn btn-outline-primary"
+              id="editSchoolBtn"
+              onclick="toggleSchoolEdit(true)"
+            >
+              Edit School
+            </button>
+            <button
+              type="submit"
+              class="btn btn-success d-none"
+              id="saveSchoolBtn"
+            >
+              Save
+            </button>
+            <button
+              type="button"
+              class="btn btn-secondary d-none"
+              id="exitSchoolBtn"
+              onclick="toggleSchoolEdit(false)"
+            >
+              Cancel
+            </button>
+          </div>
+          {% else %}
+          <p><strong>Address:</strong> {{ user.school_address }}</p>
+          <p><strong>Town/City:</strong> {{ user.school_town }}</p>
+          <p><strong>School Type:</strong> {{ user.school_type }}</p>
+          {% endif %} {% if user.school_lat and user.school_lon %}
+          <div class="card mt-3">
+            <div class="card-header bg-primary text-white">
+              School Location Map
+            </div>
+            <div class="card-body p-0">
+              <div id="schoolMap" style="height: 300px; width: 100%"></div>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </form>
 </div>
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+<script>
+  function toggleSchoolEdit(editing) {
+  ["school_address_input", "school_town_input"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.readOnly = !editing;
+  });
+
+  const select = document.getElementById("school_type_input");
+  if (select) {
+    select.disabled = !editing;
+  }
+
+  document.getElementById("editSchoolBtn").classList.toggle("d-none", editing);
+  document.getElementById("saveSchoolBtn").classList.toggle("d-none", !editing);
+  document.getElementById("exitSchoolBtn").classList.toggle("d-none", !editing);
+}
+
+
+  document.addEventListener("DOMContentLoaded", function () {
+    const lat = parseFloat("{{ user.school_lat or 'NaN' }}");
+    const lon = parseFloat("{{ user.school_lon or 'NaN' }}");
+    const name = {{ user.desc | tojson | default('"Unknown School"') }};
+
+    if (!isNaN(lat) && !isNaN(lon)) {
+      const map = L.map('schoolMap').setView([lat, lon], 16);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(map);
+      L.marker([lat, lon]).addTo(map).bindPopup(name).openPopup();
+      setTimeout(() => map.invalidateSize(), 0);
+    }
+  });
+</script>
+
 {% endblock %}

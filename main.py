@@ -41,7 +41,7 @@ from werkzeug.security import generate_password_hash
 #from models import User  # adjust based on your user model
 
 
-from providernationalplot import create_competency_report
+from fundernationalplot import create_competency_report
 from competencyplot import get_db_engine, load_competency_rates, make_figure
 from nationalplot import generate_national_report
 
@@ -128,20 +128,29 @@ def login():
                 session["user_role"] = user_info.Role
                 session["user_id"] = user_info.ID
                 session["user_admin"] = user_info.Admin
-                print(user_info.Admin)
+                print(user_info.FirstName)
                 session["user_email"] = email
-                session["display_name"] = user_info.DisplayName
+                session["display_name"] = user_info.FirstName
+                session["user_firstname"] = user_info.FirstName
+                session["user_surname"] = user_info.Surname
+              
+                print(user_info)
                 session["last_login_nzt"] = str(user_info.LastLogin_NZT)
                 session["desc"] = str(user_info.Desc)
-
-                if user_info.Role == "PRO":
+                session["school_address"] = getattr(user_info, "StreetAddress", None)
+                session["school_town"] = getattr(user_info, "TownCity", None)
+                session["school_lat"] = getattr(user_info, "Latitude", None)
+                session["school_lon"] = getattr(user_info, "Longitude", None)
+                session["school_type"] = getattr(user_info, "SchoolTypeID", None)
+                session["school_type_desc"] = getattr(user_info, "SchoolTypeDesc", None)
+                if user_info.Role == "FUN":
                     with engine.connect() as conn:
-                        prov = conn.execute(
-                            text("SELECT Description FROM Provider WHERE ProviderID = :id"),
+                        f = conn.execute(
+                            text("SELECT Description FROM Funder WHERE FunderID = :id"),
                             {"id": user_info.ID}
                         ).fetchone()
-                        if prov:
-                            session["provider_name"] = prov.Description
+                        if f:
+                            session["funder_name"] = f.Description
 
                 return redirect(next_url or url_for("home"))
 
@@ -159,11 +168,10 @@ def get_dropdown_options():
     engine = get_db_engine()
     options = []
 
-    if role == 'PRO':
-        # Fetch providers from the database
+    if role == 'FUN':
         with engine.connect() as conn:
-            result = conn.execute(text("SELECT ProviderID, Description FROM Provider"))
-            options = [{"id": row.ProviderID, "name": row.Description} for row in result]
+            result = conn.execute(text("SELECT FunderID, Description FROM Funder"))
+            options = [{"id": row.Funder, "name": row.Description} for row in result]
 
     elif role == 'MOE':
         # Fetch schools from the MOE_SchoolDirectory
@@ -183,18 +191,18 @@ def reporting():
     role = session.get("user_role")
     user_id = session.get("user_id")
 
-    providers = []
+    funders = []
     competencies = []
     img_data = None
     report_type = None
     term = None
     year = None
-    provider_name = None
+    funder_name = None
     dropdown_string = None
     with engine.connect() as conn:
         if role == "ADM":
-            result = conn.execute(text("EXEC FlaskHelperFunctions :Request"), {"Request": "ProviderDropdown"})
-            providers = [row.Description for row in result]
+            result = conn.execute(text("EXEC FlaskHelperFunctions :Request"), {"Request": "FunderDropdown"})
+            funders = [row.Description for row in result]
 
         result = conn.execute(text("EXEC FlaskHelperFunctions :Request"), {"Request": "CompetencyDropdown"})
         competencies = [row.Competency for row in result]
@@ -203,22 +211,22 @@ def reporting():
         report_type = request.form.get("report_type")
         term = int(request.form.get("term"))
         year = int(request.form.get("year"))
-        provider_name = request.form.get("provider") or session.get("provider_name")
+        funder_name = request.form.get("funder") or session.get("funder_name")
         global last_png_generated, last_png_filename, last_pdf_generated, last_pdf_filename
 
-        if report_type == "Provider":
+        if report_type == "Funder":
             with engine.connect() as conn:
                 result = conn.execute(
-                    text("SELECT ProviderID FROM Provider WHERE Description = :Description"),
-                    {"Description": provider_name}
+                    text("SELECT FunderID FROM Funder WHERE Description = :Description"),
+                    {"Description": funder_name}
                 )
                 row = result.fetchone()
             if not row:
-                flash("Provider not found.", "danger")
-                return redirect(url_for("provider"))
+                flash("Funder  not found.", "danger")
+                return redirect(url_for("funder"))
 
-            provider_id = int(row.ProviderID)
-            fig = create_competency_report(term, year, provider_id, provider_name)
+            funder_id = int(row.FunderID)
+            fig = create_competency_report(term, year, funder_id, funder_name)
 
             # Generate PNG
             png_buf = io.BytesIO()
@@ -244,7 +252,7 @@ def reporting():
 
 
             last_pdf_generated = pdf_buf
-            last_pdf_filename = f"{report_type}_Report_{provider_name}_{term}_{year}.pdf"
+            last_pdf_filename = f"{report_type}_Report_{funder_name}_{term}_{year}.pdf"
             plt.close(fig)
 
         elif report_type == "Competency":
@@ -259,7 +267,7 @@ def reporting():
 
                 if not row:
                     flash("Invalid competency selected.", "danger")
-                    return redirect(url_for("provider"))
+                    return redirect(url_for("funder"))
 
                 competency_id = row.CompetencyID
                 year_group_id = row.YearGroupID
@@ -268,7 +276,7 @@ def reporting():
             df = load_competency_rates(engine, year, term, competency_id, year_group_id)
             if df.empty:
                 flash("No data found.", "warning")
-                return redirect(url_for("provider"))
+                return redirect(url_for("funder"))
 
             title = f"{df['CompetencyDesc'].iloc[0]} ({df['YearGroupDesc'].iloc[0]})"
             
@@ -298,24 +306,24 @@ def reporting():
 
 
     return render_template("reporting.html",
-                       providers=providers,
+                       funder=funders,
                        competencies=competencies,
                        user_role=role,
                        img_data=img_data,
                        selected_report_type=report_type,
                        selected_term=term,
                        selected_year=year,
-                       selected_provider=provider_name,
+                       selected_funder=funder_name,
                        selected_competency=dropdown_string if report_type == "Competency" else None)
 
 
 
 @app.route('/reporting/download_pdf')
 @login_required
-def provider_download_pdf():
+def funder_download_pdf():
     if last_pdf_generated is None:
         flash("No PDF report has been generated yet.", "warning")
-        return redirect(url_for("provider"))
+        return redirect(url_for("funder"))
 
     last_pdf_generated.seek(0)
     return send_file(
@@ -327,10 +335,10 @@ def provider_download_pdf():
 
 @app.route('/reporting/download_png')
 @login_required
-def provider_download_png():
+def funder_download_png():
     if last_png_generated is None:
         flash("No PNG report has been generated yet.", "warning")
-        return redirect(url_for("provider"))
+        return redirect(url_for("funder"))
 
     last_png_generated.seek(0)
     return send_file(
@@ -344,7 +352,7 @@ def provider_download_png():
 @app.route('/school')
 @login_required
 def school():
-    if session.get("user_role") == "PRO":
+    if session.get("user_role") == "FUN":
         return redirect(url_for("home"))
     return render_template("school.html")
 
@@ -367,37 +375,39 @@ def home():
     subtitle = ""
     if(session["user_role"]=="ADM"):
         subtitle = "You are logged in as Admin. Last Logged in: " +  (datetime.fromisoformat(session["last_login_nzt"])).strftime('%A, %d %B %Y, %I:%M %p')
-    elif (session["user_role"]=="PRO"):
-        subtitle = "You are logged in as "+session["desc"]+" (provider) staff. Last Logged in: " +  (datetime.fromisoformat(session["last_login_nzt"])).strftime('%A, %d %B %Y, %I:%M %p')
+    elif (session["user_role"]=="FUN"):
+        subtitle = "You are logged in as "+session["desc"]+" (funder) staff. Last Logged in: " +  (datetime.fromisoformat(session["last_login_nzt"])).strftime('%A, %d %B %Y, %I:%M %p')
     elif (session["user_role"]=="MOE"):
         subtitle = "You are logged in as "+session["desc"]+" (school) staff. Last Logged in: " +  (datetime.fromisoformat(session["last_login_nzt"])).strftime('%A, %d %B %Y, %I:%M %p')
     
 
     if role == "ADM":
         cards = [
-            {"title": "Generate Reports", "text": "Build reports on provider and competency performance.", "href": "/reporting", "image": "placeholder.png"},
-            {"title": "Audit Activity", "text": "Review login history and recent activity.", "href": "/comingsoon.html", "image": "placeholder.png"},
-            {"title": "Create User", "text": "Add a new admin, MOE, or provider account.", "href": "/create_user", "image": "placeholder.png"},
+            {"title": "Generate Reports", "text": "Build reports on funder and competency performance.", "href": "/reporting", "image": "placeholder.png"},
+            {"title": "Audit Activity", "text": "Review login history and recent activity.", "href": "/comingsoon", "image": "placeholder.png"},
+            {"title": "Create User", "text": "Add a new admin, MOE, or funder account.", "href": "/create_user", "image": "placeholder.png"},
 
         ]
     elif role == "MOE":
         cards = [
             {"title": "Upload Class List", "text": "Submit a class list and view student progress.", "href": "/", "image": "placeholder.png"},
-            {"title": "Generate Summary", "text": "Download summary reports for your schools.", "href": "/comingsoon.html", "image": "placeholder.png"},
-            {"title": "Support & Help", "text": "Access help documentation and contact support.", "href": "/comingsoon.html", "image": "placeholder.png"},
+            {"title": "Generate Summary", "text": "Download summary reports for your schools.", "href": "/comingsoon", "image": "placeholder.png"},
+            {"title": "Support & Help", "text": "Access help documentation and contact support.", "href": "/comingsoon", "image": "placeholder.png"},
         ]
-    elif role == "PRO":
+    elif role == "FUN":
         cards = [
-            {"title": "Student Competency Maintenence", "text": "Update competency achievements for your class.", "href": "/provider_classes", "image": "viewclass.png"},
-            {"title": "Live Reporting", "text": "Generate reporting for your provider.", "href": "/reporting", "image": "placeholder.png"},
-            {"title": "Maintenance", "text": "Any issues with school and classes recorded.", "href": "/comingsoon.html", "image": "placeholder.png"},
+            {"title": "Student Competency Maintenence", "text": "Update competency achievements for your class.", "href": "/funder", "image": "viewclass.png"},
+            {"title": "Live Reporting", "text": "Generate reporting for your funder.", "href": "/reporting", "image": "placeholder.png"},
+            {"title": "Maintenance", "text": "Any issues with school and classes recorded.", "href": "/comingsoon", "image": "placeholder.png"},
         ]
     else:
         cards = []
 
     return render_template("index.html", display_name=display_name, subtitle=subtitle, cards=cards)
 
-
+@app.route("/comingsoon")
+def coming_soon():
+    return render_template("comingsoon.html")
 # Main logic to process each row from the uploaded CSV:
 # 1. Use `CheckNSNMatch` stored procedure to validate student info.
 # 2. If student is valid:
@@ -586,9 +596,8 @@ def update_competency():
     # Print extracted values
     print(f"NSN: {nsn}, Header Name: {header_name}, Status: {status}")
 
-    if not all([nsn, header_name, status]):
+    if nsn is None or header_name is None or status is None:
         return jsonify({"success": False, "message": "Missing data"}), 400
-
     # Just print, don't execute the query
     print(f"Would update competency for NSN {nsn} with status '{status}' and header name '{header_name}'")
 
@@ -714,29 +723,29 @@ def results():
 
 @app.route('/get_schools')
 def get_schools():
-    provider = request.args.get('provider')  
+    funder = request.args.get('funder')  
 
-    if not provider:
+    if not funder:
         return jsonify([])
 
     engine = get_db_engine()
     with engine.connect() as connection:
         result = connection.execute(
             text("EXEC FlaskHelperFunctions :Request,  @Text=:Text"),
-            {"Request": "FilterSchool", "Text": provider}
+            {"Request": "FilterSchool", "Text": funder}
         )
         schools = pd.DataFrame(result.fetchall(), columns=result.keys())
 
     school_list = schools['School'].dropna().tolist()
     return jsonify(school_list)
 
-@app.route('/get_provider_dropdown')
-def get_provider_dropdown():
+@app.route('/get_funder_dropdown')
+def get_funder_dropdown():
     engine = get_db_engine()
     with engine.connect() as conn:
-        result = conn.execute(text("SELECT ProviderID, Description FROM Provider"))
-        providers = [{"id": row.ProviderID, "description": row.Description} for row in result]
-    return jsonify(providers)
+        result = conn.execute(text("SELECT FunderID, Description FROM Funder"))
+        funders = [{"id": row.FunderID, "description": row.Description} for row in result]
+    return jsonify(funders)
 
 @app.route('/get_school_dropdown')
 def get_school_dropdown():
@@ -759,7 +768,7 @@ def create_user():
         role = request.form.get("role")
         name = request.form.get("name")
         selected_id = request.form.get("selected_id")  # The value from the dropdown
-        provider_or_school = request.form.get("role")  # To check if it's provider or school
+        funder_or_school = request.form.get("role")   
 
         # Hash the password
         hashed_pw = bcrypt.hashpw(password, bcrypt.gensalt()).decode("utf-8")
@@ -781,7 +790,7 @@ def create_user():
             if role == "ADM":
                 user_id = None  # Admin gets None for ID
             else:
-                user_id = selected_id  # Set the ID based on the selected Provider or School
+                user_id = selected_id  
 
             # Insert new user into FlaskLogin with the generated ID
             conn.execute(
@@ -981,25 +990,25 @@ def generate_report():
     year = int(request.form['year'])
     term = int(request.form['term'])
 
-    if report_type == "Provider":
-        provider_name = request.form.get("provider") or session.get("provider_name")
+    if report_type == "Funder":
+        funder_name = request.form.get("funder") or session.get("funder_name")
 
         
         engine = get_db_engine()
         with engine.connect() as connection:
             result = connection.execute(
-                text("SELECT ProviderID FROM Provider WHERE Description = :Description"),
-                {"Description": provider_name}
+                text("SELECT FunderID FROM Funder WHERE Description = :Description"),
+                {"Description": funder_name}
             )
             row = result.fetchone()
 
         if row is None:
-            return "Provider not found", 400
+            return "Funder not found", 400
 
-        provider_id = int(row.ProviderID)
+        funder_id = int(row.FunderID)
 
         # ⬇️ Replace long logic with call to graphing function
-        fig = create_competency_report(term, year, provider_id, provider_name)
+        fig = create_competency_report(term, year, funder_id, funder_name)
 
         buf = io.BytesIO()
         plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
@@ -1008,7 +1017,7 @@ def generate_report():
         plt.close(fig)
 
         last_pdf_generated = buf
-        last_pdf_filename = f"Provider_Report_{provider_name}_{term}_{year}.pdf"
+        last_pdf_filename = f"Funder_Report_{funder_name}_{term}_{year}.pdf"
 
         return render_template("generatereports.html", img_data=base64.b64encode(buf.getvalue()).decode("utf-8"))
 
@@ -1075,10 +1084,10 @@ def generate_report():
     else:
         return "Invalid report type selected", 400
 
-@app.route('/provider_classes', methods=['GET', 'POST'])
+@app.route('/funder_classes', methods=['GET', 'POST'])
 @login_required
-def provider_classes():
-    if session.get("user_role") not in ["PRO", "ADM"]:
+def funder_classes():
+    if session.get("user_role") not in ["FUN", "ADM"]:
         flash("Unauthorized access", "danger")
         return redirect(url_for("home"))
 
@@ -1114,7 +1123,7 @@ def provider_classes():
 
     # ✅ Pass schools to the template
     return render_template(
-        "provider_classes.html",
+        "funder_classes.html",
         schools=schools.to_dict(orient="records"),
         classes=classes,
         students=students,
@@ -1178,7 +1187,7 @@ def view_class(class_id, term, year):
 
         if students.empty:
             flash("No students found.", "warning")
-            return redirect(url_for("provider_classes"))
+            return redirect(url_for("funder_classes"))
 
         # Get all relevant competency labels
         comp_result = conn.execute(text("EXEC GetRelevantCompetencies :CalendarYear, :Term"),
@@ -1256,7 +1265,7 @@ def view_class(class_id, term, year):
     competency_id_map = comp_df.set_index("label")["CompetencyID"].to_dict()
 
     return render_template(
-        "provider_class_detail.html",
+        "funder_class_detail.html",
         students=df_combined.to_dict(orient="records"),
         columns=[col for col in df_combined.columns if col not in ["DateOfBirth", "Ethnicity", "FirstName", "NSN"]],
         competency_id_map=competency_id_map, scenarios=scenarios,
@@ -1279,19 +1288,19 @@ def download_pdf():
         as_attachment=True,
         mimetype='application/pdf'
     )
-@app.route('/get_schools_for_provider')
+@app.route('/get_schools_for_funder')
 @login_required
-def get_schools_for_provider():
-    provider_id = request.args.get("provider_id")
-    #print("🔍 Received provider_id:", provider_id)
+def get_schools_for_funder():
+    funder_id = request.args.get("funder_id")
+    #print("🔍 Received funder_id:", funder_id)
 
-    if not provider_id:
+    if not funder_id:
         return jsonify([])
 
     engine = get_db_engine()
     with engine.connect() as conn:
         sql = text("EXEC FlaskHelperFunctions :Request, @Number=:Number")
-        params = {"Request": "FilterSchoolID", "Number": provider_id}
+        params = {"Request": "FilterSchoolID", "Number": funder_id}
         #print("🔍 Executing SQL:", sql.text)
         #print("📦 With parameters:", params)
 
@@ -1311,17 +1320,16 @@ def classlistupload():
     engine = get_db_engine()
     preview_data = None
     original_columns = [] 
-    providers, schools = [], []
-    selected_csv = selected_provider = selected_school = selected_term = selected_year = selected_teacher = selected_class = None
+    funders, schools = [], []
+    selected_csv = selected_funder = selected_school = selected_term = selected_year = selected_teacher = selected_class = None
 
-    # Load providers dropdown
     with engine.connect() as conn:
-        result = conn.execute(text("EXEC FlaskHelperFunctions :Request"), {"Request": "ProviderDropdown"})
-        providers = [dict(row._mapping) for row in result]
+        result = conn.execute(text("EXEC FlaskHelperFunctions :Request"), {"Request": "FunderrDropdown"})
+        funders = [dict(row._mapping) for row in result]
 
     if request.method == 'POST':
         action = request.form.get('action')  # 'preview' or 'validate'
-        selected_provider = request.form.get('provider')
+        selected_funder = request.form.get('funder')
         selected_school = request.form.get('school') or session.get("user_id")
 
         selected_term = request.form.get('term')
@@ -1343,17 +1351,17 @@ def classlistupload():
         #print(file)
         selected_csv = file if file and file.filename else None,
 
-        if selected_provider and selected_provider.isdigit():
-            selected_provider = int(selected_provider)
+        if selected_funder and selected_funder.isdigit():
+            selected_funder = int(selected_funder)
         if selected_year and selected_year.isdigit():
             selected_year = int(selected_year)
 
         # Populate school dropdown
-        if selected_provider:
+        if selected_funder:
             with engine.connect() as conn:
                 result = conn.execute(
                     text("EXEC FlaskHelperFunctions :Request, @Number=:Number"),
-                    {"Request": "FilterSchoolID", "Number": selected_provider}
+                    {"Request": "FilterSchoolID", "Number": selected_funder}
                 )
                 schools = [row.School for row in result]
 
@@ -1429,9 +1437,9 @@ def classlistupload():
 
     return render_template(
         "classlistupload.html",
-        providers=providers,
+        funders=funders,
         schools=schools,
-        selected_provider=selected_provider,
+        selected_funder=selected_funder,
         selected_school=selected_school,
         selected_term=selected_term,
         selected_year=selected_year,
@@ -1653,6 +1661,7 @@ def reset_password(token):
 
     return render_template('reset_password.html', token=token)
 
+
 @app.route("/profile")
 @login_required
 def profile():
@@ -1660,11 +1669,102 @@ def profile():
         "email": session.get("user_email"),
         "role": session.get("user_role"),
         "admin": session.get("user_admin"),
-        "display_name": session.get("display_name"),
+        "firstname": session.get("user_firstname"),
+        "surname": session.get("user_surname"),
         "desc": session.get("desc"),
-        "last_login": session.get("last_login_nzt")
+        "last_login": session.get("last_login_nzt"),
+        "school_address": session.get("school_address"),
+        "school_town": session.get("school_town"),
+        "school_lat": session.get("school_lat"),
+        "school_lon": session.get("school_lon"),
+        "school_type": session.get("school_type"),
+        "user_id": session.get("user_id"),
+        "user_type_desc": session.get("school_type_desc")
+
     }
-    return render_template("profile.html", user=user_info)
+
+    # ✅ Load dropdown options
+    engine = get_db_engine()
+    with engine.connect() as conn:
+        result = conn.execute(text("EXEC FlaskHelperFunctions 'SchoolTypeDropdown'"))
+        school_type_options = [dict(row._mapping) for row in result]
+
+    return render_template("profile.html", user=user_info, school_type_options=school_type_options)
+
+
+@app.route("/update_profile", methods=["POST"])
+@login_required
+def update_profile():
+    original_email = request.form.get("original_email")
+    new_firstname = request.form.get("firstname")
+    new_surname = request.form.get("surname")
+    new_email = request.form.get("email")
+
+    school_address = request.form.get("school_address")
+    school_town = request.form.get("school_town")
+    school_type = request.form.get("school_type")
+
+    print("📤 School Address:", school_address)
+    print("📤 School Town:", school_town)
+    print("📤 School Type ID:", school_type)
+    print("📤 User Role:", session.get("user_role"))
+    print("📤 Is Admin:", session.get("user_admin"))
+    print("📤 School ID:", session.get("user_id"))
+
+    engine = get_db_engine()
+    with engine.begin() as conn:
+        # Update user info
+        conn.execute(text("""
+            UPDATE FlaskLogin
+            SET FirstName = :fname, Surname = :sname, Email = :new_email
+            WHERE Email = :original_email
+        """), {
+            "fname": new_firstname,
+            "sname": new_surname,
+            "new_email": new_email,
+            "original_email": original_email
+        })
+    
+
+        # Update school info if admin and MOE
+        if all([school_address, school_town, school_type]) and session.get("user_admin") == 1 and session.get("user_role") == "MOE":
+            school_id = session.get("user_id")
+            if school_id:
+                conn.execute(text("""
+                    UPDATE MOE_SchoolDirectory
+                    SET StreetAddress = :addr, TownCity = :town, SchoolTypeID = :stype
+                    WHERE MOENumber = :school_id
+                """), {
+                    "addr": school_address,
+                    "town": school_town,
+                    "stype": school_type,
+                    "school_id": school_id
+                })
+    
+    # ✅ Re-fetch updated user info and refresh session
+    with engine.connect() as conn:
+        updated_info = conn.execute(
+            text("EXEC FlaskLoginValidation :Email"),
+            {"Email": new_email}
+        ).fetchone()
+
+        session["user_role"] = updated_info.Role
+        session["user_id"] = updated_info.ID
+        session["user_admin"] = updated_info.Admin
+        session["user_email"] = updated_info.Email
+        session["display_name"] = updated_info.FirstName
+        session["user_firstname"] = updated_info.FirstName
+        session["user_surname"] = updated_info.Surname
+        session["last_login_nzt"] = str(updated_info.LastLogin_NZT)
+        session["desc"] = str(updated_info.Desc)
+        session["school_address"] = getattr(updated_info, "StreetAddress", None)
+        session["school_town"] = getattr(updated_info, "TownCity", None)
+        session["school_lat"] = getattr(updated_info, "Latitude", None)
+        session["school_lon"] = getattr(updated_info, "Longitude", None)
+        session["school_type"] = getattr(updated_info, "SchoolTypeID", None)
+
+    flash("Profile updated successfully!", "success")
+    return redirect(url_for("profile"))
 
 # Run app
 if __name__ == '__main__':

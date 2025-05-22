@@ -83,10 +83,10 @@ def make_figure(df, title):
         ax.add_patch(plt.Rectangle((0, 1), 1, TITLE_SPACE, edgecolor='red', facecolor='none', linestyle='dashed'))
         ax.add_patch(plt.Rectangle((buffer, buffer), 1 - buffer * 2, 1 - buffer * 2, edgecolor='red', facecolor='none', linestyle='dashed'))
 
-    df = df.sort_values(by=['ProviderDesc'], ascending=False)
+    df = df.sort_values(by=['FunderDesc'], ascending=False)
 
     for index, row in df.iterrows():
-        provider = row['ProviderDesc']
+        funder = row['FunderDesc']
         value = row['Rate']
         formatted_value = f"{value * 100:.2f}%"
         y_pos = buffer + height_per * index
@@ -109,7 +109,7 @@ def make_figure(df, title):
         ax.text(value_x, y_pos + height_per / 2, formatted_value, ha=ha, va='center', weight='bold')
 
         # Provider name
-        ax.text(buffer + buffer_name - value_offset, y_pos + height_per / 2, provider, ha='right', va='center', weight='bold')
+        ax.text(buffer + buffer_name - value_offset, y_pos + height_per / 2, funder, ha='right', va='center', weight='bold')
 
     return fig
 

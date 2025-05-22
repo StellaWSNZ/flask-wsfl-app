@@ -19,17 +19,17 @@
                 onchange="toggleReportFields()"
                 required
               >
-                <option value="Provider" {% if selected_report_type == "Provider" %}selected{% endif %}>Provider Report</option>
+                <option value="Funder" {% if selected_report_type == "Funder" %}selected{% endif %}>Funder Report</option>
                 <option value="Competency" {% if selected_report_type == "Competency" %}selected{% endif %}>Competency Report</option>
               </select>
             </div>
 
             {% if user_role == 'ADM' %}
-            <div class="col-12" id="provider_section">
-              <label for="provider" class="form-label">Provider</label>
-              <select name="provider" id="provider" class="form-select">
-                {% for name in providers %}
-                  <option value="{{ name }}" {% if name == selected_provider %}selected{% endif %}>{{ name }}</option>
+            <div class="col-12" id="funder_section">
+              <label for="funder" class="form-label">Funder</label>
+              <select name="funder" id="funder" class="form-select">
+                {% for name in funders %}
+                  <option value="{{ name }}" {% if name == selected_funder %}selected{% endif %}>{{ name }}</option>
                 {% endfor %}
               </select>
             </div>
@@ -86,12 +86,12 @@
           />
           <div class="mt-3">
             <a
-              href="{{ url_for('provider_download_pdf') }}"
+              href="{{ url_for('funder_download_pdf') }}"
               class="btn btn-outline-secondary"
               >Download PDF</a
             >
             <a
-              href="{{ url_for('provider_download_png') }}"
+              href="{{ url_for('funder_download_png') }}"
               class="btn btn-outline-secondary ms-2"
               >Download PNG</a
             >
@@ -114,10 +114,10 @@
       competencySection.style.display = type === 'Competency' ? 'block' : 'none';
     }
 
-    // Toggle provider section only for ADM users
-      const providerSection = document.getElementById('provider_section');
-      if (providerSection) {
-        providerSection.style.display = type === 'Provider' ? 'block' : 'none';
+    // Toggle funder section only for ADM users
+      const funderSection = document.getElementById('funder_section');
+      if (funderSection) {
+        funderSection.style.display = type === 'Funder' ? 'block' : 'none';
       }
   }
 

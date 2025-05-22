@@ -22,11 +22,11 @@
   <form id="upload-form" action="/classlistupload" method="post" enctype="multipart/form-data" class="row g-3">
     {% if user_role == 'ADM' %}
       <div class="col-md-6">
-        <label for="provider" class="form-label">Provider</label>
-        <select id="provider" name="provider" class="form-select" required>
-          <option value="">Select a provider</option>
-          {% for provider in providers %}
-            <option value="{{ provider.ProviderID }}" {% if selected_provider == provider.ProviderID %}selected{% endif %}>{{ provider.Description }}</option>
+        <label for="funder" class="form-label">Funder</label>
+        <select id="funder" name="funder" class="form-select" required>
+          <option value="">Select a funder</option>
+          {% for funder in funders %}
+            <option value="{{ funder.FunderID }}" {% if selected_funder == funder.FunderID %}selected{% endif %}>{{ funder.Description }}</option>
           {% endfor %}
         </select>
       </div>
@@ -186,9 +186,9 @@
 
 {% block scripts %}
 <script>
-  document.getElementById("provider")?.addEventListener("change", function () {
-    const providerID = this.value;
-    fetch(`/get_schools_for_provider?provider_id=${providerID}`)
+  document.getElementById("funder")?.addEventListener("change", function () {
+    const funderID = this.value;
+    fetch(`/get_schools_for_funder?funder_id=${funderID}`)
       .then((response) => response.json())
       .then((data) => {
         const schoolDropdown = document.getElementById("school");
