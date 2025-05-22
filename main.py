@@ -1630,7 +1630,6 @@ def update_user_password(email, new_password):
             text("UPDATE FlaskLogin SET HashPassword = :hash WHERE Email = :email"),
             {"hash": hashed_pw, "email": email}
         )
-
 @app.route('/forgot-password', methods=['GET', 'POST'])
 def forgot_password():
     if request.method == 'POST':
@@ -1639,14 +1638,37 @@ def forgot_password():
         if user:
             token = serializer.dumps(email, salt='reset-password')
             reset_url = url_for('reset_password', token=token, _external=True)
-            msg = Message('Reset Your Password', recipients=[email])
-            msg.body = f'Click here to reset: {reset_url}'
+
+            msg = Message('Reset Your WSFL Password', recipients=[email])
+            msg.html = f"""
+            <p>Kia ora,</p>
+            <p>We received a request to reset your WSFL account password.</p>
+            <p>
+              <a href="{reset_url}">Click here to reset your password</a>
+            </p>
+            <p>If you didn't request this, you can safely ignore this email.</p>
+            <br>
+            <p>Ngā mihi,</p>
+            <p><strong>WSFL Admin Team</strong></p>
+            <img src="cid:wsfl_logo" alt="WSFL Logo" style="height:60px;margin-top:10px;">
+            """
+
+            with app.open_resource("static/darklogo.png") as fp:
+                 msg.attach(
+                    "DarkLogo.png", 
+                    "image/png", 
+                    fp.read(), 
+                    disposition='inline',
+                    headers={"Content-ID": "<wsfl_logo>"} # ✅ THIS IS CORRECT
+                )
+            print("📤 Sending email to:", msg.recipients)
+            print("📎 Attachments:", msg.attachments)
+            print("📧 Message body (short preview):", msg.html[:100])
             mail.send(msg)
             flash('Password reset link sent to your email.')
         else:
             flash('Email not found.')
     return render_template('forgot_password.html')
-
 
 @app.route('/reset-password/<token>', methods=['GET', 'POST'])
 def reset_password(token):
