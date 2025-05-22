@@ -128,13 +128,13 @@ def login():
                 session["user_role"] = user_info.Role
                 session["user_id"] = user_info.ID
                 session["user_admin"] = user_info.Admin
-                print(user_info.FirstName)
+                #print(user_info.FirstName)
                 session["user_email"] = email
                 session["display_name"] = user_info.FirstName
                 session["user_firstname"] = user_info.FirstName
                 session["user_surname"] = user_info.Surname
               
-                print(user_info)
+               # print(user_info)
                 session["last_login_nzt"] = str(user_info.LastLogin_NZT)
                 session["desc"] = str(user_info.Desc)
                 session["school_address"] = getattr(user_info, "StreetAddress", None)
@@ -143,6 +143,9 @@ def login():
                 session["school_lon"] = getattr(user_info, "Longitude", None)
                 session["school_type"] = getattr(user_info, "SchoolTypeID", None)
                 session["school_type_desc"] = getattr(user_info, "SchoolTypeDesc", None)
+                session["funder_address"] = getattr(user_info, "Funder_Address", None)
+                session["funder_lat"] = getattr(user_info, "Funder_Latitude", None)
+                session["funder_lon"] = getattr(user_info, "Funder_Longitude", None)
                 if user_info.Role == "FUN":
                     with engine.connect() as conn:
                         f = conn.execute(
@@ -1413,7 +1416,7 @@ def classlistupload():
                         df["NSN"] = pd.to_numeric(df["NSN"], errors="coerce").astype("Int64")
                     #print(df["YearLevel"])
                     #print(df.dtypes)
-                    print(df.to_json(orient="records"))
+                    #print(df.to_json(orient="records"))
 
                     df_json = df.to_json(orient="records")
                     # Save a copy for debugging/inspection
@@ -1679,7 +1682,12 @@ def profile():
         "school_lon": session.get("school_lon"),
         "school_type": session.get("school_type"),
         "user_id": session.get("user_id"),
-        "user_type_desc": session.get("school_type_desc")
+        "user_type_desc": session.get("school_type_desc"),
+        "funder_lat": session.get("funder_lat"),
+        "funder_lon": session.get("funder_lon"),
+        "funder_address": session.get("funder_address")
+
+
 
     }
 
@@ -1696,13 +1704,15 @@ def profile():
 @login_required
 def update_profile():
     original_email = request.form.get("original_email")
-    new_firstname = request.form.get("firstname")
-    new_surname = request.form.get("surname")
-    new_email = request.form.get("email")
-
-    school_address = request.form.get("school_address")
-    school_town = request.form.get("school_town")
-    school_type = request.form.get("school_type")
+    new_firstname = request.form.get("firstname", "").strip()
+    new_surname = request.form.get("surname", "").strip()
+    new_email = request.form.get("email", "").strip()
+    funder_address = request.form.get("funder_address", "").strip()
+    funder_lat = request.form.get("funder_lat", "").strip()
+    funder_lon = request.form.get("funder_lon", "").strip()
+    school_address = request.form.get("school_address", "").strip()
+    school_town = request.form.get("school_town", "").strip()
+    school_type = request.form.get("school_type", "").strip()
 
     print("📤 School Address:", school_address)
     print("📤 School Town:", school_town)
@@ -1724,9 +1734,8 @@ def update_profile():
             "new_email": new_email,
             "original_email": original_email
         })
-    
 
-        # Update school info if admin and MOE
+        # Update school info if applicable
         if all([school_address, school_town, school_type]) and session.get("user_admin") == 1 and session.get("user_role") == "MOE":
             school_id = session.get("user_id")
             if school_id:
@@ -1740,8 +1749,23 @@ def update_profile():
                     "stype": school_type,
                     "school_id": school_id
                 })
-    
-    # ✅ Re-fetch updated user info and refresh session
+
+        # Update funder info if applicable
+        if all([funder_address, funder_lat, funder_lon]) and session.get("user_admin") == 1 and session.get("user_role") == "FUN":
+            funder_id = session.get("user_id")
+            if funder_id:
+                conn.execute(text("""
+                    UPDATE FunderDetails
+                    SET Address = :address, Latitude = :lat, Longitude = :lon
+                    WHERE FunderID = :funder_id
+                """), {
+                    "address": funder_address,
+                    "lat": funder_lat,
+                    "lon": funder_lon,
+                    "funder_id": funder_id
+                })
+
+    # Refresh session
     with engine.connect() as conn:
         updated_info = conn.execute(
             text("EXEC FlaskLoginValidation :Email"),
