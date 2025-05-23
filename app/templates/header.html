@@ -106,9 +106,10 @@
                 <li>
                   <a
                     class="dropdown-item py-2"
-                    href="{{ url_for('admin_bp.school') }}"
-                    >View Summary</a
+                    href="{% if user_role == 'ADM' %}{{ url_for('class_bp.funder_classes') }}{% else %}{{ url_for('class_bp.moe_classes') }}{% endif %}"
                   >
+                    Class Lookup
+                  </a>
                 </li>
                 <li>
                   <a

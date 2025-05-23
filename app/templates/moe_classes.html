@@ -1,0 +1,80 @@
+{% extends "header.html" %}
+{% block title %}View My School's Classes{% endblock %}
+{% block content %}
+
+<h3 class="text-center">Your School’s Classes</h3>
+
+<form method="POST">
+  <div class="container">
+    <div class="row justify-content-center align-items-end g-3">
+      <div class="col-md-2">
+        <label for="term" class="form-label">Term</label>
+        <select name="term" class="form-select" required>
+          <option value="">Select Term</option>
+          {% for t in [1, 2, 3, 4] %}
+            <option value="{{ t }}" {% if request.form.term == t|string %}selected{% endif %}>{{ t }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="col-md-2">
+        <label for="calendaryear" class="form-label">Year</label>
+        <select name="calendaryear" class="form-select" required>
+          <option value="">Select Year</option>
+          {% for y in [2023, 2024, 2025] %}
+            <option value="{{ y }}" {% if request.form.calendaryear == y|string %}selected{% endif %}>{{ y }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="col-md-auto">
+        <button type="submit" class="btn btn-primary">Find Classes</button>
+      </div>
+    </div>
+  </div>
+</form>
+
+{% if classes %}
+<div class="container mt-4">
+  <h4 class="text-center mb-3">Classes at Your School</h4>
+  <table class="table table-bordered table-sm text-center">
+    <thead>
+      <tr>
+        <th>Class Name</th>
+        <th>Teacher</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for cls in classes %}
+      <tr>
+        <td>{{ cls.ClassName }}</td>
+        <td>{{ cls.TeacherName }}</td>
+        <td>
+          <a class="btn btn-sm btn-success"
+             href="{{ url_for('class_bp.view_class', class_id=cls.ClassID, term=request.form['term'], year=request.form['calendaryear']) }}">
+             View Students
+          </a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+{% if suggestions and not classes %}
+<div class="container mt-4">
+  <div class="alert alert-warning">
+    <strong>No classes found.</strong><br>
+    Your school has classes from:
+    <ul>
+      {% for s in suggestions %}
+        <li>{{ s }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

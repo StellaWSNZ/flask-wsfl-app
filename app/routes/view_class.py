@@ -113,7 +113,6 @@ def view_class(class_id, term, year):
             school_name=school_name,
             class_title=title_string
         )
-
 @class_bp.route('/funder_classes', methods=['GET', 'POST'])
 @login_required
 def funder_classes():
@@ -124,36 +123,77 @@ def funder_classes():
     engine = get_db_engine()
     classes = []
     students = []
+    suggestions = []
+    schools = []
     selected_class_id = None
 
     user_role = session.get("user_role")
     user_id = session.get("user_id")
 
     with engine.connect() as conn:
-        result = conn.execute(
-            text("EXEC FlaskHelperFunctions :Request, :Number"),
-            {"Request": "SchoolDropdown", "Number": None if user_role == "ADM" else user_id}
-        )
-        schools = pd.DataFrame(result.fetchall(), columns=result.keys())
-
         if request.method == "POST":
-            moe_number = request.form.get("moe_number")
-            term = request.form.get("term")
-            year = request.form.get("calendaryear")
-            selected_class_id = request.form.get("class_id")
+            term = request.form.get("term", "").strip()
+            year = request.form.get("calendaryear", "").strip()
+            moe_number = request.form.get("moe_number", "").strip()
 
-            if not selected_class_id:
-                result = conn.execute(
-                    text("SELECT ClassID, ClassName, TeacherName FROM Class WHERE MOENumber = :moe AND Term = :term AND CalendarYear = :year"),
-                    {"moe": moe_number, "term": term, "year": year}
-                )
-                classes = [row._mapping for row in result.fetchall()]
+            if term.isdigit() and year.isdigit():
+                term = int(term)
+                year = int(year)
+
+                # Get school list
+                if user_role == "FUN":
+                    result = conn.execute(
+                        text("""
+                            SELECT sf.MOENumber, sd.SchoolName AS School
+                            FROM SchoolFunder sf
+                            JOIN MOE_SchoolDirectory sd ON sf.MOENumber = sd.MOENumber
+                            WHERE sf.Term = :term AND sf.CalendarYear = :year AND sf.FunderID = :funder_id
+                        """),
+                        {"term": term, "year": year, "funder_id": user_id}
+                    )
+                else:
+                    result = conn.execute(
+                        text("""
+                            SELECT sf.MOENumber, sd.SchoolName AS School
+                            FROM SchoolFunder sf
+                            JOIN MOE_SchoolDirectory sd ON sf.MOENumber = sd.MOENumber
+                            WHERE sf.Term = :term AND sf.CalendarYear = :year
+                        """),
+                        {"term": term, "year": year}
+                    )
+                schools = [dict(row._mapping) for row in result]
+
+                # Get classes
+                if moe_number:
+                    result = conn.execute(
+                        text("""
+                            SELECT ClassID, ClassName, TeacherName
+                            FROM Class
+                            WHERE MOENumber = :moe AND Term = :term AND CalendarYear = :year
+                            ORDER BY TeacherName, ClassName
+                        """),
+                        {"moe": moe_number, "term": term, "year": year}
+                    )
+                    classes = [row._mapping for row in result.fetchall()]
+
+                    if not classes:
+                        suggestion_result = conn.execute(
+                            text("""
+                                SELECT DISTINCT CONCAT('Term ', Term, ' - ', CalendarYear) AS Label
+                                FROM Class
+                                WHERE MOENumber = :moe
+                                ORDER BY CalendarYear DESC, Term DESC
+                            """),
+                            {"moe": moe_number}
+                        )
+                        suggestions = [row.Label for row in suggestion_result]
 
     return render_template(
         "funder_classes.html",
-        schools=schools.to_dict(orient="records"),
+        schools=schools,
         classes=classes,
         students=students,
+        suggestions=suggestions,
         selected_class_id=selected_class_id
     )
 
@@ -318,4 +358,79 @@ def reporting():
 @login_required
 def comingsoon():
     return render_template("comingsoon.html")
+@class_bp.route("/get_schools_for_term_year")
+@login_required
+def get_schools_for_term_year():
+    term = request.args.get("term", type=int)
+    year = request.args.get("year", type=int)
+    user_role = session.get("user_role")
+    provider_id = session.get("user_id")
 
+    if not term or not year:
+        return jsonify([])
+
+    engine = get_db_engine()
+    with engine.connect() as conn:
+        if user_role == "ADM":
+            result = conn.execute(
+                text("""
+                    SELECT DISTINCT sf.MOENumber, sd.SchoolName
+                    FROM SchoolFunder sf
+                    JOIN MOE_SchoolDirectory sd ON sf.MOENumber = sd.MOENumber
+                    WHERE sf.Term = :term AND sf.CalendarYear = :year
+                """),
+                {"term": term, "year": year}
+            )
+        else:
+            result = conn.execute(
+                text("""
+                    SELECT DISTINCT sf.MOENumber, sd.SchoolName
+                    FROM SchoolFunder sf
+                    JOIN MOE_SchoolDirectory sd ON sf.MOENumber = sd.MOENumber
+                    WHERE sf.Term = :term AND sf.CalendarYear = :year AND sf.FunderID = :pid
+                """),
+                {"term": term, "year": year, "pid": provider_id}
+            )
+
+        return jsonify([{"MOENumber": row.MOENumber, "School": row.SchoolName} for row in result.fetchall()])
+@class_bp.route('/moe_classes', methods=['GET', 'POST'])
+@login_required
+def moe_classes():
+    if session.get("user_role") != "MOE":
+        flash("Unauthorized access", "danger")
+        return redirect(url_for("home_bp.home"))
+
+    engine = get_db_engine()
+    classes = []
+    students = []
+    suggestions = []
+
+    moe_number = session.get("user_id")
+
+    if request.method == "POST":
+        term = request.form.get("term")
+        year = request.form.get("calendaryear")
+
+        with engine.connect() as conn:
+            # Attempt to find classes
+            result = conn.execute(
+                text("SELECT ClassID, ClassName, TeacherName FROM Class WHERE MOENumber = :moe AND Term = :term AND CalendarYear = :year"),
+                {"moe": moe_number, "term": term, "year": year}
+            )
+            classes = [row._mapping for row in result.fetchall()]
+
+            if not classes:
+                # If no classes found, fetch available terms/years for this school
+                result = conn.execute(
+                    text("SELECT DISTINCT Term, CalendarYear FROM Class WHERE MOENumber = :moe ORDER BY CalendarYear DESC, Term"),
+                    {"moe": moe_number}
+                )
+                suggestions = [f"{row.CalendarYear} Term {row.Term}" for row in result.fetchall()]
+                flash("No classes found for your school in this term and year.", "warning")
+
+    return render_template(
+        "moe_classes.html",
+        classes=classes,
+        students=students,
+        suggestions=suggestions
+    )

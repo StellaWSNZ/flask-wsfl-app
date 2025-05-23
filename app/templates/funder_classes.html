@@ -1,56 +1,56 @@
-{% extends "header.html" %} {% block title %}View Classes{% endblock %} {% block
-content %}
+{% extends "header.html" %}
+{% block title %}View Classes{% endblock %}
 
+{% block content %}
 <h3 class="text-center">Filter Classes</h3>
 
 <form method="POST">
   <div class="container">
     <div class="row justify-content-center align-items-end g-3">
-      <div class="col-md-3">
-        <label for="moe_number" class="form-label">MOE Number</label>
-        <select name="moe_number" class="form-select" required>
-          <option disabled selected value>Select MOE Number</option>
-          {% for school in schools %}
-          <option value="{{ school.MOENumber }}">{{ school.School }}</option>
+      <!-- Term -->
+      <div class="col-md-2">
+        <label for="term" class="form-label">Term</label>
+        <select name="term" id="term" class="form-select" required>
+          <option value="" disabled>Select term</option>
+          {% for t in [1, 2, 3, 4] %}
+            <option value="{{ t }}" {% if request.form.term == t|string %}selected{% endif %}>{{ t }}</option>
           {% endfor %}
         </select>
       </div>
 
+      <!-- Year -->
       <div class="col-md-2">
-        <label for="term" class="form-label">Term</label>
-        <select name="term" id="term" class="form-select" required>
-          <option value="" disabled selected>Select term</option>
-          <option value="1">1</option>
-          <option value="2">2</option>
-          <option value="3">3</option>
-          <option value="4">4</option>
+        <label for="calendaryear" class="form-label">Year</label>
+        <select name="calendaryear" id="calendaryear" class="form-select" required>
+          <option value="" disabled>Select year</option>
+          {% for y in [2023, 2024, 2025] %}
+            <option value="{{ y }}" {% if request.form.calendaryear == y|string %}selected{% endif %}>{{ y }}</option>
+          {% endfor %}
         </select>
       </div>
 
-      <div class="col-md-2">
-        <label for="calendaryear" class="form-label">Calendar Year</label>
-        <select
-          name="calendaryear"
-          id="calendaryear"
-          class="form-select"
-          required
-        >
-          <option value="" disabled selected>Select year</option>
-          <option value="2025">2025</option>
-          <option value="2024">2024</option>
-          <option value="2023">2023</option>
+      <!-- School -->
+      <div class="col-md-4" id="school-wrapper" {% if schools %}style="display:block;"{% else %}style="display:none;"{% endif %}>
+        <label for="moe_number" class="form-label">School</label>
+        <select name="moe_number" id="moe_number" class="form-select" required>
+          <option value="">Select School</option>
+          {% for school in schools %}
+            <option value="{{ school.MOENumber }}" {% if request.form.moe_number == school.MOENumber|string %}selected{% endif %}>
+              {{ school.School }}
+            </option>
+          {% endfor %}
         </select>
       </div>
 
-      <div class="col-md-auto">
-        <button class="btn btn-primary w-100" type="submit">
-          Find Classes
-        </button>
+      <!-- Submit -->
+      <div class="col-md-auto" id="find-btn-wrapper" {% if schools %}style="display:block;"{% else %}style="display:none;"{% endif %}>
+        <button type="submit" class="btn btn-primary w-100">Find Classes</button>
       </div>
     </div>
   </div>
 </form>
 
+<!-- Classes -->
 {% if classes %}
 <div class="container mt-4">
   <h4 class="text-center mb-3">Select a Class</h4>
@@ -70,10 +70,8 @@ content %}
             <td>{{ cls.ClassName }}</td>
             <td>{{ cls.TeacherName }}</td>
             <td>
-              <a
-                class="btn btn-sm btn-success"
-                href="{{ url_for('class_bp.view_class', class_id=cls.ClassID, term=request.form['term'], year=request.form['calendaryear']) }}"
-              >
+              <a class="btn btn-sm btn-success"
+                 href="{{ url_for('class_bp.view_class', class_id=cls.ClassID, term=request.form['term'], year=request.form['calendaryear']) }}">
                 View Students
               </a>
             </td>
@@ -84,28 +82,61 @@ content %}
     </div>
   </div>
 </div>
-{% endif %} {% if students %}
-<div class="container text-center mt-5">
-  <h4 class="mb-3">Students in Selected Class</h4>
-  <div class="table-responsive d-flex justify-content-center">
-    <table class="table table-bordered table-sm w-auto">
-      <thead>
-        <tr>
-          {% for key in students[0].keys() %}
-          <th>{{ key }}</th>
-          {% endfor %}
-        </tr>
-      </thead>
-      <tbody>
-        {% for student in students %}
-        <tr>
-          {% for value in student.values() %}
-          <td>{{ value }}</td>
-          {% endfor %}
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+{% endif %}
+
+<!-- Suggestions if no classes -->
+{% if suggestions and not classes %}
+<div class="container mt-4">
+  <div class="alert alert-warning">
+    <strong>No classes found.</strong>
+    This school has classes from:
+    <ul class="mb-0">
+      {% for s in suggestions %}
+        <li>{{ s }}</li>
+      {% endfor %}
+    </ul>
   </div>
 </div>
-{% endif %} {% endblock %}
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function fetchSchools() {
+    const term = document.getElementById("term").value;
+    const year = document.getElementById("calendaryear").value;
+
+    if (term && year) {
+      fetch(`/get_schools_for_term_year?term=${term}&year=${year}`)
+        .then(res => res.json())
+        .then(data => {
+          const schoolWrapper = document.getElementById("school-wrapper");
+          const schoolSelect = document.getElementById("moe_number");
+          const findBtn = document.getElementById("find-btn-wrapper");
+
+          schoolSelect.innerHTML = '<option value="">Select School</option>';
+          data.forEach(school => {
+            const opt = document.createElement("option");
+            opt.value = school.MOENumber;
+            opt.textContent = school.School;
+            schoolSelect.appendChild(opt);
+          });
+
+          schoolWrapper.style.display = "block";
+          findBtn.style.display = "block";
+        });
+    }
+  }
+
+  document.getElementById("term").addEventListener("change", fetchSchools);
+  document.getElementById("calendaryear").addEventListener("change", fetchSchools);
+
+  window.addEventListener("DOMContentLoaded", () => {
+    const term = document.getElementById("term").value;
+    const year = document.getElementById("calendaryear").value;
+    if (term && year && document.getElementById("moe_number").options.length <= 1) {
+      fetchSchools();
+    }
+  });
+</script>
+{% endblock %}
