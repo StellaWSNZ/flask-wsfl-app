@@ -13,7 +13,6 @@
       href="https://cdn.jsdelivr.net/npm/bootstrap-select@1.14.0-beta2/dist/css/bootstrap-select.min.css"
     />
     <script src="https://cdn.jsdelivr.net/npm/bootstrap-select@1.14.0-beta2/dist/js/bootstrap-select.min.js"></script>
-
     <link
       rel="stylesheet"
       href="{{ url_for('static', filename='css/custom.css') }}"
@@ -23,7 +22,6 @@
       href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css"
     />
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-
     {% block head %}{% endblock %}
   </head>
 
@@ -31,7 +29,10 @@
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg navbar-dark custom-navbar py-2">
       <div class="container-fluid">
-        <a class="navbar-brand d-flex align-items-center" href="/">
+        <a
+          class="navbar-brand d-flex align-items-center"
+          href="{{ url_for('home_bp.home') }}"
+        >
           <img
             src="{{ url_for('static', filename='LightLogo.png') }}"
             alt="Logo"
@@ -57,7 +58,7 @@
             <li class="nav-item">
               <a
                 class="nav-link {% if request.path == '/' %}active{% endif %}"
-                href="/"
+                href="{{ url_for('home_bp.home') }}"
                 >Dashboard</a
               >
             </li>
@@ -75,10 +76,16 @@
               </a>
               <ul class="dropdown-menu dropdown-menu-end">
                 <li>
-                  <a class="dropdown-item py-2" href="/reporting">Reporting</a>
+                  <a
+                    class="dropdown-item py-2"
+                    href="{{ url_for('report_bp.reporting') }}"
+                    >Reporting</a
+                  >
                 </li>
                 <li>
-                  <a class="dropdown-item py-2" href="/funder_classes"
+                  <a
+                    class="dropdown-item py-2"
+                    href="{{ url_for('class_bp.funder_classes') }}"
                     >Class Lookup</a
                   >
                 </li>
@@ -97,21 +104,25 @@
               </a>
               <ul class="dropdown-menu dropdown-menu-end">
                 <li>
-                  <a class="dropdown-item py-2" href="/school">View Summary</a>
+                  <a
+                    class="dropdown-item py-2"
+                    href="{{ url_for('admin_bp.school') }}"
+                    >View Summary</a
+                  >
                 </li>
                 <li>
-                  <a class="dropdown-item py-2" href="/classlistupload"
+                  <a
+                    class="dropdown-item py-2"
+                    href="{{ url_for('upload_bp.classlistupload') }}"
                     >Upload Class List</a
                   >
                 </li>
               </ul>
             </li>
-
             {% endif %} {% if user_role == "ADM" %}
-
             <li class="nav-item dropdown">
               <a
-                class="nav-link dropdown-toggle {% if 'school' in request.path or 'classlistupload' in request.path %}active{% endif %}"
+                class="nav-link dropdown-toggle"
                 href="#"
                 role="button"
                 data-bs-toggle="dropdown"
@@ -123,33 +134,43 @@
                 <li>
                   <a
                     class="dropdown-item py-2"
-                    href="{{ url_for('create_user') }}"
+                    href="{{ url_for('admin_bp.create_user') }}"
+                    >Create User</a
                   >
-                    Create User
-                  </a>
                 </li>
                 <li>
-                  <a class="dropdown-item py-2" href="/comingsoon">Reporting</a>
+                  <a
+                    class="dropdown-item py-2"
+                    href="{{ url_for('report_bp.reporting') }}"
+                    >Reporting</a
+                  >
                 </li>
                 <li>
-                  <a class="dropdown-item py-2" href="/comingsoon"
+                  <a
+                    class="dropdown-item py-2"
+                    href="{{ url_for('class_bp.comingsoon') }}"
                     >Manage Users</a
                   >
                 </li>
               </ul>
             </li>
-
             {% endif %}
+
             <li class="nav-item mt-2 mt-lg-0 me-2">
               <a
-                href="/profile"
+                href="{{ url_for('admin_bp.profile') }}"
                 class="btn btn-outline-light btn-sm d-flex align-items-center"
               >
                 <i class="bi bi-person-fill me-1"></i> Profile
               </a>
             </li>
+
             <li class="nav-item mt-2 mt-lg-0">
-              <form action="/logout" method="post" class="d-lg-inline d-block">
+              <form
+                action="{{ url_for('auth_bp.logout') }}"
+                method="post"
+                class="d-inline"
+              >
                 <button
                   type="submit"
                   class="btn btn-outline-light btn-sm w-100 w-lg-auto"

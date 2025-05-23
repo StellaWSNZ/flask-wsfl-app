@@ -138,8 +138,8 @@
         data-header="{{ col }}"
         data-scenario-index="{{ 1 if 'Scenario One' in col else 2 }}">
        {% for scenario in scenarios %}
-    <option value="{{ scenario.id }}" {% if val == scenario.id|string %}selected{% endif %}>
-      {{ scenario.desc | safe}}
+     <option value="{{ scenario.ScenarioID }}" {% if val == scenario.HTMLScenario %}selected{% endif %}>
+      {{ scenario.HTMLScenario | safe }}
     </option>
   {% endfor %}
       </select>

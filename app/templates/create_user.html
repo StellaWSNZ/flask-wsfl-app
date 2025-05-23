@@ -27,23 +27,23 @@ content %}
         <input type="email" name="email" class="form-control" required />
       </div>
       <div class="mb-3">
-        <label class="form-label">Password</label>
-        <input type="password" name="password" class="form-control" required />
+        <label class="form-label">Password (optional)</label>
+        <input type="password" name="password" class="form-control" />
       </div>
       <div class="mb-3">
         <label class="form-label">Role</label>
         <select name="role" id="role-select" class="form-select" required>
           <option value="ADM">Admin</option>
-          <option value="PRO">Provider</option>
+          <option value="FUN">Funder</option>
           <option value="MOE">School</option>
         </select>
       </div>
 
       <div class="mb-3 d-none" id="provider-dropdown">
-        <label class="form-label">Select Provider</label>
+        <label class="form-label">Select Funder</label>
         <select
           name="selected_id"
-          id="provider-select"
+          id="funder-select"
           class="form-select"
         ></select>
       </div>
@@ -57,9 +57,30 @@ content %}
         ></select>
       </div>
 
+      <!-- First Name -->
       <div class="mb-3">
-        <label class="form-label">Display Name</label>
-        <input type="text" name="name" class="form-control" required />
+        <label class="form-label">First Name</label>
+        <input type="text" name="firstname" class="form-control" required />
+      </div>
+
+      <!-- Surname -->
+      <div class="mb-3">
+        <label class="form-label">Surname</label>
+        <input type="text" name="surname" class="form-control" required />
+      </div>
+
+      <!-- Admin Checkbox -->
+      <div class="form-check mb-3">
+        <input
+          class="form-check-input"
+          type="checkbox"
+          value="1"
+          name="admin"
+          id="adminCheck"
+        />
+        <label class="form-check-label" for="adminCheck">
+          Administrator Permissions
+        </label>
       </div>
 
       <button type="submit" class="btn btn-success">Create User</button>

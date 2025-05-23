@@ -1,3 +1,5 @@
+import matplotlib
+matplotlib.use('Agg')  # Prevent GUI backend errors in web servers
 import matplotlib.pyplot as plt
 import pandas as pd
 import os

@@ -72,7 +72,7 @@ content %}
             <td>
               <a
                 class="btn btn-sm btn-success"
-                href="{{ url_for('view_class', class_id=cls.ClassID, term=request.form['term'], year=request.form['calendaryear']) }}"
+                href="{{ url_for('class_bp.view_class', class_id=cls.ClassID, term=request.form['term'], year=request.form['calendaryear']) }}"
               >
                 View Students
               </a>
