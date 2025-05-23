@@ -1,10 +1,11 @@
 # app/routes/auth.py
 import bcrypt
-from flask import Blueprint, render_template, request, session, redirect, url_for, flash
+from flask import Blueprint, render_template, request, session, redirect, url_for, flash, current_app
 from app.utils.database import get_db_engine
 from app.utils.email import send_reset_email, generate_reset_token, verify_reset_token
 from sqlalchemy import text
-
+from itsdangerous import URLSafeTimedSerializer
+from app.extensions import mail
 auth_bp = Blueprint("auth_bp", __name__)
 __all__ = ["auth_bp", "login_required"]
 
@@ -77,16 +78,19 @@ def logout():
 @auth_bp.route('/forgot-password', methods=['GET', 'POST'])
 def forgot_password():
     if request.method == 'POST':
-        email = request.form['email']
-        engine = get_db_engine()
-        with engine.connect() as conn:
-            user = conn.execute(text("SELECT 1 FROM FlaskLogin WHERE Email = :email"), {"email": email}).fetchone()
-        if user:
-            send_reset_email(email)
-            flash('Password reset link sent to your email.')
-        else:
-            flash('Email not found.')
+        email = request.form.get('email')
+
+        # Example token generation
+        s = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
+        token = s.dumps(email, salt='password-reset-salt')
+
+        send_reset_email(mail, email, token)
+
+        flash('A password reset link has been sent to your email.', 'success')
+        return redirect(url_for('auth_bp.login'))
+
     return render_template('forgot_password.html')
+
 
 @auth_bp.route('/reset-password/<token>', methods=['GET', 'POST'])
 def reset_password(token):

@@ -2,9 +2,10 @@
 from flask_mail import Message
 from itsdangerous import URLSafeTimedSerializer
 from flask import current_app, url_for
+from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 
 def send_reset_email(mail, email, token):
-    reset_url = url_for('reset_password', token=token, _external=True)
+    reset_url = url_for('auth_bp.reset_password', token=token, _external=True)
     msg = Message('Reset Your WSFL Password', recipients=[email])
     msg.html = f"""
         <p>Kia ora,</p>
@@ -22,10 +23,9 @@ def send_reset_email(mail, email, token):
 def generate_reset_token(secret_key, email):
     serializer = URLSafeTimedSerializer(secret_key)
     return serializer.dumps(email, salt='reset-password')
-
-def verify_reset_token(secret_key, token, max_age=3600):
-    serializer = URLSafeTimedSerializer(secret_key)
+def verify_reset_token(token, max_age=3600):
+    serializer = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
     try:
-        return serializer.loads(token, salt='reset-password', max_age=max_age)
-    except Exception:
+        return serializer.loads(token, salt='password-reset-salt', max_age=max_age)
+    except (SignatureExpired, BadSignature):
         return None

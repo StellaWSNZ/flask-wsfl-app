@@ -3,7 +3,7 @@ from flask import Flask, session, redirect, url_for, request
 from flask_mail import Mail
 from .routes import register_routes
 import os
-
+from app.extensions import mail
 mail = Mail()
 def create_app():
     app = Flask(__name__, static_folder='static', template_folder='templates')
