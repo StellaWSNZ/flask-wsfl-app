@@ -32,6 +32,7 @@ def classlistupload():
     original_columns = [] 
     funders, schools = [], []
     selected_csv = selected_funder = selected_school = selected_term = selected_year = selected_teacher = selected_class = None
+    selected_school = session.get("desc") 
 
     with engine.connect() as conn:
         result = conn.execute(text("EXEC FlaskHelperFunctions :Request"), {"Request": "FunderDropdown"})
@@ -40,8 +41,8 @@ def classlistupload():
     if request.method == 'POST':
         action = request.form.get('action')  # 'preview' or 'validate'
         selected_funder = request.form.get('funder')
-        selected_school = request.form.get('school') or session.get("user_id")
-
+        selected_school = session.get("user_id")
+        
         selected_term = request.form.get('term')
         selected_year = request.form.get('year')
         selected_teacher = request.form.get('teachername')
@@ -367,3 +368,21 @@ def process_and_store_results(df, term, year):
         last_error_df = pd.DataFrame([{"Error": str(e)}])
     finally:
         processing_status["done"] = True
+        
+        
+@upload_bp.route("/get_schools_for_funder")
+@login_required
+def get_schools_for_funder():
+    funder_id = request.args.get("funder_id", type=int)
+    if not funder_id:
+        return jsonify([])
+
+    engine = get_db_engine()
+    with engine.connect() as conn:
+        result = conn.execute(
+            text("EXEC FlaskHelperFunctions :Request, @Number=:Number"),
+            {"Request": "FilterSchoolID", "Number": funder_id}
+        )
+        schools = [row.School for row in result]
+
+    return jsonify(schools)

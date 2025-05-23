@@ -29,18 +29,19 @@
           {% endfor %}
         </select>
       </div>
+    <div class="col-md-6">
+  <label for="school" class="form-label">School</label>
+  <select class="form-select" id="school" name="school" required {% if user_role == 'MOE' %}disabled{% endif %}>
     {% if user_role == 'ADM' %}
-
-      <div class="col-md-6">
-        <label for="school" class="form-label">School</label>
-        <select class="form-select" id="school" name="school" required>
-          <option selected disabled value="">Select a school</option>
-          {% for name in schools %}
-            <option value="{{ name }}" {% if selected_school == name %}selected{% endif %}>{{ name }}</option>
-          {% endfor %}
-        </select>
-      </div>
+      <option selected disabled value="">Select a school</option>
+      {% for name in schools %}
+        <option value="{{ name }}" {% if selected_school == name %}selected{% endif %}>{{ name }}</option>
+      {% endfor %}
+    {% elif user_role == 'MOE' %}
+      <option value="{{ selected_school }}" selected>{{ selected_school }}</option>
     {% endif %}
+  </select>
+</div>
 
     <div class="col-md-2">
       <label for="term" class="form-label">Term</label>
