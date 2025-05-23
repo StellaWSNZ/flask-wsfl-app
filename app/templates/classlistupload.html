@@ -20,7 +20,6 @@
   {% endwith %}
 
   <form id="upload-form" action="/classlistupload" method="post" enctype="multipart/form-data" class="row g-3">
-    {% if user_role == 'ADM' %}
       <div class="col-md-6">
         <label for="funder" class="form-label">Funder</label>
         <select id="funder" name="funder" class="form-select" required>
@@ -30,6 +29,7 @@
           {% endfor %}
         </select>
       </div>
+    {% if user_role == 'ADM' %}
 
       <div class="col-md-6">
         <label for="school" class="form-label">School</label>

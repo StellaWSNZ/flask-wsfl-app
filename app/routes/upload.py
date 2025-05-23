@@ -67,7 +67,7 @@ def classlistupload():
             selected_year = int(selected_year)
 
         # Populate school dropdown
-        if selected_funder:
+        if selected_funder and session.get("user_role") != "MOE":
             with engine.connect() as conn:
                 result = conn.execute(
                     text("EXEC FlaskHelperFunctions :Request, @Number=:Number"),
