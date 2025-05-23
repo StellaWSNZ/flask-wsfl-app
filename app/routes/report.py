@@ -1,8 +1,7 @@
-# app/routes/report.py
 import io
 import base64
 import matplotlib
-matplotlib.use('Agg')  # Prevent GUI backend errors in web servers
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 from flask import Blueprint, render_template, request, session, flash, redirect, url_for, send_file
@@ -11,17 +10,19 @@ from app.utils.fundernationalplot import create_competency_report
 from app.utils.competencyplot import load_competency_rates, make_figure as make_comp_figure
 from sqlalchemy import text
 from app.routes.auth import login_required
+
 report_bp = Blueprint("report_bp", __name__)
 
-last_pdf_generated = None
+# Store raw bytes to avoid "I/O on closed file" errors
+last_pdf_bytes = None
 last_pdf_filename = None
-last_png_generated = None
+last_png_bytes = None
 last_png_filename = None
 
 @report_bp.route('/reporting', methods=["GET", "POST"])
 @login_required
 def reporting():
-    global last_pdf_generated, last_pdf_filename, last_png_generated, last_png_filename
+    global last_pdf_bytes, last_pdf_filename, last_png_bytes, last_png_filename
 
     engine = get_db_engine()
     role = session.get("user_role")
@@ -82,21 +83,22 @@ def reporting():
             title = f"{df['CompetencyDesc'].iloc[0]} ({df['YearGroupDesc'].iloc[0]})"
             fig = make_comp_figure(df, title)
 
-        # Generate image
+        # Save PNG to bytes
         png_buf = io.BytesIO()
         plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
         fig.savefig(png_buf, format="png")
         png_buf.seek(0)
-        img_data = base64.b64encode(png_buf.read()).decode("utf-8")
-        last_png_generated = io.BytesIO(png_buf.getvalue())
+        last_png_bytes = png_buf.getvalue()
         last_png_filename = f"{report_type}_Report_{term}_{year}.png"
+        img_data = base64.b64encode(last_png_bytes).decode("utf-8")
 
-        # Generate PDF
+        # Save PDF to bytes
         pdf_buf = io.BytesIO()
         fig.savefig(pdf_buf, format="pdf")
         pdf_buf.seek(0)
-        last_pdf_generated = pdf_buf
+        last_pdf_bytes = pdf_buf.getvalue()
         last_pdf_filename = f"{report_type}_Report_{term}_{year}.pdf"
+
         plt.close(fig)
 
     return render_template("reporting.html",
@@ -114,19 +116,15 @@ def reporting():
 @report_bp.route('/reporting/download_pdf')
 @login_required
 def download_pdf():
-    if not last_pdf_generated:
+    if not last_pdf_bytes:
         flash("No PDF report has been generated yet.", "warning")
         return redirect(url_for("report_bp.reporting"))
-
-    last_pdf_generated.seek(0)
-    return send_file(last_pdf_generated, download_name=last_pdf_filename, as_attachment=True, mimetype='application/pdf')
+    return send_file(io.BytesIO(last_pdf_bytes), download_name=last_pdf_filename, as_attachment=True, mimetype='application/pdf')
 
 @report_bp.route('/reporting/download_png')
 @login_required
 def download_png():
-    if not last_png_generated:
+    if not last_png_bytes:
         flash("No PNG report has been generated yet.", "warning")
         return redirect(url_for("report_bp.reporting"))
-
-    last_png_generated.seek(0)
-    return send_file(last_png_generated, download_name=last_png_filename, as_attachment=True, mimetype='image/png')
+    return send_file(io.BytesIO(last_png_bytes), download_name=last_png_filename, as_attachment=True, mimetype='image/png')
