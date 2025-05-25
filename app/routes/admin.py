@@ -1,6 +1,6 @@
 # app/routes/admin.py
 
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash
+from flask import Blueprint, render_template, request, redirect, url_for, session, flash, Response
 from werkzeug.security import generate_password_hash
 from app.utils.database import get_db_engine
 from app.routes.auth import login_required
@@ -203,3 +203,17 @@ def school():
         return redirect(url_for("home"))
     return render_template("school.html")
 
+
+@admin_bp.route('/logo/<logo_type>/<int:logo_id>')
+def serve_logo(logo_type, logo_id):
+    engine = get_db_engine()
+    with engine.connect() as conn:
+        result = conn.execute(text("""
+            SELECT ImageData, ContentType
+            FROM Logo
+            WHERE Type = :type AND ID = :id
+        """), {"type": logo_type.upper(), "id": logo_id}).first()
+
+    if result:
+        return Response(result[0], mimetype=result[1])
+    return '', 404

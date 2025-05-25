@@ -126,24 +126,36 @@
       <!-- FUNDER PROFILE CARD -->
       <div class="col-md-6">
         <div class="card shadow p-4 h-100" style="background-color: rgba(255, 255, 255, 0.95)">
+          {% if user.role == "FUN" and user.user_id %}
+          <div class="text-center mb-3">
+            <img src="{{ url_for('admin_bp.serve_logo', logo_type='FUN', logo_id=user.user_id) }}"
+     alt="Funder Logo"
+     style="max-height: 100px; object-fit: contain;" />
+
+          </div>
+          {% endif %}
           <h4 class="mb-3 text-center"><i class="bi bi-building-gear me-2"></i>Funder Profile</h4>
           <p><strong>Funder Name:</strong> {{ user.desc }}</p>
 
           {% if user.admin == 1 %}
           <div>
-            <div class="mb-3">
-              <label for="funder_address_input" class="form-label">Address</label>
-              <input type="text" class="form-control" id="funder_address_input" name="funder_address" value="{{ user.funder_address }}" readonly oninput="updateMap('funder')" />
-            </div>
-            <div class="mb-3">
-              <label for="funder_lat_input" class="form-label">Latitude</label>
-              <input type="text" class="form-control" id="funder_lat_input" name="funder_lat" value="{{ user.funder_lat }}" readonly oninput="updateMap('funder')" />
-            </div>
-            <div class="mb-3">
-              <label for="funder_lon_input" class="form-label">Longitude</label>
-              <input type="text" class="form-control" id="funder_lon_input" name="funder_lon" value="{{ user.funder_lon }}" readonly oninput="updateMap('funder')" />
-            </div>
-          </div>
+  <div class="mb-3">
+    <label for="funder_address_input" class="form-label">Address</label>
+    <input type="text" class="form-control" id="funder_address_input" name="funder_address" value="{{ user.funder_address }}" readonly oninput="updateMap('funder')" />
+  </div>
+
+  <div class="row">
+    <div class="mb-3 col-md-6">
+      <label for="funder_lat_input" class="form-label">Latitude</label>
+      <input type="text" class="form-control" id="funder_lat_input" name="funder_lat" value="{{ user.funder_lat }}" readonly oninput="updateMap('funder')" />
+    </div>
+    <div class="mb-3 col-md-6">
+      <label for="funder_lon_input" class="form-label">Longitude</label>
+      <input type="text" class="form-control" id="funder_lon_input" name="funder_lon" value="{{ user.funder_lon }}" readonly oninput="updateMap('funder')" />
+    </div>
+  </div>
+</div>
+
           <div class="text-center">
             <button type="button" class="btn btn-outline-primary" id="editFunderBtn" onclick="toggleFunderEdit(true)">Edit Funder</button>
             <button type="submit" class="btn btn-success d-none" id="saveFunderBtn">Save</button>
