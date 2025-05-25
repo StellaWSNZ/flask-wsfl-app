@@ -18,6 +18,7 @@ class_bp = Blueprint("class_bp", __name__)
 @class_bp.route('/view_class/<int:class_id>/<int:term>/<int:year>')
 @login_required
 def view_class(class_id, term, year):
+    filter_type = request.args.get("filter", "all")  # ← add this
     engine = get_db_engine()
     with engine.connect() as conn:
         scenario_result = conn.execute(text("SELECT ScenarioID, HTMLScenario FROM Scenario"))
@@ -57,7 +58,10 @@ def view_class(class_id, term, year):
             return redirect(url_for("class_bp.funder_classes"))
 
         comp_result = conn.execute(text("EXEC GetRelevantCompetencies :CalendarYear, :Term"), {"CalendarYear": year, "Term": term})
+        
         comp_df = pd.DataFrame(comp_result.fetchall(), columns=comp_result.keys())
+        if filter_type == "water":
+            comp_df = comp_df[comp_df["WaterBased"] == 1]
         comp_df["label"] = comp_df["CompetencyDesc"] + "<br> (" + comp_df["YearGroupDesc"] + ")"
         comp_df["col_order"] = comp_df["YearGroupID"].astype(str).str.zfill(2) + "-" + comp_df["CompetencyID"].astype(str).str.zfill(4)
         comp_df = comp_df.sort_values("col_order")

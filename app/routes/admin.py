@@ -6,6 +6,7 @@ from app.utils.database import get_db_engine
 from app.routes.auth import login_required
 import bcrypt
 from sqlalchemy import text
+from datetime import datetime
 
 admin_bp = Blueprint("admin_bp", __name__)
 
@@ -73,10 +74,18 @@ def create_user():
 
     return render_template("create_user.html", funders=funders, schools=schools)
 
+from datetime import datetime
+from flask import session, render_template
+from sqlalchemy import text
 
 @admin_bp.route("/profile")
 @login_required
 def profile():
+    try:
+        formatted_login = datetime.fromisoformat(session["last_login_nzt"]).strftime('%A, %d %B %Y, %I:%M %p')
+    except (KeyError, ValueError, TypeError):
+        formatted_login = "Unknown"
+
     user_info = {
         "email": session.get("user_email"),
         "role": session.get("user_role"),
@@ -84,7 +93,7 @@ def profile():
         "firstname": session.get("user_firstname"),
         "surname": session.get("user_surname"),
         "desc": session.get("desc"),
-        "last_login": session.get("last_login_nzt"),
+        "last_login": formatted_login,
         "school_address": session.get("school_address"),
         "school_town": session.get("school_town"),
         "school_lat": session.get("school_lat"),
@@ -95,12 +104,9 @@ def profile():
         "funder_lat": session.get("funder_lat"),
         "funder_lon": session.get("funder_lon"),
         "funder_address": session.get("funder_address")
-
-
-
     }
 
-    # ✅ Load dropdown options
+    # Load dropdown options
     engine = get_db_engine()
     with engine.connect() as conn:
         result = conn.execute(text("EXEC FlaskHelperFunctions 'SchoolTypeDropdown'"))
@@ -108,6 +114,7 @@ def profile():
 
     return render_template("profile.html", user=user_info, school_type_options=school_type_options)
 
+from flask import request, redirect, url_for, flash
 
 @admin_bp.route("/update_profile", methods=["POST"])
 @login_required
@@ -123,7 +130,6 @@ def update_profile():
     school_town = request.form.get("school_town", "").strip()
     school_type = request.form.get("school_type", "").strip()
 
-
     engine = get_db_engine()
     with engine.begin() as conn:
         # Update user info
@@ -138,7 +144,7 @@ def update_profile():
             "original_email": original_email
         })
 
-        # Update school info if applicable
+        # Update school info if MOE admin
         if all([school_address, school_town, school_type]) and session.get("user_admin") == 1 and session.get("user_role") == "MOE":
             school_id = session.get("user_id")
             if school_id:
@@ -153,7 +159,7 @@ def update_profile():
                     "school_id": school_id
                 })
 
-        # Update funder info if applicable
+        # Update funder info if FUN admin
         if all([funder_address, funder_lat, funder_lon]) and session.get("user_admin") == 1 and session.get("user_role") == "FUN":
             funder_id = session.get("user_id")
             if funder_id:
@@ -189,9 +195,10 @@ def update_profile():
         session["school_lat"] = getattr(updated_info, "Latitude", None)
         session["school_lon"] = getattr(updated_info, "Longitude", None)
         session["school_type"] = getattr(updated_info, "SchoolTypeID", None)
-        session["funder_address"] = getattr(updated_info, "Funder_Address", None),
-        session["funder_lat"] = getattr(updated_info, "Funder_Latitude", None),
-        session["funder_lon"]= getattr(updated_info, "Funder_Longitude", None)
+        session["funder_address"] = getattr(updated_info, "Funder_Address", None)
+        session["funder_lat"] = getattr(updated_info, "Funder_Latitude", None)
+        session["funder_lon"] = getattr(updated_info, "Funder_Longitude", None)
+
     flash("Profile updated successfully!", "success")
     return redirect(url_for("admin_bp.profile"))
 

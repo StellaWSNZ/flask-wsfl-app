@@ -16,15 +16,17 @@
             <i class="bi bi-person-circle me-2"></i>Your Profile
           </h4>
 
-          
-            <div class="mb-3">
-  <label for="firstname_input" class="form-label">First Name</label>
-  <input type="text" class="form-control" id="firstname_input" name="firstname" value="{{ user.firstname }}" readonly />
+          <div class="row">
+  <div class="mb-3 col-md-6">
+    <label for="firstname_input" class="form-label">First Name</label>
+    <input type="text" class="form-control" id="firstname_input" name="firstname" value="{{ user.firstname }}" readonly />
+  </div>
+  <div class="mb-3 col-md-6">
+    <label for="surname_input" class="form-label">Last Name</label>
+    <input type="text" class="form-control" id="surname_input" name="surname" value="{{ user.surname }}" readonly />
+  </div>
 </div>
-<div class="mb-3">
-  <label for="surname_input" class="form-label">Last Name</label>
-  <input type="text" class="form-control" id="surname_input" name="surname" value="{{ user.surname }}" readonly />
-</div>
+
 <div class="mb-3">
   <label for="email_input" class="form-label">Email</label>
   <input type="email" class="form-control" id="email_input" name="email" value="{{ user.email }}" readonly />
@@ -44,17 +46,18 @@
   <input type="text" class="form-control" value="{{ user.desc }}" readonly disabled />
 </div>
 {% endif %}
-<div class="mb-3">
-  <label class="form-label">Last Login</label>
-  <input type="text" class="form-control" value="{{ user.last_login }}" readonly disabled />
+<div class="row align-items-end">
+  <div class="mb-3 col-md-6">
+    <label class="form-label">Last Login</label>
+    <input type="text" class="form-control" value="{{ user.last_login }}" readonly disabled />
+  </div>
+
+  <div class="mb-3 col-md-6 text-end d-flex justify-content-end gap-2">
+    <button type="button" class="btn btn-outline-primary" id="editUserBtn" onclick="toggleUserEdit(true)">Edit Profile</button>
+    <button type="submit" class="btn btn-success d-none" id="saveUserBtn">Save</button>
+    <button type="button" class="btn btn-secondary d-none" id="exitUserBtn" onclick="toggleUserEdit(false)">Cancel</button>
+  </div>
 </div>
-
-
-          <div class="mt-3 text-center">
-            <button type="button" class="btn btn-outline-primary" id="editUserBtn" onclick="toggleUserEdit(true)">Edit Profile</button>
-            <button type="submit" class="btn btn-success d-none" id="saveUserBtn">Save</button>
-            <button type="button" class="btn btn-secondary d-none" id="exitUserBtn" onclick="toggleUserEdit(false)">Cancel</button>
-          </div>
         </div>
       </div>
 
@@ -86,23 +89,22 @@
                 {% endfor %}
               </select>
             </div>
-            <div class="row">
-  <div class="mb-3 col-md-6">
-    <label for="school_lat_input" class="form-label">Latitude</label>
-    <input type="text" class="form-control" id="school_lat_input" name="school_lat" value="{{ user.school_lat }}" readonly oninput="updateMap('school')" />
-  </div>
-  <div class="mb-3 col-md-6">
-    <label for="school_lon_input" class="form-label">Longitude</label>
-    <input type="text" class="form-control" id="school_lon_input" name="school_lon" value="{{ user.school_lon }}" readonly oninput="updateMap('school')" />
-  </div>
-</div>
+            <div class="row align-items-end">
+              <div class="mb-3 col-md-4">
+                <label for="school_lat_input" class="form-label">Latitude</label>
+                <input type="text" class="form-control" id="school_lat_input" name="school_lat" value="{{ user.school_lat }}" readonly oninput="updateMap('school')" />
+              </div>
+              <div class="mb-3 col-md-4">
+                <label for="school_lon_input" class="form-label">Longitude</label>
+                <input type="text" class="form-control" id="school_lon_input" name="school_lon" value="{{ user.school_lon }}" readonly oninput="updateMap('school')" />
+              </div>
+              <div class="mb-3 col-md-4 d-flex gap-2 justify-content-end">
+                <button type="button" class="btn btn-outline-primary" id="editSchoolBtn" onclick="toggleSchoolEdit(true)">Edit School</button>
+                <button type="submit" class="btn btn-success d-none" id="saveSchoolBtn">Save</button>
+                <button type="button" class="btn btn-secondary d-none" id="exitSchoolBtn" onclick="toggleSchoolEdit(false)">Cancel</button>
+              </div>
+            </div>
 
-          </div>
-          <div class="text-center">
-            <button type="button" class="btn btn-outline-primary" id="editSchoolBtn" onclick="toggleSchoolEdit(true)">Edit School</button>
-            <button type="submit" class="btn btn-success d-none" id="saveSchoolBtn">Save</button>
-            <button type="button" class="btn btn-secondary d-none" id="exitSchoolBtn" onclick="toggleSchoolEdit(false)">Cancel</button>
-          </div>
           {% else %}
           <p><strong>Address:</strong> {{ user.school_address }}</p>
           <p><strong>Town/City:</strong> {{ user.school_town }}</p>
@@ -143,24 +145,21 @@
     <label for="funder_address_input" class="form-label">Address</label>
     <input type="text" class="form-control" id="funder_address_input" name="funder_address" value="{{ user.funder_address }}" readonly oninput="updateMap('funder')" />
   </div>
-
-  <div class="row">
-    <div class="mb-3 col-md-6">
-      <label for="funder_lat_input" class="form-label">Latitude</label>
-      <input type="text" class="form-control" id="funder_lat_input" name="funder_lat" value="{{ user.funder_lat }}" readonly oninput="updateMap('funder')" />
-    </div>
-    <div class="mb-3 col-md-6">
-      <label for="funder_lon_input" class="form-label">Longitude</label>
-      <input type="text" class="form-control" id="funder_lon_input" name="funder_lon" value="{{ user.funder_lon }}" readonly oninput="updateMap('funder')" />
-    </div>
+<div class="row align-items-end">
+  <div class="mb-3 col-md-4">
+    <label for="funder_lat_input" class="form-label">Latitude</label>
+    <input type="text" class="form-control" id="funder_lat_input" name="funder_lat" value="{{ user.funder_lat }}" readonly oninput="updateMap('funder')" />
+  </div>
+  <div class="mb-3 col-md-4">
+    <label for="funder_lon_input" class="form-label">Longitude</label>
+    <input type="text" class="form-control" id="funder_lon_input" name="funder_lon" value="{{ user.funder_lon }}" readonly oninput="updateMap('funder')" />
+  </div>
+  <div class="mb-3 col-md-4 d-flex gap-2">
+    <button type="button" class="btn btn-outline-primary me-2" id="editFunderBtn" onclick="toggleFunderEdit(true)">Edit Funder</button>
+    <button type="submit" class="btn btn-success d-none" id="saveFunderBtn">Save</button>
+    <button type="button" class="btn btn-secondary d-none" id="exitFunderBtn" onclick="toggleFunderEdit(false)">Cancel</button>
   </div>
 </div>
-
-          <div class="text-center">
-            <button type="button" class="btn btn-outline-primary" id="editFunderBtn" onclick="toggleFunderEdit(true)">Edit Funder</button>
-            <button type="submit" class="btn btn-success d-none" id="saveFunderBtn">Save</button>
-            <button type="button" class="btn btn-secondary d-none" id="exitFunderBtn" onclick="toggleFunderEdit(false)">Cancel</button>
-          </div>
           {% else %}
           <p><strong>Address:</strong> {{ user.funder_address }}</p>
           <p><strong>Latitude:</strong> {{ user.funder_lat }}</p>

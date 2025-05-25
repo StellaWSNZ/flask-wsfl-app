@@ -314,10 +314,54 @@ def classlistdownload():
 @upload_bp.route('/submitclass', methods=['POST'])
 @login_required
 def submitclass():
-    print("✅ Class submitted successfully!")  # For now
-    flash("Class submitted successfully!", "success")
+    engine = get_db_engine()
+    try:
+        funder_id = session.get("selected_funder")
+        moe_number = session.get("user_id")
+        term = session.get("selected_term")
+        year = session.get("selected_year")
+        teacher = session.get("selected_teacher")
+        classname = session.get("selected_class")
+        preview_data = session.get("preview_data")
+
+        if not all([funder_id, moe_number, term, year, teacher, classname, preview_data]):
+            flash("Missing required data to submit class list.", "danger")
+            return redirect(url_for("classlistupload"))
+
+        input_json = json.dumps(preview_data)
+
+        with engine.begin() as conn:
+            conn.execute(
+                text("""
+                    EXEC FlaskInsertClassList 
+                        @FunderId = :FunderId,
+                        @MOENumber = :MOENumber,
+                        @Term = :Term,
+                        @CalendarYear = :Year,
+                        @TeacherName = :Teacher,
+                        @ClassName = :ClassName,
+                        @InputJSON = :InputJSON
+                """),
+                {
+                    "FunderId": funder_id,
+                    "MOENumber": moe_number,
+                    "Term": term,
+                    "Year": year,
+                    "Teacher": teacher,
+                    "ClassName": classname,
+                    "InputJSON": input_json
+                }
+            )
+
+        flash("✅ Class submitted successfully!", "success")
+
+    except Exception as e:
+        flash(f"❌ Error submitting class: {str(e)}", "danger")
+
     return redirect(url_for("classlistupload"))
 
+    # need to run EXEC FlaskInsertClassList
+    # with params @FunderId, @MOENumber, @Term, @CalendarYear, @TeacherName, @ClassName, @InputJSON
 @upload_bp.route("/progress")
 @login_required
 def get_progress():

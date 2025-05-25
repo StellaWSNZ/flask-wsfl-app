@@ -56,6 +56,12 @@
              View Students
           </a>
         </td>
+        <td>
+           <a class="btn btn-sm btn-info"
+     href="{{ url_for('class_bp.view_class', class_id=cls.ClassID, term=request.form['term'], year=request.form['calendaryear'], filter='water') }}">
+     View Water-Based Only
+  </a>
+         </td> 
       </tr>
       {% endfor %}
     </tbody>

@@ -70,11 +70,17 @@
             <td>{{ cls.ClassName }}</td>
             <td>{{ cls.TeacherName }}</td>
             <td>
-              <a class="btn btn-sm btn-success"
-                 href="{{ url_for('class_bp.view_class', class_id=cls.ClassID, term=request.form['term'], year=request.form['calendaryear']) }}">
-                View Students
-              </a>
+                <a class="btn btn-sm btn-success"
+     href="{{ url_for('class_bp.view_class', class_id=cls.ClassID, term=request.form['term'], year=request.form['calendaryear'], filter='all') }}">
+    View All Competencies
+  </a>
             </td>
+            <td>
+                <a class="btn btn-sm btn-info"
+     href="{{ url_for('class_bp.view_class', class_id=cls.ClassID, term=request.form['term'], year=request.form['calendaryear'], filter='water') }}">
+    View Water-Based
+  </a>
+              </td>
           </tr>
           {% endfor %}
         </tbody>
