@@ -115,8 +115,33 @@ def view_class(class_id, term, year):
             class_name=class_name,
             teacher_name=teacher_name,
             school_name=school_name,
-            class_title=title_string
+            class_title=title_string,
+            edit = session.get("user_admin")
         )
+        
+@class_bp.route("/update_class_info", methods=["POST"])
+@login_required
+def update_class_info():
+    if session.get("user_admin") != 1:
+        return jsonify(success=False, error="Unauthorized"), 403
+
+    data = request.get_json()
+    class_id = data.get("class_id")
+    class_name = data.get("class_name", "").strip()
+    teacher_name = data.get("teacher_name", "").strip()
+
+    engine = get_db_engine()
+    with engine.begin() as conn:
+        conn.execute(text("""
+            UPDATE Class
+            SET ClassName = :class_name, TeacherName = :teacher_name
+            WHERE ClassID = :class_id
+        """), {"class_name": class_name, "teacher_name": teacher_name, "class_id": class_id})
+
+    return jsonify(success=True)
+
+
+
 @class_bp.route('/funder_classes', methods=['GET', 'POST'])
 @login_required
 def funder_classes():

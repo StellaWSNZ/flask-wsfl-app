@@ -37,40 +37,33 @@
 {% if classes %}
 <div class="container mt-4">
   <h4 class="text-center mb-3">Classes at Your School</h4>
-  <table class="table table-bordered table-sm text-center">
-    <thead>
-      <tr>
-        <th>Class Name</th>
-        <th>Teacher</th>
-        <th>Action</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for cls in classes %}
-      <tr>
-        <td>{{ cls.ClassName }}</td>
-        <td>{{ cls.TeacherName }}</td>
-        <td>
-          <a class="btn btn-sm btn-success"
-             href="{{ url_for('class_bp.view_class', class_id=cls.ClassID, term=request.form['term'], year=request.form['calendaryear']) }}">
-             View Students
-          </a>
-        </td>
-        <td>
-           <a class="btn btn-sm btn-info"
-     href="{{ url_for('class_bp.view_class', class_id=cls.ClassID, term=request.form['term'], year=request.form['calendaryear'], filter='water') }}">
-     View Water-Based Only
-  </a>
-         </td> 
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+<table class="table table-sm table-borderless">
+  <tbody>
+    {% for cls in classes %}
+    <tr>
+      <td class="text-start"><strong>Class Name:</strong> {{ cls.ClassName }}</td>
+      <td class="text-start"><strong>Teacher Name:</strong> {{ cls.TeacherName }}</td>
+      <td>
+        <a class="btn btn-sm btn-success"
+           href="{{ url_for('class_bp.view_class', class_id=cls.ClassID, term=request.form['term'], year=request.form['calendaryear']) }}">
+    View All Competencies
+        </a>
+      </td>
+      <td>
+        <a class="btn btn-sm btn-info"
+           href="{{ url_for('class_bp.view_class', class_id=cls.ClassID, term=request.form['term'], year=request.form['calendaryear'], filter='water') }}">
+           View Water-Based Competencies
+        </a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
 </div>
 {% endif %}
 
 {% if suggestions and not classes %}
-<div class="container mt-4">
+<div class="container-sm mt-4">
   <div class="alert alert-warning">
     <strong>No classes found.</strong><br>
     Your school has classes from:

@@ -2,11 +2,23 @@
 {% block title %} Student Competencies {% endblock %}
 {% block content %}
 <div class="container text-center my-4">
-  <div class="alert alert-secondary d-inline-block px-4 py-3" role="alert">
-    <strong>Class Name:</strong> {{ class_name }} |
-    <strong>Teacher:</strong> {{ teacher_name }} |
+  <div class="alert alert-secondary d-inline-block px-4 py-3" role="alert" id="class-info-display">
+    <strong>Class Name:</strong> <span id="class-name-text">{{ class_name }}</span> |
+    <strong>Teacher:</strong> <span id="teacher-name-text">{{ teacher_name }}</span> |
     <strong>School:</strong> {{ school_name }}
+    {% if edit == 1 %}
+    <button type="button" class="btn btn-sm btn-outline-primary ms-2" onclick="toggleEditMode(true)">Edit</button>
+    {% endif %}
   </div>
+
+  {% if edit == 1 %}
+  <div class="alert alert-secondary d-none d-inline-block px-4 py-3" id="class-info-edit">
+    <input type="text" id="edit-class-name" value="{{ class_name }}" class="form-control d-inline-block w-auto me-2" />
+    <input type="text" id="edit-teacher-name" value="{{ teacher_name }}" class="form-control d-inline-block w-auto me-2" />
+    <button type="button" class="btn btn-sm btn-success" onclick="submitClassInfo({{ request.view_args.class_id }})">Save</button>
+    <button type="button" class="btn btn-sm btn-secondary" onclick="toggleEditMode(false)">Cancel</button>
+  </div>
+  {% endif %}
 </div>
 
 <style>
@@ -165,6 +177,37 @@
 <script>
 
   
+
+
+function toggleEditMode(editing) {
+  document.getElementById("class-info-display").classList.toggle("d-none", editing);
+  document.getElementById("class-info-edit").classList.toggle("d-none", !editing);
+}
+
+function submitClassInfo(classId) {
+  const className = document.getElementById("edit-class-name").value.trim();
+  const teacherName = document.getElementById("edit-teacher-name").value.trim();
+
+  fetch("/update_class_info", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ class_id: classId, class_name: className, teacher_name: teacherName })
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.success) {
+      document.getElementById("class-name-text").textContent = className;
+      document.getElementById("teacher-name-text").textContent = teacherName;
+      toggleEditMode(false);
+    } else {
+      alert("❌ Failed to update class info");
+    }
+  })
+  .catch(err => {
+    console.error("Update failed:", err);
+    alert("❌ An error occurred.");
+  });
+}
 
 
   document.addEventListener("DOMContentLoaded", function () {

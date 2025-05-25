@@ -56,34 +56,29 @@
   <h4 class="text-center mb-3">Select a Class</h4>
   <div class="row justify-content-center">
     <div class="col-md-8">
-      <table class="table table-sm table-bordered text-center">
-        <thead>
-          <tr>
-            <th>Class Name</th>
-            <th>Teacher</th>
-            <th>Action</th>
-          </tr>
-        </thead>
+<table class="table table-sm table-borderless">
+        
         <tbody>
-          {% for cls in classes %}
-          <tr>
-            <td>{{ cls.ClassName }}</td>
-            <td>{{ cls.TeacherName }}</td>
-            <td>
-                <a class="btn btn-sm btn-success"
-     href="{{ url_for('class_bp.view_class', class_id=cls.ClassID, term=request.form['term'], year=request.form['calendaryear'], filter='all') }}">
-    View All Competencies
-  </a>
-            </td>
-            <td>
-                <a class="btn btn-sm btn-info"
-     href="{{ url_for('class_bp.view_class', class_id=cls.ClassID, term=request.form['term'], year=request.form['calendaryear'], filter='water') }}">
-    View Water-Based
-  </a>
-              </td>
-          </tr>
-          {% endfor %}
-        </tbody>
+  {% for cls in classes %}
+  <tr class="align-middle">
+    <td class="align-middle"><strong>Class Name:</strong> {{ cls.ClassName }}</td>
+    <td class="align-middle"><strong>Teacher Name:</strong> {{ cls.TeacherName }}</td>
+    <td class="align-middle">
+      <a class="btn btn-sm btn-outline-primary"
+         href="{{ url_for('class_bp.view_class', class_id=cls.ClassID, term=request.form['term'], year=request.form['calendaryear'], filter='all') }}">
+        View All Competencies
+      </a>
+    </td>
+    <td class="align-middle">
+      <a class="btn btn-sm btn-outline-secondary"
+         href="{{ url_for('class_bp.view_class', class_id=cls.ClassID, term=request.form['term'], year=request.form['calendaryear'], filter='water') }}">
+        View Water-Based Competencies
+      </a>
+    </td>
+  </tr>
+  {% endfor %}
+</tbody>
+
       </table>
     </div>
   </div>

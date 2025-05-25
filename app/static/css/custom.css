@@ -48,6 +48,22 @@ body {
   color: #fff !important;
 }
 
+
+.btn-outline-secondary {
+  color: var(--bs-secondary) !important;
+  border: 2px solid var(--bs-secondary) !important;
+  background-color: transparent !important;
+  font-weight: 600 !important;
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s !important;
+}
+
+.btn-outline-secondary:hover {
+  background-color: var(--bs-secondary) !important;
+  color: #fff !important;
+  border-color: var(--bs-secondary) !important;
+}
+
+
 .custom-navbar {
   background-color: #1a427d !important;
 }
