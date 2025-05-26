@@ -29,7 +29,7 @@ def create_user():
 
     providers = []
     schools = []
-    funder_name = None
+    funder = None
     only_own_staff_or_empty = False
 
     with engine.connect() as conn:
