@@ -99,7 +99,17 @@ def create_user():
                         invited_by_name=f"{session.get('user_firstname')} {session.get('user_surname')}",
                         inviter_desc=user_desc
                     )
-
+    if user_role == "MOE":
+        with engine.begin() as conn:
+        # Just one school, their own
+            schools = conn.execute(text("""
+                SELECT MOENumber AS id, SchoolName AS description
+                FROM MOE_SchoolDirectory
+                WHERE MOENumber = :moe
+            """), {"moe": user_id}).fetchall()
+            print(schools)
+    print(user_role)
+    print(schools)
     return render_template("create_user.html",
         user_role=user_role,
         name=session.get("desc"),
