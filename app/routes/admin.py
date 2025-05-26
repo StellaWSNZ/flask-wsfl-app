@@ -11,6 +11,10 @@ from app.utils.email import send_account_setup_email
 from app.extensions import mail
 admin_bp = Blueprint("admin_bp", __name__)
 # --- In your Flask route file ---
+from app.utils.email import send_account_setup_email  # if not already
+from app.utils.database import get_db_engine
+from sqlalchemy import text
+
 @admin_bp.route('/create_user', methods=['GET', 'POST'])
 @login_required
 def create_user():
@@ -19,62 +23,91 @@ def create_user():
         return redirect(url_for("home_bp.home"))
 
     engine = get_db_engine()
-    user_created = False
     user_role = session.get("user_role")
     user_id = session.get("user_id")
+    user_desc = session.get("desc")
+
+    providers = []
+    schools = []
+    funder_name = None
+    only_own_staff_or_empty = False
+
+    with engine.connect() as conn:
+        if user_role == "FUN":
+            providers = conn.execute(text("""
+                SELECT ProviderID AS id, Description FROM Provider WHERE FunderID = :fid
+            """), {"fid": user_id}).fetchall()
+
+            schools = conn.execute(text("""
+                SELECT MOENumber AS id, SchoolName AS description
+                FROM MOE_SchoolDirectory
+                WHERE EducationRegionID IN (
+                    SELECT EducationRegionID FROM FunderEducationRegion WHERE FunderID = :fid
+                )
+            """), {"fid": user_id}).fetchall()
+
+            funder = conn.execute(text("""
+                SELECT FunderID as id, Description FROM Funder WHERE FunderID = :fid
+            """), {"fid": user_id}).fetchone()
+
+
+
+            only_own_staff_or_empty = (
+                len(providers) == 0 or
+                (len(providers) == 1 and providers[0].Description.strip().lower() == "own staff")
+            )
 
     if request.method == "POST":
         email = request.form.get("email")
-        # password = request.form.get("password")
         firstname = request.form.get("firstname")
         surname = request.form.get("surname")
         send_email = request.form.get("send_email") == "on"
         admin = 1 if request.form.get("admin") == "1" else 0
-        hashed_pw = None
+        hashed_pw = None  # User will set their password later
+        selected_role = request.form.get("selected_role")
+        selected_id = request.form.get("selected_id")
 
         with engine.begin() as conn:
-            existing = conn.execute(
-                text("SELECT 1 FROM FlaskLogin WHERE Email = :email"),
-                {"email": email}
-            ).fetchone()
+            existing = conn.execute(text(
+                "SELECT 1 FROM FlaskLogin WHERE Email = :email"
+            ), {"email": email}).fetchone()
 
             if existing:
                 flash("⚠️ Email already exists.", "warning")
             else:
-                if user_role == "MOE":
-                    role = "MOE"
-                    conn.execute(
-                        text("""
-                            INSERT INTO FlaskLogin (Email, HashPassword, Role, ID, FirstName, Surname, Admin)
-                            VALUES (:email, :hash, :role, :user_id, :firstname, :surname, :admin)
-                        """),
-                        {
-                            "email": email,
-                            "hash": hashed_pw,
-                            "role": role,
-                            "user_id": user_id,
-                            "firstname": firstname,
-                            "surname": surname,
-                            "admin": admin
-                        }
+                conn.execute(text("""
+                    INSERT INTO FlaskLogin (Email, HashPassword, Role, ID, FirstName, Surname, Admin)
+                    VALUES (:email, :hash, :role, :id, :firstname, :surname, :admin)
+                """), {
+                    "email": email,
+                    "hash": hashed_pw,
+                    "role": selected_role,
+                    "id": selected_id,
+                    "firstname": firstname,
+                    "surname": surname,
+                    "admin": admin
+                })
+                flash(f"✅ User {email} created.", "success")
+
+                if send_email:
+                    send_account_setup_email(
+                        mail=mail,
+                        recipient_email=email,
+                        first_name=firstname,
+                        role=selected_role,
+                        is_admin=admin,
+                        invited_by_name=f"{session.get('user_firstname')} {session.get('user_surname')}",
+                        inviter_desc=user_desc
                     )
-                    user_created = True
-                    flash(f"✅ User {email} created.", "success")
-                    if send_email:
-                        invited_by_name = f"{session.get('user_firstname')} {session.get('user_surname')}"
-                        inviter_desc = session.get("desc")
 
-                        send_account_setup_email(
-                            mail=mail,
-                            recipient_email=email,
-                            first_name=firstname,
-                            role=role,
-                            is_admin=admin,
-                            invited_by_name=invited_by_name,
-                            inviter_desc=inviter_desc
-                        )
-
-    return render_template("create_user.html", user_role=user_role, school_name = session.get("desc"))
+    return render_template("create_user.html",
+        user_role=user_role,
+        name=session.get("desc"),
+        funder=funder,
+        providers=providers,
+        schools=schools,
+        only_own_staff_or_empty=only_own_staff_or_empty
+    )
 
 from datetime import datetime
 from flask import session, render_template
