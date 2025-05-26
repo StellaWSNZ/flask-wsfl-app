@@ -13,7 +13,9 @@
 
   {% if edit == 1 %}
   <div class="alert alert-secondary d-none d-inline-block px-4 py-3" id="class-info-edit">
+    <strong>Class Name:</strong>
     <input type="text" id="edit-class-name" value="{{ class_name }}" class="form-control d-inline-block w-auto me-2" />
+    <strong>Teacher Name:</strong>
     <input type="text" id="edit-teacher-name" value="{{ teacher_name }}" class="form-control d-inline-block w-auto me-2" />
     <button type="button" class="btn btn-sm btn-success" onclick="submitClassInfo({{ request.view_args.class_id }})">Save</button>
     <button type="button" class="btn btn-sm btn-secondary" onclick="toggleEditMode(false)">Cancel</button>
@@ -150,10 +152,10 @@
         data-header="{{ col }}"
         data-scenario-index="{{ 1 if 'Scenario One' in col else 2 }}">
        {% for scenario in scenarios %}
-     <option value="{{ scenario.ScenarioID }}" {% if val == scenario.HTMLScenario %}selected{% endif %}>
-      {{ scenario.HTMLScenario | safe }}
-    </option>
-  {% endfor %}
+          <option value="{{ scenario.ScenarioID }}" {% if val == scenario.HTMLScenario %}selected{% endif %}>
+            {{ scenario.HTMLScenario | safe }}
+          </option>
+        {% endfor %}
       </select>
 
 
