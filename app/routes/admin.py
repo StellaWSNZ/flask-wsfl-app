@@ -7,42 +7,30 @@ from app.routes.auth import login_required
 import bcrypt
 from sqlalchemy import text
 from datetime import datetime
-
+from app.utils.email import send_account_setup_email
+from app.extensions import mail
 admin_bp = Blueprint("admin_bp", __name__)
-
+# --- In your Flask route file ---
 @admin_bp.route('/create_user', methods=['GET', 'POST'])
 @login_required
 def create_user():
-    if session.get("user_role") != "ADM":
+    if not session.get("user_admin"):
         flash("Unauthorized access", "danger")
-        return redirect(url_for("auth_bp.login"))
+        return redirect(url_for("home_bp.home"))
 
     engine = get_db_engine()
-
-    funders = []
-    schools = []
     user_created = False
+    user_role = session.get("user_role")
+    user_id = session.get("user_id")
 
-    with engine.connect() as conn:
-        with engine.connect() as conn:
-            if session.get("user_role") == "ADM":
-                result = conn.execute(text("EXEC FlaskHelperFunctions :Request"), {"Request": "FunderDropdown"})
-                funders = [row.Description for row in result.fetchall()]  # force fetchall
-                result.close()  # ensure it is fully consumed
-
-            result = conn.execute(text("EXEC FlaskHelperFunctions :Request"), {"Request": "CompetencyDropdown"})
-            competencies = [row.Competency for row in result.fetchall()]
-            result.close()
     if request.method == "POST":
         email = request.form.get("email")
-        password = request.form.get("password")
-        role = request.form.get("role")
+        # password = request.form.get("password")
         firstname = request.form.get("firstname")
         surname = request.form.get("surname")
-        selected_id = request.form.get("selected_id")
+        send_email = request.form.get("send_email") == "on"
         admin = 1 if request.form.get("admin") == "1" else 0
-
-        hashed_pw = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+        hashed_pw = None
 
         with engine.begin() as conn:
             existing = conn.execute(
@@ -53,26 +41,40 @@ def create_user():
             if existing:
                 flash("⚠️ Email already exists.", "warning")
             else:
-                user_id = selected_id if role != "ADM" else None
-                conn.execute(
-                    text("""
-                        INSERT INTO FlaskLogin (Email, HashPassword, Role, ID, FirstName, Surname, Admin)
-                        VALUES (:email, :hash, :role, :user_id, :firstname, :surname, :admin)
-                    """),
-                    {
-                        "email": email,
-                        "hash": hashed_pw,
-                        "role": role,
-                        "user_id": user_id,
-                        "firstname": firstname,
-                        "surname": surname,
-                        "admin": admin
-                    }
-                )
-                flash(f"✅ User {email} created.", "success")
-                user_created = True
+                if user_role == "MOE":
+                    role = "MOE"
+                    conn.execute(
+                        text("""
+                            INSERT INTO FlaskLogin (Email, HashPassword, Role, ID, FirstName, Surname, Admin)
+                            VALUES (:email, :hash, :role, :user_id, :firstname, :surname, :admin)
+                        """),
+                        {
+                            "email": email,
+                            "hash": hashed_pw,
+                            "role": role,
+                            "user_id": user_id,
+                            "firstname": firstname,
+                            "surname": surname,
+                            "admin": admin
+                        }
+                    )
+                    user_created = True
+                    flash(f"✅ User {email} created.", "success")
+                    if send_email:
+                        invited_by_name = f"{session.get('user_firstname')} {session.get('user_surname')}"
+                        inviter_desc = session.get("desc")
 
-    return render_template("create_user.html", funders=funders, schools=schools)
+                        send_account_setup_email(
+                            mail=mail,
+                            recipient_email=email,
+                            first_name=firstname,
+                            role=role,
+                            is_admin=admin,
+                            invited_by_name=invited_by_name,
+                            inviter_desc=inviter_desc
+                        )
+
+    return render_template("create_user.html", user_role=user_role, school_name = session.get("desc"))
 
 from datetime import datetime
 from flask import session, render_template

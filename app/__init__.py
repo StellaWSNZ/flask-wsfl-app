@@ -39,4 +39,7 @@ def create_app():
     def inject_user_role():
         return {"user_role": session.get("user_role")}
 
+    def inject_user_admin():
+            return {"user_admin": session.get("user_admin")}
+
     return app

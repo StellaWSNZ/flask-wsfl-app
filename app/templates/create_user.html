@@ -1,75 +1,29 @@
 {% extends "header.html" %} {% block title %}Create User{% endblock %} {% block
-content %}
-<!-- Flash message display block -->
-{% with messages = get_flashed_messages(with_categories=true) %} {% if messages
-%} {% for category, message in messages %}
-<div
-  class="alert alert-{{ category }} alert-dismissible fade show"
-  role="alert"
->
-  {{ message }}
-  <button
-    type="button"
-    class="btn-close"
-    data-bs-dismiss="alert"
-    aria-label="Close"
-  ></button>
+content %} {% if user_role == 'MOE' %}
+<div class="alert alert-info">
+  You are creating a <strong>school user</strong> for
+  <strong>{{ school_name }}</strong>.
 </div>
-{% endfor %} {% endif %} {% endwith %}
 
-<!-- Create User Form -->
 <div class="card">
-  <div class="card-header bg-secondary text-white">Create New User</div>
+  <div class="card-header bg-secondary text-white">Create New School User</div>
   <div class="card-body">
     <form method="POST">
       <div class="mb-3">
         <label class="form-label">Email</label>
         <input type="email" name="email" class="form-control" required />
       </div>
-      <div class="mb-3">
-        <label class="form-label">Password (optional)</label>
-        <input type="password" name="password" class="form-control" />
-      </div>
-      <div class="mb-3">
-        <label class="form-label">Role</label>
-        <select name="role" id="role-select" class="form-select" required>
-          <option value="ADM">Admin</option>
-          <option value="FUN">Funder</option>
-          <option value="MOE">School</option>
-        </select>
-      </div>
 
-      <div class="mb-3 d-none" id="provider-dropdown">
-        <label class="form-label">Select Funder</label>
-        <select
-          name="selected_id"
-          id="funder-select"
-          class="form-select"
-        ></select>
-      </div>
-
-      <div class="mb-3 d-none" id="school-dropdown">
-        <label class="form-label">Select School</label>
-        <select
-          name="selected_id"
-          id="school-select"
-          class="form-select"
-        ></select>
-      </div>
-
-      <!-- First Name -->
       <div class="mb-3">
         <label class="form-label">First Name</label>
         <input type="text" name="firstname" class="form-control" required />
       </div>
 
-      <!-- Surname -->
       <div class="mb-3">
         <label class="form-label">Surname</label>
         <input type="text" name="surname" class="form-control" required />
       </div>
 
-      <!-- Admin Checkbox -->
       <div class="form-check mb-3">
         <input
           class="form-check-input"
@@ -83,60 +37,22 @@ content %}
         </label>
       </div>
 
+      <div class="form-check mb-3">
+        <input
+          class="form-check-input"
+          type="checkbox"
+          name="send_email"
+          id="sendEmail"
+        />
+        <label class="form-check-label" for="sendEmail">
+          Send confirmation email to user
+        </label>
+      </div>
+
       <button type="submit" class="btn btn-success">Create User</button>
     </form>
   </div>
 </div>
-{% endblock %} {% block scripts %}
-<script>
-  document.addEventListener("DOMContentLoaded", function () {
-    const roleSelect = document.getElementById("role-select");
-    const providerDropdown = document.getElementById("provider-dropdown");
-    const schoolDropdown = document.getElementById("school-dropdown");
-    const providerSelect = document.getElementById("provider-select");
-    const schoolSelect = document.getElementById("school-select");
-
-    roleSelect.addEventListener("change", function () {
-      const selectedRole = this.value;
-      providerDropdown.classList.add("d-none");
-      schoolDropdown.classList.add("d-none");
-      providerSelect.innerHTML = "";
-      schoolSelect.innerHTML = "";
-
-      if (selectedRole === "PRO") {
-        fetch("/get_provider_dropdown")
-          .then((res) => res.json())
-          .then((data) => {
-            data.forEach((p) => {
-              const option = document.createElement("option");
-              option.value = p.id;
-              option.textContent = p.description;
-              providerSelect.appendChild(option);
-            });
-            providerDropdown.classList.remove("d-none");
-          });
-      } else if (selectedRole === "MOE") {
-        fetch("/get_school_dropdown")
-          .then((res) => res.json())
-          .then((data) => {
-            data.forEach((s) => {
-              const option = document.createElement("option");
-              option.value = s.id;
-              option.textContent = s.description;
-              schoolSelect.appendChild(option);
-            });
-            schoolDropdown.classList.remove("d-none");
-          });
-      }
-    });
-  });
-
-  setTimeout(function () {
-    const alerts = document.querySelectorAll(".alert");
-    alerts.forEach(function (alertEl) {
-      const bsAlert = bootstrap.Alert.getOrCreateInstance(alertEl);
-      bsAlert.close();
-    });
-  }, 10000);
-</script>
-{% endblock %}
+{% else %}
+<div class="alert alert-danger">You are not authorized to view this page.</div>
+{% endif %} {% endblock %}
