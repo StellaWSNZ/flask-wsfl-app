@@ -47,41 +47,62 @@
           <input type="text" name="surname" class="form-control" required value="{{ request.form.surname }}" />
         </div>
 
-        {% if user_role == 'FUN' or user_role == 'MOE' %}
         <div class="mb-3">
-          <label class="form-label">Select Role</label>
-          <select name="selected_role" id="selected_role" class="form-select" required>
-            {% if user_role == 'MOE' %}
-              <option value="MOE" selected>School</option>
-            {% else %}
-              <option disabled value="">Choose...</option>
-              <option value="MOE" {% if request.form.selected_role == 'MOE' %}selected{% endif %}>School</option>
-              {% if not only_own_staff_or_empty %}
-                <option value="PRO" {% if request.form.selected_role == 'PRO' %}selected{% endif %}>Provider</option>
-              {% endif %}
-              <option value="FUN" {% if request.form.selected_role == 'FUN' %}selected{% endif %}>Funder</option>
-            {% endif %}
-          </select>
-        </div>
-        {% endif %}
+  <label class="form-label">Select Role</label>
+  <select name="selected_role" id="selected_role" class="form-select" required>
+    {% if user_role == 'MOE' %}
+      <option value="MOE" selected>School</option>
+    {% else %}
+      <option disabled value="">Choose...</option>
+      {% if user_role in ['ADM', 'FUN', 'PRO','MOE'] %}
+        <option value="MOE" {% if request.form.selected_role == 'MOE' %}selected{% endif %}>School</option>
+      {% endif %}
+      {% if user_role in ['ADM', 'FUN', 'PRO'] %}
+        <option value="PRO" {% if request.form.selected_role == 'PRO' %}selected{% endif %}>Provider</option>
+      {% endif %}
+      {% if user_role in ['ADM', 'FUN'] %}
+        <option value="FUN" {% if request.form.selected_role == 'FUN' %}selected{% endif %}>Funder</option>
+      {% endif %}
+      {% if user_role == 'ADM' %}
+        <option value="ADM" {% if request.form.selected_role == 'ADM' %}selected{% endif %}>Admin</option>
+      {% endif %}
+    {% endif %}
+  </select>
+</div>
 
-        {% if user_role == 'FUN' %}
-        <div class="mb-3" id="funder-section" style="display: none">
-          <label class="form-label">Select Funder</label>
-          <select id="funder-id" class="form-select">
-            <option value="{{ funder.id }}">{{ funder.Description }}</option>
-          </select>
-        </div>
 
-        <div class="mb-3" id="provider-section" style="display: none">
-          <label class="form-label">Select Provider</label>
-          <select id="provider-id" class="form-select">
-            {% for p in providers %}
-              <option value="{{ p.id }}">{{ p.Description }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        {% endif %}
+        {% if user_role in ['ADM', 'FUN'] %}
+  <div class="mb-3" id="funder-section" style="display: none">
+    <label class="form-label">Select Funder</label>
+    <select id="funder-id" class="form-select">
+      {% if user_role == 'ADM' %}
+        {% for f in funder %}
+          <option value="{{ f.id }}">{{ f.Description }}</option>
+        {% endfor %}
+      {% else %}
+        <option value="{{ funder.id }}">{{ funder.Description }}</option>
+      {% endif %}
+    </select>
+  </div>
+{% endif %}
+
+
+{% if user_role in ['ADM', 'FUN', 'PRO'] %}
+  <div class="mb-3" id="provider-section" style="display: none">
+    <label class="form-label">Select Provider</label>
+    <select id="funder-id" class="form-select">
+      {% if user_role != 'PRO' %}
+        {% for p in provider %}
+          <option value="{{ p.id }}">{{ p.Description }}</option>
+        {% endfor %}
+      {% else %}
+        <option value="{{ provider.id }}">{{ provider.Description }}</option>
+      {% endif %}
+    </select>
+  </div>
+{% endif %}
+
+
 
         <div class="mb-3" id="school-section" {% if user_role == 'FUN' %}style="display: none"{% endif %}>
           <label class="form-label">Select School</label>

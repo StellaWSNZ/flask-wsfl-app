@@ -56,6 +56,42 @@ def create_user():
                 len(providers) == 0 or
                 (len(providers) == 1 and providers[0].Description.strip().lower() == "own staff")
             )
+        elif user_role=="ADM":
+            providers = conn.execute(text("""
+                SELECT ProviderID AS id, Description FROM Provider where description != 'Own Staff' 
+            """)).fetchall()
+
+            schools = conn.execute(text("""
+                SELECT MOENumber AS id, SchoolName AS description
+                FROM MOE_SchoolDirectory
+                
+            """)).fetchall()
+
+            funder = conn.execute(text("""
+                SELECT FunderID as id, Description FROM Funder 
+            """)).fetchall()
+        elif user_role == "MOE":
+        # Just one school, their own
+            schools = conn.execute(text("""
+                SELECT MOENumber AS id, SchoolName AS description
+                FROM MOE_SchoolDirectory
+                WHERE MOENumber = :moe
+            """), {"moe": user_id}).fetchall()
+        elif user_role=="PRO":
+            schools = conn.execute(text("""
+                SELECT MOENumber AS id, SchoolName AS description
+                FROM MOE_SchoolDirectory
+                WHERE EducationRegionID IN (
+                    SELECT EducationRegionID FROM FunderEducationRegion WHERE FunderID IN (
+                    Select FunderID from Provider where ProviderID = :pid)
+                )
+            """), {"pid": user_id}).fetchall()
+
+            providers = conn.execute(text("""
+                SELECT ProviderID as id, Description FROM Provider WHERE ProviderID = :pid
+            """), {"pid": user_id}).fetchone()
+
+
 
     if request.method == "POST":
         email = request.form.get("email")
@@ -99,22 +135,14 @@ def create_user():
                         invited_by_name=f"{session.get('user_firstname')} {session.get('user_surname')}",
                         inviter_desc=user_desc
                     )
-    if user_role == "MOE":
-        with engine.begin() as conn:
-        # Just one school, their own
-            schools = conn.execute(text("""
-                SELECT MOENumber AS id, SchoolName AS description
-                FROM MOE_SchoolDirectory
-                WHERE MOENumber = :moe
-            """), {"moe": user_id}).fetchall()
-            print(schools)
+    
     print(user_role)
-    print(schools)
+    print(providers)
     return render_template("create_user.html",
         user_role=user_role,
         name=session.get("desc"),
         funder=funder,
-        providers=providers,
+        provider=providers,
         schools=schools,
         only_own_staff_or_empty=only_own_staff_or_empty
     )
