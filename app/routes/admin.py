@@ -34,21 +34,20 @@ def create_user():
 
     with engine.connect() as conn:
         if user_role == "FUN":
-            providers = conn.execute(text("""
-                SELECT ProviderID AS id, Description FROM Provider WHERE FunderID = :fid
-            """), {"fid": user_id}).fetchall()
+            providers = conn.execute(
+                text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :fid"),
+                {"Request": "ProvidersByFunderID", "fid": user_id}
+            ).fetchall()
 
-            schools = conn.execute(text("""
-                SELECT MOENumber AS id, SchoolName AS description
-                FROM MOE_SchoolDirectory
-                WHERE EducationRegionID IN (
-                    SELECT EducationRegionID FROM FunderEducationRegion WHERE FunderID = :fid
-                )
-            """), {"fid": user_id}).fetchall()
+            schools = conn.execute(
+                text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :fid"),
+                {"Request": "SchoolsByFunderID", "fid": user_id}
+            ).fetchall()
 
-            funder = conn.execute(text("""
-                SELECT FunderID as id, Description FROM Funder WHERE FunderID = :fid
-            """), {"fid": user_id}).fetchone()
+            funder = conn.execute(
+                text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :fid"),
+                {"Request": "FunderByID", "fid": user_id}
+            ).fetchone()
 
 
 
