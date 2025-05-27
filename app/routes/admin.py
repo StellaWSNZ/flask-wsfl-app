@@ -136,8 +136,8 @@ def create_user():
                         inviter_desc=user_desc
                     )
     
-    print(user_role)
-    print(providers)
+   # print(user_role)
+   # print(providers)
     return render_template("create_user.html",
         user_role=user_role,
         name=session.get("desc"),
