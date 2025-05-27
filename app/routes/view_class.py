@@ -24,33 +24,37 @@ def view_class(class_id, term, year):
         scenario_result = conn.execute(text("SELECT ScenarioID, HTMLScenario FROM Scenario"))
         scenarios = [dict(row._mapping) for row in scenario_result]
 
-        class_info = conn.execute(text("""
-            SELECT ClassName, TeacherName, MOENumber
-            FROM Class
-            WHERE ClassID = :class_id
-        """), {"class_id": class_id}).fetchone()
+        class_info = conn.execute(
+            text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :class_id"),
+            {"Request": "ClassInfoByID", "class_id": class_id}
+        ).fetchone()
 
-        school_result = conn.execute(text("""
-            SELECT SchoolName
-            FROM MOE_SchoolDirectory
-            WHERE MOENumber = :moe
-        """), {"moe": class_info.MOENumber}).fetchone()
+        school_result = conn.execute(
+            text("EXEC FlaskHelperFunctionsSpecific @Request = :Request, @MOENumber = :moe"),
+            {"Request": "SchoolNameByMOE", "moe": class_info.MOENumber}
+        ).fetchone()
+
 
         class_name = class_info.ClassName
         teacher_name = class_info.TeacherName
         school_name = school_result.SchoolName if school_result else "(Unknown)"
         title_string = f"Class Name: {class_name} | Teacher Name: {teacher_name} | School Name: {school_name}"
 
-        result = conn.execute(text("""
-            SELECT s.NSN, s.FirstName, s.LastName, s.PreferredName, s.DateOfBirth,
-                   e.Description AS Ethnicity, sy.YearLevelID
-            FROM StudentClass scm
-            JOIN Student s ON s.NSN = scm.NSN
-            JOIN Class c ON c.ClassID = scm.ClassID
-            JOIN StudentYearLevel sy ON sy.NSN = scm.NSN AND sy.Term = c.Term AND sy.CalendarYear = c.CalendarYear
-            JOIN Ethnicity e ON e.EthnicityID = s.EthnicityID
-            WHERE scm.ClassID = :class_id AND c.Term = :term AND c.CalendarYear = :year
-        """), {"class_id": class_id, "term": term, "year": year})
+        result = conn.execute(
+            text("""
+                EXEC FlaskHelperFunctionsSpecific
+                @Request = :Request,
+                @ClassID = :class_id,
+                @Term = :term,
+                @Year = :year
+            """),
+            {
+                "Request": "StudentsByClassTermYear",
+                "class_id": class_id,
+                "term": term,
+                "year": year
+            }
+        )
 
         students = pd.DataFrame(result.fetchall(), columns=result.keys())
         if students.empty:
