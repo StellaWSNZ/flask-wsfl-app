@@ -77,19 +77,15 @@ def create_user():
                 {"Request": "SchoolByMOENumber", "moe": user_id}
             ).fetchall()
         elif user_role=="PRO":
-            schools = conn.execute(text("""
-                SELECT MOENumber AS id, SchoolName AS description
-                FROM MOE_SchoolDirectory
-                WHERE EducationRegionID IN (
-                    SELECT EducationRegionID FROM FunderEducationRegion WHERE FunderID IN (
-                    Select FunderID from Provider where ProviderID = :pid)
-                )
-            """), {"pid": user_id}).fetchall()
+            schools = conn.execute(
+                text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :pid"),
+                {"Request": "SchoolsByProvider", "pid": user_id}
+            ).fetchall()
 
-            providers = conn.execute(text("""
-                SELECT ProviderID as id, Description FROM Provider WHERE ProviderID = :pid
-            """), {"pid": user_id}).fetchone()
-
+            providers = conn.execute(
+                text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :pid"),
+                {"Request": "ProviderByID", "pid": user_id}
+            ).fetchone()
 
 
     if request.method == "POST":
