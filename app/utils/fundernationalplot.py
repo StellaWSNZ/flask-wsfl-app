@@ -275,11 +275,13 @@ def make_yeargroup_plot(ax, x, y_top, cell_height, title, df_relcomp, df_results
 def load_all_funders(con):
     with con.connect() as connection:
         result = connection.execute(
-            text("Select * from Funder")
+            text("EXEC FlaskHelperFunctions @Request = :Request"),
+            {"Request": "AllFunders"}
         )
         data = result.fetchall()
         columns = result.keys()
-    return pd.DataFrame(data, columns=columns).reset_index(drop=True)
+    return pd.DataFrame.from_records(data, columns=columns).reset_index(drop=True)
+
 
 def save_and_open_pdf(fig, filename):
     plt.subplots_adjust(left=0, right=1, top=1, bottom=0)

@@ -50,11 +50,11 @@ def reporting():
         if report_type == "Funder":
             with engine.connect() as conn:
                 result = conn.execute(
-                    text("SELECT FunderID FROM Funder WHERE Description = :Description"),
-                    {"Description": funder_name}
+                    text("EXEC FlaskHelperFunctions @Request = :Request, @Text = :Text"),
+                    {"Request": "FunderIDDescription", "Text": funder_name}
                 )
                 row = result.fetchone()
-
+                funder_id = row.FunderID if row else None
             if not row:
                 flash("Funder not found.", "danger")
                 return redirect(url_for("report_bp.reporting"))

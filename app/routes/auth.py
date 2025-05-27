@@ -28,9 +28,9 @@ def login():
 
         engine = get_db_engine()
         with engine.connect() as conn:
-            result = conn.execute(
-                text("SELECT HashPassword FROM FlaskLogin WHERE Email = :email"),
-                {"email": email}
+             result = conn.execute(
+                text("EXEC FlaskHelperFunctions @Request = :Request, @Text = :email"),
+                {"Request": "GetHashByEmail", "email": email}
             ).fetchone()
 
         if result and bcrypt.checkpw(password, result.HashPassword.encode('utf-8')):
@@ -69,6 +69,8 @@ def login():
         flash("Invalid credentials", "danger")
         return render_template("login.html")
     return render_template("login.html")
+
+
 @auth_bp.route('/logout', methods=['GET', 'POST'])
 def logout():
     session.clear()
