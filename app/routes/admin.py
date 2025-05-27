@@ -104,9 +104,11 @@ def create_user():
         selected_id = request.form.get("selected_id")
 
         with engine.begin() as conn:
-            existing = conn.execute(text(
-                "SELECT 1 FROM FlaskLogin WHERE Email = :email"
-            ), {"email": email}).fetchone()
+            existing = conn.execute(
+                text("EXEC FlaskHelperFunctions @Request = :Request, @Text = :Text"),
+                {"Request": "CheckEmailExists", "Text": email}
+            ).fetchone()
+
 
             if existing:
                 flash("⚠️ Email already exists.", "warning")
@@ -288,11 +290,10 @@ def school():
 def serve_logo(logo_type, logo_id):
     engine = get_db_engine()
     with engine.connect() as conn:
-        result = conn.execute(text("""
-            SELECT ImageData, ContentType
-            FROM Logo
-            WHERE Type = :type AND ID = :id
-        """), {"type": logo_type.upper(), "id": logo_id}).first()
+        result = conn.execute(
+            text("EXEC FlaskHelperFunctions @Request = :Request, @Text = :Text, @Number = :Number"),
+            {"Request": "GetLogo", "Text": logo_type.upper(), "Number": logo_id}
+        ).fetchone()
 
     if result:
         return Response(result[0], mimetype=result[1])
