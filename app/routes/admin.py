@@ -56,19 +56,20 @@ def create_user():
                 (len(providers) == 1 and providers[0].Description.strip().lower() == "own staff")
             )
         elif user_role=="ADM":
-            providers = conn.execute(text("""
-                SELECT ProviderID AS id, Description FROM Provider where description != 'Own Staff' 
-            """)).fetchall()
+            providers = conn.execute(
+                text("EXEC FlaskHelperFunctions @Request = :Request"),
+                {"Request": "AllProviders"}
+            ).fetchall()
 
-            schools = conn.execute(text("""
-                SELECT MOENumber AS id, SchoolName AS description
-                FROM MOE_SchoolDirectory
-                
-            """)).fetchall()
+            schools = conn.execute(
+                text("EXEC FlaskHelperFunctions @Request = :Request"),
+                {"Request": "AllSchools"}
+            ).fetchall()
 
-            funder = conn.execute(text("""
-                SELECT FunderID as id, Description FROM Funder 
-            """)).fetchall()
+            funder = conn.execute(
+                text("EXEC FlaskHelperFunctions @Request = :Request"),
+                {"Request": "AllFunders"}
+            ).fetchall()
         elif user_role == "MOE":
         # Just one school, their own
             schools = conn.execute(text("""
