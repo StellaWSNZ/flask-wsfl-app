@@ -72,11 +72,10 @@ def create_user():
             ).fetchall()
         elif user_role == "MOE":
         # Just one school, their own
-            schools = conn.execute(text("""
-                SELECT MOENumber AS id, SchoolName AS description
-                FROM MOE_SchoolDirectory
-                WHERE MOENumber = :moe
-            """), {"moe": user_id}).fetchall()
+            schools = conn.execute(
+                text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :moe"),
+                {"Request": "SchoolByMOENumber", "moe": user_id}
+            ).fetchall()
         elif user_role=="PRO":
             schools = conn.execute(text("""
                 SELECT MOENumber AS id, SchoolName AS description
