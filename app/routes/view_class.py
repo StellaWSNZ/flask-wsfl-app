@@ -391,13 +391,15 @@ def reporting():
 @login_required
 def comingsoon():
     return render_template("comingsoon.html")
+
+
 @class_bp.route("/get_schools_for_term_year")
 @login_required
 def get_schools_for_term_year():
     term = request.args.get("term", type=int)
     year = request.args.get("year", type=int)
     user_role = session.get("user_role")
-    provider_id = session.get("user_id")
+    funder_id = session.get("user_id")
 
     if not term or not year:
         return jsonify([])
@@ -407,25 +409,42 @@ def get_schools_for_term_year():
         if user_role == "ADM":
             result = conn.execute(
                 text("""
-                    SELECT DISTINCT sf.MOENumber, sd.SchoolName
-                    FROM SchoolFunder sf
-                    JOIN MOE_SchoolDirectory sd ON sf.MOENumber = sd.MOENumber
-                    WHERE sf.Term = :term AND sf.CalendarYear = :year
+                    EXEC FlaskHelperFunctionsSpecific 
+                        @Request = :Request,
+                        @Term = :Term,
+                        @Year = :Year
                 """),
-                {"term": term, "year": year}
+                {
+                    "Request": "DistinctSchoolsByTermYear",
+                    "Term": term,
+                    "Year": year
+                }
             )
         else:
             result = conn.execute(
                 text("""
-                    SELECT DISTINCT sf.MOENumber, sd.SchoolName
-                    FROM SchoolFunder sf
-                    JOIN MOE_SchoolDirectory sd ON sf.MOENumber = sd.MOENumber
-                    WHERE sf.Term = :term AND sf.CalendarYear = :year AND sf.FunderID = :pid
+                    EXEC FlaskHelperFunctionsSpecific 
+                        @Request = :Request,
+                        @Term = :Term,
+                        @Year = :Year,
+                        @FunderID = :FunderID
                 """),
-                {"term": term, "year": year, "pid": provider_id}
+                {
+                    "Request": "DistinctSchoolsByTermYear",
+                    "Term": term,
+                    "Year": year,
+                    "FunderID": funder_id
+                }
             )
 
-        return jsonify([{"MOENumber": row.MOENumber, "School": row.SchoolName} for row in result.fetchall()])
+        # HY010 fix: explicitly consume result set
+        rows = result.fetchall()
+
+        return jsonify([
+            {"MOENumber": row.MOENumber, "School": row.SchoolName}
+            for row in rows
+        ])
+
 @class_bp.route('/moe_classes', methods=['GET', 'POST'])
 @login_required
 def moe_classes():
