@@ -6,7 +6,7 @@ import os
 from app.extensions import mail
 mail = Mail()
 def create_app():
-    app = Flask(__name__, static_folder='static', template_folder='templates')
+    app = Flask(__name__, static_folder='app/static', template_folder='app/templates')
     app.secret_key = os.getenv("SECRET_KEY", "changeme123")
 
     app.config.update(
