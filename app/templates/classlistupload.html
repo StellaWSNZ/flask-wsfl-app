@@ -73,7 +73,7 @@
 
     <div class="col-md-3">
       <label for="csv_file" class="form-label">Upload CSV File</label>
-      <input type="file" class="form-control" id="csv_file" name="csv_file" accept=".csv" {% if not preview_data %}required{% endif %}>
+<input type="file" class="form-control" id="csv_file" name="csv_file" accept=".csv, .xls, .xlsx" {% if not preview_data %}required{% endif %}>
     </div>
 
     <input type="hidden" id="column_mappings" name="column_mappings">
@@ -92,6 +92,13 @@
     {% if not validated %}
       <p>Does your template have unecessary columns? Don't assign a name and they will be ignored.</p>
     {% endif %}
+      {% if validated %}
+      <h4>
+ <span class="badge bg-danger text-white">Critical Errors must be corrected before submission</span>
+<span class="badge bg-warning text-dark">Warnings do not need correcting but will overwrite current record once submitted</span>
+
+      </h4>
+    {% endif%}
     <div class="table-responsive">
       <table class="table table-bordered table-striped">
 <thead>
@@ -157,13 +164,7 @@
       </table>
     </div>
     <div> 
-       {% if validated %}
-      <h4>
- <span class="badge bg-danger text-white">Critical Errors must be corrected before submission</span>
-<span class="badge bg-warning text-dark">Warnings do not need correcting but will overwrite current record once submitted</span>
-
-      </h4>
-    {% endif%}
+     
     </div>
     {% if validated and preview_data %}
   {% set has_errors = preview_data | selectattr("Match", "equalto", false) | list | length > 0 %}

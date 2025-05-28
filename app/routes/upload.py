@@ -10,7 +10,7 @@ from werkzeug.utils import secure_filename
 from app.routes.auth import login_required
 from sqlalchemy import text
 from io import StringIO, BytesIO
-
+import os 
 upload_bp = Blueprint("upload_bp", __name__)
 
 # Store processing results in memory (global for demo)
@@ -31,7 +31,7 @@ def classlistupload():
     preview_data = None
     original_columns = [] 
     funders, schools = [], []
-    selected_csv = selected_funder = selected_school = selected_term = selected_year = selected_teacher = selected_class = None
+    selected_csv = selected_funder = selected_school = selected_school_str = selected_term = selected_year = selected_teacher = selected_class = None
     selected_school = session.get("desc") 
 
     with engine.connect() as conn:
@@ -41,7 +41,6 @@ def classlistupload():
     if request.method == 'POST':
         action = request.form.get('action')  # 'preview' or 'validate'
         selected_funder = request.form.get('funder')
-        selected_school = session.get("user_id")
         
         selected_term = request.form.get('term')
         selected_year = request.form.get('year')
@@ -51,15 +50,15 @@ def classlistupload():
         session["selected_teacher"] = selected_teacher
         session["selected_year"] = selected_year
         session["selected_term"] = selected_term
-        selected_school_str = str(selected_school)
+        selected_school_str = request.form.get("school") or str(session.get("user_id"))
         moe_number = (
             int(selected_school_str)
             if selected_school_str.isdigit()
             else int(selected_school_str.split('(')[-1].rstrip(')'))
         )
+        
         column_mappings_json = request.form.get('column_mappings')
         file = request.files.get('csv_file')
-        #print(file)
         selected_csv = file if file and file.filename else None,
 
         if selected_funder and selected_funder.isdigit():
@@ -76,14 +75,42 @@ def classlistupload():
                 )
                 schools = [row.School for row in result]
 
-        if action == "preview" and file and file.filename.endswith('.csv'):
-            df = pd.read_csv(file)
+            
+        if action == "preview" and file and file.filename:
+            filename = file.filename.lower()
+            file_ext = os.path.splitext(filename)[-1]
 
-            session["raw_csv_json"] = df.to_json(orient="records")
-            preview_data = df.head(10).to_dict(orient="records")
-            # Store the preview data in the session for later use
+            try:
+                if file_ext == ".csv":
+                    df = pd.read_csv(file)
+                elif file_ext in [".xls", ".xlsx"]:
+                    df = pd.read_excel(file)
+                else:
+                    flash("Unsupported file format. Please upload a .csv, .xls, or .xlsx file.", "danger")
+                    return redirect(url_for("upload_bp.classlistupload"))
+            except Exception as e:
+                flash(f"Failed to read uploaded file: {str(e)}", "danger")
+                return redirect(url_for("upload_bp.classlistupload"))
+
+            # Replace NaN and NaT with None
+            df_cleaned = df.where(pd.notnull(df), None)
+
+            # Convert datetime columns to string format
+            for col in df_cleaned.select_dtypes(include=["datetime64[ns]"]):
+                df_cleaned[col] = pd.to_datetime(df_cleaned[col], errors="coerce").dt.strftime("%Y-%m-%d")
+                df_cleaned[col] = df_cleaned[col].where(pd.notnull(df_cleaned[col]), None)
+
+            # Save raw JSON version for later validation (as string)
+            session["raw_csv_json"] = df_cleaned.to_json(orient="records")
+
+            # Save top 10 rows preview to session
+            preview_data = df_cleaned.head(10).to_dict(orient="records")
             session["preview_data"] = preview_data
+
+
+            # Save original column headers
             original_columns = list(df.columns)
+
 
         elif action == "validate":
             validated = True
@@ -145,13 +172,12 @@ def classlistupload():
 
         elif action == "preview":
             flash("Please upload a valid CSV file.", "danger")
-
     return render_template(
         "classlistupload.html",
         funders=funders,
         schools=schools,
         selected_funder=selected_funder,
-        selected_school=selected_school,
+        selected_school=selected_school_str,
         selected_term=selected_term,
         selected_year=selected_year,
         selected_teacher = selected_teacher,
@@ -261,15 +287,18 @@ def classlistdownload():
                     try:
                         dt = pd.to_datetime(value)
                         if pd.notnull(dt):
+                            # Choose correct background + date format
                             if is_error_col:
-                                fmt = orange_date_format if is_match else red_date_format
+                                worksheet.write_datetime(row, col, dt, orange_date_format if is_match else red_date_format)
                             else:
-                                fmt = date_format
-                            worksheet.write_datetime(row, col, dt, fmt)
+                                worksheet.write_datetime(row, col, dt, date_format)
                         else:
                             worksheet.write(row, col, "", fmt)
                     except Exception:
                         worksheet.write(row, col, "", fmt)
+                else:
+                    worksheet.write(row, col, value, fmt)
+
 
 
             # Badge

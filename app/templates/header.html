@@ -64,7 +64,8 @@
               >
             </li>
 
-            {% if user_role != "MOE" and user_role != "PRO"%}
+            {% if user_role != "MOE" and user_role != "PRO" and user_role !=
+            "ADM"%}
             <li class="nav-item dropdown">
               <a
                 class="nav-link dropdown-toggle"
@@ -92,7 +93,8 @@
                 </li>
               </ul>
             </li>
-            {% endif %} {% if user_role != "FUN" and user_role != "PRO"%}
+            {% endif %} {% if user_role != "FUN" and user_role != "PRO" and
+            user_role != "ADM"%}
             <li class="nav-item dropdown">
               <a
                 class="nav-link dropdown-toggle {% if 'school' in request.path or 'classlistupload' in request.path %}active{% endif %}"
@@ -124,7 +126,7 @@
             {% endif %} {% if user_role == "ADM" %}
             <li class="nav-item dropdown">
               <a
-                class="nav-link dropdown-toggle"
+                class="nav-link dropdown-toggle {% if 'reporting' in request.path or 'classlistupload' in request.path or 'funder_classes' in request.path %}active{% endif %}"
                 href="#"
                 role="button"
                 data-bs-toggle="dropdown"
@@ -136,23 +138,26 @@
                 <li>
                   <a
                     class="dropdown-item py-2"
-                    href="{{ url_for('admin_bp.create_user') }}"
-                    >Create User</a
-                  >
-                </li>
-                <li>
-                  <a
-                    class="dropdown-item py-2"
                     href="{{ url_for('report_bp.reporting') }}"
-                    >Reporting</a
                   >
+                    Reporting
+                  </a>
                 </li>
                 <li>
                   <a
                     class="dropdown-item py-2"
-                    href="{{ url_for('class_bp.comingsoon') }}"
-                    >Manage Users</a
+                    href="{{ url_for('upload_bp.classlistupload') }}"
                   >
+                    Upload Class List
+                  </a>
+                </li>
+                <li>
+                  <a
+                    class="dropdown-item py-2"
+                    href="{{ url_for('class_bp.funder_classes') }}"
+                  >
+                    Class Lookup
+                  </a>
                 </li>
               </ul>
             </li>
