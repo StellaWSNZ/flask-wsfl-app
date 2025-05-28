@@ -230,24 +230,29 @@ def funder_classes():
         selected_class_id=selected_class_id
     )
 
-
 @class_bp.route('/update_competency', methods=['POST'])
 @login_required
 def update_competency():
     data = request.json
-    print("Received data:", data)
-
     nsn = data.get("nsn")
     header_name = data.get("header_name")
     status = data.get("status")
-
-    print(f"NSN: {nsn}, Header Name: {header_name}, Status: {status}")
+    debug = 0  # You can set this to 1 if you want the stored procedure to run in debug mode
 
     if nsn is None or header_name is None or status is None:
         return jsonify({"success": False, "message": "Missing data"}), 400
 
-    print(f"Would update competency for NSN {nsn} with status '{status}' and header name '{header_name}'")
-    return jsonify({"success": True, "message": "Data received and printed successfully."})
+    try:
+        engine = get_db_engine()
+        with engine.connect() as conn:
+            conn.execute(
+                text("EXEC FlaskUpdateAchievement @NSN = :nsn, @Header = :header, @Value = :value, @Debug = :debug"),
+                {"nsn": nsn, "header": header_name, "value": status, "debug": debug}
+            )
+        return jsonify({"success": True, "message": "Competency updated successfully."})
+    except Exception as e:
+        print("❌ Competency update failed:", e)
+        return jsonify({"success": False, "error": str(e)}), 500
 
 @class_bp.route("/update_scenario", methods=["POST"])
 @login_required
@@ -256,15 +261,22 @@ def update_scenario():
     nsn = data.get("nsn")
     header = data.get("header")
     value = data.get("value")
+    debug = 0  # Optional: change to 1 if you want debug mode
 
-    print(f"Would update scenario for NSN {nsn}, header '{header}', and value '{value}'")
+    if not all([nsn, header, value]):
+        return jsonify(success=False, error="Missing parameters"), 400
 
     try:
+        engine = get_db_engine()
+        with engine.connect() as conn:
+            conn.execute(
+                text("EXEC FlaskUpdateAchievement @NSN = :nsn, @Header = :header, @Value = :value, @Debug = :debug"),
+                {"nsn": nsn, "header": header, "value": value, "debug": debug}
+            )
         return jsonify(success=True)
     except Exception as e:
         print("❌ Scenario update failed:", e)
         return jsonify(success=False, error=str(e)), 500
-
 
 
 @class_bp.route('/reporting', methods=["GET", "POST"])

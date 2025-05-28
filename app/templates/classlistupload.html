@@ -44,22 +44,24 @@
 </div>
 
     <div class="col-md-2">
-      <label for="term" class="form-label">Term</label>
-      <select class="form-select" id="term" name="term" required>
-        {% for t in [1,2,3,4] %}
-          <option value="{{ t }}" {% if selected_term == t|string %}selected{% endif %}>Term {{ t }}</option>
-        {% endfor %}
-      </select>
-    </div>
+  <label for="term" class="form-label">Term</label>
+  <select class="form-select" id="term" name="term" required>
+    {% set default_term = selected_term if selected_term else '2' %}
+    {% for t in [1, 2, 3, 4] %}
+      <option value="{{ t }}" {% if default_term == t|string %}selected{% endif %}>Term {{ t }}</option>
+    {% endfor %}
+  </select>
+</div>
 
-    <div class="col-md-1">
-      <label for="year" class="form-label">Year</label>
-      <select class="form-select" id="year" name="year" required>
-        {% for y in range(2023, 2026) %}
-          <option value="{{ y }}" {% if selected_year == y %}selected{% endif %}>{{ y }}</option>
-        {% endfor %}
-      </select>
-    </div>
+<div class="col-md-1">
+  <label for="year" class="form-label">Year</label>
+  <select class="form-select" id="year" name="year" required>
+    {% set default_year = selected_year if selected_year else 2025 %}
+    {% for y in range(2023, 2026) %}
+      <option value="{{ y }}" {% if default_year == y %}selected{% endif %}>{{ y }}</option>
+    {% endfor %}
+  </select>
+</div>
 
     <div class="col-md-3">
       <label for="teachername" class="form-label">Teacher Name</label>
@@ -166,24 +168,27 @@
     <div> 
      
     </div>
-    {% if validated and preview_data %}
-  {% set has_errors = preview_data | selectattr("Match", "equalto", false) | list | length > 0 %}
+        {% set all_matches = preview_data | selectattr("Match", "equalto", false) | list | length == 0 %}
+    {% set has_errorfields = preview_data | map(attribute='ErrorFields') | reject("in", ["", none]) | list | length > 0 %}
+  {% if validated %}
 
-  {% if has_errors %}
-    <form action="/classlistdownload" method="post">
-      <button type="submit" class="btn btn-danger mt-3">Export Fixes to Excel</button>
-    </form>
-  {% else %}
-    <form action="/submitclass" method="post">
-      <button type="submit" class="btn btn-success mt-3">Submit Class</button>
-    </form>
-  {% endif %}
+    <div class="d-flex gap-3 mt-3">
+      {% if has_errorfields %}
+        <form action="/classlistdownload" method="post">
+          <button type="submit" class="btn btn-danger">Export Fixes to Excel</button>
+        </form>
+      {% endif %}
+      
+      {% if all_matches %}
+        <form action="/submitclass" method="post">
+          <button type="submit" class="btn btn-success">Submit Class</button>
+        </form>
+      {% endif %}
+    </div>
+
+  </div>  {# End of preview block #}
+{% endif %}  {# Close if preview_data #}
 {% endif %}
-
-
-  </div>
-  {% endif %}
-</div>
 {% endblock %}
 
 {% block scripts %}

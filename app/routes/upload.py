@@ -33,7 +33,7 @@ def classlistupload():
     funders, schools = [], []
     selected_csv = selected_funder = selected_school = selected_school_str = selected_term = selected_year = selected_teacher = selected_class = None
     selected_school = session.get("desc") 
-
+    
     with engine.connect() as conn:
         result = conn.execute(text("EXEC FlaskHelperFunctions :Request"), {"Request": "FunderDropdown"})
         funders = [dict(row._mapping) for row in result]
