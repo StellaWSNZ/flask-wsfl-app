@@ -22,7 +22,7 @@ def sanitize_filename(s):
     return s.replace(" ", "_").replace("/", "_")  # remove problematic characters
 
 
-@upload_bp.route('/classlistupload', methods=['GET', 'POST'])
+@upload_bp.route('/ClassList', methods=['GET', 'POST'])
 @login_required
 def classlistupload():
     validated=False
@@ -50,13 +50,18 @@ def classlistupload():
         session["selected_teacher"] = selected_teacher
         session["selected_year"] = selected_year
         session["selected_term"] = selected_term
+        session["selected_funder"] = selected_funder
+        session["selected_funder"] = selected_funder
+
         selected_school_str = request.form.get("school") or str(session.get("user_id"))
+
         moe_number = (
             int(selected_school_str)
             if selected_school_str.isdigit()
             else int(selected_school_str.split('(')[-1].rstrip(')'))
         )
-        
+        session["selected_moe"] = moe_number
+
         column_mappings_json = request.form.get('column_mappings')
         file = request.files.get('csv_file')
         selected_csv = file if file and file.filename else None,
@@ -194,7 +199,7 @@ def classlistupload():
 def classlistdownload():
     if not session.get("preview_data"):
         flash("No data available to export.", "danger")
-        return redirect(url_for("classlistupload"))
+        return redirect(url_for("upload_bp.classlistupload"))
 
     desired_order = [
         "NSN",
@@ -346,48 +351,52 @@ def submitclass():
     engine = get_db_engine()
     try:
         funder_id = session.get("selected_funder")
-        moe_number = session.get("user_id")
+        moe_number = session.get("selected_moe")
         term = session.get("selected_term")
         year = session.get("selected_year")
         teacher = session.get("selected_teacher")
         classname = session.get("selected_class")
         preview_data = session.get("preview_data")
+        missing = []
 
-        if not all([funder_id, moe_number, term, year, teacher, classname, preview_data]):
-            flash("Missing required data to submit class list.", "danger")
-            return redirect(url_for("classlistupload"))
+        if not funder_id:
+            missing.append("funder_id")
+        if not moe_number:
+            missing.append("moe_number")
+        if not term:
+            missing.append("term")
+        if not year:
+            missing.append("year")
+        if not teacher:
+            missing.append("teacher")
+        if not classname:
+            missing.append("classname")
+        if not preview_data:
+            missing.append("preview_data")
+        
+        # DEBUG: Print all values
+        print("🔍 funder_id:", funder_id)
+        print("🔍 moe_number:", moe_number)
+        print("🔍 term:", term)
+        print("🔍 year:", year)
+        print("🔍 teacher:", teacher)
+        print("🔍 classname:", classname)
+        print("🔍 preview_data sample:", preview_data[:1])
+
+        if missing:
+            flash(f"Missing required data to submit class list: {', '.join(missing)}", "danger")
+            return redirect(url_for("upload_bp.classlistupload"))
 
         input_json = json.dumps(preview_data)
 
-        with engine.begin() as conn:
-            conn.execute(
-                text("""
-                    EXEC FlaskInsertClassList 
-                        @FunderId = :FunderId,
-                        @MOENumber = :MOENumber,
-                        @Term = :Term,
-                        @CalendarYear = :Year,
-                        @TeacherName = :Teacher,
-                        @ClassName = :ClassName,
-                        @InputJSON = :InputJSON
-                """),
-                {
-                    "FunderId": funder_id,
-                    "MOENumber": moe_number,
-                    "Term": term,
-                    "Year": year,
-                    "Teacher": teacher,
-                    "ClassName": classname,
-                    "InputJSON": input_json
-                }
-            )
+        
 
         flash("✅ Class submitted successfully!", "success")
 
     except Exception as e:
         flash(f"❌ Error submitting class: {str(e)}", "danger")
 
-    return redirect(url_for("classlistupload"))
+    return redirect(url_for("upload_bp.classlistupload"))
 
     # need to run EXEC FlaskInsertClassList
     # with params @FunderId, @MOENumber, @Term, @CalendarYear, @TeacherName, @ClassName, @InputJSON

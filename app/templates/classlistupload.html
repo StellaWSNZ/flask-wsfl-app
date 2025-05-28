@@ -19,7 +19,7 @@
     {% endif %}
   {% endwith %}
 
-  <form id="upload-form" action="/classlistupload" method="post" enctype="multipart/form-data" class="row g-3">
+<form id="upload-form" action="{{ url_for('upload_bp.classlistupload') }}" method="post" enctype="multipart/form-data" class="row g-3">
       <div class="col-md-6">
         <label for="funder" class="form-label">Funder</label>
         <select id="funder" name="funder" class="form-select" required>
