@@ -15,7 +15,7 @@ def send_reset_email(mail, email, token):
         <p>Ngā mihi,<br><strong>WSFL Admin Team</strong></p>
         <img src="cid:wsfl_logo" alt="WSFL Logo" style="height:60px;margin-top:10px;">
     """
-    with current_app.open_resource("static/darklogo.png") as fp:
+    with current_app.open_resource("static/DarkLogo.png") as fp:
         msg.attach("DarkLogo.png", "image/png", fp.read(), disposition='inline',
                    headers={"Content-ID": "<wsfl_logo>"})
     mail.send(msg)
@@ -68,8 +68,8 @@ def send_account_setup_email(mail, recipient_email, first_name, role, is_admin, 
     </div>
     """
 
-    with current_app.open_resource("static/darklogo.png") as fp:
-        msg.attach("darklogo.png", "image/png", fp.read(), disposition='inline',
+    with current_app.open_resource("static/DarkLogo.png") as fp:
+        msg.attach("DarkLogo.png", "image/png", fp.read(), disposition='inline',
                    headers={"Content-ID": "<wsfl_logo>"})
 
     mail.send(msg)
