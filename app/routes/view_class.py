@@ -437,7 +437,6 @@ def get_schools_for_term_year():
                 }
             )
 
-        # HY010 fix: explicitly consume result set
         rows = result.fetchall()
 
         return jsonify([
