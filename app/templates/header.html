@@ -64,7 +64,7 @@
               >
             </li>
 
-            {% if user_role != "MOE" %}
+            {% if user_role != "MOE" and user_role != "PRO"%}
             <li class="nav-item dropdown">
               <a
                 class="nav-link dropdown-toggle"
@@ -92,7 +92,7 @@
                 </li>
               </ul>
             </li>
-            {% endif %} {% if user_role != "FUN" %}
+            {% endif %} {% if user_role != "FUN" and user_role != "PRO"%}
             <li class="nav-item dropdown">
               <a
                 class="nav-link dropdown-toggle {% if 'school' in request.path or 'classlistupload' in request.path %}active{% endif %}"
