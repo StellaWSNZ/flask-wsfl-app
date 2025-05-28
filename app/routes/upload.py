@@ -388,8 +388,29 @@ def submitclass():
             return redirect(url_for("upload_bp.classlistupload"))
 
         input_json = json.dumps(preview_data)
-
-        
+        with engine.begin() as conn:
+                    conn.execute(
+                        text("""
+                            EXEC FlaskInsertClassList
+                                @FunderId = :FunderId,
+                                @MOENumber = :MOENumber,
+                                @Term = :Term,
+                                @CalendarYear = :Year,
+                                @TeacherName = :Teacher,
+                                @ClassName = :ClassName,
+                                @InputJSON = :InputJSON
+                        """),
+                        {
+                            "FunderId": funder_id,
+                            "MOENumber": moe_number,
+                            "Term": term,
+                            "Year": year,
+                            "Teacher": teacher,
+                            "ClassName": classname,
+                            "InputJSON": input_json
+                        }
+                    )
+                
 
         flash("✅ Class submitted successfully!", "success")
 
