@@ -447,18 +447,28 @@ def moe_classes():
         with engine.connect() as conn:
             # Attempt to find classes
             result = conn.execute(
-                text("SELECT ClassID, ClassName, TeacherName FROM Class WHERE MOENumber = :moe AND Term = :term AND CalendarYear = :year"),
-                {"moe": moe_number, "term": term, "year": year}
+                text("""
+                    EXEC FlaskHelperFunctionsSpecific 
+                        @Request = :Request,
+                        @MOENumber = :moe,
+                        @Term = :term,
+                        @Year = :year
+                """),
+                {"Request": "ClassesBySchoolTermYear", "moe": moe_number, "term": term, "year": year}
             )
             classes = [row._mapping for row in result.fetchall()]
 
             if not classes:
-                # If no classes found, fetch available terms/years for this school
                 result = conn.execute(
-                    text("SELECT DISTINCT Term, CalendarYear FROM Class WHERE MOENumber = :moe ORDER BY CalendarYear DESC, Term"),
-                    {"moe": moe_number}
+                    text("""
+                        EXEC FlaskHelperFunctionsSpecific 
+                            @Request = :Request,
+                            @MOENumber = :moe
+                    """),
+                    {"Request": "DistinctTermsForSchool", "moe": moe_number}
                 )
                 suggestions = [f"{row.CalendarYear} Term {row.Term}" for row in result.fetchall()]
+
                 flash("No classes found for your school in this term and year.", "warning")
 
     return render_template(
