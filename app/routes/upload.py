@@ -104,7 +104,8 @@ def classlistupload():
             for col in df_cleaned.select_dtypes(include=["datetime64[ns]"]):
                 df_cleaned[col] = pd.to_datetime(df_cleaned[col], errors="coerce").dt.strftime("%Y-%m-%d")
                 df_cleaned[col] = df_cleaned[col].where(pd.notnull(df_cleaned[col]), None)
-
+            if "BirthDate" in df_cleaned.columns:
+                df_cleaned.rename(columns={"BirthDate": "Birthdate"}, inplace=True)
             # Save raw JSON version for later validation (as string)
             session["raw_csv_json"] = df_cleaned.to_json(orient="records")
 
@@ -124,7 +125,6 @@ def classlistupload():
             else:
                 try:
                     raw_df = pd.read_json(StringIO(session["raw_csv_json"]))
-                    #print(raw_df)
                     column_mappings = json.loads(column_mappings_json)
                     valid_fields = ["NSN", "FirstName", "LastName", "PreferredName", "BirthDate", "Ethnicity", "YearLevel"]
 
@@ -132,44 +132,56 @@ def classlistupload():
                     reverse_mapping = {
                         k: v for k, v in column_mappings.items()
                         if v.strip().lower() in [field.lower() for field in valid_fields]
-                    }                    
-                    #print(reverse_mapping)
-                    # Keep only columns mapped to valid fields
-                    usable_columns = [col for col in raw_df.columns if col in reverse_mapping]
+                    }
 
-                    # Rename to expected names
+                    usable_columns = [col for col in raw_df.columns if col in reverse_mapping]
                     df = raw_df[usable_columns].rename(columns=reverse_mapping)
+
+                    # Handle birthdate first and unify to "Birthdate"
+                    # Handle BirthDate / Birthdate unification and parsing
+                    if "BirthDate" in df.columns:
+                        df["BirthDate"] = (
+                            df["BirthDate"]
+                            .astype(str)
+                            .str.replace(r"\s+", "", regex=True)  # remove all internal spaces
+                        )
+                        df["BirthDate"] = pd.to_datetime(df["BirthDate"], errors="coerce").dt.strftime("%Y-%m-%d")
+                        df.rename(columns={"BirthDate": "Birthdate"}, inplace=True)
+
+                    elif "Birthdate" in df.columns:
+                        df["Birthdate"] = (
+                            df["Birthdate"]
+                            .astype(str)
+                            .str.replace(r"\s+", "", regex=True)
+                        )
+                        df["Birthdate"] = pd.to_datetime(df["Birthdate"], errors="coerce").dt.strftime("%Y-%m-%d")
 
                     # Ensure all required columns are present
                     for col in valid_fields:
                         if col not in df.columns:
-                            df[col] = None  # Or np.nan
+                            df[col] = None
+
+                    # Reapply formatting in case new columns were added
                     if "Birthdate" in df.columns:
-                        df["Birthdate"] = pd.to_datetime(df["Birthdate"], errors="coerce").dt.strftime("%Y-%m-%d")
-                    if "BirthDate" in df.columns:
-                        df["BirthDate"] = pd.to_datetime(df["BirthDate"], errors="coerce").dt.strftime("%Y-%m-%d")
+                        df["Birthdate"] = pd.to_datetime(df["Birthdate"], dayfirst=True, errors="coerce").dt.strftime("%Y-%m-%d")
                     if "YearLevel" in df.columns:
                         df["YearLevel"] = pd.to_numeric(df["YearLevel"], errors="coerce").astype("Int64")
                         df["YearLevel"] = df["YearLevel"].where(pd.notnull(df["YearLevel"]), None)
-                        
                     if "NSN" in df.columns:
                         df["NSN"] = pd.to_numeric(df["NSN"], errors="coerce").astype("Int64")
-                    #print(df["YearLevel"])
-                    #print(df.dtypes)
-                    #print(df.to_json(orient="records"))
 
                     df_json = df.to_json(orient="records")
-                    # Save a copy for debugging/inspection
-                    #with open("last_validated_input.json", "w", encoding="utf-8") as f:
-                    #   f.write(df_json)
-
+                    
+                    parsed_json = json.loads(df_json)
+                    print("📦 Sample JSON being sent to SQL:")
+                    for i, row in enumerate(parsed_json[:5]):
+                        print(f"Row {i+1}:", row)
                     with engine.connect() as conn:
                         result = conn.execute(
                             text("EXEC FlaskCheckNSN_JSON :InputJSON, :Term, :CalendarYear, :MOENumber"),
                             {"InputJSON": df_json, "Term": selected_term, "CalendarYear": selected_year, "MOENumber": moe_number}
                         )
                         preview_data = [dict(row._mapping) for row in result]
-                        # Store the validated preview data in the session
                         session["preview_data"] = preview_data
 
                 except Exception as e:
@@ -388,6 +400,10 @@ def submitclass():
             return redirect(url_for("upload_bp.classlistupload"))
 
         input_json = json.dumps(preview_data)
+        
+        
+        
+
         with engine.begin() as conn:
                     conn.execute(
                         text("""
