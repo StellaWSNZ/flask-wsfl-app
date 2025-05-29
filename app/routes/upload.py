@@ -398,11 +398,15 @@ def submitclass():
         if missing:
             flash(f"Missing required data to submit class list: {', '.join(missing)}", "danger")
             return redirect(url_for("upload_bp.classlistupload"))
-
+        for row in preview_data:
+            if "Birthdate" in row and row["Birthdate"] is not None:
+                row["Birthdate"] = pd.to_datetime(row["Birthdate"], errors="coerce").strftime("%Y-%m-%d")
         input_json = json.dumps(preview_data)
         
-        
-        
+        print("🔍 Final JSON birthdate values before submit:")
+        for i, row in enumerate(preview_data[:3]):
+            print(f"Row {i+1} Birthdate:", row.get("Birthdate"))
+                
 
         with engine.begin() as conn:
                     conn.execute(
