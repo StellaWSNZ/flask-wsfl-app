@@ -11,6 +11,8 @@ from app.routes.auth import login_required
 from sqlalchemy import text
 from io import StringIO, BytesIO
 import os 
+import tempfile
+
 upload_bp = Blueprint("upload_bp", __name__)
 
 # Store processing results in memory (global for demo)
@@ -84,12 +86,22 @@ def classlistupload():
         if action == "preview" and file and file.filename:
             filename = file.filename.lower()
             file_ext = os.path.splitext(filename)[-1]
+            has_headers = not bool(request.form.get("no_headers"))
 
             try:
                 if file_ext == ".csv":
-                    df = pd.read_csv(file)
+                    df = pd.read_csv(file, header=0 if has_headers else None)                
                 elif file_ext in [".xls", ".xlsx"]:
-                    df = pd.read_excel(file)
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:
+                        file.save(tmp.name)
+
+                        # Convert Excel to CSV using pandas
+                        excel_df = pd.read_excel(tmp.name, header=0 if has_headers else None)
+                        tmp_csv_path = tmp.name.replace(".xlsx", ".csv")
+                        excel_df.to_csv(tmp_csv_path, index=False)
+
+                    # Now load the CSV version for consistent handling
+                    df = pd.read_csv(tmp_csv_path)
                 else:
                     flash("Unsupported file format. Please upload a .csv, .xls, or .xlsx file.", "danger")
                     return redirect(url_for("upload_bp.classlistupload"))
@@ -439,8 +451,8 @@ def submitclass():
 
     return redirect(url_for("upload_bp.classlistupload"))
 
-    # need to run EXEC FlaskInsertClassList
-    # with params @FunderId, @MOENumber, @Term, @CalendarYear, @TeacherName, @ClassName, @InputJSON
+  
+    
 @upload_bp.route("/progress")
 @login_required
 def get_progress():

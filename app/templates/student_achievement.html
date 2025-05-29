@@ -1,5 +1,6 @@
 {% extends "header.html" %}
 {% block title %} Student Competencies {% endblock %}
+
 {% block content %}
 <div class="container text-center my-4">
   <div class="alert alert-secondary d-inline-block px-4 py-3" role="alert" id="class-info-display">
@@ -38,27 +39,15 @@
     table-layout: fixed;
   }
 
-  #studentsTable th{
-    padding: 4px;
-    text-align: bottom;
-    vertical-align: middle;
-    line-height: 1;
-    border: 1px solid #ddd;
-    white-space: normal;
-    word-wrap: break-word;
-    background-color: white;
-    font-size: 0.85rem;
-  }
-  #studentsTable td {
+  #studentsTable th, #studentsTable td {
     padding: 4px;
     text-align: center;
-    vertical-align: middle;
-    line-height: 1;
+    vertical-align: top;
     border: 1px solid #ddd;
-    white-space: normal;
-    word-wrap: break-word;
     background-color: white;
     font-size: 0.85rem;
+    white-space: normal;
+    word-wrap: break-word;
   }
 
   thead th {
@@ -67,9 +56,21 @@
     z-index: 10;
     background-color: white;
     font-weight: bold;
+    vertical-align: bottom;
+  }
+.mark-all-wrapper {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  height: 100%;
+  min-height: 100px; /* increase if needed */
+}
+
+  .mark-all-wrapper .header-label {
+    margin-bottom: 8px;
   }
 
-  /* Sticky first columns */
   #studentsTable th.col-0,
   #studentsTable td.col-0 {
     position: sticky;
@@ -108,13 +109,11 @@
     width: 175px;
   }
 
-  /* Shrink checkboxes */
   input[type="checkbox"] {
     transform: scale(1.1);
     margin: 0;
   }
 
-  /* Shrink dropdowns */
   #studentsTable select.form-control {
     padding: 2px 4px;
     font-size: 0.85rem;
@@ -122,8 +121,12 @@
     margin: 0;
     line-height: 1;
   }
-</style>
 
+  select option {
+    white-space: normal;
+    word-break: break-word;
+  }
+</style>
 
 <div class="scroll-table-wrapper">
   <table id="studentsTable" class="table table-bordered table-sm">
@@ -133,7 +136,19 @@
         <th class="col-1">Preferred Name</th>
         <th class="col-2">Year Level</th>
         {% for col in columns[3:] %}
-          <th>{{ col|safe }}</th>
+          <th>
+            <div class="mark-all-wrapper">
+              <div class="header-label text-center">{{ col|safe }}</div>
+              <a class="btn btn-outline-success btn-sm mark-complete-all"
+                href="#"
+                role="button"
+                data-column="{{ col|e }}"
+                data-classid="{{ class_id }}"
+                title="Mark every checkbox in this column as complete">
+                ✓ Mark All
+              </a>
+            </div>
+          </th>
         {% endfor %}
       </tr>
     </thead>
@@ -148,17 +163,15 @@
           {% set val = student[col]|default('')|string|trim %}
           {% if col in ["Scenario One - Selected <br> (7-8)", "Scenario Two - Selected <br> (7-8)"] %}
             <select class="form-control"
-        data-nsn="{{ student.NSN }}"
-        data-header="{{ col }}"
-        data-scenario-index="{{ 1 if 'Scenario One' in col else 2 }}">
-       {% for scenario in scenarios %}
-          <option value="{{ scenario.ScenarioID }}" {% if val == scenario.HTMLScenario %}selected{% endif %}>
-            {{ scenario.HTMLScenario | safe }}
-          </option>
-        {% endfor %}
-      </select>
-
-
+              data-nsn="{{ student.NSN }}"
+              data-header="{{ col }}"
+              data-scenario-index="{{ 1 if 'Scenario One' in col else 2 }}">
+              {% for scenario in scenarios %}
+              <option value="{{ scenario.ScenarioID }}" {% if val == scenario.HTMLScenario %}selected{% endif %}>
+                {{ scenario.HTMLScenario | safe }}
+              </option>
+              {% endfor %}
+            </select>
           {% else %}
             <input type="checkbox"
               name="competency"
@@ -166,8 +179,7 @@
               data-competency="{{ col }}"
               data-competencyid="{{ competency_id_map[col]['CompetencyID'] }}"
               data-yeargroupid="{{ competency_id_map[col]['YearGroupID'] }}"
-              {% if val == "Y" %}checked{% endif %}
-            />
+              {% if val == "Y" %}checked{% endif %} />
           {% endif %}
         </td>
         {% endfor %}
@@ -176,52 +188,44 @@
     </tbody>
   </table>
 </div>
+
 <script>
+  function toggleEditMode(editing) {
+    document.getElementById("class-info-display").classList.toggle("d-none", editing);
+    document.getElementById("class-info-edit").classList.toggle("d-none", !editing);
+  }
 
-  
+  function submitClassInfo(classId) {
+    const className = document.getElementById("edit-class-name").value.trim();
+    const teacherName = document.getElementById("edit-teacher-name").value.trim();
 
-
-function toggleEditMode(editing) {
-  document.getElementById("class-info-display").classList.toggle("d-none", editing);
-  document.getElementById("class-info-edit").classList.toggle("d-none", !editing);
-}
-
-function submitClassInfo(classId) {
-  const className = document.getElementById("edit-class-name").value.trim();
-  const teacherName = document.getElementById("edit-teacher-name").value.trim();
-
-  fetch("/update_class_info", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ class_id: classId, class_name: className, teacher_name: teacherName })
-  })
-  .then(res => res.json())
-  .then(data => {
-    if (data.success) {
-      document.getElementById("class-name-text").textContent = className;
-      document.getElementById("teacher-name-text").textContent = teacherName;
-      toggleEditMode(false);
-    } else {
-      alert("❌ Failed to update class info");
-    }
-  })
-  .catch(err => {
-    console.error("Update failed:", err);
-    alert("❌ An error occurred.");
-  });
-}
-
+    fetch("/update_class_info", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ class_id: classId, class_name: className, teacher_name: teacherName })
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        document.getElementById("class-name-text").textContent = className;
+        document.getElementById("teacher-name-text").textContent = teacherName;
+        toggleEditMode(false);
+      } else {
+        alert("❌ Failed to update class info");
+      }
+    })
+    .catch(err => {
+      console.error("Update failed:", err);
+      alert("❌ An error occurred.");
+    });
+  }
 
   document.addEventListener("DOMContentLoaded", function () {
-
-    // ✅ Checkbox handler
     document.querySelectorAll('input[type="checkbox"][name="competency"]').forEach(cb => {
       cb.addEventListener("change", function () {
         const nsn = this.dataset.nsn;
         const headerName = this.dataset.competency;
         const status = this.checked ? 1 : 0;
-
-        console.log("Sending competency update:", { nsn, headerName, status });
 
         fetch('/update_competency', {
           method: 'POST',
@@ -238,14 +242,11 @@ function submitClassInfo(classId) {
       });
     });
 
-    // ✅ Dropdown handler
     document.querySelectorAll('select[data-scenario-index]').forEach(select => {
       select.addEventListener("change", function () {
         const nsn = this.dataset.nsn;
         const headerName = this.dataset.header;
         const value = this.value;
-
-        console.log(`Would update scenario for NSN ${nsn}, header '${headerName}', and value '${value}'`);
 
         fetch('/update_scenario', {
           method: 'POST',
@@ -262,13 +263,19 @@ function submitClassInfo(classId) {
       });
     });
 
+    document.querySelectorAll('.mark-complete-all').forEach(button => {
+      button.addEventListener('click', function (e) {
+        e.preventDefault();
+        const column = this.dataset.column;
+
+        const checkboxes = Array.from(document.querySelectorAll(
+          `input[type="checkbox"][name="competency"][data-competency="${column}"]:not(:checked)`
+        ));
+
+        checkboxes.forEach(cb => cb.checked = true);
+        checkboxes.forEach(cb => cb.dispatchEvent(new Event("change")));
+      });
+    });
   });
 </script>
-<style>
-  select option {
-  white-space: normal;
-  word-break: break-word;
-}
-</style>
-
 {% endblock %}

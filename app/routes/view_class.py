@@ -111,11 +111,12 @@ def view_class(class_id, term, year):
         competency_id_map = comp_df.set_index("label")["CompetencyID"].to_dict()
 
         return render_template(
-            "funder_class_detail.html",
+            "student_achievement.html",
             students=df_combined.to_dict(orient="records"),
             columns=[col for col in df_combined.columns if col not in ["DateOfBirth", "Ethnicity", "FirstName", "NSN"]],
             competency_id_map=competency_id_map,
             scenarios=scenarios,
+            class_id = class_id,
             class_name=class_name,
             teacher_name=teacher_name,
             school_name=school_name,
@@ -507,3 +508,15 @@ def moe_classes():
         students=students,
         suggestions=suggestions
     )
+
+
+
+@class_bp.route('/mark_all_complete', methods=['POST'])
+@login_required
+def mark_all_complete():
+    data = request.get_json()
+    column = data.get('column')
+    class_id = data.get('class_id')
+    print(class_id)
+    print(column)
+    return jsonify(success=True)

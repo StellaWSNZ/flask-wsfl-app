@@ -77,6 +77,13 @@
       <label for="csv_file" class="form-label">Upload CSV File</label>
 <input type="file" class="form-control" id="csv_file" name="csv_file" accept=".csv, .xls, .xlsx" {% if not preview_data %}required{% endif %}>
     </div>
+    
+<div class="form-check">
+  <input class="form-check-input" type="checkbox" id="no_headers" name="no_headers">
+  <label class="form-check-label" for="no_headers">
+    File has no headers
+  </label>
+</div>
 
     <input type="hidden" id="column_mappings" name="column_mappings">
 
@@ -133,23 +140,23 @@
 
 <tbody>
   {% for row in preview_data %}
-  {% set error_columns = row.ErrorFields.split(',') | map('trim') | list if row.ErrorFields else [] %}
+    {% set error_columns = row.ErrorFields.split(',') | map('trim') | list if row.ErrorFields else [] %}
     <tr>
       {% for key, val in row.items() %}
-        {% if key != 'Match' %}
-          {% set clean_key = key.strip() %}
-          {% set is_error = clean_key|lower in error_columns|map('lower') %}
-          {% set cell_class = '' %}
-          {% if is_error and row.Match == 1 %}
-            {% set cell_class = 'bg-warning text-dark' %}
-          {% elif is_error and row.Match == 0 %}
-            {% set cell_class = 'bg-danger text-white' %}
-          {% endif %}
-          <td class="{{ cell_class }}">
-            {{ '' if val is none or val|string == 'nan' else val }}
-          </td>
-        {% endif %}
-      {% endfor %}
+  {% if key != 'Match' %}
+    {% set clean_key = key|string|trim %}
+    {% set is_error = clean_key|lower in error_columns|map('lower') %}
+    {% set cell_class = '' %}
+    {% if is_error and row.Match == 1 %}
+      {% set cell_class = 'bg-warning text-dark' %}
+    {% elif is_error and row.Match == 0 %}
+      {% set cell_class = 'bg-danger text-white' %}
+    {% endif %}
+    <td class="{{ cell_class }}">
+      {{ '' if val is none or val|string == 'nan' else val }}
+    </td>
+  {% endif %}
+{% endfor %}
       {% if validated %}
         <td>
           {% if row.Match %}
@@ -162,6 +169,7 @@
     </tr>
   {% endfor %}
 </tbody>
+
 
       </table>
     </div>
