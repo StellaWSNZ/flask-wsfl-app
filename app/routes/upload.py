@@ -150,8 +150,7 @@ def classlistupload():
 
                     # Build reverse mapping: selected column name → expected name
                     reverse_mapping = {
-                        int(k) if k.isdigit() else k: v
-                        for k, v in column_mappings.items()
+                        k: v for k, v in column_mappings.items()
                         if v.strip().lower() in [field.lower() for field in valid_fields]
                     }
 
