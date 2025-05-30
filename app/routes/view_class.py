@@ -15,6 +15,7 @@ from app.utils.competencyplot import load_competency_rates, make_figure
 from app.utils.nationalplot import generate_national_report
 class_bp = Blueprint("class_bp", __name__)
 
+
 @class_bp.route('/view_class/<int:class_id>/<int:term>/<int:year>')
 @login_required
 def view_class(class_id, term, year):
@@ -110,6 +111,23 @@ def view_class(class_id, term, year):
 
         competency_id_map = comp_df.set_index("label")["CompetencyID"].to_dict()
 
+        auto_result = conn.execute(text(""" 
+            SELECT 
+            c1.Description + '<br>(' + y1.Description + ')' AS HeaderPre,
+            c2.Description + '<br>(' + y2.Description + ')' AS HeaderPost
+            FROM CompetencyAutoMap cam
+            JOIN Competency c1 ON cam.CompetencyIDPre = c1.CompetencyID AND cam.YearGroupIDPre = c1.YearGroupID
+            JOIN YearGroup y1 ON c1.YearGroupID = y1.YearGroupID
+            JOIN Competency c2 ON cam.CompetencyIDPost = c2.CompetencyID AND cam.YearGroupIDPost = c2.YearGroupID
+            JOIN YearGroup y2 ON c2.YearGroupID = y2.YearGroupID
+        """))
+
+
+        from collections import defaultdict
+        header_map = defaultdict(list)
+
+        for row in auto_result:
+            header_map[row.HeaderPre].append(row.HeaderPost)
         return render_template(
             "student_achievement.html",
             students=df_combined.to_dict(orient="records"),
@@ -121,9 +139,11 @@ def view_class(class_id, term, year):
             teacher_name=teacher_name,
             school_name=school_name,
             class_title=title_string,
-            edit = session.get("user_admin")
+            edit = session.get("user_admin"),
+            autofill_map=None
         )
         
+     
 @class_bp.route("/update_class_info", methods=["POST"])
 @login_required
 def update_class_info():

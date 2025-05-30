@@ -190,6 +190,8 @@
 </div>
 
 <script>
+  const autofillMap = {{ autofill_map | tojson }};
+
   function toggleEditMode(editing) {
     document.getElementById("class-info-display").classList.toggle("d-none", editing);
     document.getElementById("class-info-edit").classList.toggle("d-none", !editing);
@@ -221,6 +223,7 @@
   }
 
   document.addEventListener("DOMContentLoaded", function () {
+    // ✅ Save checkboxes
     document.querySelectorAll('input[type="checkbox"][name="competency"]').forEach(cb => {
       cb.addEventListener("change", function () {
         const nsn = this.dataset.nsn;
@@ -242,6 +245,7 @@
       });
     });
 
+    // ✅ Save scenario changes
     document.querySelectorAll('select[data-scenario-index]').forEach(select => {
       select.addEventListener("change", function () {
         const nsn = this.dataset.nsn;
@@ -263,6 +267,7 @@
       });
     });
 
+    // ✅ Mark all checkboxes in a column
     document.querySelectorAll('.mark-complete-all').forEach(button => {
       button.addEventListener('click', function (e) {
         e.preventDefault();
@@ -276,6 +281,20 @@
         checkboxes.forEach(cb => cb.dispatchEvent(new Event("change")));
       });
     });
+
+    // ✅ Autofill from CompetencyAutoMap
+    Object.entries(autofillMap).forEach(([nsn, targets]) => {
+      targets.forEach(([compID, yearID]) => {
+        const box = document.querySelector(
+          `input[type="checkbox"][name="competency"][data-nsn="${nsn}"][data-competencyid="${compID}"][data-yeargroupid="${yearID}"]`
+        );
+        if (box && !box.checked) {
+          box.checked = true;
+          box.dispatchEvent(new Event("change"));
+        }
+      });
+    });
   });
 </script>
+
 {% endblock %}

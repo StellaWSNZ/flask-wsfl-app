@@ -63,10 +63,11 @@ def classlistupload():
             else int(selected_school_str.split('(')[-1].rstrip(')'))
         )
         session["selected_moe"] = moe_number
-
+        
         column_mappings_json = request.form.get('column_mappings')
+        
         file = request.files.get('csv_file')
-        selected_csv = file if file and file.filename else None,
+        selected_csv = file if file and file.filename else None
 
         if selected_funder and selected_funder.isdigit():
             selected_funder = int(selected_funder)
@@ -120,6 +121,7 @@ def classlistupload():
                 df_cleaned.rename(columns={"BirthDate": "Birthdate"}, inplace=True)
             # Save raw JSON version for later validation (as string)
             session["raw_csv_json"] = df_cleaned.to_json(orient="records")
+            print("✅ raw_csv_json saved with", len(df_cleaned), "rows")
 
             # Save top 10 rows preview to session
             preview_data = df_cleaned.head(10).to_dict(orient="records")
@@ -138,11 +140,14 @@ def classlistupload():
                 try:
                     raw_df = pd.read_json(StringIO(session["raw_csv_json"]))
                     column_mappings = json.loads(column_mappings_json)
+                    print("📋 Column mappings received from frontend:", column_mappings_json)
+                    print("📊 Raw DataFrame columns:", raw_df.columns.tolist())
                     valid_fields = ["NSN", "FirstName", "LastName", "PreferredName", "BirthDate", "Ethnicity", "YearLevel"]
 
                     # Build reverse mapping: selected column name → expected name
                     reverse_mapping = {
-                        k: v for k, v in column_mappings.items()
+                        int(k) if k.isdigit() else k: v
+                        for k, v in column_mappings.items()
                         if v.strip().lower() in [field.lower() for field in valid_fields]
                     }
 

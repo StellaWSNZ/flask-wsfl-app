@@ -71,7 +71,7 @@
         </div>
 
         {% if user_role in ['ADM', 'FUN'] %}
-        <div class="mb-3" id="funder-section" style="display: none">
+        <div class="mb-3" id="funder-section" style="display: none;">
           <label class="form-label">Select Funder</label>
           <select id="funder-id" class="form-select">
             {% if user_role == 'ADM' %}
@@ -86,7 +86,7 @@
         {% endif %}
 
         {% if user_role in ['ADM', 'FUN', 'PRO'] %}
-        <div class="mb-3" id="provider-section" style="display: none">
+        <div class="mb-3" id="provider-section" style="display: none;">
           <label class="form-label">Select Provider</label>
           <select id="provider-id" class="form-select">
             {% if user_role != 'PRO' %}
@@ -100,7 +100,7 @@
         </div>
         {% endif %}
 
-        <div class="mb-3" id="school-section" {% if user_role == 'FUN' %}style="display: none"{% endif %}>
+        <div class="mb-3" id="school-section" style="display: none;">
           <label class="form-label">Select School</label>
           <select id="school-id" name="school" class="form-select">
             {% for s in schools %}
@@ -165,27 +165,32 @@
       }
     }
 
+    function toggleSectionsByRole(role) {
+      funderSection.style.display = "none";
+      providerSection.style.display = "none";
+      schoolSection.style.display = "none";
+
+      if (role === "FUN") funderSection.style.display = "block";
+      else if (role === "PRO") providerSection.style.display = "block";
+      else if (role === "MOE") schoolSection.style.display = "block";
+    }
+
     if (roleSelect) {
       roleSelect.addEventListener("change", function () {
-        if (funderSection) funderSection.style.display = "none";
-        if (providerSection) providerSection.style.display = "none";
-        if (schoolSection) schoolSection.style.display = "none";
-
-        if (this.value === "FUN") funderSection.style.display = "block";
-        else if (this.value === "PRO") providerSection.style.display = "block";
-        else if (this.value === "MOE") schoolSection.style.display = "block";
-
+        toggleSectionsByRole(this.value);
         updateSelectedId();
         updateAdminCheckboxVisibility();
       });
+
+      // On load, if role is preselected (e.g., due to validation fail), display relevant section
+      toggleSectionsByRole(roleSelect.value);
+      updateSelectedId();
+      updateAdminCheckboxVisibility();
     }
 
     [funderDropdown, providerDropdown, schoolDropdown].forEach((dropdown) => {
       if (dropdown) dropdown.addEventListener("change", updateSelectedId);
     });
-
-    updateSelectedId();
-    updateAdminCheckboxVisibility();
   });
 </script>
 {% endblock %}
