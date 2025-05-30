@@ -155,8 +155,8 @@ def classlistupload():
                         if v.strip().lower() in [field.lower() for field in valid_fields]
                     }
 
-                    usable_columns = [col for col in raw_df.columns if col in reverse_mapping]
-                    df = raw_df[usable_columns].rename(columns=reverse_mapping)
+                    usable_columns = [col for col in raw_df.columns if str(col) in reverse_mapping]
+                    df = raw_df[usable_columns].rename(columns={col: reverse_mapping[str(col)] for col in usable_columns})
 
                     # Handle birthdate first and unify to "Birthdate"
                     # Handle BirthDate / Birthdate unification and parsing

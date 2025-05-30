@@ -223,7 +223,7 @@
   }
 
   document.addEventListener("DOMContentLoaded", function () {
-    // ✅ Save checkboxes
+    // ✅ Save competency checkboxes
     document.querySelectorAll('input[type="checkbox"][name="competency"]').forEach(cb => {
       cb.addEventListener("change", function () {
         const nsn = this.dataset.nsn;
@@ -237,7 +237,20 @@
         })
         .then(response => response.json())
         .then(data => {
-          if (!data.success) {
+          if (data.success && status === 1) {
+            // ✅ Autofill mapped follow-ups if current is ticked
+            if (autofillMap[headerName]) {
+              autofillMap[headerName].forEach(postHeader => {
+                const target = document.querySelector(
+                  `input[type="checkbox"][name="competency"][data-nsn="${nsn}"][data-competency="${postHeader}"]`
+                );
+                if (target && !target.checked) {
+                  target.checked = true;
+                  target.dispatchEvent(new Event("change"));
+                }
+              });
+            }
+          } else if (!data.success) {
             alert("❌ Failed to update competency.");
           }
         })
@@ -267,34 +280,21 @@
       });
     });
 
-    // ✅ Mark all checkboxes in a column
+    // ✅ "Mark all complete" buttons
     document.querySelectorAll('.mark-complete-all').forEach(button => {
       button.addEventListener('click', function (e) {
         e.preventDefault();
         const column = this.dataset.column;
-
         const checkboxes = Array.from(document.querySelectorAll(
           `input[type="checkbox"][name="competency"][data-competency="${column}"]:not(:checked)`
         ));
-
         checkboxes.forEach(cb => cb.checked = true);
         checkboxes.forEach(cb => cb.dispatchEvent(new Event("change")));
       });
     });
-
-    // ✅ Autofill from CompetencyAutoMap
-    Object.entries(autofillMap).forEach(([nsn, targets]) => {
-      targets.forEach(([compID, yearID]) => {
-        const box = document.querySelector(
-          `input[type="checkbox"][name="competency"][data-nsn="${nsn}"][data-competencyid="${compID}"][data-yeargroupid="${yearID}"]`
-        );
-        if (box && !box.checked) {
-          box.checked = true;
-          box.dispatchEvent(new Event("change"));
-        }
-      });
-    });
   });
 </script>
+
+
 
 {% endblock %}

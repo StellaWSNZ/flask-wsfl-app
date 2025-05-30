@@ -128,6 +128,8 @@ def view_class(class_id, term, year):
 
         for row in auto_result:
             header_map[row.HeaderPre].append(row.HeaderPost)
+            
+        print(header_map)
         return render_template(
             "student_achievement.html",
             students=df_combined.to_dict(orient="records"),
@@ -140,7 +142,7 @@ def view_class(class_id, term, year):
             school_name=school_name,
             class_title=title_string,
             edit = session.get("user_admin"),
-            autofill_map=None
+            autofill_map=header_map
         )
         
      
