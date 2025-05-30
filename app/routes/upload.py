@@ -106,7 +106,7 @@ def classlistupload():
                         excel_df.to_csv(tmp_csv_path, index=False)
 
                     # Now load the CSV version for consistent handling
-                    df = pd.read_csv(tmp_csv_path)
+                        df = pd.read_csv(tmp_csv_path, header=0 if has_headers else None, encoding="latin1")               
                 else:
                     flash("Unsupported file format. Please upload a .csv, .xls, or .xlsx file.", "danger")
                     return redirect(url_for("upload_bp.classlistupload"))
