@@ -88,6 +88,7 @@ def classlistupload():
             filename = file.filename.lower()
             file_ext = os.path.splitext(filename)[-1]
             has_headers = not bool(request.form.get("no_headers"))
+            session["has_headers"] = has_headers
 
             try:
                 if file_ext == ".csv":
@@ -222,7 +223,9 @@ def classlistupload():
         selected_csv = selected_csv,
         preview_data=preview_data,
         validated = validated,
-        original_columns = original_columns
+        original_columns = original_columns,
+        has_headers = session.get("has_headers", True)
+
     )
 
 
