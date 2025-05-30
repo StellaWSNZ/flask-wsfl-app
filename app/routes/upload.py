@@ -91,7 +91,11 @@ def classlistupload():
 
             try:
                 if file_ext == ".csv":
-                    df = pd.read_csv(file, header=0 if has_headers else None)                
+                    try:
+                        df = pd.read_csv(file, header=0 if has_headers else None)
+                    except UnicodeDecodeError:
+                        file.seek(0)  # Reset pointer to start of file
+                        df = pd.read_csv(file, header=0 if has_headers else None, encoding="latin1")               
                 elif file_ext in [".xls", ".xlsx"]:
                     with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:
                         file.save(tmp.name)
@@ -425,28 +429,7 @@ def submitclass():
             print(f"Row {i+1} Birthdate:", row.get("Birthdate"))
                 
 
-        with engine.begin() as conn:
-                    conn.execute(
-                        text("""
-                            EXEC FlaskInsertClassList
-                                @FunderId = :FunderId,
-                                @MOENumber = :MOENumber,
-                                @Term = :Term,
-                                @CalendarYear = :Year,
-                                @TeacherName = :Teacher,
-                                @ClassName = :ClassName,
-                                @InputJSON = :InputJSON
-                        """),
-                        {
-                            "FunderId": funder_id,
-                            "MOENumber": moe_number,
-                            "Term": term,
-                            "Year": year,
-                            "Teacher": teacher,
-                            "ClassName": classname,
-                            "InputJSON": input_json
-                        }
-                    )
+        print(input_json)
                 
 
         flash("✅ Class submitted successfully!", "success")
