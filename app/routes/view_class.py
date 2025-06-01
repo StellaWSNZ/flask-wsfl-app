@@ -67,7 +67,7 @@ def view_class(class_id, term, year):
         comp_df = pd.DataFrame(comp_result.fetchall(), columns=comp_result.keys())
         if filter_type == "water":
             comp_df = comp_df[comp_df["WaterBased"] == 1]
-        comp_df["label"] = comp_df["CompetencyDesc"] + "<br> (" + comp_df["YearGroupDesc"] + ")"
+        comp_df["label"] = comp_df["CompetencyDesc"] + " <br>(" + comp_df["YearGroupDesc"] + ")"
         comp_df["col_order"] = comp_df["YearGroupID"].astype(str).str.zfill(2) + "-" + comp_df["CompetencyID"].astype(str).str.zfill(4)
         comp_df = comp_df.sort_values("col_order")
         labels = comp_df["label"].tolist()
@@ -113,8 +113,8 @@ def view_class(class_id, term, year):
 
         auto_result = conn.execute(text(""" 
             SELECT 
-            c1.Description + '<br>(' + y1.Description + ')' AS HeaderPre,
-            c2.Description + '<br>(' + y2.Description + ')' AS HeaderPost
+            c1.Description + ' <br>(' + y1.Description + ')' AS HeaderPre,
+            c2.Description + ' <br>(' + y2.Description + ')' AS HeaderPost
             FROM CompetencyAutoMap cam
             JOIN Competency c1 ON cam.CompetencyIDPre = c1.CompetencyID AND cam.YearGroupIDPre = c1.YearGroupID
             JOIN YearGroup y1 ON c1.YearGroupID = y1.YearGroupID
@@ -260,7 +260,8 @@ def update_competency():
     nsn = data.get("nsn")
     header_name = data.get("header_name")
     status = data.get("status")
-    debug = 0  # You can set this to 1 if you want the stored procedure to run in debug mode
+    debug = 0
+    print(f"📥 Incoming update request: NSN={nsn}, Header='{header_name}', Status={status}")
 
     if nsn is None or header_name is None or status is None:
         return jsonify({"success": False, "message": "Missing data"}), 400
@@ -268,11 +269,19 @@ def update_competency():
     try:
         engine = get_db_engine()
         with engine.connect() as conn:
-            conn.execute(
-                text("EXEC FlaskUpdateAchievement @NSN = :nsn, @Header = :header, @Value = :value, @Debug = :debug"),
-                {"nsn": nsn, "header": header_name, "value": status, "debug": debug}
-            )
-        return jsonify({"success": True, "message": "Competency updated successfully."})
+            with conn.begin():  # <-- this ensures commit happens
+
+                result = conn.execute(
+                    text("EXEC FlaskUpdateAchievement @NSN = :nsn, @Header = :header, @Value = :value, @Debug = :debug"),
+                    {"nsn": nsn, "header": header_name, "value": status, "debug": debug}
+                )
+
+            # Fetch debug output from first result set (assuming it's a SELECT '...' AS Msg)
+
+        return jsonify({
+            "success": True
+        })
+
     except Exception as e:
         print("❌ Competency update failed:", e)
         return jsonify({"success": False, "error": str(e)}), 500

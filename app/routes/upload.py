@@ -159,7 +159,6 @@ def classlistupload():
                     df = raw_df[usable_columns].rename(columns={col: reverse_mapping[str(col)] for col in usable_columns})
 
                     # Handle birthdate first and unify to "Birthdate"
-                    # Handle BirthDate / Birthdate unification and parsing
                     if "BirthDate" in df.columns:
                         df["BirthDate"] = (
                             df["BirthDate"]
