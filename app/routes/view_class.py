@@ -128,7 +128,7 @@ def view_class(class_id, term, year):
         for row in auto_result:
             header_map[row.HeaderPre].append(row.HeaderPost)
             
-        print(header_map)
+        #print(header_map)
         return render_template(
             "student_achievement.html",
             students=df_combined.to_dict(orient="records"),
@@ -158,12 +158,21 @@ def update_class_info():
 
     engine = get_db_engine()
     with engine.begin() as conn:
-        conn.execute(text("""
-            UPDATE Class
-            SET ClassName = :class_name, TeacherName = :teacher_name
-            WHERE ClassID = :class_id
-        """), {"class_name": class_name, "teacher_name": teacher_name, "class_id": class_id})
-
+        conn.execute(
+            text("""
+                EXEC FlaskHelperFunctionsSpecific 
+                    @Request = :request,
+                    @ClassID = :class_id,
+                    @ClassName = :class_name,
+                    @TeacherName = :teacher_name
+            """),
+            {
+                "request": "UpdateClassInfo",
+                "class_id": class_id,
+                "class_name": class_name,
+                "teacher_name": teacher_name
+            }
+        )
     return jsonify(success=True)
 
 

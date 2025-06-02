@@ -77,7 +77,7 @@
       <label for="csv_file" class="form-label">Upload CSV File</label>
 <input type="file" class="form-control" id="csv_file" name="csv_file" accept=".csv, .xls, .xlsx" {% if not preview_data %}required{% endif %}>
     </div>
-    
+   
 <div class="form-check">
 <input class="form-check-input" type="checkbox" id="no_headers" name="no_headers" {% if request.form.get('no_headers') %}checked{% endif %}>
   <label class="form-check-label" for="no_headers">
@@ -88,9 +88,11 @@
     <input type="hidden" id="column_mappings" name="column_mappings">
 
     <div class="col-12 d-flex justify-content-between">
-      <button type="submit" name="action" value="preview" class="btn btn-secondary">Preview File</button>
+      <div id="preview-button-container" style="display: none;">
+        <button type="submit" name="action" value="preview" class="btn btn-secondary">Preview File</button>
+      </div>
       {% if preview_data %}
-        <button type="submit" name="action" value="validate" class="btn btn-success">Validate Data</button>
+        <button type="submit" name="action" value="validate" id="validate-button" class="btn btn-success">Validate Data</button>
       {% endif %}
     </div>
   </form>
@@ -99,6 +101,7 @@
   <div class="mt-5">
     <h4>Preview</h4>
     {% if not validated %}
+      <h5>Please assign a column name to each column of your sheet. </h5>
       <p>Does your template have unecessary columns? Don't assign a name and they will be ignored.</p>
     {% endif %}
       {% if validated %}
@@ -173,7 +176,7 @@
 
       </table>
     </div>
-    <div> 
+    <div>
      
     </div>
         {% set all_matches = preview_data | selectattr("Match", "equalto", false) | list | length == 0 %}
@@ -186,7 +189,7 @@
           <button type="submit" class="btn btn-danger">Export Fixes to Excel</button>
         </form>
       {% endif %}
-      
+     
       {% if all_matches %}
         <form action="/submitclass" method="post">
           <button type="submit" class="btn btn-success">Submit Class</button>
@@ -197,6 +200,29 @@
   </div>  {# End of preview block #}
 {% endif %}  {# Close if preview_data #}
 {% endif %}
+<div class="modal fade" id="validationErrorModal" tabindex="-1" aria-labelledby="validationErrorModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content border-danger">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title" id="validationErrorModalLabel">Missing Required Mappings</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        Please assign columns for:
+        <ul>
+          <li><strong>NSN</strong></li>
+          <li><strong>LastName</strong></li>
+          <li><strong>FirstName</strong> or <strong>PreferredName</strong></li>
+        </ul>
+        before validating the data.
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
@@ -259,6 +285,41 @@
       localStorage.setItem("column_mappings", JSON.stringify(mapping));
       document.getElementById("column_mappings").value = JSON.stringify(mapping);
     });
+
+    const fileInput = document.getElementById("csv_file");
+  const previewContainer = document.getElementById("preview-button-container");
+
+  function togglePreviewButton() {
+    previewContainer.style.display = fileInput.files.length > 0 ? "block" : "none";
+  }
+
+  fileInput.addEventListener("change", togglePreviewButton);
+  togglePreviewButton();
+
+const validateButton = document.getElementById("validate-button");
+
+if (validateButton) {
+  validateButton.addEventListener("click", function (e) {
+    const mappings = {};
+    document.querySelectorAll('select[name^="map_"]').forEach((select) => {
+      const col = select.name.replace("map_", "");
+      mappings[select.value] = col;
+    });
+
+    const hasNSN = mappings.hasOwnProperty("NSN");
+    const hasLastName = mappings.hasOwnProperty("LastName");
+    const hasFirstOrPreferred =
+      mappings.hasOwnProperty("FirstName") || mappings.hasOwnProperty("PreferredName");
+
+    if (!(hasNSN && hasLastName && hasFirstOrPreferred)) {
+      e.preventDefault();
+      const modal = new bootstrap.Modal(document.getElementById("validationErrorModal"));
+      modal.show();
+    }
+  });
+}
+
+ 
   });
 </script>
 {% endblock %}

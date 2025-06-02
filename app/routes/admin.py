@@ -202,31 +202,39 @@ def update_profile():
 
     engine = get_db_engine()
     with engine.begin() as conn:
-        # Update user info
         conn.execute(text("""
-            UPDATE FlaskLogin
-            SET FirstName = :fname, Surname = :sname, Email = :new_email
-            WHERE Email = :original_email
+            EXEC FlaskHelperFunctionsSpecific 
+                @Request = :request,
+                @FirstName = :fname,
+                @Surname = :sname,
+                @NewEmail = :new_email,
+                @OriginalEmail = :original_email
         """), {
+            "request": "UpdateUserInfo",
             "fname": new_firstname,
             "sname": new_surname,
             "new_email": new_email,
             "original_email": original_email
         })
 
+
         # Update school info if MOE admin
         if all([school_address, school_town, school_type]) and session.get("user_admin") == 1 and session.get("user_role") == "MOE":
             school_id = session.get("user_id")
             if school_id:
                 conn.execute(text("""
-                    UPDATE MOE_SchoolDirectory
-                    SET StreetAddress = :addr, TownCity = :town, SchoolTypeID = :stype
-                    WHERE MOENumber = :school_id
+                    EXEC FlaskHelperFunctionsSpecific 
+                        @Request = :request,
+                        @MOENumber = :school_id,
+                        @StreetAddress = :addr,
+                        @TownCity = :town,
+                        @SchoolTypeID = :stype
                 """), {
+                    "request": "UpdateSchoolInfo",
+                    "school_id": school_id,
                     "addr": school_address,
                     "town": school_town,
-                    "stype": school_type,
-                    "school_id": school_id
+                    "stype": school_type
                 })
 
         # Update funder info if FUN admin
@@ -234,14 +242,18 @@ def update_profile():
             funder_id = session.get("user_id")
             if funder_id:
                 conn.execute(text("""
-                    UPDATE FunderDetails
-                    SET Address = :address, Latitude = :lat, Longitude = :lon
-                    WHERE FunderID = :funder_id
+                    EXEC FlaskHelperFunctionsSpecific 
+                        @Request = :request,
+                        @FunderID = :funder_id,
+                        @FunderAddress = :address,
+                        @FunderLatitude = :lat,
+                        @FunderLongitude = :lon
                 """), {
+                    "request": "UpdateFunderInfo",
+                    "funder_id": funder_id,
                     "address": funder_address,
                     "lat": funder_lat,
-                    "lon": funder_lon,
-                    "funder_id": funder_id
+                    "lon": funder_lon
                 })
 
     # Refresh session

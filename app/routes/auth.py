@@ -107,8 +107,17 @@ def reset_password(token):
         engine = get_db_engine()
         with engine.begin() as conn:
             conn.execute(
-                text("UPDATE FlaskLogin SET HashPassword = :hash WHERE Email = :email"),
-                {"hash": hashed_pw, "email": email}
+                text("""
+                    EXEC FlaskHelperFunctionsSpecific 
+                        @Request = :request,
+                        @Email = :email,
+                        @HashPassword = :hash
+                """),
+                {
+                    "request": "UpdatePassword",
+                    "email": email,
+                    "hash": hashed_pw
+                }
             )
         flash('Password updated.')
         return redirect(url_for('auth_bp.login'))

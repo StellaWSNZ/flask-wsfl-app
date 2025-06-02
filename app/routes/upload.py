@@ -409,13 +409,13 @@ def submitclass():
             missing.append("preview_data")
         
         # DEBUG: Print all values
-        print("🔍 funder_id:", funder_id)
-        print("🔍 moe_number:", moe_number)
-        print("🔍 term:", term)
-        print("🔍 year:", year)
-        print("🔍 teacher:", teacher)
-        print("🔍 classname:", classname)
-        print("🔍 preview_data sample:", preview_data[:1])
+        #print("🔍 funder_id:", funder_id)
+        #print("🔍 moe_number:", moe_number)
+        #print("🔍 term:", term)
+        #print("🔍 year:", year)
+        #print("🔍 teacher:", teacher)
+        #print("🔍 classname:", classname)
+        #print("🔍 preview_data sample:", preview_data[:1])
 
         if missing:
             flash(f"Missing required data to submit class list: {', '.join(missing)}", "danger")
@@ -425,12 +425,12 @@ def submitclass():
                 row["Birthdate"] = pd.to_datetime(row["Birthdate"], errors="coerce").strftime("%Y-%m-%d")
         input_json = json.dumps(preview_data)
         
-        print("🔍 Final JSON birthdate values before submit:")
+        #print("🔍 Final JSON birthdate values before submit:")
         for i, row in enumerate(preview_data[:3]):
             print(f"Row {i+1} Birthdate:", row.get("Birthdate"))
                 
 
-        print(input_json)
+        #print(input_json)
                 
 
         flash("✅ Class submitted successfully!", "success")
