@@ -22,7 +22,9 @@ def view_class(class_id, term, year):
     filter_type = request.args.get("filter", "all")  # ← add this
     engine = get_db_engine()
     with engine.connect() as conn:
-        scenario_result = conn.execute(text("SELECT ScenarioID, HTMLScenario FROM Scenario"))
+        scenario_result = conn.execute(text("""
+            EXEC FlaskHelperFunctions @Request = :request
+        """), {"request": "ScenarioList"})
         scenarios = [dict(row._mapping) for row in scenario_result]
 
         class_info = conn.execute(
@@ -111,16 +113,13 @@ def view_class(class_id, term, year):
 
         competency_id_map = comp_df.set_index("label")["CompetencyID"].to_dict()
 
-        auto_result = conn.execute(text(""" 
-            SELECT 
-            c1.Description + ' <br>(' + y1.Description + ')' AS HeaderPre,
-            c2.Description + ' <br>(' + y2.Description + ')' AS HeaderPost
-            FROM CompetencyAutoMap cam
-            JOIN Competency c1 ON cam.CompetencyIDPre = c1.CompetencyID AND cam.YearGroupIDPre = c1.YearGroupID
-            JOIN YearGroup y1 ON c1.YearGroupID = y1.YearGroupID
-            JOIN Competency c2 ON cam.CompetencyIDPost = c2.CompetencyID AND cam.YearGroupIDPost = c2.YearGroupID
-            JOIN YearGroup y2 ON c2.YearGroupID = y2.YearGroupID
-        """))
+        auto_result = conn.execute(
+            text("""
+                EXEC FlaskHelperFunctions 
+                    @Request = :request
+            """),
+            {"request": "AutoMappedCompetencies"}
+        )
 
 
         from collections import defaultdict
@@ -199,23 +198,33 @@ def funder_classes():
                 # Get school list
                 if user_role == "FUN":
                     result = conn.execute(
-                        text("""
-                            SELECT sf.MOENumber, sd.SchoolName AS School
-                            FROM SchoolFunder sf
-                            JOIN MOE_SchoolDirectory sd ON sf.MOENumber = sd.MOENumber
-                            WHERE sf.Term = :term AND sf.CalendarYear = :year AND sf.FunderID = :funder_id
+                       text("""
+                            EXEC FlaskHelperFunctionsSpecific 
+                                @Request = :request,
+                                @Term = :term,
+                                @Year = :year,
+                                @FunderID = :funder_id
                         """),
-                        {"term": term, "year": year, "funder_id": user_id}
+                        {
+                            "request": "SchoolsByFunderTermYear",
+                            "term": term,
+                            "year": year,
+                            "funder_id": user_id
+                        }
                     )
                 else:
                     result = conn.execute(
                         text("""
-                            SELECT sf.MOENumber, sd.SchoolName AS School
-                            FROM SchoolFunder sf
-                            JOIN MOE_SchoolDirectory sd ON sf.MOENumber = sd.MOENumber
-                            WHERE sf.Term = :term AND sf.CalendarYear = :year
+                            EXEC FlaskHelperFunctionsSpecific 
+                                @Request = :request, 
+                                @Term = :term, 
+                                @Year = :year
                         """),
-                        {"term": term, "year": year}
+                        {
+                            "request": "SchoolsByTermYear",
+                            "term": term,
+                            "year": year
+                        }
                     )
                 schools = [dict(row._mapping) for row in result]
 
@@ -223,24 +232,33 @@ def funder_classes():
                 if moe_number:
                     result = conn.execute(
                         text("""
-                            SELECT ClassID, ClassName, TeacherName
-                            FROM Class
-                            WHERE MOENumber = :moe AND Term = :term AND CalendarYear = :year
-                            ORDER BY TeacherName, ClassName
+                            EXEC FlaskHelperFunctionsSpecific 
+                                @Request = :request,
+                                @MOENumber = :moe,
+                                @Term = :term,
+                                @Year = :year
                         """),
-                        {"moe": moe_number, "term": term, "year": year}
+                        {
+                            "request": "ClassesBySchoolTermYear",
+                            "moe": moe_number,
+                            "term": term,
+                            "year": year
+                        }
                     )
                     classes = [row._mapping for row in result.fetchall()]
 
+
                     if not classes:
                         suggestion_result = conn.execute(
-                            text("""
-                                SELECT DISTINCT CONCAT('Term ', Term, ' - ', CalendarYear) AS Label
-                                FROM Class
-                                WHERE MOENumber = :moe
-                                ORDER BY CalendarYear DESC, Term DESC
+                             text("""
+                                EXEC FlaskHelperFunctionsSpecific 
+                                    @Request = :request, 
+                                    @MOENumber = :moe
                             """),
-                            {"moe": moe_number}
+                            {
+                                "request": "DistinctTermsForSchool",
+                                "moe": moe_number
+                            }
                         )
                         suggestions = [row.Label for row in suggestion_result]
 
@@ -348,8 +366,8 @@ def reporting():
         if report_type == "Funder":
             with engine.connect() as conn:
                 result = conn.execute(
-                    text("SELECT FunderID FROM Funder WHERE Description = :Description"),
-                    {"Description": funder_name}
+                    text("EXEC FlaskHelperFunction @Request =:Request, Text = :Description"),
+                    {"Request":"FunderIDDescription","Description": funder_name}
                 )
                 row = result.fetchone()
 
