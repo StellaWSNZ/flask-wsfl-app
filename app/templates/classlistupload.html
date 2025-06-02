@@ -118,7 +118,7 @@
       {% if validated %}
         {% set all_matches = preview_data | selectattr("Match", "equalto", false) | list | length == 0 %}
         {% set has_errorfields = preview_data | map(attribute='ErrorFields') | reject("in", ["", none]) | list | length > 0 %}
-<div class="col-12 d-flex gap-3 mt-3 mb-4" id="post-validate-buttons" style="display:none;">
+        <div class="col-12 d-flex gap-3 mt-3 mb-4" id="post-validate-buttons" style="display:none;">
           {% if has_errorfields %}
             <form action="/classlistdownload" method="post">
               <button type="submit" class="btn btn-primary">Export Fixes to Excel</button>

@@ -10,6 +10,12 @@
     {% if edit == 1 %}
     <button type="button" class="btn btn-sm btn-outline-primary ms-2" onclick="toggleEditMode(true)">Edit</button>
     {% endif %}
+    <a class="btn btn-outline-secondary" 
+   href="{{ url_for('class_bp.print_class_view', class_id=class_id, term=term, year=year) }}" 
+   target="_blank">
+  🖨️ Print View
+</a>
+
   </div>
 
   {% if edit == 1 %}

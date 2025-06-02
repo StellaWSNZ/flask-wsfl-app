@@ -135,14 +135,17 @@ def view_class(class_id, term, year):
             columns=[col for col in df_combined.columns if col not in ["DateOfBirth", "Ethnicity", "FirstName", "NSN"]],
             competency_id_map=competency_id_map,
             scenarios=scenarios,
-            class_id = class_id,
+            class_id=class_id,
             class_name=class_name,
             teacher_name=teacher_name,
             school_name=school_name,
             class_title=title_string,
-            edit = session.get("user_admin"),
-            autofill_map=header_map
+            edit=session.get("user_admin"),
+            autofill_map=header_map,
+            term=term,
+            year=year
         )
+
         
      
 @class_bp.route("/update_class_info", methods=["POST"])
@@ -578,3 +581,98 @@ def mark_all_complete():
     print(class_id)
     print(column)
     return jsonify(success=True)
+@class_bp.route("/class/print/<int:class_id>/<int:term>/<int:year>")
+@login_required
+def print_class_view(class_id, term, year):
+    engine = get_db_engine()
+    with engine.connect() as conn:
+        # Get student data
+        result = conn.execute(
+            text("""
+                EXEC FlaskHelperFunctionsSpecific
+                @Request = :Request,
+                @ClassID = :class_id,
+                @Term = :term,
+                @Year = :year
+            """),
+            {"Request": "StudentsByClassTermYear", "class_id": class_id, "term": term, "year": year}
+        )
+        students = pd.DataFrame(result.fetchall(), columns=result.keys())
+        if students.empty:
+            flash("No students found.", "warning")
+            return redirect(url_for("class_bp.funder_classes"))
+
+        # Get class name and teacher name
+        class_info = conn.execute(
+            text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :class_id"),
+            {"Request": "ClassInfoByID", "class_id": class_id}
+        ).fetchone()
+        class_name = class_info.ClassName if class_info else "Unknown Class"
+        teacher_name = class_info.TeacherName if class_info else "Unknown Teacher"
+
+        # Get competencies
+        comp_result = conn.execute(text("EXEC GetRelevantCompetencies :CalendarYear, :Term"),
+                                   {"CalendarYear": year, "Term": term})
+        comp_df = pd.DataFrame(comp_result.fetchall(), columns=comp_result.keys())
+        comp_df["label"] = comp_df["CompetencyDesc"] + " <br>(" + comp_df["YearGroupDesc"] + ")"
+        comp_df["col_order"] = comp_df["YearGroupID"].astype(str).str.zfill(2) + "-" + comp_df["CompetencyID"].astype(str).str.zfill(4)
+        comp_df = comp_df.sort_values("col_order")
+        labels = comp_df["label"].tolist()
+
+        # Build student records with all competencies
+        all_records = []
+        for _, student in students.iterrows():
+            nsn = student["NSN"]
+            comp_data = pd.read_sql(
+                text("EXEC GetStudentCompetencyStatus :NSN, :Term, :CalendarYear"),
+                conn,
+                params={"NSN": nsn, "Term": term, "CalendarYear": year}
+            )
+            if not comp_data.empty:
+                comp_data = comp_data.merge(comp_df[["CompetencyID", "YearGroupID", "label"]],
+                                            on=["CompetencyID", "YearGroupID"], how="inner")
+                comp_row = comp_data.set_index("label")["CompetencyStatusID"] \
+                    .reindex(labels).fillna(0).astype(int).map({1: 'Y', 0: ''}).to_dict()
+            else:
+                comp_row = {label: '' for label in labels}
+
+            merged_row = {
+                "NSN": nsn,
+                "FirstName": student["FirstName"],
+                "LastName": student["LastName"],
+                "PreferredName": student["PreferredName"],
+                "DateOfBirth": student["DateOfBirth"],
+                "Ethnicity": student["Ethnicity"],
+                "YearLevelID": student["YearLevelID"],
+                **comp_row
+            }
+            all_records.append(merged_row)
+
+        df_combined = pd.DataFrame(all_records).sort_values("LastName")
+
+        # Group students by year range (but all students appear in each range)
+        grouped = {"0–2": [], "3–4": [], "5–6": [], "7–8": []}
+        for row in df_combined.to_dict(orient="records"):
+            grouped["0–2"].append(row)
+            grouped["3–4"].append(row)
+            grouped["5–6"].append(row)
+            grouped["7–8"].append(row)
+
+        # Filter columns to only include those relevant for each range
+        def get_range_labels(labels, yr_range):
+            return [label for label in labels if f"({yr_range})" in label]
+
+        columns_by_range = {
+            "0–2": get_range_labels(labels, "0-2"),
+            "3–4": get_range_labels(labels, "3-4"),
+            "5–6": get_range_labels(labels, "5-6"),
+            "7–8": get_range_labels(labels, "7-8")
+        }
+
+        return render_template(
+            "print_view.html",
+            grouped=grouped,
+            columns_by_range=columns_by_range,
+            class_name=class_name,
+            teacher_name=teacher_name
+        )
