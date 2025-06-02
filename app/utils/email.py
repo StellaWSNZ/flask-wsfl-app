@@ -32,13 +32,28 @@ def verify_reset_token(token, max_age=3600):
 
 def send_account_setup_email(mail, recipient_email, first_name, role, is_admin, invited_by_name, inviter_desc):
     role_names = {
-        "MOE": "School User",
-        "FUN": "Funder User",
-        "ADM": "Administrator"
+        "MOE": "a School User",
+        "FUN": "a Funder User",
+        "PRO": "a Provider User",
+        "ADM": "an Administrator"
     }
     role_display = role_names.get(role, role)
-
     admin_note = " with administrator privileges" if is_admin else ""
+
+    # Add contextual tail if inviter_desc == role_display
+    if inviter_desc == role_display:
+        if role == "FUN":
+            context_tail = " for their funded organisation"
+        elif role == "MOE":
+            context_tail = " for their school"
+        elif role == "PRO":
+            context_tail = " for their provider"
+        elif role == "ADM":
+            context_tail = " for their team"
+        else:
+            context_tail = ""
+    else:
+        context_tail = ""
 
     msg = Message(
         subject="You've Been Invited to WSFL",
@@ -49,7 +64,7 @@ def send_account_setup_email(mail, recipient_email, first_name, role, is_admin, 
     msg.body = f"""\
     Kia ora {first_name},
 
-    {invited_by_name} from {inviter_desc} has invited you to join the Water Skills for Life (WSFL) platform as a {role_display}{admin_note}.
+    {invited_by_name} from {inviter_desc} has invited you to join the Water Skills for Life (WSFL) platform as a {role_display}{admin_note}{context_tail}.
 
     To get started, go to the login page and click "Forgot password" to set your password:
     {url_for('auth_bp.login', _external=True)}
@@ -61,7 +76,7 @@ def send_account_setup_email(mail, recipient_email, first_name, role, is_admin, 
     msg.html = f"""\
     <div style="font-family: Arial, sans-serif; font-size: 16px; line-height: 1.6;">
     <p>Kia ora <strong>{first_name}</strong>,</p>
-    <p><strong>{invited_by_name}</strong> from <strong>{inviter_desc}</strong> has invited you to join the <strong>Water Skills for Life</strong> platform as a <strong>{role_display}{admin_note}</strong> for their organisation.</p>
+    <p><strong>{invited_by_name}</strong> from <strong>{inviter_desc}</strong> has invited you to join the <strong>Water Skills for Life</strong> platform as <strong>{role_display}{admin_note}{context_tail}</strong>.</p>
     <p>To get started, visit the <a href="{url_for('auth_bp.login', _external=True)}">login page</a> and click <strong>"Forgot password"</strong> to set your password.</p>
     <p>Ngā mihi nui,<br>The WSFL Team</p>
     <img src="cid:wsfl_logo" alt="WSFL Logo" style="margin-top: 20px; width: 200px;">
@@ -73,5 +88,4 @@ def send_account_setup_email(mail, recipient_email, first_name, role, is_admin, 
                    headers={"Content-ID": "<wsfl_logo>"})
 
     mail.send(msg)
-
     
