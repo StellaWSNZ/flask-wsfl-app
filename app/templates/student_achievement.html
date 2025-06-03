@@ -2,58 +2,34 @@
 {% block title %} Student Competencies {% endblock %}
 
 {% block content %}
-<div class="container text-center my-4">
-  <div class="alert alert-secondary d-inline-block px-4 py-3" role="alert" id="class-info-display">
-    <strong>Class Name:</strong> <span id="class-name-text">{{ class_name }}</span> |
-    <strong>Teacher:</strong> <span id="teacher-name-text">{{ teacher_name }}</span> |
-    <strong>School:</strong> {{ school_name }}
-    {% if edit == 1 %}
-    <button type="button" class="btn btn-sm btn-outline-primary ms-2" onclick="toggleEditMode(true)">Edit</button>
-    {% endif %}
-    <a class="btn btn-outline-secondary" 
-   href="{{ url_for('class_bp.print_class_view', class_id=class_id, term=term, year=year) }}" 
-   target="_blank">
-  🖨️ Print View
-</a>
-
-  </div>
-
-  {% if edit == 1 %}
-    <div class="alert alert-secondary d-none d-inline-block px-4 py-3" id="class-info-edit">
-      <strong>Class Name:</strong>
-      <input type="text" id="edit-class-name" value="{{ class_name }}" class="form-control d-inline-block w-auto me-2" />
-      <strong>Teacher Name:</strong>
-      <input type="text" id="edit-teacher-name" value="{{ teacher_name }}" class="form-control d-inline-block w-auto me-2" />
-      <button type="button" class="btn btn-sm btn-success" onclick="submitClassInfo({{ request.view_args.class_id }})">Save</button>
-      <button type="button" class="btn btn-sm btn-secondary" onclick="toggleEditMode(false)">Cancel</button>
-    </div>
-  {% endif %}
-</div>
-
 <style>
   .scroll-table-wrapper {
     overflow-x: auto;
+    width: 100%;
+  }
+
+  .scroll-table-inner {
+    max-height: 70vh;
     overflow-y: auto;
-    max-width: 100%;
-    max-height: 80vh;
-    position: relative;
   }
 
   #studentsTable {
     border-collapse: collapse;
     width: max-content;
     table-layout: fixed;
+    border: none;
   }
 
-  #studentsTable th, #studentsTable td {
+  #studentsTable th,
+  #studentsTable td {
     padding: 4px;
     text-align: center;
     vertical-align: top;
-    border: 1px solid #ddd;
     background-color: white;
     font-size: 0.85rem;
     white-space: normal;
     word-wrap: break-word;
+    border: none; /* ✅ remove default black lines */
   }
 
   thead th {
@@ -61,47 +37,51 @@
     top: 0;
     z-index: 10;
     background-color: white;
-    font-weight: bold;
-    vertical-align: bottom;
   }
-.mark-all-wrapper {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  align-items: center;
-  height: 100%;
-  min-height: 100px; /* increase if needed */
-}
 
-  .mark-all-wrapper .header-label {
+  .mark-all-wrapper {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    height: 100%;
+    min-height: 100px;
+  }
+
+  .header-label {
     margin-bottom: 8px;
+  }
+
+  /* ✅ Sticky grey background and fixed grey shadow lines */
+  #studentsTable th.col-0,
+  #studentsTable td.col-0,
+  #studentsTable th.col-1,
+  #studentsTable td.col-1,
+  #studentsTable th.col-2,
+  #studentsTable td.col-2 {
+    background-color: #f8f9fa;
+    position: sticky;
+    z-index: 5;
+    box-shadow: inset 3px 0 0 #f8f9fa, inset -3px 0 0 #f8f9fa;
+    border: none; /* ✅ no borders */
   }
 
   #studentsTable th.col-0,
   #studentsTable td.col-0 {
-    position: sticky;
     left: 0;
     width: 200px;
-    z-index: 5;
-    background-color: #f8f9fa;
   }
 
   #studentsTable th.col-1,
   #studentsTable td.col-1 {
-    position: sticky;
     left: 200px;
     width: 200px;
-    z-index: 5;
-    background-color: #f8f9fa;
   }
 
   #studentsTable th.col-2,
   #studentsTable td.col-2 {
-    position: sticky;
     left: 400px;
     width: 120px;
-    z-index: 5;
-    background-color: #f8f9fa;
   }
 
   #studentsTable th.col-0,
@@ -132,60 +112,115 @@
     white-space: normal;
     word-break: break-word;
   }
+
+  .list-group-item {
+    border: none;
+  }
 </style>
 
+
+
+
+<!-- CLASS INFO HEADER -->
+<div class="container text-center mb-4">
+  <div class="alert alert-secondary d-inline-block px-4 py-3" role="alert" id="class-info-display">
+    <strong>Class Name:</strong> <span id="class-name-text">{{ class_name }}</span> |
+    <strong>Teacher:</strong> <span id="teacher-name-text">{{ teacher_name }}</span> |
+    <strong>School:</strong> {{ school_name }}
+    {% if edit == 1 %}
+    <button type="button" class="btn btn-sm btn-outline-primary ms-2" onclick="toggleEditMode(true)">Edit</button>
+    {% endif %}
+    <a class="btn btn-sm btn-outline-secondary" 
+       href="{{ url_for('class_bp.print_class_view', class_id=class_id, term=term, year=year) }}" 
+       target="_blank">Print View</a>
+  </div>
+</div>
+
+<!-- TABLE WRAPPER -->
 <div class="scroll-table-wrapper">
-  <table id="studentsTable" class="table table-bordered table-sm">
-    <thead>
-      <tr>
-        <th class="col-0">Last Name</th>
-        <th class="col-1">Preferred Name</th>
-        <th class="col-2">Year Level</th>
-        {% for col in columns[3:] %}
+  <div class="scroll-table-inner">
+    <table id="studentsTable" class="table table-bordered table-sm">
+      <thead>
+        <tr>
+          <th class="col-0">Last Name</th>
+          <th class="col-1">Preferred Name</th>
+          <th class="col-2">Year Level</th>
+          {% for col in columns[3:] %}
           <th>
             <div class="mark-all-wrapper">
-              <div class="header-label text-center">{{ col|safe }}</div>
-              
+              <div class="header-label text-center">{{ col|safe }}
+                {% if "Scenario" in col and "Selected" in col %}
+                <br>
+                <a href="#" class="small" data-bs-toggle="modal" data-bs-target="#scenarioModal">
+                  View full descriptions
+                </a>
+                {% endif %}
+              </div>
             </div>
           </th>
-        {% endfor %}
-      </tr>
-    </thead>
-    <tbody>
-      {% for student in students %}
-      <tr>
-        <td class="col-0">{{ student.LastName }}</td>
-        <td class="col-1">{{ student.PreferredName }}</td>
-        <td class="col-2">{{ student.YearLevelID }}</td>
-        {% for col in columns[3:] %}
-        <td>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for student in students %}
+        <tr>
+          <td class="col-0">{{ student.LastName }}</td>
+          <td class="col-1">{{ student.PreferredName }}</td>
+          <td class="col-2">{{ student.YearLevelID }}</td>
+          {% for col in columns[3:] %}
           {% set val = student[col]|default('')|string|trim %}
-          {% if col in ["Scenario One - Selected <br> (7-8)", "Scenario Two - Selected <br> (7-8)"] %}
-            <select class="form-control"
-              data-nsn="{{ student.NSN }}"
-              data-header="{{ col }}"
-              data-scenario-index="{{ 1 if 'Scenario One' in col else 2 }}">
-              {% for scenario in scenarios %}
-              <option value="{{ scenario.ScenarioID }}" {% if val == scenario.HTMLScenario %}selected{% endif %}>
-                {{ scenario.HTMLScenario | safe }}
-              </option>
-              {% endfor %}
-            </select>
-          {% else %}
-            <input type="checkbox"
-              name="competency"
-              data-nsn="{{ student.NSN }}"
-              data-competency="{{ col }}"
-              data-competencyid="{{ competency_id_map[col]['CompetencyID'] }}"
-              data-yeargroupid="{{ competency_id_map[col]['YearGroupID'] }}"
-              {% if val == "Y" %}checked{% endif %} />
-          {% endif %}
-        </td>
+          {% set unescaped_col = col|replace('&lt;br&gt;', '<br>') %}
+          <td>
+            {% if col in ["Scenario One - Selected <br> (7-8)", "Scenario Two - Selected <br> (7-8)"] %}
+              <select class="form-control"
+                      data-nsn="{{ student.NSN }}"
+                      data-header="{{ col }}"
+                      data-scenario-index="{{ 1 if 'Scenario One' in col else 2 }}">
+                {% for scenario in scenarios %}
+                {% set scenario_id_str = scenario.ScenarioID|string %}
+                <option value="{{ scenario_id_str }}" {% if val == scenario_id_str %}selected{% endif %}>
+                  {{ scenario.HTMLScenario | safe }}
+                </option>
+                {% endfor %}
+              </select>
+            {% else %}
+              <input type="checkbox"
+                     name="competency"
+                     data-nsn="{{ student.NSN }}"
+                     data-competency="{{ col }}"
+                     data-competencyid="{{ competency_id_map[unescaped_col]['CompetencyID'] if unescaped_col in competency_id_map else '' }}"
+                     data-yeargroupid="{{ competency_id_map[unescaped_col]['YearGroupID'] if unescaped_col in competency_id_map else '' }}"
+                     {% if val == "Y" %}checked{% endif %} />
+            {% endif %}
+          </td>
+          {% endfor %}
+        </tr>
         {% endfor %}
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal fade" id="scenarioModal" tabindex="-1" aria-labelledby="scenarioModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="scenarioModalLabel">Scenario Descriptions</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <ul class="list-group">
+          {% for s in scenarios %}
+          <li class="list-group-item">
+            <strong>Scenario {{ s.ScenarioID }}: {{ s.HTMLScenario | safe }}</strong>
+            <p class="mb-0">{{ s.Description }}</p>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -222,7 +257,6 @@
   }
 
   document.addEventListener("DOMContentLoaded", function () {
-    // ✅ Save competency checkboxes
     document.querySelectorAll('input[type="checkbox"][name="competency"]').forEach(cb => {
       cb.addEventListener("change", function () {
         const nsn = this.dataset.nsn;
@@ -237,7 +271,6 @@
         .then(response => response.json())
         .then(data => {
           if (data.success && status === 1) {
-            // ✅ Autofill mapped follow-ups if current is ticked
             if (autofillMap[headerName]) {
               autofillMap[headerName].forEach(postHeader => {
                 const target = document.querySelector(
@@ -257,7 +290,6 @@
       });
     });
 
-    // ✅ Save scenario changes
     document.querySelectorAll('select[data-scenario-index]').forEach(select => {
       select.addEventListener("change", function () {
         const nsn = this.dataset.nsn;
@@ -278,22 +310,6 @@
         .catch(err => console.error("Scenario update error:", err));
       });
     });
-
-    // ✅ "Mark all complete" buttons
-    document.querySelectorAll('.mark-complete-all').forEach(button => {
-      button.addEventListener('click', function (e) {
-        e.preventDefault();
-        const column = this.dataset.column;
-        const checkboxes = Array.from(document.querySelectorAll(
-          `input[type="checkbox"][name="competency"][data-competency="${column}"]:not(:checked)`
-        ));
-        checkboxes.forEach(cb => cb.checked = true);
-        checkboxes.forEach(cb => cb.dispatchEvent(new Event("change")));
-      });
-    });
   });
 </script>
-
-
-
 {% endblock %}

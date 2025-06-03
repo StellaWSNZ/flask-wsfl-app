@@ -22,7 +22,7 @@ def view_class(class_id, term, year):
 
     engine = get_db_engine()
     with engine.connect() as conn:
-        scenario_result = conn.execute(text("EXEC FlaskHelperFunctions @Request = :request"), {"request": "ScenarioList"})
+        scenario_result = conn.execute(text("EXEC FlaskHelperFunctions @Request = :request"), {"request": "Scenario"})
         scenarios = [dict(row._mapping) for row in scenario_result]
 
         class_info = conn.execute(
@@ -84,13 +84,20 @@ def view_class(class_id, term, year):
                 comp_row = {label: '' for label in labels}
 
             scenario_df = pd.read_sql(
-                text("EXEC FlaskHelperFunctions :Request, :Number"),
+                text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :Number"),
                 conn,
                 params={"Request": "StudentScenario", "Number": nsn}
             )
-            scenario1 = scenario_df.iloc[0].get("Scenario1", "") if not scenario_df.empty else ""
-            scenario2 = scenario_df.iloc[0].get("Scenario2", "") if not scenario_df.empty else ""
 
+            scenario1 = ""
+            scenario2 = ""
+
+            if not scenario_df.empty:
+                scenario_df = scenario_df.set_index("ScenarioIndex")["ScenarioID"].to_dict()
+                scenario1 = scenario_df.get(1, "")
+                scenario2 = scenario_df.get(2, "")
+            #print(scenario1)
+            #print(scenario2)
             merged_row = {
                 "NSN": nsn,
                 "FirstName": student["FirstName"],
@@ -100,8 +107,8 @@ def view_class(class_id, term, year):
                 "Ethnicity": student["Ethnicity"],
                 "YearLevelID": student["YearLevelID"],
                 **comp_row,
-                "Scenario One - Selected <br> (7-8)": scenario1,
-                "Scenario Two - Selected <br> (7-8)": scenario2
+                "Scenario One - Selected <br> (7-8)": str(scenario1),
+                "Scenario Two - Selected <br> (7-8)": str(scenario2)
             }
             all_records.append(merged_row)
 
@@ -112,7 +119,7 @@ def view_class(class_id, term, year):
             cols.insert(-3, cols.pop(cols.index("Scenario One - Selected <br> (7-8)")))
             cols.insert(-1, cols.pop(cols.index("Scenario Two - Selected <br> (7-8)")))
             df_combined = df_combined[cols]
-
+        print(df_combined)
         # ✅ Cache everything needed for print
         session.setdefault("class_cache", {})[cache_key] = {
             "students": students.to_dict(),
@@ -130,7 +137,7 @@ def view_class(class_id, term, year):
         header_map = defaultdict(list)
         for row in auto_result:
             header_map[row.HeaderPre].append(row.HeaderPost)
-
+        
         return render_template(
             "student_achievement.html",
             students=df_combined.to_dict(orient="records"),
@@ -327,12 +334,14 @@ def update_scenario():
     value = data.get("value")
     debug = 0  # Optional: change to 1 if you want debug mode
 
-    if not all([nsn, header, value]):
+    print(f"📥 Incoming update request: NSN={nsn}, Header='{header_name}', Status={status}")
+
+    if nsn is None or header is None or value is None:
         return jsonify(success=False, error="Missing parameters"), 400
 
     try:
         engine = get_db_engine()
-        with engine.connect() as conn:
+        with engine.begin() as conn:
             conn.execute(
                 text("EXEC FlaskUpdateAchievement @NSN = :nsn, @Header = :header, @Value = :value, @Debug = :debug"),
                 {"nsn": nsn, "header": header, "value": value, "debug": debug}
@@ -341,7 +350,6 @@ def update_scenario():
     except Exception as e:
         print("❌ Scenario update failed:", e)
         return jsonify(success=False, error=str(e)), 500
-
 
 @class_bp.route('/reporting', methods=["GET", "POST"])
 @login_required
