@@ -62,7 +62,7 @@
     background-color: #f8f9fa;
     position: sticky;
     z-index: 5;
-    box-shadow: inset 3px 0 0 #f8f9fa, inset -3px 0 0 #f8f9fa;
+    box-shadow: inset 3px 0 0 #F8F9FA, inset -3px 0 0 #F8F9FA;
     border: none; /* ✅ no borders */
   }
 
@@ -121,9 +121,13 @@
 
 
 
+
 <!-- CLASS INFO HEADER -->
-<div class="container text-center mb-4">
-  <div class="alert alert-secondary d-inline-block px-4 py-3" role="alert" id="class-info-display">
+<div class="container text-center mb-4" style="position: relative;">
+  <div class="alert alert-secondary d-inline-block px-4 py-3" 
+       role="alert" 
+       id="class-info-display" 
+       style="position: relative; top: 0; z-index: 1;">
     <strong>Class Name:</strong> <span id="class-name-text">{{ class_name }}</span> |
     <strong>Teacher:</strong> <span id="teacher-name-text">{{ teacher_name }}</span> |
     <strong>School:</strong> {{ school_name }}
@@ -139,7 +143,7 @@
 <!-- TABLE WRAPPER -->
 <div class="scroll-table-wrapper">
   <div class="scroll-table-inner">
-    <table id="studentsTable" class="table table-bordered table-sm">
+    <table id="studentsTable" class="table  table-sm">
       <thead>
         <tr>
           <th class="col-0">Last Name</th>
