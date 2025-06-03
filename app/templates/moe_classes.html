@@ -49,6 +49,8 @@
           <tr class="align-middle">
             <td><strong>Class Name:</strong> {{ cls.ClassName }}</td>
             <td><strong>Teacher Name:</strong> {{ cls.TeacherName }}</td>
+            <!-- {{ cls }}-->
+            <td><strong>Year Levels:</strong> {{ cls.YearLevels }}</td>
             <td>
               <a class="btn btn-sm btn-outline-primary"
                  href="{{ url_for('class_bp.view_class', class_id=cls.ClassID, term=request.form['term'], year=request.form['calendaryear'], filter='all') }}">

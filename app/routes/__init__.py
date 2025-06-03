@@ -1,4 +1,6 @@
 # app/routes/__init__.py
+from flask import Flask, render_template
+
 from .auth import auth_bp
 from .home import home_bp
 from .upload import upload_bp
@@ -13,3 +15,9 @@ def register_routes(app):
     app.register_blueprint(report_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(class_bp)
+    
+    @app.errorhandler(Exception)
+    def handle_error(e):
+        code = getattr(e, 'code', 500)
+        return render_template("error.html", error=e, code=code), code
+
