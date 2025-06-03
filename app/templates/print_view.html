@@ -1,91 +1,104 @@
 <!DOCTYPE html>
 <html>
-<head>
-  <meta charset="utf-8">
-  <title>Print View - Competency Table</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      font-size: 11px;
-    }
+  <head>
+    <meta charset="utf-8" />
+    <title>Print View - Competency Table</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        font-size: 11px;
+      }
 
-    h2 {
-      text-align: center;
-      margin-top: 40px;
-    }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        page-break-inside: auto;
+      }
 
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      page-break-inside: avoid;
-    }
+      th,
+      td {
+        border: 1px solid #999;
+        padding: 4px;
+        text-align: center;
+        vertical-align: top;
+        word-wrap: break-word;
+      }
 
-    th, td {
-      border: 1px solid #999;
-      padding: 4px;
-      text-align: center;
-      vertical-align: top;
-      word-wrap: break-word;
-    }
+      th {
+        background-color: #f2f2f2;
+      }
 
-    th {
-      background-color: #f2f2f2;
-    }
+      thead {
+        display: table-header-group; /* Keeps header on each page */
+      }
 
-    .page-break {
-      page-break-before: always;
-    }
-
-    @media print {
       .page-break {
         page-break-before: always;
       }
-    }
-  </style>
-</head>
-<body>
 
-{% set group_headers = {
-  '0–2': '(0-2)',
-  '3–4': '(3-4)',
-  '5–6': '(5-6)',
-  '7–8': '(7-8)'
-} %}
-{% for range, students in grouped.items() %}
-  <div class="page-break">
-    <h2>Year Group {{ range }}</h2>
-    <p><strong>Class:</strong> {{ class_name }} | <strong>Teacher:</strong> {{ teacher_name }}</p>
-    <table>
-      <thead>
-        <tr>
-          <th>Last Name</th>
-          <th>Preferred Name</th>
-          <th>Year Level</th>
-          {% for col in columns_by_range[range] %}
+      .section {
+        display: block;
+        margin-bottom: 30px;
+      }
+
+      .section-header {
+        margin-bottom: 8px;
+        font-weight: bold;
+      }
+
+      @media print {
+        @page {
+          size: A4 landscape;
+          margin: 1cm;
+        }
+
+        body {
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    {% set group_headers = { '0–2': '(0-2)', '3–4': '(3-4)', '5–6': '(5-6)',
+    '7–8': '(7-8)' } %} {% for range, students in grouped.items() %}
+    <div class="section page-break">
+      <div class="section-header">
+        Class: {{ class_name }} | Teacher: {{ teacher_name }} | Competencies: {%
+        if filter_type == "water" %}Water-based only{% else %}All{% endif %} |
+        Year Group: {{ group_headers[range] }}
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Last Name</th>
+            <th>Preferred Name</th>
+            <th>Year Level</th>
+            {% for col in columns_by_range[range] %}
             <th>{{ col|safe }}</th>
-          {% endfor %}
-        </tr>
-      </thead>
-      <tbody>
-        {% for student in students %}
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for student in students %}
           <tr>
             <td>{{ student.LastName }}</td>
             <td>{{ student.PreferredName }}</td>
             <td>{{ student.YearLevelID }}</td>
             {% for col in columns_by_range[range] %}
-              <td>{{ student[col] }}</td>
+            <td>{{ student[col] }}</td>
             {% endfor %}
           </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-{% endfor %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endfor %}
 
-
-<script>
-  window.onload = () => window.print();
-</script>
-
-</body>
+    <script>
+      window.onload = () => window.print();
+    </script>
+  </body>
 </html>

@@ -14,17 +14,15 @@ from app.utils.fundernationalplot import create_competency_report
 from app.utils.competencyplot import load_competency_rates, make_figure
 from app.utils.nationalplot import generate_national_report
 class_bp = Blueprint("class_bp", __name__)
-
-
 @class_bp.route('/view_class/<int:class_id>/<int:term>/<int:year>')
 @login_required
 def view_class(class_id, term, year):
-    filter_type = request.args.get("filter", "all")  # ← add this
+    filter_type = request.args.get("filter", "all")
+    cache_key = f"{class_id}_{term}_{year}"
+
     engine = get_db_engine()
     with engine.connect() as conn:
-        scenario_result = conn.execute(text("""
-            EXEC FlaskHelperFunctions @Request = :request
-        """), {"request": "ScenarioList"})
+        scenario_result = conn.execute(text("EXEC FlaskHelperFunctions @Request = :request"), {"request": "ScenarioList"})
         scenarios = [dict(row._mapping) for row in scenario_result]
 
         class_info = conn.execute(
@@ -36,7 +34,6 @@ def view_class(class_id, term, year):
             text("EXEC FlaskHelperFunctionsSpecific @Request = :Request, @MOENumber = :moe"),
             {"Request": "SchoolNameByMOE", "moe": class_info.MOENumber}
         ).fetchone()
-
 
         class_name = class_info.ClassName
         teacher_name = class_info.TeacherName
@@ -51,12 +48,7 @@ def view_class(class_id, term, year):
                 @Term = :term,
                 @Year = :year
             """),
-            {
-                "Request": "StudentsByClassTermYear",
-                "class_id": class_id,
-                "term": term,
-                "year": year
-            }
+            {"Request": "StudentsByClassTermYear", "class_id": class_id, "term": term, "year": year}
         )
 
         students = pd.DataFrame(result.fetchall(), columns=result.keys())
@@ -64,11 +56,13 @@ def view_class(class_id, term, year):
             flash("No students found.", "warning")
             return redirect(url_for("class_bp.funder_classes"))
 
-        comp_result = conn.execute(text("EXEC GetRelevantCompetencies :CalendarYear, :Term"), {"CalendarYear": year, "Term": term})
-        
+        comp_result = conn.execute(text("EXEC GetRelevantCompetencies :CalendarYear, :Term"),
+                                   {"CalendarYear": year, "Term": term})
         comp_df = pd.DataFrame(comp_result.fetchall(), columns=comp_result.keys())
+
         if filter_type == "water":
             comp_df = comp_df[comp_df["WaterBased"] == 1]
+
         comp_df["label"] = comp_df["CompetencyDesc"] + " <br>(" + comp_df["YearGroupDesc"] + ")"
         comp_df["col_order"] = comp_df["YearGroupID"].astype(str).str.zfill(2) + "-" + comp_df["CompetencyID"].astype(str).str.zfill(4)
         comp_df = comp_df.sort_values("col_order")
@@ -77,15 +71,23 @@ def view_class(class_id, term, year):
         all_records = []
         for _, student in students.iterrows():
             nsn = student["NSN"]
-            comp_data = pd.read_sql(text("EXEC GetStudentCompetencyStatus :NSN, :Term, :CalendarYear"), conn, params={"NSN": nsn, "Term": term, "CalendarYear": year})
+            comp_data = pd.read_sql(
+                text("EXEC GetStudentCompetencyStatus :NSN, :Term, :CalendarYear"),
+                conn,
+                params={"NSN": nsn, "Term": term, "CalendarYear": year}
+            )
             if not comp_data.empty:
-                comp_data = comp_data.merge(comp_df[["CompetencyID", "YearGroupID", "label"]], on=["CompetencyID", "YearGroupID"], how="inner")
+                comp_data = comp_data.merge(comp_df[["CompetencyID", "YearGroupID", "label"]],
+                                            on=["CompetencyID", "YearGroupID"], how="inner")
                 comp_row = comp_data.set_index("label")["CompetencyStatusID"].reindex(labels).fillna(0).astype(int).map({1: 'Y', 0: ''}).to_dict()
             else:
                 comp_row = {label: '' for label in labels}
 
-            scenario_df = pd.read_sql(text("EXEC FlaskHelperFunctions :Request, :Number"), conn,
-                                      params={"Request": "StudentScenario", "Number": nsn})
+            scenario_df = pd.read_sql(
+                text("EXEC FlaskHelperFunctions :Request, :Number"),
+                conn,
+                params={"Request": "StudentScenario", "Number": nsn}
+            )
             scenario1 = scenario_df.iloc[0].get("Scenario1", "") if not scenario_df.empty else ""
             scenario2 = scenario_df.iloc[0].get("Scenario2", "") if not scenario_df.empty else ""
 
@@ -111,24 +113,24 @@ def view_class(class_id, term, year):
             cols.insert(-1, cols.pop(cols.index("Scenario Two - Selected <br> (7-8)")))
             df_combined = df_combined[cols]
 
+        # ✅ Cache everything needed for print
+        session.setdefault("class_cache", {})[cache_key] = {
+            "students": students.to_dict(),
+            "competencies": comp_df.to_dict(),
+            "filter": filter_type,
+            "student_competencies": df_combined.to_dict()
+        }
+
         competency_id_map = comp_df.set_index("label")["CompetencyID"].to_dict()
 
-        auto_result = conn.execute(
-            text("""
-                EXEC FlaskHelperFunctions 
-                    @Request = :request
-            """),
-            {"request": "AutoMappedCompetencies"}
-        )
-
+        auto_result = conn.execute(text("EXEC FlaskHelperFunctions @Request = :request"),
+                                   {"request": "AutoMappedCompetencies"})
 
         from collections import defaultdict
         header_map = defaultdict(list)
-
         for row in auto_result:
             header_map[row.HeaderPre].append(row.HeaderPost)
-            
-        #print(header_map)
+
         return render_template(
             "student_achievement.html",
             students=df_combined.to_dict(orient="records"),
@@ -570,109 +572,103 @@ def moe_classes():
         suggestions=suggestions
     )
 
-
-
-@class_bp.route('/mark_all_complete', methods=['POST'])
-@login_required
-def mark_all_complete():
-    data = request.get_json()
-    column = data.get('column')
-    class_id = data.get('class_id')
-    print(class_id)
-    print(column)
-    return jsonify(success=True)
 @class_bp.route("/class/print/<int:class_id>/<int:term>/<int:year>")
 @login_required
 def print_class_view(class_id, term, year):
+    cache_key = f"{class_id}_{term}_{year}"
+
+    if request.args.get("refresh") == "1":
+        session.get("class_cache", {}).pop(cache_key, None)
+
+    if "class_cache" in session and cache_key in session["class_cache"]:
+        print("✅ Using cached class data")
+        cache = session["class_cache"][cache_key]
+        students = pd.DataFrame(cache["students"])
+        comp_df = pd.DataFrame(cache["competencies"])
+        df_combined = pd.DataFrame(cache.get("student_competencies", {}))
+        
+        filter_type = cache.get("filter", "all")
+
+        if df_combined.empty:
+            flash("Cached student data is incomplete. Please view the class page first.", "danger")
+            return redirect(url_for("class_bp.view_class", class_id=class_id, term=term, year=year))
+
+    else:
+        print("⏳ Querying class data and caching...")
+        engine = get_db_engine()
+        with engine.connect() as conn:
+            result = conn.execute(
+                text("""EXEC FlaskHelperFunctionsSpecific
+                        @Request = :Request,
+                        @ClassID = :class_id,
+                        @Term = :term,
+                        @Year = :year"""),
+                {"Request": "StudentsByClassTermYear", "class_id": class_id, "term": term, "year": year}
+            )
+            students = pd.DataFrame(result.fetchall(), columns=result.keys())
+            if students.empty:
+                flash("No students found.", "warning")
+                return redirect(url_for("class_bp.funder_classes"))
+
+            comp_result = conn.execute(
+                text("EXEC GetRelevantCompetencies :CalendarYear, :Term"),
+                {"CalendarYear": year, "Term": term}
+            )
+            comp_df = pd.DataFrame(comp_result.fetchall(), columns=comp_result.keys())
+
+        filter_type = "all"
+        session.setdefault("class_cache", {})[cache_key] = {
+            "students": students.to_dict(),
+            "competencies": comp_df.to_dict(),
+            "filter": filter_type
+        }
+
+        flash("Class data not cached yet — please view the class first.", "warning")
+        return redirect(url_for("class_bp.view_class", class_id=class_id, term=term, year=year))
+
+    # Process competency labels
+    comp_df["label"] = comp_df["CompetencyDesc"] + " <br>(" + comp_df["YearGroupDesc"] + ")"
+    comp_df["col_order"] = comp_df["YearGroupID"].astype(str).str.zfill(2) + "-" + comp_df["CompetencyID"].astype(str).str.zfill(4)
+    comp_df = comp_df.sort_values("col_order")
+    df_combined = df_combined.replace('Y', '✓')
+
+    labels = comp_df["label"].tolist()
+
+    # Group students by year range (all students appear in all ranges)
+    grouped = {"0–2": [], "3–4": [], "5–6": [], "7–8": []}
+    for row in df_combined.to_dict(orient="records"):
+        grouped["0–2"].append(row)
+        grouped["3–4"].append(row)
+        grouped["5–6"].append(row)
+        grouped["7–8"].append(row)
+
+    # Filter columns to only include those relevant for each range
+    def get_range_labels(labels, yr_range):
+        return [label for label in labels if f"({yr_range})" in label]
+
+    columns_by_range = {
+        "0–2": get_range_labels(labels, "0-2"),
+        "3–4": get_range_labels(labels, "3-4"),
+        "5–6": get_range_labels(labels, "5-6"),
+        "7–8": get_range_labels(labels, "7-8")
+    }
+
+    # Get class name and teacher name
     engine = get_db_engine()
     with engine.connect() as conn:
-        # Get student data
-        result = conn.execute(
-            text("""
-                EXEC FlaskHelperFunctionsSpecific
-                @Request = :Request,
-                @ClassID = :class_id,
-                @Term = :term,
-                @Year = :year
-            """),
-            {"Request": "StudentsByClassTermYear", "class_id": class_id, "term": term, "year": year}
-        )
-        students = pd.DataFrame(result.fetchall(), columns=result.keys())
-        if students.empty:
-            flash("No students found.", "warning")
-            return redirect(url_for("class_bp.funder_classes"))
-
-        # Get class name and teacher name
         class_info = conn.execute(
             text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :class_id"),
             {"Request": "ClassInfoByID", "class_id": class_id}
         ).fetchone()
-        class_name = class_info.ClassName if class_info else "Unknown Class"
-        teacher_name = class_info.TeacherName if class_info else "Unknown Teacher"
 
-        # Get competencies
-        comp_result = conn.execute(text("EXEC GetRelevantCompetencies :CalendarYear, :Term"),
-                                   {"CalendarYear": year, "Term": term})
-        comp_df = pd.DataFrame(comp_result.fetchall(), columns=comp_result.keys())
-        comp_df["label"] = comp_df["CompetencyDesc"] + " <br>(" + comp_df["YearGroupDesc"] + ")"
-        comp_df["col_order"] = comp_df["YearGroupID"].astype(str).str.zfill(2) + "-" + comp_df["CompetencyID"].astype(str).str.zfill(4)
-        comp_df = comp_df.sort_values("col_order")
-        labels = comp_df["label"].tolist()
+    class_name = class_info.ClassName if class_info else "Unknown Class"
+    teacher_name = class_info.TeacherName if class_info else "Unknown Teacher"
 
-        # Build student records with all competencies
-        all_records = []
-        for _, student in students.iterrows():
-            nsn = student["NSN"]
-            comp_data = pd.read_sql(
-                text("EXEC GetStudentCompetencyStatus :NSN, :Term, :CalendarYear"),
-                conn,
-                params={"NSN": nsn, "Term": term, "CalendarYear": year}
-            )
-            if not comp_data.empty:
-                comp_data = comp_data.merge(comp_df[["CompetencyID", "YearGroupID", "label"]],
-                                            on=["CompetencyID", "YearGroupID"], how="inner")
-                comp_row = comp_data.set_index("label")["CompetencyStatusID"] \
-                    .reindex(labels).fillna(0).astype(int).map({1: 'Y', 0: ''}).to_dict()
-            else:
-                comp_row = {label: '' for label in labels}
-
-            merged_row = {
-                "NSN": nsn,
-                "FirstName": student["FirstName"],
-                "LastName": student["LastName"],
-                "PreferredName": student["PreferredName"],
-                "DateOfBirth": student["DateOfBirth"],
-                "Ethnicity": student["Ethnicity"],
-                "YearLevelID": student["YearLevelID"],
-                **comp_row
-            }
-            all_records.append(merged_row)
-
-        df_combined = pd.DataFrame(all_records).sort_values("LastName")
-
-        # Group students by year range (but all students appear in each range)
-        grouped = {"0–2": [], "3–4": [], "5–6": [], "7–8": []}
-        for row in df_combined.to_dict(orient="records"):
-            grouped["0–2"].append(row)
-            grouped["3–4"].append(row)
-            grouped["5–6"].append(row)
-            grouped["7–8"].append(row)
-
-        # Filter columns to only include those relevant for each range
-        def get_range_labels(labels, yr_range):
-            return [label for label in labels if f"({yr_range})" in label]
-
-        columns_by_range = {
-            "0–2": get_range_labels(labels, "0-2"),
-            "3–4": get_range_labels(labels, "3-4"),
-            "5–6": get_range_labels(labels, "5-6"),
-            "7–8": get_range_labels(labels, "7-8")
-        }
-
-        return render_template(
-            "print_view.html",
-            grouped=grouped,
-            columns_by_range=columns_by_range,
-            class_name=class_name,
-            teacher_name=teacher_name
-        )
+    return render_template(
+        "print_view.html",
+        grouped=grouped,
+        columns_by_range=columns_by_range,
+        class_name=class_name,
+        teacher_name=teacher_name,
+        filter_type=filter_type
+    )
