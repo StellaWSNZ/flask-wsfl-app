@@ -4,7 +4,6 @@ import json
 import threading
 import pandas as pd
 from flask import Blueprint, render_template, request, session, flash, redirect, url_for, send_file, jsonify
-from app.utils.processing import process_uploaded_csv
 from app.utils.database import get_db_engine
 from werkzeug.utils import secure_filename
 from app.routes.auth import login_required
@@ -521,20 +520,7 @@ def download_excel():
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
 
-def process_and_store_results(df, term, year):
-    global last_valid_df, last_error_df, processing_status
-    try:
-        processing_status = {"current": 0, "total": len(df), "done": False}
-        valid, errors = process_uploaded_csv(df, term, year)
-        last_valid_df = valid
-        last_error_df = errors
-    except Exception as e:
-        last_valid_df = pd.DataFrame()
-        last_error_df = pd.DataFrame([{"Error": str(e)}])
-    finally:
-        processing_status["done"] = True
-        
-        
+ 
 @upload_bp.route("/get_schools_for_funder")
 @login_required
 def get_schools_for_funder():
