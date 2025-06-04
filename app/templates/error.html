@@ -4,11 +4,11 @@ block content %}
 <div class="text-center mt-5">
   <h1>Error {{ code }}</h1>
 
-  {% if code >= 500 %}
+  {% if code|int >= 500 %}
   <p>Oops! Something went wrong on our end. Please try again later.</p>
-  {% elif code == 404 %}
+  {% elif code|int == 404 %}
   <p>The page you're looking for doesn't exist.</p>
-  {% elif code == 403 %}
+  {% elif code|int == 403 %}
   <p>You're not authorized to access this page.</p>
   {% else %}
   <p>An unexpected error occurred.</p>
