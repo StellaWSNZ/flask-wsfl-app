@@ -262,7 +262,7 @@ def update_profile():
             text("EXEC FlaskLoginValidation :Email"),
             {"Email": new_email}
         ).fetchone()
-
+        print(updated_info)
         session["user_role"] = updated_info.Role
         session["user_id"] = updated_info.ID
         session["user_admin"] = updated_info.Admin
@@ -280,6 +280,8 @@ def update_profile():
         session["funder_address"] = getattr(updated_info, "Funder_Address", None)
         session["funder_lat"] = getattr(updated_info, "Funder_Latitude", None)
         session["funder_lon"] = getattr(updated_info, "Funder_Longitude", None)
+        session["nearest_term"] = getattr(updated_info,"CurrentTerm", None)
+        session["nearest_year"] = getattr(updated_info, "CurrentCalendarYear", None)
 
     flash("Profile updated successfully!", "success")
     return redirect(url_for("admin_bp.profile"))
@@ -305,3 +307,44 @@ def serve_logo(logo_type, logo_id):
     if result:
         return Response(result[0], mimetype=result[1])
     return '', 404
+
+
+@admin_bp.route('/provider_maintenance', methods=['GET', 'POST'])
+@login_required
+def provider_maintenance():
+    if session.get("user_role") != "FUN":
+        flash("Unauthorized access", "danger")
+        return redirect(url_for("home_bp.home"))
+
+    engine = get_db_engine()
+    funder_id = session.get("user_id")
+
+    with engine.connect() as conn:
+        schools = conn.execute(text("""
+            EXEC FlaskHelperFunctions @Request = 'SchoolsByFunderID', @Number = :fid
+        """), {"fid": funder_id}).fetchall()
+
+        providers = conn.execute(text("""
+            SELECT ProviderID, Description 
+            FROM Provider 
+            WHERE FunderID = :fid
+        """), {"fid": funder_id}).fetchall()
+
+    return render_template("provider_maintenance.html", schools=schools, providers=providers)
+
+@admin_bp.route('/assign_provider', methods=['POST'])
+@login_required
+def assign_provider():
+    engine = get_db_engine()
+    moe = request.form.get("moe_number")
+    provider_id = request.form.get("provider_id")
+
+    with engine.begin() as conn:
+        conn.execute(text("""
+            UPDATE School
+            SET ProviderID = :pid
+            WHERE MOENumber = :moe
+        """), {"pid": provider_id, "moe": moe})
+
+    flash("Provider assigned successfully!", "success")
+    return redirect(url_for("admin_bp.provider_maintenance"))

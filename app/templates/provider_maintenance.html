@@ -1,0 +1,51 @@
+{% extends "header.html" %} {% block title %}Provider Maintenance{% endblock %}
+{% block content %}
+<h3 class="text-center my-4">Assign Providers to Schools</h3>
+
+<div class="container">
+  <table class="table table-bordered align-middle">
+    <thead class="table-dark">
+      <tr>
+        <th>School Name</th>
+        <th>MOE Number</th>
+        <th>Assign Provider</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for school in schools %}
+      <tr>
+        <td>{{ school.SchoolName }}</td>
+        <td>{{ school.MOENumber }}</td>
+        <td>
+          <form
+            method="POST"
+            action="{{ url_for('admin_bp.assign_provider') }}"
+          >
+            <input
+              type="hidden"
+              name="moe_number"
+              value="{{ school.MOENumber }}"
+            />
+            <select
+              name="provider_id"
+              class="form-select form-select-sm d-inline-block w-auto"
+              required
+            >
+              <option value="" disabled selected>Select provider</option>
+              {% for provider in providers %}
+              <option value="{{ provider.ProviderID }}">
+                {{ provider.Description }}
+              </option>
+              {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-sm btn-primary ms-2">
+              Assign
+            </button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

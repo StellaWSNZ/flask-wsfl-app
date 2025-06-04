@@ -10,23 +10,24 @@
       <!-- Term -->
       <div class="col-md-2">
         <label for="term" class="form-label">Term</label>
-        <select name="term" id="term" class="form-select" required>
-          <option value="" disabled>Select term</option>
-          {% for t in [1, 2, 3, 4] %}
-            <option value="{{ t }}" {% if request.form.term == t|string %}selected{% endif %}>{{ t }}</option>
-          {% endfor %}
-        </select>
+         <select name="term" id="term" class="form-select" required>
+            <option value="" disabled {% if not request.form.get('term') %}selected{% endif %}>Select term</option>
+            {% for t in [1, 2, 3, 4] %}
+              <option value="{{ t }}" {% if request.form.get('term', '2') == t|string %}selected{% endif %}>{{ t }}</option>
+            {% endfor %}
+          </select>
       </div>
 
       <!-- Year -->
       <div class="col-md-2">
         <label for="calendaryear" class="form-label">Year</label>
-        <select name="calendaryear" id="calendaryear" class="form-select" required>
-          <option value="" disabled>Select year</option>
-          {% for y in [2023, 2024, 2025] %}
-            <option value="{{ y }}" {% if request.form.calendaryear == y|string %}selected{% endif %}>{{ y }}</option>
-          {% endfor %}
-        </select>
+          <select name="calendaryear" id="calendaryear" class="form-select" required>
+    <option value="" disabled {% if not request.form.calendaryear and not YEAR %}selected{% endif %}>Select year</option>
+    {% for y in [2023, 2024, 2025] %}
+      {% set selected_year = request.form.calendaryear if request.form.calendaryear else YEAR %}
+      <option value="{{ y }}" {% if selected_year|string == y|string %}selected{% endif %}>{{ y }}</option>
+    {% endfor %}
+  </select>
       </div>
 
       <!-- School -->

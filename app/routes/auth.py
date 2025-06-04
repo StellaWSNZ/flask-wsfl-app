@@ -60,7 +60,9 @@ def login():
                 "school_type_desc": getattr(user_info, "SchoolTypeDesc", None),
                 "funder_address": getattr(user_info, "Funder_Address", None),
                 "funder_lat": getattr(user_info, "Funder_Latitude", None),
-                "funder_lon": getattr(user_info, "Funder_Longitude", None)
+                "funder_lon": getattr(user_info, "Funder_Longitude", None),
+                "nearest_term": getattr(user_info,"CurrentTerm", None),
+                "nearest_year" : getattr(user_info, "CurrentCalendarYear", None)
             })
 
             return redirect(url_for("home_bp.home"))

@@ -451,7 +451,7 @@ def submitclass():
 
         #print(input_json)
                 
-        with engine.connect() as conn:
+        with engine.begin() as conn:
             conn.execute(
                 text("""
                     EXEC FlaskInsertClassList

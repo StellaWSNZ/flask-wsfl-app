@@ -2,6 +2,9 @@
 {% block title %}View My School's Classes{% endblock %}
 
 {% block content %}
+{% set selected_term = request.form.get("term") if request.method == "POST" else TERM %}
+{% set selected_year = request.form.get("calendaryear") if request.method == "POST" else YEAR %}
+
 <h3 class="text-center">Filter Classes</h3>
 
 <form method="POST">
@@ -11,9 +14,9 @@
       <div class="col-md-2">
         <label for="term" class="form-label">Term</label>
         <select name="term" id="term" class="form-select" required>
-          <option value="" disabled>Select term</option>
+          <option value="" disabled {% if not selected_term %}selected{% endif %}>Select term</option>
           {% for t in [1, 2, 3, 4] %}
-            <option value="{{ t }}" {% if request.form.term == t|string %}selected{% endif %}>{{ t }}</option>
+            <option value="{{ t }}" {% if selected_term|string == t|string %}selected{% endif %}>{{ t }}</option>
           {% endfor %}
         </select>
       </div>
@@ -22,9 +25,9 @@
       <div class="col-md-2">
         <label for="calendaryear" class="form-label">Year</label>
         <select name="calendaryear" id="calendaryear" class="form-select" required>
-          <option value="" disabled>Select year</option>
+          <option value="" disabled {% if not selected_year %}selected{% endif %}>Select year</option>
           {% for y in [2023, 2024, 2025] %}
-            <option value="{{ y }}" {% if request.form.calendaryear == y|string %}selected{% endif %}>{{ y }}</option>
+            <option value="{{ y }}" {% if selected_year|string == y|string %}selected{% endif %}>{{ y }}</option>
           {% endfor %}
         </select>
       </div>
@@ -49,17 +52,16 @@
           <tr class="align-middle">
             <td><strong>Class Name:</strong> {{ cls.ClassName }}</td>
             <td><strong>Teacher Name:</strong> {{ cls.TeacherName }}</td>
-            <!-- {{ cls }}-->
             <td><strong>Year Levels:</strong> {{ cls.YearLevels }}</td>
             <td>
               <a class="btn btn-sm btn-outline-primary"
-                 href="{{ url_for('class_bp.view_class', class_id=cls.ClassID, term=request.form['term'], year=request.form['calendaryear'], filter='all') }}">
+                 href="{{ url_for('class_bp.view_class', class_id=cls.ClassID, term=selected_term, year=selected_year, filter='all') }}">
                 View All Competencies
               </a>
             </td>
             <td>
               <a class="btn btn-sm btn-outline-secondary"
-                 href="{{ url_for('class_bp.view_class', class_id=cls.ClassID, term=request.form['term'], year=request.form['calendaryear'], filter='water') }}">
+                 href="{{ url_for('class_bp.view_class', class_id=cls.ClassID, term=selected_term, year=selected_year, filter='water') }}">
                 View Water-Based Competencies
               </a>
             </td>

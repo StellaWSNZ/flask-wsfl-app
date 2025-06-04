@@ -289,7 +289,9 @@ def funder_classes():
         classes=classes,
         students=students,
         suggestions=suggestions,
-        selected_class_id=selected_class_id
+        selected_class_id=selected_class_id,
+        TERM=session.get("nearest_term"),
+        YEAR=session.get("nearest_year")
     )
 
 @class_bp.route('/update_competency', methods=['POST'])
@@ -307,8 +309,7 @@ def update_competency():
 
     try:
         engine = get_db_engine()
-        with engine.connect() as conn:
-            with conn.begin():  # <-- this ensures commit happens
+        with engine.begin() as conn:
 
                 result = conn.execute(
                     text("EXEC FlaskUpdateAchievement @NSN = :nsn, @Header = :header, @Value = :value, @Debug = :debug"),
@@ -577,7 +578,9 @@ def moe_classes():
         "moe_classes.html",
         classes=classes,
         students=students,
-        suggestions=suggestions
+        suggestions=suggestions,
+        TERM=session.get("nearest_term"),
+        YEAR=session.get("nearest_year")
     )
 
 @class_bp.route("/class/print/<int:class_id>/<int:term>/<int:year>")
