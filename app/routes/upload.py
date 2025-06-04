@@ -12,6 +12,7 @@ from sqlalchemy import text
 from io import StringIO, BytesIO
 import os 
 import tempfile
+import unicodedata
 
 upload_bp = Blueprint("upload_bp", __name__)
 
@@ -23,6 +24,11 @@ processing_status = {"current": 0, "total": 0, "done": False}
 def sanitize_filename(s):
     return s.replace(" ", "_").replace("/", "_")  # remove problematic characters
 
+def remove_macrons(s):
+    if not isinstance(s, str):
+        return s
+    normalized = unicodedata.normalize("NFD", s)
+    return ''.join(c for c in normalized if unicodedata.category(c) != 'Mn')
 
 @upload_bp.route('/ClassList', methods=['GET', 'POST'])
 @login_required
@@ -126,6 +132,8 @@ def classlistupload():
             if "BirthDate" in df_cleaned.columns:
                 df_cleaned.rename(columns={"BirthDate": "Birthdate"}, inplace=True)
             # Save raw JSON version for later validation (as string)
+            df_cleaned = df_cleaned.applymap(remove_macrons)
+
             session["raw_csv_json"] = df_cleaned.to_json(orient="records")
             print("✅ raw_csv_json saved with", len(df_cleaned), "rows")
 
@@ -426,6 +434,15 @@ def submitclass():
         for row in preview_data:
             if "Birthdate" in row and row["Birthdate"] is not None:
                 row["Birthdate"] = pd.to_datetime(row["Birthdate"], errors="coerce").strftime("%Y-%m-%d")
+                
+        for row in preview_data:
+            for k, v in row.items():
+                if isinstance(v, str):
+                    row[k] = remove_macrons(v)
+        for row in preview_data:
+            for k, v in row.items():
+                if isinstance(v, str):
+                    row[k] = remove_macrons(v)
         input_json = json.dumps(preview_data)
         
         #print("🔍 Final JSON birthdate values before submit:")
@@ -435,7 +452,28 @@ def submitclass():
 
         #print(input_json)
                 
-
+        with engine.connect() as conn:
+            conn.execute(
+                text("""
+                    EXEC FlaskInsertClassList
+                        @FunderID = :FunderID,
+                        @MOENumber = :MOENumber,
+                        @Term = :Term,
+                        @CalendarYear = :CalendarYear,
+                        @TeacherName = :TeacherName,
+                        @ClassName = :ClassName,
+                        @InputJSON = :InputJSON
+                """),
+                {
+                    "FunderID": funder_id,
+                    "MOENumber": moe_number,
+                    "Term": term,
+                    "CalendarYear": year,
+                    "TeacherName": teacher,
+                    "ClassName": classname,
+                    "InputJSON": input_json
+                }
+            )
         flash("✅ Class submitted successfully!", "success")
 
     except Exception as e:
