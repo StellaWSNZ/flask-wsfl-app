@@ -22,6 +22,11 @@ body {
   font-family: "PP Mori", "Segoe UI", sans-serif;
 }
 
+body, .text-body, .text-dark, .text-muted, .form-label, .form-control {
+  color: #171717 !important;
+}
+
+
 .btn-primary {
   background-color: var(--bs-primary) !important;
   border-color: var(--bs-primary) !important;

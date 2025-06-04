@@ -112,7 +112,8 @@ def make_figure(df, title):
 
         # Provider name
         ax.text(buffer + buffer_name - value_offset, y_pos + height_per / 2, funder, ha='right', va='center', weight='bold')
-
+    for spine in ax.spines.values():
+        spine.set_visible(False)
     return fig
 
 

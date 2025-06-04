@@ -3,31 +3,41 @@
 {% block title %}Create User{% endblock %}
 
 {% block content %}
-  {% if user_role == 'MOE' %}
-    <div class="alert alert-info">
-      You are creating a <strong>school user</strong> for <strong>{{ name }}</strong>.
-    </div>
-  {% elif user_role == 'FUN' %}
-    <div class="alert alert-info">
-      {% if not only_own_staff_or_empty %}
-        You are creating a user for {{ name }}, one of its providers or one of its schools. Choose a role and target entity below.
-      {% else %}
-        You are creating a user for {{ name }} or one of its schools. Choose a role and target entity below.
+  <div class="row justify-content-center">
+    <div class="col-10">
+      {% if user_role == 'MOE' %}
+        <div class="alert alert-info">
+          You are creating a <strong>school user</strong> for <strong>{{ name }}</strong>.
+        </div>
+      {% elif user_role == 'FUN' %}
+        <div class="alert alert-info">
+          {% if not only_own_staff_or_empty %}
+            You are creating a user for {{ name }}, one of its providers or one of its schools. Choose a role and target entity below.
+          {% else %}
+            You are creating a user for {{ name }} or one of its schools. Choose a role and target entity below.
+          {% endif %}
+        </div>
       {% endif %}
     </div>
+  </div>
+
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div class="row justify-content-center">
+      <div class="col-10">
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
   {% endif %}
-
-  {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-      {% for category, message in messages %}
-        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-          {{ message }}
-          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-      {% endfor %}
-    {% endif %}
-  {% endwith %}
-
+{% endwith %}
+<div class="row justify-content-center">
+  <div class="col-10">
   <div class="card">
     <div class="card-header bg-secondary text-white">Create New User</div>
     <div class="card-body">
@@ -126,6 +136,7 @@
         <button type="submit" class="btn btn-success">Create User</button>
       </form>
     </div>
+  </div></div>
   </div>
 {% endblock %}
 

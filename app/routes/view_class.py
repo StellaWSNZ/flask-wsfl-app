@@ -334,7 +334,7 @@ def update_scenario():
     value = data.get("value")
     debug = 0  # Optional: change to 1 if you want debug mode
 
-    print(f"📥 Incoming update request: NSN={nsn}, Header='{header_name}', Status={status}")
+    print(f"📥 Incoming update request: NSN={nsn}, Header='{header}', Status={value}")
 
     if nsn is None or header is None or value is None:
         return jsonify(success=False, error="Missing parameters"), 400

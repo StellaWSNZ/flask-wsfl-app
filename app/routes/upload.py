@@ -55,7 +55,7 @@ def classlistupload():
         session["selected_funder"] = selected_funder
         session["selected_funder"] = selected_funder
 
-        selected_school_str = request.form.get("school") or str(session.get("user_id"))
+        selected_school_str = request.form.get("school") or str(session.get("user_desc")) + "("+str(session.get("user_id"))+ ")"
 
         moe_number = (
             int(selected_school_str)
@@ -85,6 +85,7 @@ def classlistupload():
 
             
         if action == "preview" and file and file.filename:
+            
             filename = file.filename.lower()
             file_ext = os.path.splitext(filename)[-1]
             has_headers = not bool(request.form.get("no_headers"))
@@ -209,6 +210,8 @@ def classlistupload():
 
         elif action == "preview":
             flash("Please upload a valid CSV file.", "danger")
+    print("🟡 validated =", validated)
+
     return render_template(
         "classlistupload.html",
         funders=funders,

@@ -158,7 +158,8 @@ def make_figure(df, DEBUG, TITLE, PAGE_SIZE, TITLE_SPACE, subtitle_space, row_he
             start_y -= row_heights[group] + 0.01
         else:
             print(f"Missing rowheight for YearGroupDesc {group}")
-
+    for spine in ax.spines.values():
+        spine.set_visible(False)
     return fig
 
 def save_and_open_pdf(fig, filename):

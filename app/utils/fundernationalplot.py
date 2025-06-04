@@ -125,7 +125,8 @@ def make_grid(ax, n_cols, n_rows, row_heights, title_space, subtitle_space, df, 
                     subtitle_space, debug
                 )
                 idx += 1
-
+    for spine in ax.spines.values():
+        spine.set_visible(False)
 def draw_key(ax, x, y):
     labels = ['National Rate (LY)', 'Funder Rate (YTD)', 'Funder Target']
     colors = ['#2EBDC2', '#356FB6', '#BBE6E9']

@@ -137,8 +137,10 @@
           <thead>
             <tr>
               {% for col in preview_data[0].keys() %}
-                <th>{{ col }}</th>
-              {% endfor %}
+  {% if col != 'Match' or validated %}
+    <th>{{ col }}</th>
+  {% endif %}
+{% endfor %}
             </tr>
             {% if not validated %}
               <tr>
@@ -164,7 +166,7 @@
               {% set error_columns = row.ErrorFields.split(',') | map('trim') | list if row.ErrorFields else [] %}
               <tr>
                 {% for key, val in row.items() %}
-                  {% if key != 'Match' %}
+                  {% if key != 'Match'%}
                     {% set clean_key = key|string|trim %}
                     {% set is_error = clean_key|lower in error_columns|map('lower') %}
                     {% set cell_class = '' %}
@@ -176,15 +178,16 @@
                     <td class="{{ cell_class }}">{{ '' if val is none or val|string == 'nan' else val }}</td>
                   {% endif %}
                 {% endfor %}
-                {% if validated %}
-                  <td>
-                    {% if row.Match %}
-                      <span class="badge bg-success">Ready</span>
-                    {% else %}
-                      <span class="badge bg-danger">Fix required</span>
-                    {% endif %}
-                  </td>
-                {% endif %}
+                {% if validated and 'Match' in row %}
+  {% set match_status = row.Match|string|lower in ['1', 'true', 'yes'] %}
+  <td>
+    {% if match_status %}
+      <span class="badge bg-success">Ready</span>
+    {% else %}
+      <span class="badge bg-danger">Fix required</span>
+    {% endif %}
+  </td>
+{% endif %}
               </tr>
             {% endfor %}
           </tbody>

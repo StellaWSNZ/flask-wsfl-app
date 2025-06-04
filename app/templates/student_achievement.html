@@ -3,9 +3,21 @@
 
 {% block content %}
 <style>
+
+body,
+.container-fluid,
+main,
+.container-fluid > *,
+.scroll-table-inner,
+#studentsTable {
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
+}
   .scroll-table-wrapper {
     overflow-x: auto;
     width: 100%;
+    padding-bottom: 0 !important;   /* Prevent extra space */
+  margin-bottom: 0 !important;
   }
 
   .scroll-table-inner {
@@ -116,6 +128,7 @@
   .list-group-item {
     border: none;
   }
+  
 </style>
 
 

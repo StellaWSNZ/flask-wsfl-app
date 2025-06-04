@@ -23,6 +23,15 @@
       rel="stylesheet"
       href="{{ url_for('static', filename='css/custom.css') }}"
     />
+    <style>
+      body {
+        background-image: url("{{ url_for('static', filename='background.svg') }}");
+        background-size: cover;
+        background-repeat: no-repeat;
+        background-attachment: fixed;
+        background-position: bottom center;
+      }
+    </style>
     {% block head %}{% endblock %}
   </head>
 
