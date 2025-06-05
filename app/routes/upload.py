@@ -134,7 +134,7 @@ def classlistupload():
             df_cleaned = df_cleaned.applymap(remove_macrons)
 
             session["raw_csv_json"] = df_cleaned.to_json(orient="records")
-            print("✅ raw_csv_json saved with", len(df_cleaned), "rows")
+            # print("✅ raw_csv_json saved with", len(df_cleaned), "rows")
 
             # Save top 10 rows preview to session
             preview_data = df_cleaned.head(10).to_dict(orient="records")
@@ -153,8 +153,8 @@ def classlistupload():
                 try:
                     raw_df = pd.read_json(StringIO(session["raw_csv_json"]))
                     column_mappings = json.loads(column_mappings_json)
-                    print("📋 Column mappings received from frontend:", column_mappings_json)
-                    print("📊 Raw DataFrame columns:", raw_df.columns.tolist())
+                    #print("📋 Column mappings received from frontend:", column_mappings_json)
+                    #print("📊 Raw DataFrame columns:", raw_df.columns.tolist())
                     valid_fields = ["NSN", "FirstName", "LastName", "PreferredName", "BirthDate", "Ethnicity", "YearLevel"]
 
                     # Build reverse mapping: selected column name → expected name
@@ -201,9 +201,9 @@ def classlistupload():
                     df_json = df.to_json(orient="records")
                     
                     parsed_json = json.loads(df_json)
-                    print("📦 Sample JSON being sent to SQL:")
-                    for i, row in enumerate(parsed_json[:5]):
-                        print(f"Row {i+1}:", row)
+                    #print("📦 Sample JSON being sent to SQL:")
+                    #for i, row in enumerate(parsed_json[:5]):
+                    #    print(f"Row {i+1}:", row)
                     with engine.connect() as conn:
                         result = conn.execute(
                             text("EXEC FlaskCheckNSN_JSON :InputJSON, :Term, :CalendarYear, :MOENumber"),
@@ -217,7 +217,7 @@ def classlistupload():
 
         elif action == "preview":
             flash("Please upload a valid CSV file.", "danger")
-    print("🟡 validated =", validated)
+    #print("🟡 validated =", validated)
 
     return render_template(
         "classlistupload.html",
@@ -445,8 +445,8 @@ def submitclass():
         input_json = json.dumps(preview_data)
         
         #print("🔍 Final JSON birthdate values before submit:")
-        for i, row in enumerate(preview_data[:3]):
-            print(f"Row {i+1} Birthdate:", row.get("Birthdate"))
+        #for i, row in enumerate(preview_data[:3]):
+        #    print(f"Row {i+1} Birthdate:", row.get("Birthdate"))
                 
 
         #print(input_json)

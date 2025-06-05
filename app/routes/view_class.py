@@ -119,7 +119,7 @@ def view_class(class_id, term, year):
             cols.insert(-3, cols.pop(cols.index("Scenario One - Selected <br> (7-8)")))
             cols.insert(-1, cols.pop(cols.index("Scenario Two - Selected <br> (7-8)")))
             df_combined = df_combined[cols]
-        print(df_combined)
+        #print(df_combined)
         # ✅ Cache everything needed for print
         session.setdefault("class_cache", {})[cache_key] = {
             "students": students.to_dict(),
@@ -384,8 +384,8 @@ def reporting():
         term = int(request.form.get("term"))
         year = int(request.form.get("year"))
         funder_name = request.form.get("funder") or session.get("desc")
-        print(request.form.get("funder"))
-        print(session.get("desc"))
+        #print(request.form.get("funder"))
+        #print(session.get("desc"))
         if report_type == "Funder":
             with engine.connect() as conn:
                 result = conn.execute(
@@ -592,7 +592,7 @@ def print_class_view(class_id, term, year):
         session.get("class_cache", {}).pop(cache_key, None)
 
     if "class_cache" in session and cache_key in session["class_cache"]:
-        print("✅ Using cached class data")
+        #print("✅ Using cached class data")
         cache = session["class_cache"][cache_key]
         students = pd.DataFrame(cache["students"])
         comp_df = pd.DataFrame(cache["competencies"])
@@ -605,7 +605,7 @@ def print_class_view(class_id, term, year):
             return redirect(url_for("class_bp.view_class", class_id=class_id, term=term, year=year))
 
     else:
-        print("⏳ Querying class data and caching...")
+        #print("⏳ Querying class data and caching...")
         engine = get_db_engine()
         with engine.connect() as conn:
             result = conn.execute(

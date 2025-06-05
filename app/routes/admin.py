@@ -272,7 +272,7 @@ def update_profile():
             text("EXEC FlaskLoginValidation :Email"),
             {"Email": new_email}
         ).fetchone()
-        print(updated_info)
+       # print(updated_info)
         session["user_role"] = updated_info.Role
         session["user_id"] = updated_info.ID
         session["user_admin"] = updated_info.Admin
@@ -338,8 +338,7 @@ def provider_maintenance():
                 {"Request": "AllFunders"}
             )
             funders = [dict(row._mapping) for row in funders_result]
-            if not selected_funder and funders:
-                selected_funder = str(funders[0]["id"])
+            
 
         if user_role == "FUN":
             selected_funder = str(user_id)
@@ -363,17 +362,20 @@ def provider_maintenance():
                 {"Request": "GetProviderByFunder", "funder_id": selected_funder}
             )
             providers = [dict(row._mapping) for row in providers_result]
-
-    return render_template(
-        "provider_maintenance.html",
-        schools=schools,
-        providers=providers,
-        funders=funders,
-        selected_funder=int(selected_funder),
-        selected_term=int(selected_term),
-        selected_year=int(selected_year),
-        user_role=user_role
-    )
+    try:
+        return render_template(
+            "provider_maintenance.html",
+            schools=schools,
+            providers=providers,
+            funders=funders,
+        selected_funder=int(selected_funder) if selected_funder else None,
+            selected_term=int(selected_term),
+            selected_year=int(selected_year),
+            user_role=user_role
+        )
+    except Exception as e:
+        traceback.print_exc()
+        return str(e), 500
     
     
 @admin_bp.route("/assign_provider", methods=["POST"])
@@ -409,4 +411,41 @@ def assign_provider():
     except Exception as e:
         return jsonify(success=False, error=str(e)), 500
 
-    
+@admin_bp.route("/add_provider", methods=["POST"])
+@login_required
+def add_provider():
+    provider_name = request.form.get("provider_name")
+    funder_id = request.form.get("funder_id")
+
+    if not provider_name or not funder_id:
+        return jsonify({"success": False, "message": "Missing data"}), 400
+    #print(provider_name)
+    # print(funder_id)
+    engine = get_db_engine()
+    with engine.begin() as conn:
+        try:
+            result = conn.execute(
+                text("""
+                    EXEC FlaskHelperFunctions 
+                        @Request = :Request,
+                        @Number = :Number,
+                        @Text = :Text
+                """),
+                {
+                    "Request": "AddProvider",
+                    "Number": int(funder_id),
+                    "Text": provider_name
+                }
+            )
+            row = result.mappings().fetchone()
+            new_id = row["NewID"]
+            funder_name = row["FunderName"]
+
+            return jsonify({
+                "success": True,
+                "new_id": new_id,
+                "funder_name": funder_name,
+                "provider_name": provider_name
+            })        
+        except Exception as e:
+            return jsonify({"success": False, "message": str(e)}), 500

@@ -10,12 +10,15 @@
   <div class="col-md-3">
     <label for="funder" class="form-label">Funder</label>
     <select id="funder" name="funder" class="form-select" required>
-      {% for f in funders %}
-        <option value="{{ f.ID }}" {% if selected_funder == f.ID %}selected{% endif %}>
-          {{ f.Description }}
-        </option>
-      {% endfor %}
-    </select>
+  {% if not selected_funder %}
+    <option value="" disabled selected>Pick a funder...</option>
+  {% endif %}
+  {% for f in funders %}
+    <option value="{{ f['id'] }}" {% if selected_funder == f['id'] %}selected{% endif %}>
+      {{ f['Description'] }}
+    </option>
+  {% endfor %}
+</select>
   </div>
   {% endif %}
 
@@ -73,18 +76,22 @@
         <td>{{ school.MaxClassSize }}</td>
         <td>{{ school.AvgClassSize }}</td>
         <td>
-          <select class="form-select form-select-sm provider-select"
-                  data-moe="{{ school.MOENumber }}"
-                  data-term="{{ selected_term }}"
-                  data-year="{{ selected_year }}">
-            <option value="">Not chosen</option>
-            {% for provider in providers %}
-              <option value="{{ provider.ProviderID }}"
-                {% if school.ProviderID == provider.ProviderID %}selected{% endif %}>
-                {{ provider.Description }}
-              </option>
-            {% endfor %}
-          </select>
+          <div class="input-group input-group-sm">
+            <select class="form-select provider-select"
+                    data-moe="{{ school.MOENumber }}"
+                    data-term="{{ selected_term }}"
+                    data-year="{{ selected_year }}">
+              <option value="">Not chosen</option>
+              {% for provider in providers %}
+                <option value="{{ provider.ProviderID }}" {% if school.ProviderID == provider.ProviderID %}selected{% endif %}>
+                  {{ provider.Description }}
+                </option>
+              {% endfor %}
+            </select>
+            <button type="button" class="btn btn-outline-secondary add-provider-btn" data-bs-toggle="modal" data-bs-target="#newProviderModal">
+              <i class="bi bi-plus-lg"></i>
+            </button>
+          </div>
         </td>
       </tr>
       {% endfor %}
@@ -92,10 +99,38 @@
   </table>
 </div>
 {% else %}
-<div class="alert alert-info text-center">No schools found for the selected term and year.</div>
-{% endif %}
+<div class="d-flex justify-content-center">
+<div class="alert text-center w-40" style="background-color: #4d544120; color: #4d5441; border: 2px solid #4d5441;">
+  No schools found for the selected term and year. Please contact your schools regarding uploading the relevant class lists. 
+</div>
+</div>{% endif %}
 
-<!-- JavaScript: Assign Provider -->
+<!-- Modal for Adding New Provider -->
+<div class="modal fade" id="newProviderModal" tabindex="-1" aria-labelledby="newProviderModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="addProviderForm">
+        <div class="modal-header">
+          <h5 class="modal-title" id="newProviderModalLabel">Add New Provider</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" name="funder_id" value="{{ selected_funder }}">
+          <div class="mb-3">
+            <label for="providerName" class="form-label">Provider Name</label>
+            <input type="text" class="form-control" id="providerName" name="provider_name" required>
+          </div>
+          <div id="addProviderSuccess" class="alert alert-success d-none" role="alert"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">Add Provider</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- JavaScript -->
 <script>
 document.querySelectorAll(".provider-select").forEach(select => {
   select.addEventListener("change", async function () {
@@ -124,6 +159,46 @@ document.querySelectorAll(".provider-select").forEach(select => {
       console.log("✅ Provider assigned.");
     }
   });
+});
+
+// Handle Add Provider Form
+const addProviderForm = document.getElementById("addProviderForm");
+addProviderForm.addEventListener("submit", async function (e) {
+  e.preventDefault();
+  const formData = new FormData(addProviderForm);
+
+  const res = await fetch("{{ url_for('admin_bp.add_provider') }}", {
+    method: "POST",
+    body: formData
+  });
+
+  const result = await res.json();
+
+  if (result.success) {
+    // Insert new option in all dropdowns
+    const newOption = document.createElement("option");
+    newOption.value = result.new_id;
+    newOption.textContent = result.provider_name;
+
+    document.querySelectorAll(".provider-select").forEach(select => {
+      select.appendChild(newOption.cloneNode(true));
+    });
+
+    // Show success message
+    const successAlert = document.getElementById("addProviderSuccess");
+    successAlert.textContent = `✅ Provider '${result.provider_name}' added successfully for '${result.funder_name}'.`;
+    successAlert.classList.remove("d-none");
+
+    // Reset input field
+    document.getElementById("providerName").value = "";
+  } else {
+    alert("❌ Failed to add provider: " + result.message);
+  }
+});
+
+// Clear success alert when modal is shown again
+document.getElementById("newProviderModal").addEventListener("show.bs.modal", () => {
+  document.getElementById("addProviderSuccess").classList.add("d-none");
 });
 </script>
 {% endblock %}
