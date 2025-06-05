@@ -1,6 +1,6 @@
 # app/routes/admin.py
 
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash, Response
+from flask import Blueprint, render_template, request, redirect, url_for, session, flash, Response, jsonify
 from werkzeug.security import generate_password_hash
 from app.utils.database import get_db_engine
 from app.routes.auth import login_required
@@ -14,7 +14,7 @@ admin_bp = Blueprint("admin_bp", __name__)
 from app.utils.email import send_account_setup_email  # if not already
 from app.utils.database import get_db_engine
 from sqlalchemy import text
-
+import traceback
 @admin_bp.route('/create_user', methods=['GET', 'POST'])
 @login_required
 def create_user():
@@ -108,18 +108,28 @@ def create_user():
             if existing:
                 flash("⚠️ Email already exists.", "warning")
             else:
-                conn.execute(text("""
-                    INSERT INTO FlaskLogin (Email, HashPassword, Role, ID, FirstName, Surname, Admin)
-                    VALUES (:email, :hash, :role, :id, :firstname, :surname, :admin)
-                """), {
-                    "email": email,
-                    "hash": hashed_pw,
-                    "role": selected_role,
-                    "id": selected_id,
-                    "firstname": firstname,
-                    "surname": surname,
-                    "admin": admin
-                })
+                with engine.begin() as conn:
+                    conn.execute(
+                        text("""
+                            EXEC FlaskInsertUser 
+                                @Email = :email,
+                                @HashPassword = :hash,
+                                @Role = :role,
+                                @ID = :id,
+                                @FirstName = :firstname,
+                                @Surname = :surname,
+                                @Admin = :admin
+                        """),
+                        {
+                            "email": email,
+                            "hash": hashed_pw,
+                            "role": selected_role,
+                            "id": selected_id,
+                            "firstname": firstname,
+                            "surname": surname,
+                            "admin": admin
+                        }
+                    )
                 flash(f"✅ User {email} created.", "success")
 
                 if send_email:
@@ -308,43 +318,95 @@ def serve_logo(logo_type, logo_id):
         return Response(result[0], mimetype=result[1])
     return '', 404
 
-
 @admin_bp.route('/provider_maintenance', methods=['GET', 'POST'])
 @login_required
 def provider_maintenance():
-    if session.get("user_role") != "FUN":
-        flash("Unauthorized access", "danger")
-        return redirect(url_for("home_bp.home"))
-
     engine = get_db_engine()
-    funder_id = session.get("user_id")
+    user_role = session.get("user_role")
+    user_id = session.get("user_id")
+
+    selected_funder = request.form.get("funder")
+    selected_term = request.form.get("term") or session.get("nearest_term")
+    selected_year = request.form.get("year") or session.get("nearest_year")
+
+    funders, schools, providers = [], [], []
 
     with engine.connect() as conn:
-        schools = conn.execute(text("""
-            EXEC FlaskHelperFunctions @Request = 'SchoolsByFunderID', @Number = :fid
-        """), {"fid": funder_id}).fetchall()
+        if user_role == "ADM":
+            funders_result = conn.execute(
+                text("EXEC FlaskHelperFunctions @Request = :Request"),
+                {"Request": "AllFunders"}
+            )
+            funders = [dict(row._mapping) for row in funders_result]
+            if not selected_funder and funders:
+                selected_funder = str(funders[0]["id"])
 
-        providers = conn.execute(text("""
-            SELECT ProviderID, Description 
-            FROM Provider 
-            WHERE FunderID = :fid
-        """), {"fid": funder_id}).fetchall()
+        if user_role == "FUN":
+            selected_funder = str(user_id)
 
-    return render_template("provider_maintenance.html", schools=schools, providers=providers)
+        if selected_funder:
+            schools_result = conn.execute(text("""
+                EXEC FlaskHelperFunctionsSpecific
+                    @Request = 'GetSchoolsForProviderAssignment',
+                    @Term = :term,
+                    @Year = :year,
+                    @FunderID = :funder_id
+            """), {
+                "term": selected_term,
+                "year": selected_year,
+                "funder_id": selected_funder
+            })
+            schools = [dict(row._mapping) for row in schools_result]
 
-@admin_bp.route('/assign_provider', methods=['POST'])
-@login_required
+            providers_result = conn.execute(
+                text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :funder_id"),
+                {"Request": "GetProviderByFunder", "funder_id": selected_funder}
+            )
+            providers = [dict(row._mapping) for row in providers_result]
+
+    return render_template(
+        "provider_maintenance.html",
+        schools=schools,
+        providers=providers,
+        funders=funders,
+        selected_funder=int(selected_funder),
+        selected_term=int(selected_term),
+        selected_year=int(selected_year),
+        user_role=user_role
+    )
+    
+    
+@admin_bp.route("/assign_provider", methods=["POST"])
 def assign_provider():
-    engine = get_db_engine()
-    moe = request.form.get("moe_number")
-    provider_id = request.form.get("provider_id")
+    data = request.get_json()
+    moe_number = data.get("moe_number")
+    term = data.get("term")
+    year = data.get("year")
+    provider_id = data.get("provider_id")
 
-    with engine.begin() as conn:
-        conn.execute(text("""
-            UPDATE School
-            SET ProviderID = :pid
-            WHERE MOENumber = :moe
-        """), {"pid": provider_id, "moe": moe})
+    try:
+        if provider_id == "" or provider_id is None:
+            provider_id = None
 
-    flash("Provider assigned successfully!", "success")
-    return redirect(url_for("admin_bp.provider_maintenance"))
+        engine = get_db_engine()
+        with engine.begin() as conn:
+            conn.execute(text("""
+                EXEC FlaskHelperFunctionsSpecific
+                    @Request = 'AssignProviderToSchool',
+                    @MOENumber = :moe,
+                    @Year = :year,
+                    @Term  = :term,
+                    @ProviderID = :pid
+            """), {
+                "moe": moe_number,
+                "term": term,
+                "year": year,
+                "pid": provider_id
+            })
+
+        return jsonify(success=True)
+
+    except Exception as e:
+        return jsonify(success=False, error=str(e)), 500
+
+    

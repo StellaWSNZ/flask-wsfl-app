@@ -1,51 +1,129 @@
-{% extends "header.html" %} {% block title %}Provider Maintenance{% endblock %}
+{% extends "header.html" %}
+{% block title %}Provider Maintenance{% endblock %}
+
 {% block content %}
 <h3 class="text-center my-4">Assign Providers to Schools</h3>
 
+<!-- Filter Form -->
+<form method="POST" class="row justify-content-center g-3 mb-4">
+  {% if user_role == 'ADM' %}
+  <div class="col-md-3">
+    <label for="funder" class="form-label">Funder</label>
+    <select id="funder" name="funder" class="form-select" required>
+      {% for f in funders %}
+        <option value="{{ f.ID }}" {% if selected_funder == f.ID %}selected{% endif %}>
+          {{ f.Description }}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+  {% endif %}
+
+  <div class="col-md-2">
+    <label for="term" class="form-label">Term</label>
+    <select id="term" name="term" class="form-select" required>
+      {% for t in [1, 2, 3, 4] %}
+        <option value="{{ t }}" {% if selected_term == t %}selected{% endif %}>Term {{ t }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="col-md-2">
+    <label for="year" class="form-label">Year</label>
+    <select id="year" name="year" class="form-select" required>
+      {% for y in range(2023, 2026) %}
+        <option value="{{ y }}" {% if selected_year == y %}selected{% endif %}>{{ y }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="col-md-auto d-flex align-items-end">
+    <button type="submit" class="btn btn-primary">Show Schools</button>
+  </div>
+</form>
+
+<!-- Custom table header style -->
+<style>
+  thead.custom-header th {
+    background-color: #004080 !important;
+    color: white !important;
+    border-color: #004080 !important;
+    text-align: center;
+  }
+</style>
+
+<!-- Table Display -->
+{% if schools %}
 <div class="container">
-  <table class="table table-bordered align-middle">
-    <thead class="table-dark">
+  <table class="table table-bordered table-hover align-middle">
+    <thead class="custom-header">
       <tr>
         <th>School Name</th>
-        <th>MOE Number</th>
+        <th>Total Classes</th>
+        <th>Max Class Size</th>
+        <th>Avg Class Size</th>
         <th>Assign Provider</th>
       </tr>
     </thead>
     <tbody>
       {% for school in schools %}
       <tr>
-        <td>{{ school.SchoolName }}</td>
-        <td>{{ school.MOENumber }}</td>
+        <td>{{ school.School }}</td>
+        <td>{{ school.TotalClasses }}</td>
+        <td>{{ school.MaxClassSize }}</td>
+        <td>{{ school.AvgClassSize }}</td>
         <td>
-          <form
-            method="POST"
-            action="{{ url_for('admin_bp.assign_provider') }}"
-          >
-            <input
-              type="hidden"
-              name="moe_number"
-              value="{{ school.MOENumber }}"
-            />
-            <select
-              name="provider_id"
-              class="form-select form-select-sm d-inline-block w-auto"
-              required
-            >
-              <option value="" disabled selected>Select provider</option>
-              {% for provider in providers %}
-              <option value="{{ provider.ProviderID }}">
+          <select class="form-select form-select-sm provider-select"
+                  data-moe="{{ school.MOENumber }}"
+                  data-term="{{ selected_term }}"
+                  data-year="{{ selected_year }}">
+            <option value="">Not chosen</option>
+            {% for provider in providers %}
+              <option value="{{ provider.ProviderID }}"
+                {% if school.ProviderID == provider.ProviderID %}selected{% endif %}>
                 {{ provider.Description }}
               </option>
-              {% endfor %}
-            </select>
-            <button type="submit" class="btn btn-sm btn-primary ms-2">
-              Assign
-            </button>
-          </form>
+            {% endfor %}
+          </select>
         </td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
 </div>
+{% else %}
+<div class="alert alert-info text-center">No schools found for the selected term and year.</div>
+{% endif %}
+
+<!-- JavaScript: Assign Provider -->
+<script>
+document.querySelectorAll(".provider-select").forEach(select => {
+  select.addEventListener("change", async function () {
+    const moe = this.dataset.moe;
+    const term = this.dataset.term;
+    const year = this.dataset.year;
+    const provider_id = this.value || null;
+
+    const res = await fetch("{{ url_for('admin_bp.assign_provider') }}", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": "{{ csrf_token() if csrf_token else '' }}"
+      },
+      body: JSON.stringify({
+        moe_number: moe,
+        term: term,
+        year: year,
+        provider_id: provider_id
+      })
+    });
+
+    if (!res.ok) {
+      alert("❌ Error assigning provider.");
+    } else {
+      console.log("✅ Provider assigned.");
+    }
+  });
+});
+</script>
 {% endblock %}
