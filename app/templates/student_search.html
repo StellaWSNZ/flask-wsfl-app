@@ -13,19 +13,13 @@ block content %}
   />
   <ul id="results" class="list-group mt-3"></ul>
 </div>
-
 <script>
   const searchInput = document.getElementById("search-input");
   const resultsList = document.getElementById("results");
 
-  searchInput.addEventListener("input", () => {
-    const query = searchInput.value.trim();
+  let debounceTimer;
 
-    if (query.length < 2) {
-      resultsList.innerHTML = "";
-      return;
-    }
-
+  function fetchStudents(query) {
     fetch(`/students/search?q=${encodeURIComponent(query)}`)
       .then((response) => response.json())
       .then((data) => {
@@ -44,7 +38,11 @@ block content %}
             <strong>${student.FirstName} ${student.LastName}</strong>
             ${student.PreferredName ? `(${student.PreferredName})` : ""}
             <br><small>DOB: ${student.DateOfBirth}</small><br>
-            <code>NSN: ${student.NSN}</code>
+            <small>Ethnicity: ${student.EthnicityDesc}</small><br>
+            <small>Year Level: ${student.YearLevelID} (as of term ${
+            student.Term
+          }, ${student.CalendarYear})</small><br>
+            <small>NSN: ${student.NSN}</small>
           `;
           resultsList.appendChild(item);
         });
@@ -54,6 +52,20 @@ block content %}
         resultsList.innerHTML =
           '<li class="list-group-item text-danger">Search failed.</li>';
       });
+  }
+
+  searchInput.addEventListener("input", () => {
+    clearTimeout(debounceTimer);
+    const query = searchInput.value.trim();
+
+    if (query.length < 2) {
+      resultsList.innerHTML = "";
+      return;
+    }
+
+    debounceTimer = setTimeout(() => {
+      fetchStudents(query);
+    }, 800); // 1000ms = 1 second
   });
 </script>
 
