@@ -1,0 +1,60 @@
+{% extends "header.html" %} {% block title %}Search Students{% endblock %} {%
+block content %}
+
+<div class="container mt-5">
+  <h2>Search for a Student</h2>
+
+  <input
+    type="text"
+    id="search-input"
+    class="form-control"
+    placeholder="Type a name..."
+    autocomplete="off"
+  />
+  <ul id="results" class="list-group mt-3"></ul>
+</div>
+
+<script>
+  const searchInput = document.getElementById("search-input");
+  const resultsList = document.getElementById("results");
+
+  searchInput.addEventListener("input", () => {
+    const query = searchInput.value.trim();
+
+    if (query.length < 2) {
+      resultsList.innerHTML = "";
+      return;
+    }
+
+    fetch(`/students/search?q=${encodeURIComponent(query)}`)
+      .then((response) => response.json())
+      .then((data) => {
+        resultsList.innerHTML = "";
+
+        if (data.length === 0) {
+          resultsList.innerHTML =
+            '<li class="list-group-item">No students found.</li>';
+          return;
+        }
+
+        data.forEach((student) => {
+          const item = document.createElement("li");
+          item.className = "list-group-item";
+          item.innerHTML = `
+            <strong>${student.FirstName} ${student.LastName}</strong>
+            ${student.PreferredName ? `(${student.PreferredName})` : ""}
+            <br><small>DOB: ${student.DateOfBirth}</small><br>
+            <code>NSN: ${student.NSN}</code>
+          `;
+          resultsList.appendChild(item);
+        });
+      })
+      .catch((err) => {
+        console.error("❌ Error fetching students:", err);
+        resultsList.innerHTML =
+          '<li class="list-group-item text-danger">Search failed.</li>';
+      });
+  });
+</script>
+
+{% endblock %}

@@ -8,6 +8,7 @@ from .report import report_bp
 from .admin import admin_bp
 from .view_class import class_bp
 from .survey import survey_bp
+from .student import students_bp
 
 def register_routes(app):
     app.register_blueprint(auth_bp, url_prefix="/auth")  # So /auth/login is the login page
@@ -17,6 +18,7 @@ def register_routes(app):
     app.register_blueprint(admin_bp)
     app.register_blueprint(class_bp)
     app.register_blueprint(survey_bp)
+    app.register_blueprint(students_bp)
 
     
     @app.errorhandler(Exception)

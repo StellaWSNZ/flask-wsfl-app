@@ -63,8 +63,9 @@
       <tr>
         <th>School Name</th>
         <th>Total Classes</th>
-        <th>Max Class Size</th>
-        <th>Avg Class Size</th>
+        <th>Total Students</th>
+        <th>Equity Index</th>
+        <th>Year Levels</th>
         <th>Assign Provider</th>
       </tr>
     </thead>
@@ -73,8 +74,10 @@
       <tr>
         <td>{{ school.School }}</td>
         <td>{{ school.TotalClasses }}</td>
-        <td>{{ school.MaxClassSize }}</td>
-        <td>{{ school.AvgClassSize }}</td>
+        <td>{{ school.TotalStudents }}</td>
+        <td>{{ school.EquityIndex }}</td>
+        <td>{{ school.DistinctYearLevels }}</td>
+
         <td>
           <div class="input-group input-group-sm">
             <select class="form-select provider-select"

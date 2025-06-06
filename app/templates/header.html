@@ -184,7 +184,14 @@
               </a>
             </li>
             {% endif %}
-
+            <li class="nav-item mt-2 mt-lg-0 me-2">
+              <a
+                href="{{ url_for('survey_bp.survey_by_routename', routename='SelfReview') }}"
+                class="nav-link"
+              >
+                <i class="bi bi-clipboard-check me-1"></i> Self Review
+              </a>
+            </li>
             <li class="nav-item mt-2 mt-lg-0 me-2">
               <a
                 href="{{ url_for('admin_bp.profile') }}"

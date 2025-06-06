@@ -19,9 +19,7 @@ def create_app():
     # -----------------------------
     # 🔌 Database Configuration
     # -----------------------------
-    app.config["SQLALCHEMY_DATABASE_URI"] = (
-        "mssql+pyodbc://FlaskUser:Wai_Ora2025@heimatau.database.windows.net:1433/WSFL?driver=ODBC+Driver+18+for+SQL+Server"
-    )
+    app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DB_URL")
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     db.init_app(app)
 

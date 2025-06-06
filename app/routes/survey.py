@@ -2,40 +2,68 @@ from flask import Blueprint, render_template, request, redirect, flash, session
 from sqlalchemy import text
 from app.utils.database import get_db_engine
 from collections import namedtuple
+from app.routes.auth import login_required
+import traceback
 
 survey_bp = Blueprint("survey_bp", __name__)
 
-@survey_bp.route("/survey/<int:survey_id>")
-def survey(survey_id):
+@survey_bp.route("/survey/<string:routename>")
+@login_required
+def survey_by_routename(routename):
     engine = get_db_engine()
     Label = namedtuple("Label", ["pos", "text"])
     questions = []
     seen_ids = {}
 
-    with engine.connect() as conn:
-        rows = conn.execute(text("EXEC SVY_GetSurveyQuestions @SurveyID = :survey_id"),
-                            {"survey_id": survey_id}).fetchall()
+    try:
+        with engine.connect() as conn:
+            # Get SurveyID by RouteName
+            result = conn.execute(text("""
+                EXEC SVY_GetSurveyIDByRouteName @RouteName = :routename
+            """), {"routename": routename})
 
-    for qid, qtext, qcode, pos, label in rows:
-        if qid not in seen_ids:
-            question = {
-                "id": qid,
-                "text": qtext,
-                "type": qcode,
-                "labels": []
-            }
-            questions.append(question)
-            seen_ids[qid] = question
-        else:
-            question = seen_ids[qid]
+            row = result.fetchone()
+            result.fetchall()  # ✅ consume remaining rows
+            result.close()     # ✅ ensure connection is clean
 
-        if qcode == "LIK" and label:
-            question["labels"].append(Label(pos, label))
+            if not row:
+                flash(f"Survey '{routename}' not found.", "danger")
+                return redirect("/profile")
 
-    return render_template("survey_form.html", questions=questions)
+            survey_id = row.SurveyID
 
-@survey_bp.route("/submit", methods=["POST"])
-def submit_survey():
+            # Now get the actual survey questions
+            rows = conn.execute(text("""
+                EXEC SVY_GetSurveyQuestions @SurveyID = :survey_id
+            """), {"survey_id": survey_id}).fetchall()
+
+        for qid, qtext, qcode, pos, label in rows:
+            if qid not in seen_ids:
+                question = {
+                    "id": qid,
+                    "text": qtext,
+                    "type": qcode,
+                    "labels": []
+                }
+                questions.append(question)
+                seen_ids[qid] = question
+            else:
+                question = seen_ids[qid]
+
+            if qcode == "LIK" and label:
+                question["labels"].append(Label(pos, label))
+
+        return render_template("survey_form.html", questions=questions, route_name=routename)
+
+    except Exception as e:
+        print("❌ Error loading survey form:")
+        traceback.print_exc()
+        return "Internal Server Error: Failed to load survey", 500
+
+
+@survey_bp.route("/submit/<string:routename>", methods=["POST"])
+@login_required
+def submit_survey(routename):
     try:
         engine = get_db_engine()
         form_data = request.form.to_dict()
@@ -48,10 +76,22 @@ def submit_survey():
 
         responses = {k[1:]: v for k, v in form_data.items() if k.startswith("q")}
         print("📝 Parsed responses:", responses)
-        print("📨 Inserting respondent with email:", email)
 
         with engine.begin() as conn:
-            # Step 1: Get new RespondentID
+            # Get SurveyID from RouteName
+            result = conn.execute(text("""
+                EXEC SVY_GetSurveyIDByRouteName @RouteName = :routename
+            """), {"routename": routename})
+            row = result.fetchone()
+            result.fetchall()
+            result.close()
+
+            if not row:
+                return f"Survey '{routename}' not found", 400
+
+            survey_id = row.SurveyID
+
+            # Insert respondent
             respondent_result = conn.execute(text("""
                 DECLARE @RespondentID INT;
                 EXEC SVY_InsertRespondent @Email = :email, @RespondentID = @RespondentID OUTPUT;
@@ -60,7 +100,7 @@ def submit_survey():
             respondent_id = respondent_result.scalar()
             print("🆔 Respondent ID:", respondent_id)
 
-            # Step 2: Loop and insert answers
+            # Insert answers
             for qid_str, value in responses.items():
                 qid = int(qid_str)
                 print(f"➕ Inserting answer: Question {qid}, Value = {value}")
@@ -83,5 +123,6 @@ def submit_survey():
         return redirect("/profile")
 
     except Exception as e:
-        print("❌ Submission failed:", e)
-        return "Internal Server Error", 500
+        print("❌ Submission failed:")
+        traceback.print_exc()
+        return f"Internal Server Error: {e}", 500
