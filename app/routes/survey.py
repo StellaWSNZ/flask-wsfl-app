@@ -139,6 +139,25 @@ def submit_survey(routename):
         traceback.print_exc()
         return f"Internal Server Error: {e}", 500
 
+@survey_bp.route("/mysurveys")
+@login_required
+def list_my_surveys():
+    email = session.get("user_email")
+    engine = get_db_engine()
+
+    try:
+        with engine.connect() as conn:
+            rows = conn.execute(text("""
+                EXEC SVY_GetSurveysCompletedByUser @Email = :email
+            """), {"email": email}).fetchall()
+
+        return render_template("survey_list.html", surveys=rows)
+
+    except Exception as e:
+        print("❌ Failed to load survey list:")
+        import traceback; traceback.print_exc()
+        return "Internal Server Error", 500
+
 
 @survey_bp.route("/mysurvey/<int:respondent_id>")
 @login_required
