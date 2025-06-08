@@ -8,7 +8,6 @@ import traceback
 survey_bp = Blueprint("survey_bp", __name__)
 
 @survey_bp.route("/survey/<string:routename>")
-@login_required
 def survey_by_routename(routename):
     engine = get_db_engine()
     Label = namedtuple("Label", ["pos", "text"])
@@ -62,7 +61,6 @@ def survey_by_routename(routename):
 
 
 @survey_bp.route("/submit/<string:routename>", methods=["POST"])
-@login_required
 def submit_survey(routename):
     try:
         engine = get_db_engine()
@@ -74,16 +72,18 @@ def submit_survey(routename):
             print("⚠️ Email is missing from form data!")
             return "Email required", 400
 
+        # Extract question responses (e.g., q1, q2, ...)
         responses = {k[1:]: v for k, v in form_data.items() if k.startswith("q")}
         print("📝 Parsed responses:", responses)
 
         with engine.begin() as conn:
-            # Get SurveyID from RouteName
+            # Get the SurveyID using the route name
             result = conn.execute(text("""
                 EXEC SVY_GetSurveyIDByRouteName @RouteName = :routename
             """), {"routename": routename})
+            
             row = result.fetchone()
-            result.fetchall()
+            result.fetchall()  # clean up remaining cursor
             result.close()
 
             if not row:
@@ -91,16 +91,28 @@ def submit_survey(routename):
 
             survey_id = row.SurveyID
 
-            # Insert respondent
+            # 🔹 Step 1: Insert respondent (via SP)
+            conn.execute(text("""
+                EXEC SVY_InsertRespondent 
+                    @SurveyID = :survey_id,
+                    @Email = :email,
+                    @RespondentID = NULL;
+            """), {"survey_id": survey_id, "email": email})
+
+            # 🔹 Step 2: Get the respondent ID (via SP)
             respondent_result = conn.execute(text("""
-                DECLARE @RespondentID INT;
-                EXEC SVY_InsertRespondent @Email = :email, @RespondentID = @RespondentID OUTPUT;
-                SELECT @RespondentID as RespondentID;
-            """), {"email": email})
+                EXEC SVY_GetRespondentID 
+                    @SurveyID = :survey_id,
+                    @Email = :email;
+            """), {"survey_id": survey_id, "email": email})
+
             respondent_id = respondent_result.scalar()
             print("🆔 Respondent ID:", respondent_id)
 
-            # Insert answers
+            if not respondent_id:
+                raise Exception("❌ Could not retrieve RespondentID after insertion")
+
+            # 🔹 Step 3: Insert answers
             for qid_str, value in responses.items():
                 qid = int(qid_str)
                 print(f"➕ Inserting answer: Question {qid}, Value = {value}")
@@ -126,3 +138,51 @@ def submit_survey(routename):
         print("❌ Submission failed:")
         traceback.print_exc()
         return f"Internal Server Error: {e}", 500
+
+
+@survey_bp.route("/mysurvey/<int:respondent_id>")
+@login_required
+def view_my_survey_response(respondent_id):
+    email = session.get("user_email")
+    engine = get_db_engine()
+
+    try:
+        with engine.connect() as conn:
+            rows = conn.execute(text("""
+                EXEC SVY_GetSurveyResponseByRespondentID @RespondentID = :rid
+            """), {"rid": respondent_id}).fetchall()
+
+            if not rows:
+                return "Survey response not found or incomplete."
+
+            questions = []
+
+            for row in rows:
+                (respondent_id, email, submitted_date, survey_id, qid, qtext,
+                 qcode, answer_likert, answer_text) = row
+
+                question = {
+                    "id": qid,
+                    "text": qtext,
+                    "type": qcode,
+                    "answer_likert": answer_likert,
+                    "answer_text": answer_text,
+                    "labels": []
+                }
+
+                # Add Likert labels if needed
+                if qcode == "LIK":
+                    label_rows = conn.execute(text("""
+                        EXEC SVY_GetLikertLabelsByQuestionID @QuestionID = :qid
+                    """), {"qid": qid}).fetchall()
+
+                    question["labels"] = [(pos, label) for pos, label in label_rows]
+
+                questions.append(question)
+
+        return render_template("survey_view.html", questions=questions)
+
+    except Exception as e:
+        print("❌ Failed to load response:")
+        import traceback; traceback.print_exc()
+        return "Internal Server Error", 500

@@ -1,0 +1,15 @@
+{% extends "header.html" %}
+{% block content %}
+<div class="container my-5">
+  <h2>My Completed Surveys</h2>
+  <ul class="list-group mt-3">
+    {% for survey in surveys %}
+    <li class="list-group-item">
+      <a href="{{ url_for('survey_bp.view_my_survey_response', respondent_id=survey.RespondentID) }}">
+        {{ survey.Title }} (Submitted: {{ survey.SubmittedDate }})
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endblock %}
