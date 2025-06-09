@@ -86,9 +86,13 @@
                     data-year="{{ selected_year }}">
               <option value="">Not chosen</option>
               {% for provider in providers %}
-                <option value="{{ provider.ProviderID }}" {% if school.ProviderID == provider.ProviderID %}selected{% endif %}>
+                <option value="{{ provider.ProviderID }}"
+                  {% if school.ProviderID and school.ProviderID|int == provider.ProviderID %}selected{% endif %}>
                   {{ provider.Description }}
                 </option>
+               <!-- ProviderID Check: school={{ school.ProviderID }}, provider={{ provider.ProviderID }} -->
+ 
+
               {% endfor %}
             </select>
             <button type="button" class="btn btn-outline-secondary add-provider-btn" data-bs-toggle="modal" data-bs-target="#newProviderModal">

@@ -375,7 +375,6 @@ def provider_maintenance():
                 "funder_id": selected_funder
             })
             schools = [dict(row._mapping) for row in schools_result]
-
             providers_result = conn.execute(
                 text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :funder_id"),
                 {"Request": "GetProviderByFunder", "funder_id": selected_funder}

@@ -145,6 +145,36 @@
                 </li>
               </ul>
             </li>
+            {% endif %} {% if user_role == "PRO" %}
+            <li class="nav-item dropdown">
+              <a
+                class="nav-link dropdown-toggle {% if 'reporting' in request.path or 'provider_classes' in request.path %}active{% endif %}"
+                href="#"
+                role="button"
+                data-bs-toggle="dropdown"
+                aria-expanded="false"
+              >
+                Provider Tools
+              </a>
+              <ul class="dropdown-menu dropdown-menu-end">
+                <li>
+                  <a
+                    class="dropdown-item py-2"
+                    href="{{ url_for('report_bp.reporting') }}"
+                  >
+                    Reporting
+                  </a>
+                </li>
+                <li>
+                  <a
+                    class="dropdown-item py-2"
+                    href="{{ url_for('class_bp.provider_classes') }}"
+                  >
+                    Class Lookup
+                  </a>
+                </li>
+              </ul>
+            </li>
             {% endif %} {% if user_role == "ADM" %}
             <li class="nav-item dropdown">
               <a
