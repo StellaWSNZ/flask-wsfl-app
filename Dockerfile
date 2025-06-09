@@ -30,4 +30,5 @@ COPY . /app
 RUN pip install --upgrade pip && pip install -r requirements.txt
 RUN pip install pyodbc  
 
-CMD ["python", "run.py"]
+RUN pip install gunicorn
+CMD ["gunicorn", "--bind", "0.0.0.0:10000", "run:app"]
