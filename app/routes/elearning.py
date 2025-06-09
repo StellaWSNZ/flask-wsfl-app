@@ -40,3 +40,9 @@ def admin_elearning_upload():
         return redirect(request.url)
 
     return render_template("elearning_upload.html")
+
+
+@elearning_bp.route("/my-ip")
+def get_my_ip():
+    import requests
+    return requests.get("https://api.ipify.org").text
