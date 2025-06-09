@@ -189,6 +189,99 @@ def update_class_info():
 
 
 
+@class_bp.route('/provider_classes', methods=['GET', 'POST'])
+@login_required
+def provider_classes():
+    if session.get("user_role") != "PRO":
+        flash("Unauthorized access", "danger")
+        return redirect(url_for("home_bp.home"))
+
+    engine = get_db_engine()
+    classes = []
+    students = []
+    suggestions = []
+    schools = []
+    selected_class_id = None
+
+    user_role = session.get("user_role")
+    user_id = session.get("user_id")
+    
+    with engine.connect() as conn:
+        if request.method == "POST":
+            term = request.form.get("term", "").strip()
+            year = request.form.get("calendaryear", "").strip()
+            moe_number = request.form.get("moe_number", "").strip()
+
+            if term.isdigit() and year.isdigit():
+                term = int(term)
+                year = int(year)
+
+                # Get school list
+                result = conn.execute(
+                    text("""
+                        EXEC FlaskHelperFunctionsSpecific 
+                            @Request = :request,
+                            @Term = :term,
+                            @Year = :year,
+                            @ProviderID = :provider_id
+                    """),
+                    {
+                        "request": "SchoolsByProviderTermYear",
+                        "term": term,
+                        "year": year,
+                        "provider_id": user_id
+                    }
+                )
+                
+                schools = [dict(row._mapping) for row in result]
+
+                # Get classes
+                if moe_number:
+                    result = conn.execute(
+                        text("""
+                            EXEC FlaskHelperFunctionsSpecific 
+                                @Request = :request,
+                                @MOENumber = :moe,
+                                @Term = :term,
+                                @Year = :year
+                        """),
+                        {
+                            "request": "ClassesBySchoolTermYear",
+                            "moe": moe_number,
+                            "term": term,
+                            "year": year
+                        }
+                    )
+                    classes = [row._mapping for row in result.fetchall()]
+
+
+                    if not classes:
+                        suggestion_result = conn.execute(
+                             text("""
+                                EXEC FlaskHelperFunctionsSpecific 
+                                    @Request = :request, 
+                                    @MOENumber = :moe
+                            """),
+                            {
+                                "request": "DistinctTermsForSchool",
+                                "moe": moe_number
+                            }
+                        )
+                        suggestions = [row.Label for row in suggestion_result]
+
+    return render_template(
+        "funder_classes.html",
+        schools=schools,
+        classes=classes,
+        students=students,
+        suggestions=suggestions,
+        selected_class_id=selected_class_id,
+        TERM=session.get("nearest_term"),
+        YEAR=session.get("nearest_year"),
+    user_role=session.get("user_role") 
+    )
+    
+
 @class_bp.route('/funder_classes', methods=['GET', 'POST'])
 @login_required
 def funder_classes():
@@ -282,7 +375,7 @@ def funder_classes():
                             }
                         )
                         suggestions = [row.Label for row in suggestion_result]
-
+    print(schools)
     return render_template(
         "funder_classes.html",
         schools=schools,
@@ -291,7 +384,8 @@ def funder_classes():
         suggestions=suggestions,
         selected_class_id=selected_class_id,
         TERM=session.get("nearest_term"),
-        YEAR=session.get("nearest_year")
+        YEAR=session.get("nearest_year"),
+    user_role=session.get("user_role") 
     )
 
 @class_bp.route('/update_competency', methods=['POST'])
@@ -528,6 +622,77 @@ def get_schools_for_term_year():
             {"MOENumber": row.MOENumber, "School": row.SchoolName}
             for row in rows
         ])
+
+@class_bp.route('/get_schools_by_provider')
+@login_required
+def get_schools_by_provider():
+    if session.get("user_role") != "PRO":
+        return jsonify([])
+
+    term = request.args.get("term", type=int)
+    year = request.args.get("year", type=int)
+    provider_id = session.get("user_id")
+
+    engine = get_db_engine()
+    with engine.connect() as conn:
+        result = conn.execute(
+            text("""
+                EXEC FlaskHelperFunctionsSpecific
+                    @Request = 'SchoolsByProviderTermYear',
+                    @Term = :term,
+                    @Year = :year,
+                    @ProviderID = :provider_id
+            """), {
+                "term": term,
+                "year": year,
+                "provider_id": provider_id
+            }
+        )
+        schools = [dict(row._mapping) for row in result]
+    return jsonify(schools)
+
+
+@class_bp.route('/get_schools_by_funder')
+@login_required
+def get_schools_by_funder():
+    user_role = session.get("user_role")
+    term = request.args.get("term", type=int)
+    year = request.args.get("year", type=int)
+
+    if not term or not year:
+        return jsonify([])
+
+    engine = get_db_engine()
+    with engine.connect() as conn:
+        if user_role == "FUN":
+            funder_id = session.get("user_id")
+            result = conn.execute(
+                text("""
+                    EXEC FlaskHelperFunctionsSpecific
+                        @Request = 'SchoolsByFunderTermYear',
+                        @Term = :term,
+                        @Year = :year,
+                        @FunderID = :funder_id
+                """), {
+                    "term": term,
+                    "year": year,
+                    "funder_id": funder_id
+                }
+            )
+        else:
+            result = conn.execute(
+                text("""
+                    EXEC FlaskHelperFunctionsSpecific
+                        @Request = 'SchoolsByTermYear',
+                        @Term = :term,
+                        @Year = :year
+                """), {
+                    "term": term,
+                    "year": year
+                }
+            )
+        schools = [dict(row._mapping) for row in result]
+    return jsonify(schools)
 
 @class_bp.route('/moe_classes', methods=['GET', 'POST'])
 @login_required

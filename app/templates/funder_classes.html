@@ -108,12 +108,22 @@
 
 {% block scripts %}
 <script>
+  const userRole = "{{ user_role }}";
+
   function fetchSchools() {
     const term = document.getElementById("term").value;
     const year = document.getElementById("calendaryear").value;
 
     if (term && year) {
-      fetch(`/get_schools_for_term_year?term=${term}&year=${year}`)
+      let url = "";
+
+      if (userRole === "PRO") {
+        url = `/get_schools_by_provider?term=${term}&year=${year}`;
+      } else if (userRole === "FUN" || userRole === "ADM") {
+        url = `/get_schools_by_funder?term=${term}&year=${year}`;
+      }
+
+      fetch(url)
         .then(res => res.json())
         .then(data => {
           const schoolWrapper = document.getElementById("school-wrapper");
@@ -145,4 +155,5 @@
     }
   });
 </script>
+
 {% endblock %}

@@ -3,7 +3,6 @@
 
 {% block content %}
 <style>
-
 body,
 .container-fluid,
 main,
@@ -13,133 +12,117 @@ main,
   margin-bottom: 0 !important;
   padding-bottom: 0 !important;
 }
-  .scroll-table-wrapper {
-    overflow-x: auto;
-    width: 100%;
-    padding-bottom: 0 !important;   /* Prevent extra space */
+.scroll-table-wrapper {
+  overflow-x: auto;
+  width: 100%;
+  padding-bottom: 0 !important;
   margin-bottom: 0 !important;
-  }
-
-  .scroll-table-inner {
-    max-height: 70vh;
-    overflow-y: auto;
-  }
-
-  #studentsTable {
-    border-collapse: collapse;
-    width: max-content;
-    table-layout: fixed;
-    border: none;
-  }
-
-  #studentsTable th,
-  #studentsTable td {
-    padding: 4px;
-    text-align: center;
-    vertical-align: top;
-    background-color: white;
-    font-size: 0.85rem;
-    white-space: normal;
-    word-wrap: break-word;
-    border: none; /* ✅ remove default black lines */
-  }
-
-  thead th {
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    background-color: white;
-  }
-
-  .mark-all-wrapper {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    align-items: center;
-    height: 100%;
-    min-height: 100px;
-  }
-
-  .header-label {
-    margin-bottom: 8px;
-  }
-
-  /* ✅ Sticky grey background and fixed grey shadow lines */
-  #studentsTable th.col-0,
-  #studentsTable td.col-0,
-  #studentsTable th.col-1,
-  #studentsTable td.col-1,
-  #studentsTable th.col-2,
-  #studentsTable td.col-2 {
-    background-color: #f8f9fa;
-    position: sticky;
-    z-index: 5;
-    box-shadow: inset 3px 0 0 #F8F9FA, inset -3px 0 0 #F8F9FA;
-    border: none; /* ✅ no borders */
-  }
-
-  #studentsTable th.col-0,
-  #studentsTable td.col-0 {
-    left: 0;
-    width: 200px;
-  }
-
-  #studentsTable th.col-1,
-  #studentsTable td.col-1 {
-    left: 200px;
-    width: 200px;
-  }
-
-  #studentsTable th.col-2,
-  #studentsTable td.col-2 {
-    left: 400px;
-    width: 120px;
-  }
-
-  #studentsTable th.col-0,
-  #studentsTable th.col-1,
-  #studentsTable th.col-2 {
-    z-index: 11;
-  }
-
-  #studentsTable th:not(.col-0):not(.col-1):not(.col-2),
-  #studentsTable td:not(.col-0):not(.col-1):not(.col-2) {
-    width: 175px;
-  }
-
-  input[type="checkbox"] {
-    transform: scale(1.1);
-    margin: 0;
-  }
-
-  #studentsTable select.form-control {
-    padding: 2px 4px;
-    font-size: 0.85rem;
-    height: auto;
-    margin: 0;
-    line-height: 1;
-  }
-
-  select option {
-    white-space: normal;
-    word-break: break-word;
-  }
-
-  .list-group-item {
-    border: none;
-  }
-  
+}
+.scroll-table-inner {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+#studentsTable {
+  border-collapse: collapse;
+  width: max-content;
+  table-layout: fixed;
+  border: none;
+}
+#studentsTable th,
+#studentsTable td {
+  padding: 4px;
+  text-align: center;
+  vertical-align: top;
+  background-color: white;
+  font-size: 0.85rem;
+  white-space: normal;
+  word-wrap: break-word;
+  border: none;
+}
+thead th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background-color: white;
+}
+.mark-all-wrapper {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  height: 100%;
+  min-height: 100px;
+}
+.header-label {
+  margin-bottom: 8px;
+}
+#studentsTable th.col-0,
+#studentsTable td.col-0,
+#studentsTable th.col-1,
+#studentsTable td.col-1,
+#studentsTable th.col-2,
+#studentsTable td.col-2 {
+  background-color: #f8f9fa;
+  position: sticky;
+  z-index: 5;
+  box-shadow: inset 3px 0 0 #F8F9FA, inset -3px 0 0 #F8F9FA;
+  border: none;
+}
+#studentsTable th.col-0,
+#studentsTable td.col-0 {
+  left: 0;
+  width: 200px;
+}
+#studentsTable th.col-1,
+#studentsTable td.col-1 {
+  left: 200px;
+  width: 200px;
+}
+#studentsTable th.col-2,
+#studentsTable td.col-2 {
+  left: 400px;
+  width: 120px;
+}
+#studentsTable th.col-0,
+#studentsTable th.col-1,
+#studentsTable th.col-2 {
+  z-index: 11;
+}
+#studentsTable th:not(.col-0):not(.col-1):not(.col-2),
+#studentsTable td:not(.col-0):not(.col-1):not(.col-2) {
+  width: 175px;
+}
+input[type="checkbox"] {
+  transform: scale(1.1);
+  margin: 0;
+}
+#studentsTable select.form-control {
+  padding: 2px 4px;
+  font-size: 0.85rem;
+  height: auto;
+  margin: 0;
+  line-height: 1;
+}
+select option {
+  white-space: normal;
+  word-break: break-word;
+}
+.list-group-item {
+  border: none;
+}
 </style>
-
-
-
-
 
 <!-- CLASS INFO HEADER -->
 <div class="container text-center mb-4" style="position: relative;">
-  <div class="alert alert-secondary d-inline-block px-4 py-3" 
-       role="alert" 
-       id="class-info-display" 
+  <!-- ✅ SUCCESS MESSAGE -->
+  <div id="update-success" class="alert alert-success d-none mx-auto mb-3" style="max-width: 600px;" role="alert">
+    ✅ Class info updated successfully.
+  </div>
+
+  <!-- ✅ VIEW MODE -->
+  <div class="alert alert-secondary d-inline-block px-4 py-3"
+       role="alert"
+       id="class-info-display"
        style="position: relative; top: 0; z-index: 1;">
     <strong>Class Name:</strong> <span id="class-name-text">{{ class_name }}</span> |
     <strong>Teacher:</strong> <span id="teacher-name-text">{{ teacher_name }}</span> |
@@ -151,12 +134,36 @@ main,
        href="{{ url_for('class_bp.print_class_view', class_id=class_id, term=term, year=year) }}" 
        target="_blank">Print View</a>
   </div>
+
+  <!-- ✅ EDIT MODE -->
+  <div class="alert alert-secondary d-none px-4 py-3"
+       id="class-info-edit"
+       style="position: relative; top: 0; z-index: 1;">
+    <strong>Class Name:</strong>
+    <input id="edit-class-name"
+           type="text"
+           value="{{ class_name }}"
+           class="form-control form-control-sm d-inline-block"
+           style="width: 200px;" />
+    
+    <strong>Teacher:</strong>
+    <input id="edit-teacher-name"
+           type="text"
+           value="{{ teacher_name }}"
+           class="form-control form-control-sm d-inline-block"
+           style="width: 200px;" />
+            <strong>School:</strong> {{ school_name }}
+    <button class="btn btn-sm btn-success ms-2"
+            onclick="submitClassInfo({{ class_id }})">Save</button>
+    <button class="btn btn-sm btn-secondary"
+            onclick="toggleEditMode(false)">Cancel</button>
+  </div>
 </div>
 
 <!-- TABLE WRAPPER -->
 <div class="scroll-table-wrapper">
   <div class="scroll-table-inner">
-    <table id="studentsTable" class="table  table-sm">
+    <table id="studentsTable" class="table table-sm">
       <thead>
         <tr>
           <th class="col-0">Last Name</th>
@@ -244,8 +251,18 @@ main,
   const autofillMap = {{ autofill_map | tojson }};
 
   function toggleEditMode(editing) {
-    document.getElementById("class-info-display").classList.toggle("d-none", editing);
-    document.getElementById("class-info-edit").classList.toggle("d-none", !editing);
+    const displayBox = document.getElementById("class-info-display");
+    const editBox = document.getElementById("class-info-edit");
+    const successBox = document.getElementById("update-success");
+
+    if (!displayBox || !editBox) return;
+
+    displayBox.classList.toggle("d-none", editing);
+    editBox.classList.toggle("d-none", !editing);
+
+    if (editing && successBox) {
+      successBox.classList.add("d-none");
+    }
   }
 
   function submitClassInfo(classId) {
@@ -263,6 +280,11 @@ main,
         document.getElementById("class-name-text").textContent = className;
         document.getElementById("teacher-name-text").textContent = teacherName;
         toggleEditMode(false);
+        const successBox = document.getElementById("update-success");
+        if (successBox) {
+          successBox.classList.remove("d-none");
+          setTimeout(() => successBox.classList.add("d-none"), 3000);
+        }
       } else {
         alert("❌ Failed to update class info");
       }
