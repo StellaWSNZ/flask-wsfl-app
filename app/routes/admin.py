@@ -6,7 +6,7 @@ from app.utils.database import get_db_engine
 from app.routes.auth import login_required
 import bcrypt
 from sqlalchemy import text
-from datetime import datetime
+from datetime import datetime, timedelta
 from app.utils.email import send_account_setup_email
 from app.extensions import mail
 admin_bp = Blueprint("admin_bp", __name__)
@@ -191,8 +191,27 @@ def profile():
     with engine.connect() as conn:
         result = conn.execute(text("EXEC FlaskHelperFunctions 'SchoolTypeDropdown'"))
         school_type_options = [dict(row._mapping) for row in result]
+        result = conn.execute(text("EXEC GetElearningStatus :Email"), {"Email": user_info["email"]})
+        elearning_status = [dict(row._mapping) for row in result]
 
-    return render_template("profile.html", user=user_info, school_type_options=school_type_options)
+        # optionally pass a static last_updated date for now 
+        last_self_review_row = conn.execute(text("EXEC SVY_LatestSelfReveiw :Email"), {"Email": user_info["email"]}).fetchone()
+        user_info["last_self_review"] = (
+            last_self_review_row[0].strftime('%A, %d %B %Y')
+            if last_self_review_row and last_self_review_row[0]
+            else None
+        )
+        last_review_date = last_self_review_row[0] if last_self_review_row else None
+
+        overdue = False
+        if last_review_date and isinstance(last_review_date, datetime):
+            overdue = datetime.now() - last_review_date > timedelta(days=90)
+        user_info["last_self_review_overdue"] = overdue
+
+    return render_template("profile.html",
+                       user=user_info,
+                       school_type_options=school_type_options,
+                       elearning_status=elearning_status)
 
 from flask import request, redirect, url_for, flash
 

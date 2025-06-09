@@ -73,8 +73,7 @@
               >
             </li>
 
-            {% if user_role != "MOE" and user_role != "PRO" and user_role !=
-            "ADM"%}
+            {% if user_role == "FUN"%}
             <li class="nav-item dropdown">
               <a
                 class="nav-link dropdown-toggle"
@@ -109,8 +108,7 @@
                 </li>
               </ul>
             </li>
-            {% endif %} {% if user_role != "FUN" and user_role != "PRO" and
-            user_role != "ADM"%}
+            {% endif %} {% if user_role == "MOE" %}
             <li class="nav-item dropdown">
               <a
                 class="nav-link dropdown-toggle {% if 'school' in request.path or 'classlistupload' in request.path %}active{% endif %}"
@@ -136,6 +134,14 @@
                     href="{{ url_for('upload_bp.classlistupload') }}"
                     >Upload Class List</a
                   >
+                </li>
+                <li>
+                  <a
+                    class="dropdown-item py-2"
+                    href="{{ url_for('students_bp.live_student_search') }}"
+                  >
+                    Edit Student Record
+                  </a>
                 </li>
               </ul>
             </li>
@@ -175,23 +181,61 @@
                     Class Lookup
                   </a>
                 </li>
+                <li>
+                  <a
+                    class="dropdown-item py-2"
+                    href="{{ url_for('elearning_bp.admin_elearning_upload') }}"
+                  >
+                    Upload ELearning CSV
+                  </a>
+                </li>
+                <li>
+                  <a
+                    class="dropdown-item py-2"
+                    href="{{ url_for('students_bp.live_student_search') }}"
+                  >
+                    Edit Student Record
+                  </a>
+                </li>
               </ul>
             </li>
-            {% endif %} {% if session['user_admin'] == 1 %}
+            {% endif %}
+            <li class="nav-item dropdown mt-2 mt-lg-0 me-2">
+              <a
+                class="nav-link dropdown-toggle"
+                href="#"
+                role="button"
+                data-bs-toggle="dropdown"
+                aria-expanded="false"
+              >
+                <i class="bi bi-clipboard-check me-1"></i> Surveys
+              </a>
+              <ul class="dropdown-menu dropdown-menu-end">
+                <li>
+                  <a
+                    class="dropdown-item py-2"
+                    href="{{ url_for('survey_bp.survey_by_routename', routename='SelfReview') }}"
+                  >
+                    Complete a Self Review
+                  </a>
+                </li>
+                <li>
+                  <a
+                    class="dropdown-item py-2"
+                    href="{{ url_for('survey_bp.list_my_surveys') }}"
+                  >
+                    Past Reviews
+                  </a>
+                </li>
+              </ul>
+            </li>
+            {% if session['user_admin'] == 1 %}
             <li class="nav-item mt-2 mt-lg-0 me-2">
               <a href="{{ url_for('admin_bp.create_user') }}" class="nav-link">
                 <i class="bi bi-person-plus me-1"></i> Create User
               </a>
             </li>
             {% endif %}
-            <li class="nav-item mt-2 mt-lg-0 me-2">
-              <a
-                href="{{ url_for('survey_bp.survey_by_routename', routename='SelfReview') }}"
-                class="nav-link"
-              >
-                <i class="bi bi-clipboard-check me-1"></i> Self Review
-              </a>
-            </li>
             <li class="nav-item mt-2 mt-lg-0 me-2">
               <a
                 href="{{ url_for('admin_bp.profile') }}"

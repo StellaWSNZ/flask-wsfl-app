@@ -9,7 +9,7 @@ from .admin import admin_bp
 from .view_class import class_bp
 from .survey import survey_bp
 from .student import students_bp
-
+from app.routes.elearning import elearning_bp
 def register_routes(app):
     app.register_blueprint(auth_bp, url_prefix="/auth")  # So /auth/login is the login page
     app.register_blueprint(home_bp)                      # Leave this without a prefix
@@ -19,6 +19,7 @@ def register_routes(app):
     app.register_blueprint(class_bp)
     app.register_blueprint(survey_bp)
     app.register_blueprint(students_bp)
+    app.register_blueprint(elearning_bp)
 
     
     @app.errorhandler(Exception)

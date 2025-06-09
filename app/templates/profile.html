@@ -46,13 +46,45 @@
   <input type="text" class="form-control" value="{{ user.desc }}" readonly disabled />
 </div>
 {% endif %}
-<div class="row align-items-end">
-  <div class="mb-3 col-md-6">
-    <label class="form-label">Last Login</label>
-    <input type="text" class="form-control" value="{{ user.last_login }}" readonly disabled />
-  </div>
+{% if elearning_status %}
+<div class="mb-3">
+  <label class="form-label">E-Learning Status</label>
+    <i class="bi bi-info-circle-fill text-muted ms-1"
+     data-bs-toggle="tooltip"
+     data-bs-placement="right"
+     title="This shows your progress in each e-learning course. 'Not Started' means you haven't enrolled yet.">
+  </i>
+  <ul class="list-group">
+    {% for course in elearning_status %}
+    <li class="list-group-item d-flex justify-content-between align-items-center">
+      {{ course.ElearningCourseDesc }}
+      <span class="badge 
+    {% if course.ElearningStatusDesc == 'Passed' %}bg-success
+    {% elif course.ElearningStatusDesc == 'In Progress' %}bg-warning text-dark
+    {% elif course.ElearningStatusDesc == 'Cancelled' %}bg-danger
+    {% else %}bg-secondary
+    {% endif %}
+  ">{{ course.ElearningStatusDesc or "Not Started" }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
 
-  <div class="mb-3 col-md-6 text-end d-flex justify-content-end gap-2">
+<div class="row align-items-end">
+  <div class="mb-3 col-md-8">
+  <label class="form-label">Last Self Review</label>
+  <div class="d-flex align-items-center">
+    <input type="text" class="form-control me-2" value="{{ user.last_self_review or 'None' }}" readonly disabled />
+     {% if user.last_self_review_overdue %}
+<span class="badge bg-danger" style="padding: 0.5em 0.75em; line-height: 1;">Overdue</span>
+  {% endif %}
+  </div>
+</div>
+
+
+
+  <div class="mb-3 col-md-4 text-end d-flex justify-content-end gap-2">
     <button type="button" class="btn btn-outline-primary" id="editUserBtn" onclick="toggleUserEdit(true)">Edit Profile</button>
     <button type="submit" class="btn btn-success d-none" id="saveUserBtn">Save</button>
     <button type="button" class="btn btn-secondary d-none" id="exitUserBtn" onclick="toggleUserEdit(false)">Cancel</button>
@@ -183,6 +215,12 @@
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script>
+document.addEventListener('DOMContentLoaded', function () {
+  const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+  tooltipTriggerList.forEach(function (tooltipTriggerEl) {
+    new bootstrap.Tooltip(tooltipTriggerEl);
+  });
+});
 let schoolMap, schoolMarker, funderMap, funderMarker;
 function toggleUserEdit(editing) {
   ["firstname_input", "surname_input", "email_input"].forEach(id => {

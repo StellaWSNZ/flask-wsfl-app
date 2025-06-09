@@ -1,15 +1,39 @@
-{% extends "header.html" %}
-{% block content %}
+{% extends "header.html" %} {% block content %}
 <div class="container my-5">
-  <h2>My Completed Surveys</h2>
-  <ul class="list-group mt-3">
-    {% for survey in surveys %}
-    <li class="list-group-item">
-      <a href="{{ url_for('survey_bp.view_my_survey_response', respondent_id=survey.RespondentID) }}">
-        {{ survey.Title }} (Submitted: {{ survey.SubmittedDate }})
-      </a>
-    </li>
-    {% endfor %}
-  </ul>
+  <h2 class="mb-4">My Completed Forms</h2>
+
+  {% if surveys %}
+  <div class="table-responsive">
+    <table
+      class="table table-bordered table-hover align-middle shadow-sm bg-white rounded"
+    >
+      <thead class="table-light">
+        <tr>
+          <th scope="col">Survey Title</th>
+          <th scope="col">Submitted Date</th>
+          <th scope="col" class="text-center">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for survey in surveys %}
+        <tr>
+          <td>{{ survey.Title }}</td>
+          <td>{{ survey.SubmittedDate.strftime('%d %B %Y') }}</td>
+          <td class="text-center">
+            <a
+              href="{{ url_for('survey_bp.view_my_survey_response', respondent_id=survey.RespondentID) }}"
+              class="btn btn-outline-primary btn-sm"
+            >
+              View Response
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="alert alert-info">You haven't submitted any surveys yet.</div>
+  {% endif %}
 </div>
 {% endblock %}
