@@ -125,10 +125,13 @@
             </form>
           {% endif %}
           {% if all_matches %}
-            <form action="/submitclass" method="post">
-              <button type="submit" class="btn btn-secondary">Submit Class</button>
-            </form>
-          {% endif %}
+  <form action="/submitclass" method="post">
+    <button type="submit" class="btn btn-secondary"
+            onclick="this.disabled=true; this.innerText='Submitting...'; this.form.submit();">
+      Submit Class
+    </button>
+  </form>
+{% endif %}
         </div>
       {% endif %}
 
