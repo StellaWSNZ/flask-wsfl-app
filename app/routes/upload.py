@@ -193,6 +193,10 @@ def classlistupload():
                     if "Birthdate" in df.columns:
                         df["Birthdate"] = pd.to_datetime(df["Birthdate"], dayfirst=True, errors="coerce").dt.strftime("%Y-%m-%d")
                     if "YearLevel" in df.columns:
+                        # Remove all spaces and non-digit characters
+                        df["YearLevel"] = df["YearLevel"].astype(str).str.replace(r"\D", "", regex=True)
+                        
+                        # Convert to integer (nullable Int64)
                         df["YearLevel"] = pd.to_numeric(df["YearLevel"], errors="coerce").astype("Int64")
                         df["YearLevel"] = df["YearLevel"].where(pd.notnull(df["YearLevel"]), None)
                     if "NSN" in df.columns:
