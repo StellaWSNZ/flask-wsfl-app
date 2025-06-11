@@ -1,11 +1,18 @@
 # app/routes/home.py
-from flask import Blueprint, render_template, session
+from flask import Blueprint, render_template, session, redirect, url_for
 from app.routes.auth import login_required
 from datetime import datetime
 home_bp = Blueprint('home_bp', __name__)
 @home_bp.route('/')
 @login_required
 def home():
+    
+    if session.get("guest_user") or not session.get("user_role"):
+        session.clear()
+        return redirect(url_for("auth_bp.login"))
+
+
+
     role = session.get("user_role")
     ad = session.get("user_admin")
     display_name = session.get("display_name")

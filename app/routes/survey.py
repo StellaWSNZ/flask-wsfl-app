@@ -1,10 +1,12 @@
-from flask import Blueprint, render_template, request, redirect, flash, session, url_for
+## Survey.py
+from flask import Blueprint, render_template, request, redirect, flash, session, url_for, current_app
 from sqlalchemy import text
 from app.utils.database import get_db_engine
 from collections import namedtuple
 from app.routes.auth import login_required
 import traceback
 from app.extensions import mail
+from itsdangerous import URLSafeTimedSerializer,BadSignature, SignatureExpired
 survey_bp = Blueprint("survey_bp", __name__)
 
 
@@ -293,16 +295,16 @@ def survey_invite_token(token):
     try:
         s = URLSafeTimedSerializer(current_app.secret_key)
         data = s.loads(token, max_age=86400)  # 1 day
-
-        
+        session.clear( )
+        session["logged_in"] = False 
         session["guest_user"] = True
         session["user_email"] = data["email"]
         session["user_firstname"] = data["firstname"]
         session["user_lastname"] = data["lastname"]
         session["user_role"] = data["role"]
         session["user_id"] = data["user_id"]
-        session["desc"] = data["desc"]
-        session["user_org"] = data.get("user_org", "Unknown")
+        session["desc"] = data.get("desc") or data.get("user_org", "Guest User")
+
 
         return redirect(url_for("survey_bp.guest_survey_by_id", survey_id=data["survey_id"]))
 

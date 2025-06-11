@@ -63,6 +63,7 @@ def create_app():
 
             "static"
         }
+        #print(session)
         if not session.get("logged_in") and not session.get("guest_user") and request.endpoint not in allowed_routes:
             return redirect(url_for("auth_bp.login", next=request.url))
 
