@@ -2,6 +2,11 @@
 %} {% block content %}
 <div class="container my-5">
   <h1 class="mb-4">WSFL Self Review Survey</h1>
+  {% if route_name.startswith('guest/') %}
+<div class="alert alert-info">
+  You are completing this survey as a <strong>guest</strong>. Your responses are being recorded as <strong>{{ impersonated_name }}</strong>.
+</div>
+{% endif %}
   <form
     method="post"
     action="{{ url_for('survey_bp.submit_guest_survey', survey_id=route_name.split('/')[1]|int) if route_name.startswith('guest/') else url_for('survey_bp.submit_survey', routename=route_name) }}"

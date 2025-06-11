@@ -290,28 +290,32 @@ def view_my_survey_response(respondent_id):
 
 @survey_bp.route("/survey/invite/<token>")
 def survey_invite_token(token):
-    from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
-    from flask import current_app
-
     try:
         s = URLSafeTimedSerializer(current_app.secret_key)
-        data = s.loads(token, max_age=86400)  # Expires in 1 day
+        data = s.loads(token, max_age=86400)  # 1 day
 
-        # Store identity in session
+        
         session["guest_user"] = True
         session["user_email"] = data["email"]
         session["user_firstname"] = data["firstname"]
         session["user_lastname"] = data["lastname"]
         session["user_role"] = data["role"]
         session["user_id"] = data["user_id"]
-        session["guest_user"] = True
+        session["desc"] = data["desc"]
+        session["user_org"] = data.get("user_org", "Unknown")
 
         return redirect(url_for("survey_bp.guest_survey_by_id", survey_id=data["survey_id"]))
 
     except SignatureExpired:
-        return "This link has expired.", 403
+        return render_template("error.html", message="This survey link has expired."), 403
     except BadSignature:
-        return "Invalid or tampered link.", 403
+        return render_template("error.html", message="Invalid or tampered survey link."), 403
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return render_template("error.html", message="Something went wrong loading your survey."), 500
+
+        
 @survey_bp.route("/survey/guest/<int:survey_id>")
 def guest_survey_by_id(survey_id):
     if not session.get("guest_user"):
@@ -342,7 +346,12 @@ def guest_survey_by_id(survey_id):
             if qcode == "LIK" and label:
                 question["labels"].append(Label(pos, label))
 
-        return render_template("survey_form.html", questions=questions, route_name=f"guest/{survey_id}")
+        return render_template(
+            "survey_form.html",
+            questions=questions,
+            route_name=f"guest/{survey_id}",
+            impersonated_name=f"{session.get('user_firstname')} from {session.get('desc', 'your organisation')}"
+        )
 
     except Exception:
         traceback.print_exc()
