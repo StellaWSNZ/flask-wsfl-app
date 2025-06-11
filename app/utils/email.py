@@ -89,3 +89,99 @@ def send_account_setup_email(mail, recipient_email, first_name, role, is_admin, 
 
     mail.send(msg)
     
+    
+def generate_survey_link(email, firstname, lastname, role, user_id, survey_id):
+    s = URLSafeTimedSerializer(current_app.secret_key)
+    token = s.dumps({
+        "email": email,
+        "firstname": firstname,
+        "lastname": lastname,
+        "role": role,
+        "user_id": user_id,
+        "survey_id": survey_id
+    })
+    # Link goes to the token route, which then redirects to guest view
+    return url_for("survey_bp.survey_invite_token", token=token, _external=True)
+
+def send_survey_invite_email(mail, recipient_email, first_name, role, user_id, survey_id):
+    link = generate_survey_link(
+        email=recipient_email,
+        firstname=first_name,
+        lastname="",  # Optional: update if needed
+        role=role,
+        user_id=user_id,
+        survey_id=survey_id
+    )
+
+    msg = Message(
+        subject="You're Invited to Complete a WSFL Survey",
+        sender="stella@watersafety.org.nz",
+        recipients=[recipient_email]
+    )
+
+    msg.body = f"""\
+    Kia ora {first_name},
+
+    You’ve been invited to complete a Water Skills for Life (WSFL) survey.
+
+    Please click the link below to get started:
+    {link}
+
+    If you have any questions, feel free to reply to this email.
+
+    Ngā mihi,
+    The WSFL Team
+    """
+
+    msg.html = f"""\
+    <div style="font-family: Arial, sans-serif; font-size: 16px; line-height: 1.6;">
+      <p>Kia ora <strong>{first_name}</strong>,</p>
+      <p>You’ve been invited to complete a <strong>Water Skills for Life</strong> survey.</p>
+      <p><a href="{link}">Click here to begin the survey</a></p>
+      <p>If you have any questions, feel free to reply to this email.</p>
+      <p>Ngā mihi,<br>The WSFL Team</p>
+      <img src="cid:wsfl_logo" alt="WSFL Logo" style="margin-top: 20px; width: 200px;">
+    </div>
+    """
+
+    with current_app.open_resource("static/DarkLogo.png") as fp:
+        msg.attach("DarkLogo.png", "image/png", fp.read(), disposition='inline',
+                   headers={"Content-ID": "<wsfl_logo>"})
+
+    mail.send(msg)
+    
+    
+def send_survey_invite_email(mail, email, firstname, link):
+    msg = Message("Complete Your Self Review", recipients=[email])
+    msg.html = f"""
+    <p>Kia ora {firstname},</p>
+    <p>You’ve been invited to complete a Water Skills for Life Self Review.</p>
+    <p><a href="{link}">Click here to complete your self review</a></p>
+    <p>Ngā mihi,<br>WSFL Team</p>
+    """
+    mail.send(msg)
+
+def send_survey_reminder_email(mail, email, firstname, requested_by, from_org):
+    msg = Message("Reminder: Complete Your Self Review", recipients=[email])
+    msg.html = f"""
+    <p>Kia ora {firstname},</p>
+    <p>This is a friendly reminder to log into the WSFL site and complete your self review.</p>
+    <p>This reminder was sent at the request of an administrator from <strong>{from_org}</strong>.</p>
+    <p><a href="{url_for('auth_bp.login', _external=True)}">Click here to log in</a></p>
+    <p>Ngā mihi,<br>WSFL Team</p>
+    """
+    mail.send(msg)
+
+def send_survey_invitation_email(mail, email, firstname, lastname, role, user_id, survey_id, requested_by, from_org):
+    # Generate tokenized one-time link
+    survey_url = generate_survey_link(email, firstname, lastname, role, user_id, survey_id)
+
+    msg = Message("Your Self Review Survey Link", recipients=[email])
+    msg.html = f"""
+    <p>Kia ora {firstname},</p>
+    <p>Please complete your self review by clicking the secure link below:</p>
+    <p><a href="{survey_url}">Start Self Review</a></p>
+    <p>This invitation was sent at the request of <strong>{requested_by}</strong> from <strong>{from_org}</strong>.</p>
+    <p>Ngā mihi,<br>WSFL Team</p>
+    """
+    mail.send(msg)

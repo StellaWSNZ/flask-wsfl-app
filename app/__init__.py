@@ -57,9 +57,13 @@ def create_app():
             "auth_bp.logout",
             "auth_bp.forgot_password",
             "auth_bp.reset_password",
+            "survey_bp.survey_invite_token",
+        "survey_bp.guest_survey_by_id",
+        "survey_bp.submit_survey",
+
             "static"
         }
-        if not session.get("logged_in") and request.endpoint not in allowed_routes:
+        if not session.get("logged_in") and not session.get("guest_user") and request.endpoint not in allowed_routes:
             return redirect(url_for("auth_bp.login", next=request.url))
 
     # -----------------------------

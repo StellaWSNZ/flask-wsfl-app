@@ -1,13 +1,37 @@
 {% extends "header.html" %} {% block content %}
 <div class="container my-5">
-  <h2 class="mb-4">My Completed Forms</h2>
+  {% with messages = get_flashed_messages(with_categories=true) %} {% if
+  messages %}
+  <div class="container mt-3">
+    {% for category, message in messages %}
+    <div
+      class="alert alert-{{ category }} alert-dismissible fade show"
+      role="alert"
+    >
+      {{ message }}
+      <button
+        type="button"
+        class="btn-close"
+        data-bs-dismiss="alert"
+        aria-label="Close"
+      ></button>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %} {% endwith %}
 
+  <h2 class="mb-4">
+    {% if target_email != session['user_email'] and
+    session['survey_target_firstname'] and session['survey_target_lastname'] %}
+    Viewing Forms for {{ session['survey_target_firstname'] }} {{
+    session['survey_target_lastname'] }} {% elif target_email !=
+    session['user_email'] %} Viewing Forms for {{ target_email }} {% else %} My
+    Completed Forms {% endif %}
+  </h2>
   {% if surveys %}
   <div class="table-responsive">
-    <table
-      class="table table-bordered table-hover align-middle shadow-sm bg-white rounded"
-    >
-      <thead class="table-light">
+    <table class="table table-bordered align-middle shadow-sm bg-white rounded">
+      <thead>
         <tr>
           <th scope="col">Survey Title</th>
           <th scope="col">Submitted Date</th>
@@ -18,7 +42,7 @@
         {% for survey in surveys %}
         <tr>
           <td>{{ survey.Title }}</td>
-          <td>{{ survey.SubmittedDate.strftime('%d %B %Y') }}</td>
+          <td>{{ survey.SubmittedDate.strftime('%d %B %Y, %I:%M %p') }}</td>
           <td class="text-center">
             <a
               href="{{ url_for('survey_bp.view_my_survey_response', respondent_id=survey.RespondentID) }}"

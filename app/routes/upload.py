@@ -131,7 +131,10 @@ def classlistupload():
             if "BirthDate" in df_cleaned.columns:
                 df_cleaned.rename(columns={"BirthDate": "Birthdate"}, inplace=True)
             # Save raw JSON version for later validation (as string)
-            df_cleaned = df_cleaned.applymap(remove_macrons)
+            df_cleaned = pd.DataFrame(
+                [[remove_macrons(cell) for cell in row] for row in df_cleaned.astype(str).values],
+                columns=df_cleaned.columns
+            )
 
             session["raw_csv_json"] = df_cleaned.to_json(orient="records")
             # print("✅ raw_csv_json saved with", len(df_cleaned), "rows")

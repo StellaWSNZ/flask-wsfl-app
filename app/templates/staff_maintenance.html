@@ -1,0 +1,222 @@
+{% extends "header.html" %} {% block title %}Staff Maintenance{% endblock %} {%
+block content %}
+
+<div class="container mt-5">
+  <h2 class="mb-4 text-center text-primary">{{name}} Staff Maintenance</h2>
+  {% with messages = get_flashed_messages(with_categories=true) %} {% if
+  messages %}
+  <div class="container mt-3">
+    {% for category, message in messages %}
+    <div
+      class="alert alert-{{ category }} alert-dismissible fade show"
+      role="alert"
+    >
+      {{ message }}
+      <button
+        type="button"
+        class="btn-close"
+        data-bs-dismiss="alert"
+        aria-label="Close"
+      ></button>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %} {% endwith %}
+  <div class="row g-4">
+    {% for row in data %}
+    <div class="col-12">
+      <div class="card shadow-sm border-2" style="border-color: #1a427d">
+        <div class="card-body p-4">
+          <!-- Centered Name -->
+          <h4 class="text-center text-primary fw-bold mb-4">
+            {{ row.FirstName }} {{ row.Surname }}
+          </h4>
+
+          <div class="row">
+            <!-- Staff Info -->
+            <div class="col-md-3">
+              <p class="mb-1">
+                <strong>{{ row.OrganisationType }}:</strong> {{ row.Organisation
+                }}
+              </p>
+              <p class="mb-1"><strong>Email:</strong> {{ row.Email }}</p>
+              <p class="mb-1">
+                <strong>Account Enabled:</strong>
+                {% if row.Active == 1 %}Enabled{% else %}Disabled{% endif %}
+              </p>
+              {% if row.Active == 1 %}
+              <p class="mb-1">
+                <strong>Administrator Privileges:</strong>
+                {% if row.Admin == 1 %}Enabled{% else %}Disabled{% endif %}
+              </p>
+              {% endif %} {% if row.LastSelfReview and row.LastSelfReview|string
+              != "NaT" %}
+              <p>
+                <strong>Last Self Review:</strong> {{
+                row.LastSelfReview.strftime('%d %B %Y, %I:%M %p') }}
+              </p>
+              {% else %}
+              <p><strong>Last Self Review:</strong> N/A</p>
+              {% endif %}
+            </div>
+
+            <!-- E-Learning Courses -->
+            <div class="col-md-7">
+              <p><strong>E-Learning Courses:</strong></p>
+              <div class="row row-cols-2 g-2">
+                {% for col in columns if col.startswith("ELearningName_") %} {%
+                set course_id = col.split('_')[1] %}
+                <div class="col">
+                  <div
+                    class="d-flex justify-content-between align-items-center border rounded p-2"
+                  >
+                    <small>{{ row[col] }}</small>
+                    {% set status = row["ELearningStatus_" + course_id] %}
+                    <span
+                      class="badge {% if status == 'Passed' %}bg-success {% elif status == 'In Progress' %}bg-warning text-dark {% elif status == 'Cancelled' %}bg-danger {% elif status == 'Not Started' %}bg-secondary {% else %}bg-light text-dark{% endif %}"
+                    >
+                      {{ status }}
+                    </span>
+                  </div>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+
+            <!-- Actions -->
+            <div
+              class="col-md-2 d-flex flex-column justify-content-start gap-2"
+            >
+              <button class="btn btn-sm btn-primary">Invite User</button>
+              {% if row.Active != 1 %}
+              <form
+                method="POST"
+                action="{{ url_for('survey_bp.send_survey_reminder') }}"
+              >
+                <input type="hidden" name="email" value="{{ row.Email }}" />
+                <input
+                  type="hidden"
+                  name="firstname"
+                  value="{{ row.FirstName }}"
+                /><input
+                  type="hidden"
+                  name="lastname"
+                  value="{{ row.Surname }}"
+                />
+                <input type="hidden" name="role" value="{{ row.Role }}" />
+                <input type="hidden" name="user_id" value="{{ row.ID }}" />
+
+                <input
+                  type="hidden"
+                  name="requested_by"
+                  value="{{ session['user_name'] }}"
+                />
+                <input
+                  type="hidden"
+                  name="from_org"
+                  value="{{ session['desc'] }}"
+                />
+                <button type="submit" class="btn btn-sm btn-outline-secondary">
+                  Email Self Review Reminder
+                </button>
+              </form>
+              {% else %}
+              <form
+                method="POST"
+                action="{{ url_for('survey_bp.email_survey_link') }}"
+              >
+                <input type="hidden" name="email" value="{{ row.Email }}" />
+                <input
+                  type="hidden"
+                  name="firstname"
+                  value="{{ row.FirstName }}"
+                /><input
+                  type="hidden"
+                  name="lastname"
+                  value="{{ row.Surname }}"
+                />
+                <input type="hidden" name="role" value="{{ row.Role }}" />
+                <input type="hidden" name="user_id" value="{{ row.ID }}" />
+
+                <input
+                  type="hidden"
+                  name="requested_by"
+                  value="{{ session['user_firstname'] }} {{ session['user_lastname'] }}"
+                />
+                <input type="hidden" name="from_org" value="{{ name }}" />
+                <button type="submit" class="btn btn-sm btn-outline-secondary">
+                  Email Self Review Link
+                </button>
+              </form>
+              {% endif %} {% if row.LastSelfReview and row.LastSelfReview|string
+              != "NaT" %}
+              <form
+                method="POST"
+                action="{{ url_for('survey_bp.set_survey_target') }}"
+              >
+                <input type="hidden" name="email" value="{{ row.Email }}" />
+                <input
+                  type="hidden"
+                  name="firstname"
+                  value="{{ row.FirstName }}"
+                />
+                <input
+                  type="hidden"
+                  name="lastname"
+                  value="{{ row.Surname }}"
+                />
+                <button type="submit" class="btn btn-sm btn-outline-primary">
+                  View Past Self Reviews
+                </button>
+              </form>
+              {% else %}
+              <button
+                type="button"
+                class="btn btn-sm btn-outline-primary"
+                onclick="showNoReviewsPopup(this, '{{ row.FirstName }} {{ row.Surname }}')"
+              >
+                View Past Self Reviews
+              </button>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Popover Logic -->
+<script>
+  function showPopover(button, content) {
+    // Dispose any existing popover on the button
+    bootstrap.Popover.getInstance(button)?.dispose();
+
+    button.setAttribute("data-bs-content", content);
+    button.setAttribute("data-bs-trigger", "manual"); // ensure manual control
+    button.setAttribute("data-bs-placement", "top");
+
+    const popover = new bootstrap.Popover(button);
+    popover.show();
+
+    const dismiss = (e) => {
+      // Don't close if click was inside the button
+      if (!button.contains(e.target)) {
+        popover.dispose();
+        document.removeEventListener("click", dismiss);
+      }
+    };
+
+    setTimeout(() => {
+      document.addEventListener("click", dismiss);
+    }, 0); // Listen for next click
+  }
+
+  function showNoReviewsPopup(button, name) {
+    showPopover(button, `No past self reviews available for ${name}.`);
+  }
+</script>
+
+<!-- Bootstrap JS (required for popovers) -->
+{% endblock %}
