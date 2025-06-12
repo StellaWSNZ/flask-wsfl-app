@@ -2,7 +2,116 @@
 block content %}
 
 <div class="container mt-5">
-  <h2 class="mb-4 text-center text-primary">{{name}} Staff Maintenance</h2>
+  <h2 class="mb-4 text-center text-primary">{{ name }} Staff Maintenance</h2>
+  <h6 class="mb-4 text-center text-primary">
+    Are you missing staff?
+    <a href="#" data-bs-toggle="modal" data-bs-target="#addStaffModal"
+      >Click here</a
+    >
+  </h6>
+
+  <!-- Add Staff Modal -->
+  <div
+    class="modal fade"
+    id="addStaffModal"
+    tabindex="-1"
+    aria-labelledby="addStaffLabel"
+    aria-hidden="true"
+  >
+    <div class="modal-dialog">
+      <div class="modal-content border-0 shadow">
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title" id="addStaffLabel">Add New Staff</h5>
+          <button
+            type="button"
+            class="btn-close btn-close-white"
+            data-bs-dismiss="modal"
+            aria-label="Close"
+          ></button>
+        </div>
+        <form method="POST" action="{{ url_for('staff_bp.add_staff') }}">
+          <div class="modal-body">
+            <div class="mb-3">
+              <label for="firstname" class="form-label">First Name</label>
+              <input
+                type="text"
+                class="form-control"
+                id="firstname"
+                name="firstname"
+                required
+              />
+            </div>
+            <div class="mb-3">
+              <label for="lastname" class="form-label">Last Name</label>
+              <input
+                type="text"
+                class="form-control"
+                id="lastname"
+                name="lastname"
+                required
+              />
+            </div>
+            <div class="mb-3">
+              <label for="email" class="form-label">Email</label>
+              <input
+                type="email"
+                class="form-control"
+                id="email"
+                name="email"
+                required
+              />
+            </div>
+            <div class="mb-3">
+              <label for="accountStatus" class="form-label"
+                >Account Status</label
+              >
+              <select
+                class="form-select"
+                id="accountStatus"
+                name="account_status"
+                required
+              >
+                <option value="enable">Enable and Send Welcome Email</option>
+                <option value="disable">Disable (No Email Sent)</option>
+              </select>
+            </div>
+
+            <!-- Always send admin=0 by default -->
+            <input type="hidden" name="admin" value="0" />
+
+            <!-- Only show if enabling -->
+            <div
+              id="adminCheckboxWrapper"
+              class="form-check mb-3"
+              style="display: none"
+            >
+              <input
+                class="form-check-input"
+                type="checkbox"
+                id="admin"
+                name="admin"
+                value="1"
+              />
+              <label class="form-check-label" for="admin"
+                >Administrator Privileges</label
+              >
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="submit" class="btn btn-primary">Add Staff</button>
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-bs-dismiss="modal"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
   {% with messages = get_flashed_messages(with_categories=true) %} {% if
   messages %}
   <div class="container mt-3">
@@ -22,18 +131,94 @@ block content %}
     {% endfor %}
   </div>
   {% endif %} {% endwith %}
+
   <div class="row g-4">
-    {% for row in data %}
+    {% for row in data %} {% set safe_id = row.Email.replace('@',
+    '_').replace('.', '_') %}
+    <div
+      class="modal fade"
+      id="inviteModal_{{ safe_id }}"
+      tabindex="-1"
+      aria-labelledby="inviteLabel_{{ safe_id }}"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog">
+        <div class="modal-content border-0 shadow">
+          <div class="modal-header bg-primary text-white">
+            <h5 class="modal-title" id="inviteLabel_{{ safe_id }}">
+              Invite {{ row.FirstName }} {{ row.Surname }}
+            </h5>
+            <button
+              type="button"
+              class="btn-close btn-close-white"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <p>
+              Inviting a user to the app will send them an email with a unique
+              link to set up their account. <br />
+              Would you like this user to have administrator privileges?
+            </p>
+          </div>
+          <div class="modal-footer">
+            <form method="POST" action="{{ url_for('staff_bp.invite_user') }}">
+              <input type="hidden" name="email" value="{{ row.Email }}" />
+              <input
+                type="hidden"
+                name="firstname"
+                value="{{ row.FirstName }}"
+              />
+              <input type="hidden" name="lastname" value="{{ row.Surname }}" />
+
+              <input type="hidden" name="role" value="{{ row.Role }}" />
+              <input type="hidden" name="admin" value="1" />
+              <button type="submit" class="btn btn-outline-danger">
+                Invite with Privileges
+              </button>
+            </form>
+            <form method="POST" action="{{ url_for('staff_bp.invite_user') }}">
+              <input type="hidden" name="email" value="{{ row.Email }}" />
+              <input
+                type="hidden"
+                name="firstname"
+                value="{{ row.FirstName }}"
+              />
+              <input type="hidden" name="lastname" value="{{ row.Surname }}" />
+
+              <input type="hidden" name="role" value="{{ row.Role }}" />
+              <input type="hidden" name="admin" value="0" />
+              <button type="submit" class="btn btn-outline-success">
+                Invite without Privileges
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="col-12">
       <div class="card shadow-sm border-2" style="border-color: #1a427d">
         <div class="card-body p-4">
-          <!-- Centered Name -->
-          <h4 class="text-center text-primary fw-bold mb-4">
-            {{ row.FirstName }} {{ row.Surname }}
-          </h4>
-
           <div class="row">
-            <!-- Staff Info -->
+            <div class="col-12 text-center">
+              <h4 class="text-uppercase text-primary fw-bold mb-4">
+                {{ row.FirstName }} {{ row.Surname }}
+              </h4>
+            </div>
+          </div>
+
+          <div class="row text-center mb-3">
+            <div class="col-md-6">
+              <h6 class="fw-bold">Details</h6>
+            </div>
+            <div class="col-md-6">
+              <h6 class="fw-bold">E-Learning Courses</h6>
+            </div>
+          </div>
+
+          <div class="row g-4">
             <div class="col-md-3">
               <p class="mb-1">
                 <strong>{{ row.OrganisationType }}:</strong> {{ row.Organisation
@@ -41,28 +226,29 @@ block content %}
               </p>
               <p class="mb-1"><strong>Email:</strong> {{ row.Email }}</p>
               <p class="mb-1">
-                <strong>Account Enabled:</strong>
-                {% if row.Active == 1 %}Enabled{% else %}Disabled{% endif %}
+                <strong>First Name:</strong> {{ row.FirstName }}
+              </p>
+              <p class="mb-1"><strong>Surname:</strong> {{ row.Surname }}</p>
+            </div>
+            <div class="col-md-3">
+              <p class="mb-1">
+                <strong>Account Enabled:</strong> {% if row.Active == 1
+                %}Enabled{% else %}Disabled{% endif %}
               </p>
               {% if row.Active == 1 %}
               <p class="mb-1">
-                <strong>Administrator Privileges:</strong>
-                {% if row.Admin == 1 %}Enabled{% else %}Disabled{% endif %}
+                <strong>Administrator Privileges:</strong> {% if row.Admin == 1
+                %}Enabled{% else %}Disabled{% endif %}
               </p>
-              {% endif %} {% if row.LastSelfReview and row.LastSelfReview|string
-              != "NaT" %}
-              <p>
-                <strong>Last Self Review:</strong> {{
-                row.LastSelfReview.strftime('%d %B %Y, %I:%M %p') }}
-              </p>
-              {% else %}
-              <p><strong>Last Self Review:</strong> N/A</p>
               {% endif %}
+              <p class="mb-1">
+                <strong>Last Self Review:</strong>
+                {% if row.LastSelfReview and row.LastSelfReview|string != "NaT"
+                %} {{ row.LastSelfReview.strftime('%d %B %Y, %H:%M') }} {% else
+                %}N/A{% endif %}
+              </p>
             </div>
-
-            <!-- E-Learning Courses -->
-            <div class="col-md-7">
-              <p><strong>E-Learning Courses:</strong></p>
+            <div class="col-md-6">
               <div class="row row-cols-2 g-2">
                 {% for col in columns if col.startswith("ELearningName_") %} {%
                 set course_id = col.split('_')[1] %}
@@ -70,153 +256,240 @@ block content %}
                   <div
                     class="d-flex justify-content-between align-items-center border rounded p-2"
                   >
-                    <small>{{ row[col] }}</small>
-                    {% set status = row["ELearningStatus_" + course_id] %}
+                    <div class="flex-grow-1 pe-3">
+                      <small>{{ row[col] }}</small>
+                    </div>
                     <span
-                      class="badge {% if status == 'Passed' %}bg-success {% elif status == 'In Progress' %}bg-warning text-dark {% elif status == 'Cancelled' %}bg-danger {% elif status == 'Not Started' %}bg-secondary {% else %}bg-light text-dark{% endif %}"
+                      class="badge me-3 {% if row['ELearningStatus_' + course_id] == 'Passed' %}bg-success {% elif row['ELearningStatus_' + course_id] == 'In Progress' %}bg-warning text-dark {% elif row['ELearningStatus_' + course_id] == 'Cancelled' %}bg-danger {% elif row['ELearningStatus_' + course_id] == 'Not Started' %}bg-secondary {% else %}bg-light text-dark{% endif %}"
                     >
-                      {{ status }}
+                      {{ row['ELearningStatus_' + course_id] }}
                     </span>
                   </div>
                 </div>
                 {% endfor %}
               </div>
             </div>
+          </div>
 
-            <!-- Actions -->
-            <div
-              class="col-md-2 d-flex flex-column justify-content-start gap-2"
-            >
-              <button class="btn btn-sm btn-primary">Invite User</button>
-              {% if row.Active != 1 %}
-              <form
-                method="POST"
-                action="{{ url_for('survey_bp.send_survey_reminder') }}"
-              >
-                <input type="hidden" name="email" value="{{ row.Email }}" />
-                <input
-                  type="hidden"
-                  name="firstname"
-                  value="{{ row.FirstName }}"
-                /><input
-                  type="hidden"
-                  name="lastname"
-                  value="{{ row.Surname }}"
-                />
-                <input type="hidden" name="role" value="{{ row.Role }}" />
-                <input type="hidden" name="user_id" value="{{ row.ID }}" />
-
-                <input
-                  type="hidden"
-                  name="requested_by"
-                  value="{{ session['user_name'] }}"
-                />
-                <input
-                  type="hidden"
-                  name="from_org"
-                  value="{{ session['desc'] }}"
-                />
-                <button type="submit" class="btn btn-sm btn-outline-secondary">
-                  Email Self Review Reminder
-                </button>
-              </form>
-              {% else %}
-              <form
-                method="POST"
-                action="{{ url_for('survey_bp.email_survey_link') }}"
-              >
-                <input type="hidden" name="email" value="{{ row.Email }}" />
-                <input
-                  type="hidden"
-                  name="firstname"
-                  value="{{ row.FirstName }}"
-                /><input
-                  type="hidden"
-                  name="lastname"
-                  value="{{ row.Surname }}"
-                />
-                <input type="hidden" name="role" value="{{ row.Role }}" />
-                <input type="hidden" name="user_id" value="{{ row.ID }}" />
-
-                <input
-                  type="hidden"
-                  name="requested_by"
-                  value="{{ session['user_firstname'] }} {{ session['user_lastname'] }}"
-                />
-                <input type="hidden" name="from_org" value="{{ name }}" />
-                <button type="submit" class="btn btn-sm btn-outline-secondary">
-                  Email Self Review Link
-                </button>
-              </form>
-              {% endif %} {% if row.LastSelfReview and row.LastSelfReview|string
-              != "NaT" %}
-              <form
-                method="POST"
-                action="{{ url_for('survey_bp.set_survey_target') }}"
-              >
-                <input type="hidden" name="email" value="{{ row.Email }}" />
-                <input
-                  type="hidden"
-                  name="firstname"
-                  value="{{ row.FirstName }}"
-                />
-                <input
-                  type="hidden"
-                  name="lastname"
-                  value="{{ row.Surname }}"
-                />
-                <button type="submit" class="btn btn-sm btn-outline-primary">
-                  View Past Self Reviews
-                </button>
-              </form>
-              {% else %}
-              <button
-                type="button"
-                class="btn btn-sm btn-outline-primary"
-                onclick="showNoReviewsPopup(this, '{{ row.FirstName }} {{ row.Surname }}')"
-              >
-                View Past Self Reviews
-              </button>
-              {% endif %}
+          <div class="row mt-4">
+            <div class="col-12">
+              <div class="row g-2">
+                <div class="col-md-3">
+                  <form
+                    method="POST"
+                    action="{{ url_for('survey_bp.send_survey_reminder') if row.Active != 1 else url_for('survey_bp.email_survey_link') }}"
+                  >
+                    <input type="hidden" name="email" value="{{ row.Email }}" />
+                    <input
+                      type="hidden"
+                      name="firstname"
+                      value="{{ row.FirstName }}"
+                    />
+                    <input
+                      type="hidden"
+                      name="lastname"
+                      value="{{ row.Surname }}"
+                    />
+                    <input type="hidden" name="role" value="{{ row.Role }}" />
+                    <input type="hidden" name="user_id" value="{{ row.ID }}" />
+                    <input
+                      type="hidden"
+                      name="requested_by"
+                      value="{{ session['user_name'] if row.Active != 1 else session['user_firstname'] ~ ' ' ~ session['user_lastname'] }}"
+                    />
+                    <input
+                      type="hidden"
+                      name="from_org"
+                      value="{{ session['desc'] if row.Active != 1 else name }}"
+                    />
+                    <button
+                      type="submit"
+                      class="btn btn-sm btn-outline-secondary w-100"
+                    >
+                      {% if row.Active != 1 %}Email Self Review Reminder{% else
+                      %}Email Self Review Link{% endif %}
+                    </button>
+                  </form>
+                </div>
+                <div class="col-md-3">
+                  {% if row.LastSelfReview and row.LastSelfReview|string !=
+                  "NaT" %}
+                  <form
+                    method="POST"
+                    action="{{ url_for('survey_bp.set_survey_target') }}"
+                  >
+                    <input type="hidden" name="email" value="{{ row.Email }}" />
+                    <input
+                      type="hidden"
+                      name="firstname"
+                      value="{{ row.FirstName }}"
+                    />
+                    <input
+                      type="hidden"
+                      name="lastname"
+                      value="{{ row.Surname }}"
+                    />
+                    <button
+                      type="submit"
+                      class="btn btn-sm btn-outline-primary w-100"
+                    >
+                      View Past Self Reviews
+                    </button>
+                  </form>
+                  {% else %}
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-outline-primary w-100"
+                    onclick="showNoReviewsPopup(this, '{{ row.FirstName }} {{ row.Surname }}')"
+                  >
+                    View Past Self Reviews
+                  </button>
+                  {% endif %}
+                </div>
+                <div class="col-md-3">
+                  <button
+                    class="btn btn-sm btn-outline-primary w-100"
+                    data-bs-toggle="modal"
+                    data-bs-target="#editModal_{{ safe_id }}"
+                  >
+                    Edit
+                  </button>
+                </div>
+                <div class="col-md-3">
+                  <form
+                    method="POST"
+                    action="{{ url_for('staff_bp.disable_user') }}"
+                  >
+                    <input type="hidden" name="email" value="{{ row.Email }}" />
+                    <button
+                      type="submit"
+                      class="btn btn-sm {% if row.Active != 1 %}btn-outline-primary{% else %}btn-outline-danger{% endif %} w-100"
+                    >
+                      {% if row.Active != 1 %}Invite User{% else %}Disable
+                      User{% endif %}
+                    </button>
+                  </form>
+                </div>
+              </div>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL -->
+    <div
+      class="modal fade"
+      id="editModal_{{ safe_id }}"
+      tabindex="-1"
+      aria-labelledby="editLabel_{{ safe_id }}"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog">
+        <div class="modal-content border-0 shadow">
+          <div class="modal-header bg-primary text-white">
+            <h5 class="modal-title" id="editLabel_{{ safe_id }}">
+              Edit Staff Member
+            </h5>
+            <button
+              type="button"
+              class="btn-close btn-close-white"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
+          </div>
+          <form method="POST" action="{{ url_for('staff_bp.update_staff') }}">
+            <div class="modal-body">
+              <input type="hidden" name="user_id" value="{{ row.ID }}" />
+              <div class="mb-3">
+                <label for="firstName_{{ safe_id }}" class="form-label"
+                  >First Name</label
+                >
+                <input
+                  type="text"
+                  class="form-control"
+                  id="firstName_{{ safe_id }}"
+                  name="firstname"
+                  value="{{ row.FirstName }}"
+                  required
+                />
+              </div>
+              <div class="mb-3">
+                <label for="lastName_{{ safe_id }}" class="form-label"
+                  >Last Name</label
+                >
+                <input
+                  type="text"
+                  class="form-control"
+                  id="lastName_{{ safe_id }}"
+                  name="lastname"
+                  value="{{ row.Surname }}"
+                  required
+                />
+              </div>
+              <input type="hidden" name="old_email" value="{{ row.Email }}" />
+
+              <div class="mb-3">
+                <label for="email_{{ safe_id }}" class="form-label"
+                  >Email</label
+                >
+                <input
+                  type="email"
+                  class="form-control"
+                  id="email_{{ safe_id }}"
+                  name="email"
+                  value="{{ row.Email }}"
+                  required
+                />
+              </div>
+              {% if row.Active == 1 %}
+              <div class="form-check mb-3">
+                <input class="form-check-input" type="checkbox" id="admin_{{
+                safe_id }}" name="admin" value="1" {% if row.Admin == 1
+                %}checked{% endif %}>
+                <label class="form-check-label" for="admin_{{ safe_id }}"
+                  >Administrator Privileges</label
+                >
+              </div>
+              {% endif %}
+            </div>
+            <div class="modal-footer">
+              <button type="submit" class="btn btn-primary">
+                Save Changes
+              </button>
+              <button
+                type="button"
+                class="btn btn-secondary"
+                data-bs-dismiss="modal"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     </div>
     {% endfor %}
   </div>
 </div>
-
-<!-- Popover Logic -->
+<!-- Modal Logic -->
 <script>
-  function showPopover(button, content) {
-    // Dispose any existing popover on the button
-    bootstrap.Popover.getInstance(button)?.dispose();
+  document.addEventListener("DOMContentLoaded", function () {
+    const statusSelect = document.getElementById("accountStatus");
+    const adminWrapper = document.getElementById("adminCheckboxWrapper");
+    const adminCheckbox = document.getElementById("admin");
 
-    button.setAttribute("data-bs-content", content);
-    button.setAttribute("data-bs-trigger", "manual"); // ensure manual control
-    button.setAttribute("data-bs-placement", "top");
-
-    const popover = new bootstrap.Popover(button);
-    popover.show();
-
-    const dismiss = (e) => {
-      // Don't close if click was inside the button
-      if (!button.contains(e.target)) {
-        popover.dispose();
-        document.removeEventListener("click", dismiss);
+    function toggleAdminVisibility() {
+      if (statusSelect.value === "enable") {
+        adminWrapper.style.display = "block";
+      } else {
+        adminWrapper.style.display = "none";
+        adminCheckbox.checked = false;
       }
-    };
+    }
 
-    setTimeout(() => {
-      document.addEventListener("click", dismiss);
-    }, 0); // Listen for next click
-  }
-
-  function showNoReviewsPopup(button, name) {
-    showPopover(button, `No past self reviews available for ${name}.`);
-  }
+    statusSelect.addEventListener("change", toggleAdminVisibility);
+    toggleAdminVisibility(); // Trigger on load
+  });
 </script>
-
-<!-- Bootstrap JS (required for popovers) -->
 {% endblock %}

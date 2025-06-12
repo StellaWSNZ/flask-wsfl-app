@@ -10,10 +10,7 @@ from datetime import datetime, timedelta
 from app.utils.email import send_account_setup_email
 from app.extensions import mail
 admin_bp = Blueprint("admin_bp", __name__)
-# --- In your Flask route file ---
-from app.utils.email import send_account_setup_email  # if not already
-from app.utils.database import get_db_engine
-from sqlalchemy import text
+
 import traceback
 @admin_bp.route('/create_user', methods=['GET', 'POST'])
 @login_required
@@ -118,7 +115,8 @@ def create_user():
                                 @ID = :id,
                                 @FirstName = :firstname,
                                 @Surname = :surname,
-                                @Admin = :admin
+                                @Admin = :admin,
+                                @Active = :active
                         """),
                         {
                             "email": email,
@@ -127,7 +125,8 @@ def create_user():
                             "id": selected_id,
                             "firstname": firstname,
                             "surname": surname,
-                            "admin": admin
+                            "admin": admin,
+                            "active": 1
                         }
                     )
                 flash(f"✅ User {email} created.", "success")
