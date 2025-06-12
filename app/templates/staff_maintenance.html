@@ -211,7 +211,7 @@ block content %}
 
           <div class="row text-center mb-3">
             <div class="col-md-6">
-              <h6 class="fw-bold">Details</h6>
+              <h6 class="fw-bold">Staff Details</h6>
             </div>
             <div class="col-md-6">
               <h6 class="fw-bold">E-Learning Courses</h6>
@@ -220,10 +220,7 @@ block content %}
 
           <div class="row g-4">
             <div class="col-md-3">
-              <p class="mb-1">
-                <strong>{{ row.OrganisationType }}:</strong> {{ row.Organisation
-                }}
-              </p>
+              
               <p class="mb-1"><strong>Email:</strong> {{ row.Email }}</p>
               <p class="mb-1">
                 <strong>First Name:</strong> {{ row.FirstName }}
@@ -254,7 +251,7 @@ block content %}
                 set course_id = col.split('_')[1] %}
                 <div class="col">
                   <div
-                    class="d-flex justify-content-between align-items-center border rounded p-2"
+                    class="d-flex justify-content-between align-items-center border rounded p-2 bg-light"
                   >
                     <div class="flex-grow-1 pe-3">
                       <small>{{ row[col] }}</small>
@@ -304,7 +301,7 @@ block content %}
                     />
                     <button
                       type="submit"
-                      class="btn btn-sm btn-outline-secondary w-100"
+                      class="btn btn-sm btn-outline-primary w-100"
                     >
                       {% if row.Active != 1 %}Email Self Review Reminder{% else
                       %}Email Self Review Link{% endif %}
@@ -363,7 +360,7 @@ block content %}
                     <input type="hidden" name="email" value="{{ row.Email }}" />
                     <button
                       type="submit"
-                      class="btn btn-sm {% if row.Active != 1 %}btn-outline-primary{% else %}btn-outline-danger{% endif %} w-100"
+                      class="btn btn-sm {% if row.Active != 1 %}btn-outline-primary{% else %}btn-outline-primary{% endif %} w-100"
                     >
                       {% if row.Active != 1 %}Invite User{% else %}Disable
                       User{% endif %}
