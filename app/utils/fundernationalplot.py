@@ -61,7 +61,7 @@ def load_funder_name(con, FunderID):
 def load_funder_results(con, calendaryear, term, FunderID):
     with con.connect() as connection:
         result = connection.execute(
-            text("EXEC GetFunderNationalRates2 :CalendarYear, :Term, :FunderID"),
+            text("EXEC GetFunderNationalRatesSmart :CalendarYear, :Term, :FunderID"),
             {"CalendarYear": calendaryear, "Term": term, "FunderID": FunderID}
         )
         data = result.fetchall()
