@@ -59,9 +59,22 @@ def reporting():
                 result = conn.execute(text("EXEC FlaskHelperFunctions :Request"), {"Request": "ProviderDropdown"})
                 providers = [row.Description for row in result]
 
-            result = conn.execute(text("EXEC FlaskHelperFunctions :Request"), {"Request": "CompetencyDropdown"})
-            competencies = [row.Competency for row in result]
-
+                result = conn.execute(text("EXEC FlaskHelperFunctions :Request"), {"Request": "CompetencyDropdown"})
+                competencies = [row.Competency for row in result]
+            elif role == "FUN":
+                result = conn.execute(
+                    text("EXEC FlaskHelperFunctions @Request = :Request, @Text = :Text"),
+                    {"Request": "FunderIDDescription", "Text": session.get("desc")}
+                )
+                row = result.fetchone()
+                result.close()  # Important to free up the connection for next use
+                if row:
+                    funder_id = int(row.FunderID)
+                    result = conn.execute(
+                        text("EXEC FlaskHelperFunctions @Request = 'ProvidersByFunderID', @Number = :FunderID"),
+                        {"FunderID": funder_id}
+                    )
+                    providers = [r.Description for r in result]
         if request.method == "POST":
             selected_year, selected_term = map(int, (request.form.get("term_year") ).split("_"))
 

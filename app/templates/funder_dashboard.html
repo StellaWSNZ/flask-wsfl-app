@@ -1,0 +1,117 @@
+{% extends "header.html" %}
+{% block title %}Funder Dashboard{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+  <h2 class="text-primary mb-4">Funder Dashboard</h2>
+
+  <div class="row g-4">
+    <!-- Column 1: Staff eLearning -->
+    <div class="col-md-6">
+      <div class="card shadow-sm h-100">
+        <div class="card-header bg-primary text-white">
+          <h5 class="mb-0">Your Staff eLearning Progress</h5>
+        </div>
+        <div class="card-body">
+          {% if elearning %}
+          <div class="table-responsive">
+  <table class="table table-bordered align-middle table-striped">
+    <thead class="table-light">
+      <tr>
+        {% for col in elearning[0].keys() %}
+        <th>{{ col.replace('_', ' ') }}</th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in elearning %}
+      <tr>
+        {% for key, val in row.items() %}
+          {% if key.startswith('ELearningStatus_') %}
+            {% set status = val|string %}
+            <td>
+              {% if status == 'Completed' %}
+                <span class="badge bg-success">{{ status }}</span>
+              {% elif status == 'Cancelled' %}
+                <span class="badge bg-danger">{{ status }}</span>
+              {% elif status == 'In Progress' %}
+                <span class="badge bg-warning text-dark">{{ status }}</span>
+              {% elif status == 'Not Started' %}
+                <span class="badge bg-secondary">{{ status }}</span>
+              {% else %}
+                {{ status }}
+              {% endif %}
+            </td>
+          {% else %}
+            <td>{{ val }}</td>
+          {% endif %}
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+          {% else %}
+          <div class="alert alert-warning">No eLearning data available.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Column 2: School Summary -->
+    <div class="col-md-6">
+      <div class="card shadow-sm h-100">
+        <div class="card-header bg-primary text-white">
+          <h5 class="mb-0">School Summary</h5>
+        </div>
+        <div class="card-body">
+          <form method="POST" class="row g-2 mb-3" id="filterForm">
+            <div class="col-md-6">
+              <label for="term" class="form-label">Term</label>
+              <select name="term" id="term" class="form-select" onchange="document.getElementById('filterForm').submit();">
+                {% for t in available_terms %}
+                <option value="{{ t }}" {% if selected_term|int == t %}selected{% endif %}>Term {{ t }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label for="year" class="form-label">Year</label>
+              <select name="year" id="year" class="form-select" onchange="document.getElementById('filterForm').submit();">
+                {% for y in available_years %}
+                <option value="{{ y }}" {% if selected_year|int == y %}selected{% endif %}>{{ y }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </form>
+
+          {% if schools %}
+          <div class="table-responsive">
+            <table class="table table-bordered align-middle table-striped">
+              <thead class="table-light">
+                <tr>
+                  {% for col in schools[0].keys() %}
+                  <th>{{ col.replace('_', ' ') }}</th>
+                  {% endfor %}
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in schools %}
+                <tr>
+                  {% for key, val in row.items() %}
+                    <td>{{ val }}</td>
+                  {% endfor %}
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <div class="alert alert-warning">No school summary data for the selected term and year.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
