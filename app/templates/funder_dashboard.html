@@ -4,6 +4,13 @@
 {% block content %}
 <div class="container mt-5">
   <h2 class="text-primary mb-4">Funder Dashboard</h2>
+{% if summary_string %}
+  <div class="alert alert-info d-flex align-items-center gap-2 shadow-sm">
+    <i class="bi bi-info-circle-fill"></i>
+    <div>{{ summary_string | safe }}</div>
+  </div>
+{% endif %}
+  
 
   <div class="row g-4">
     <!-- Column 1: Staff eLearning -->
@@ -13,48 +20,50 @@
           <h5 class="mb-0">Your Staff eLearning Progress</h5>
         </div>
         <div class="card-body">
-          {% if elearning %}
-          <div class="table-responsive">
-  <table class="table table-bordered align-middle table-striped">
-    <thead class="table-light">
+         {% if elearning %}
+<div class="table-responsive">
+  <table class="table table-bordered text-center align-middle">
+    <thead  class="table-light">
       <tr>
-        {% for col in elearning[0].keys() %}
-        <th>{{ col.replace('_', ' ') }}</th>
+        <th>Staff</th>
+        {% for module in elearning[0].keys() if module != 'Name' %}
+          <th>{{ module }}</th>
         {% endfor %}
       </tr>
     </thead>
     <tbody>
       {% for row in elearning %}
       <tr>
+        <!--<td class="fw-bold">{{ row["Name"] }}</td>--> 
+        <td>{{ row["Name"] }}</td>
         {% for key, val in row.items() %}
-          {% if key.startswith('ELearningStatus_') %}
+          {% if key != "Name" %}
+          <td>
             {% set status = val|string %}
-            <td>
-              {% if status == 'Completed' %}
-                <span class="badge bg-success">{{ status }}</span>
-              {% elif status == 'Cancelled' %}
-                <span class="badge bg-danger">{{ status }}</span>
-              {% elif status == 'In Progress' %}
-                <span class="badge bg-warning text-dark">{{ status }}</span>
-              {% elif status == 'Not Started' %}
-                <span class="badge bg-secondary">{{ status }}</span>
-              {% else %}
-                {{ status }}
-              {% endif %}
-            </td>
-          {% else %}
-            <td>{{ val }}</td>
+            {% if status in ['Passed', 'Completed'] %}
+              <span class="badge bg-success fs-6">{{ status }}</span>
+            {% elif status == 'Cancelled' %}
+              <span class="badge bg-danger fs-6">{{ status }}</span>
+            {% elif status == 'In Progress' %}
+              <span class="badge bg-warning text-dark fs-6">{{ status }}</span>
+            {% elif status == 'Not Started' %}
+              <span class="badge bg-secondary fs-6">{{ status }}</span>
+            {% else %}
+              <span class="badge bg-light text-dark fs-6">{{ status }}</span>
+            {% endif %}
+          </td>
           {% endif %}
+          
         {% endfor %}
+        
       </tr>
       {% endfor %}
     </tbody>
   </table>
 </div>
-
-          {% else %}
-          <div class="alert alert-warning">No eLearning data available.</div>
-          {% endif %}
+{% else %}
+<div class="alert alert-warning">No eLearning data available.</div>
+{% endif %}
         </div>
       </div>
     </div>
@@ -86,8 +95,9 @@
           </form>
 
           {% if schools %}
+          
           <div class="table-responsive">
-            <table class="table table-bordered align-middle table-striped">
+      <table class="table table-bordered text-center align-middle">
               <thead class="table-light">
                 <tr>
                   {% for col in schools[0].keys() %}

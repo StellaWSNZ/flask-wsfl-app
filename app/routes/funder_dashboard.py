@@ -40,7 +40,6 @@ def funder_dashboard():
                 params={"f": funder_id}
             )
             print(f"✅ Retrieved {len(school_df_all)} total school records")
-            print(f"📦 Sample rows:\n{school_df_all.head().to_string(index=False)}")
         except Exception as e:
             print(f"❌ Failed to retrieve school summary data: {e}")
             school_df_all = pd.DataFrame()
@@ -66,8 +65,29 @@ def funder_dashboard():
         (school_df_all["CalendarYear"] == selected_year) &
         (school_df_all["Term"] == selected_term)
     ]
-    print(f"🔎 Filtered school_df rows: {len(school_df)}")
+    
 
+    print(f"🔎 Filtered school_df rows: {len(school_df)}")
+    print(f"🔎 Retrieved elearning_df rows: {len(elearning_df)}")
+    
+    total_students = school_df["TotalStudents"].fillna(0).astype(int).sum()
+    total_schools = school_df["SchoolName"].nunique()
+    school_df = school_df.drop(columns=["TotalStudents","CalendarYear","Term"], errors="ignore")
+
+    school_df = school_df.rename(columns={
+        "SchoolName": "School",
+        "NumClasses": "Number of Classes"
+    })
+
+    print(f"📦 Sample rows:\n{school_df_all.head().to_string(index=False)}")
+
+    summary_string = (
+        f"You are delivering to <strong>{total_students:,}</strong> students across "
+        f"<strong>{total_schools}</strong> school{'s' if total_schools != 1 else ''} "
+        f"in <strong>Term {selected_term}</strong>, <strong>{selected_year}</strong>."
+    )
+    
+    print(summary_string)
     return render_template(
         "funder_dashboard.html",
         elearning=elearning_df.to_dict(orient="records"),
@@ -77,5 +97,7 @@ def funder_dashboard():
         available_years=available_years,
         available_terms=available_terms,
         no_elearning=elearning_df.empty,
-        no_schools=school_df.empty
+        no_schools=school_df.empty,
+        summary_string=summary_string
+
     )
