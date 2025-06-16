@@ -116,7 +116,8 @@ def create_user():
                                 @FirstName = :firstname,
                                 @Surname = :surname,
                                 @Admin = :admin,
-                                @Active = :active
+                                @Active = :active,
+            @PerformedByEmail = :performed_by
                         """),
                         {
                             "email": email,
@@ -126,7 +127,8 @@ def create_user():
                             "firstname": firstname,
                             "surname": surname,
                             "admin": admin,
-                            "active": 1
+                            "active": 1,
+        "performed_by": session["user_email"]
                         }
                     )
                 flash(f"✅ User {email} created.", "success")
@@ -285,7 +287,7 @@ def update_profile():
                 })
 
     # Refresh session
-    with engine.connect() as conn:
+    with engine.begin() as conn:
         updated_info = conn.execute(
             text("EXEC FlaskLoginValidation :Email"),
             {"Email": new_email}

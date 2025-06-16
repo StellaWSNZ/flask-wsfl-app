@@ -31,7 +31,14 @@ def admin_elearning_upload():
             #print(json_payload[:500])
             engine = get_db_engine()
             with engine.begin() as conn:
-                conn.execute(text("EXEC FlaskElearningUpdate @json=:json"), {"json": json_payload})
+                conn.execute(
+                    text("EXEC FlaskElearningUpdate :json, :Email"),
+                    {
+                        "json": json_payload,
+                        "Email": session.get("user_email")
+                    }
+                )
+                conn.commit()
 
             flash("E-learning records successfully updated.", "success")
         except Exception as e:

@@ -30,12 +30,17 @@ def staff_maintenance():
         sys.stdout.flush()
 
         try:
-            result = conn.execute(
-                text("EXEC FlaskGetStaffDetails @RoleType = :role, @ID = :id"),
-                {"role": user_role.upper(), "id": int(user_id)}
-            )
+            with engine.begin() as conn:
+                result = conn.execute(
+                    text("EXEC FlaskGetStaffDetails @RoleType = :role, @ID = :id, @Email = :email"),
+                    {
+                        "role": user_role.upper(),
+                        "id": int(user_id),
+                        "email": session["user_email"]
+                    }
+                )
 
-            rows = result.fetchall()
+                rows = result.fetchall()
             sys.stdout.flush()
 
             data = pd.DataFrame(rows, columns=result.keys())
@@ -72,14 +77,16 @@ def update_staff():
                         @NewEmail = :new_email,
                         @FirstName = :firstname,
                         @LastName = :lastname,
-                        @Admin = :admin
+                        @Admin = :admin,
+                @PerformedByEmail = :performed_by
                 """),
                 {
                     "old_email": old_email,
                     "new_email": email,
                     "firstname": firstname,
                     "lastname": lastname,
-                    "admin": admin
+                    "admin": admin,
+            "performed_by": session["user_email"]
                 }
             )
 
@@ -113,8 +120,12 @@ def invite_user():
         with engine.begin() as conn:
             print("🛠️ Inserting user into DB...")
             conn.execute(
-                text("EXEC FlaskInviteUser @Email = :email, @Admin = :admin"),
-                {"email": email, "admin": admin}
+                text("EXEC FlaskInviteUser @Email = :email, @Admin = :admin, @PerformedByEmail = :performed_by"),
+                {
+                    "email": email,
+                    "admin": admin,
+                    "performed_by": session["user_email"]
+                }
             )
 
         # print("📨 Sending account setup email...")
@@ -176,7 +187,8 @@ def add_staff():
                 @FirstName = :firstname,
                 @Surname = :surname,
                 @Admin = :admin,
-                @Active = :active"""),
+                @Active = :active,
+                  @PerformedByEmail = :performed_by"""),
         {
             "email": email,
             "hash": hashed_pw,
@@ -185,7 +197,8 @@ def add_staff():
             "firstname": firstname,
             "surname": lastname,
             "admin": admin,
-            "active": active
+            "active": active,
+        "performed_by": session["user_email"]
         }
     )
 
@@ -215,7 +228,13 @@ def disable_user():
     try:
         engine = get_db_engine()
         with engine.connect() as conn:
-            conn.execute(text("EXEC FlaskDisableUser :Email"), {"Email": email})
+            conn.execute(
+                text("EXEC FlaskDisableUser :Email, :PerformedBy"),
+                {
+                    "Email": email,
+                    "PerformedBy": session.get("user_email")
+                }
+            )
             conn.commit()
         flash("User has been disabled successfully.", "success")
     except Exception as e:

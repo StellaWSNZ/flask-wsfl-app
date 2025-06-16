@@ -208,14 +208,21 @@ def classlistupload():
                     df_json = df.to_json(orient="records")
                     
                     parsed_json = json.loads(df_json)
-                    #print("📦 Sample JSON being sent to SQL:")
+                    print("📦 Sample JSON being sent to SQL:")
                     #for i, row in enumerate(parsed_json[:5]):
                     #    print(f"Row {i+1}:", row)
-                    with engine.connect() as conn:
+                    with engine.begin() as conn:
                         result = conn.execute(
-                            text("EXEC FlaskCheckNSN_JSON :InputJSON, :Term, :CalendarYear, :MOENumber"),
-                            {"InputJSON": df_json, "Term": selected_term, "CalendarYear": selected_year, "MOENumber": moe_number}
+                            text("EXEC FlaskCheckNSN_JSON :InputJSON, :Term, :CalendarYear, :MOENumber, :Email"),
+                            {
+                                "InputJSON": df_json,
+                                "Term": selected_term,
+                                "CalendarYear": selected_year,
+                                "MOENumber": moe_number,
+                                "Email": session.get("user_email"),
+                            }
                         )
+                        print(session.get("user_email"))
                         preview_data = [dict(row._mapping) for row in result]
                         session["preview_data"] = preview_data
 
@@ -468,7 +475,8 @@ def submitclass():
                         @CalendarYear = :CalendarYear,
                         @TeacherName = :TeacherName,
                         @ClassName = :ClassName,
-                        @InputJSON = :InputJSON
+                        @InputJSON = :InputJSON,
+                         @Email = :email
                 """),
                 {
                     "FunderID": funder_id,
@@ -477,7 +485,8 @@ def submitclass():
                     "CalendarYear": year,
                     "TeacherName": teacher,
                     "ClassName": classname,
-                    "InputJSON": input_json
+                    "InputJSON": input_json,
+                    "email": session["user_email"]
                 }
             )
         flash("✅ Class submitted successfully!", "success")

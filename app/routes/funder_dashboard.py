@@ -68,9 +68,12 @@ def funder_dashboard():
     with engine.begin() as conn:
         try:
             elearning_df = pd.read_sql(
-                text("EXEC FlaskGetProviderELearningStatus @FunderID = :fid"),
+                text("EXEC FlaskGetProviderELearningStatus @FunderID = :fid, @Email = :email"),
                 conn,
-                params={"fid": selected_funder_id}
+                params={
+                    "fid": selected_funder_id,
+                    "email": session["user_email"]
+                }
             )
         except Exception as e:
             print(f"❌ eLearning load error: {e}")
@@ -78,9 +81,20 @@ def funder_dashboard():
 
         try:
             school_df_all = pd.read_sql(
-                text("EXEC GetSchoolSummaryByFunder @FunderID = :f, @CalendarYear = NULL, @Term = NULL"),
+                text("""
+                    EXEC GetSchoolSummaryByFunder 
+                        @FunderID = :FunderID, 
+                        @CalendarYear = :CalendarYear, 
+                        @Term = :Term,
+                        @Email = :Email
+                """),
                 conn,
-                params={"f": selected_funder_id}
+                params={
+                    "FunderID": selected_funder_id,
+                    "CalendarYear": None,
+                    "Term": None,
+                    "Email": session.get("user_email")
+                }
             )
         except Exception as e:
             print(f"❌ School summary load error: {e}")

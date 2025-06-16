@@ -21,7 +21,7 @@ def view_class(class_id, term, year):
     cache_key = f"{class_id}_{term}_{year}"
 
     engine = get_db_engine()
-    with engine.connect() as conn:
+    with engine.begin() as conn:
         scenario_result = conn.execute(text("EXEC FlaskHelperFunctions @Request = :request"), {"request": "Scenario"})
         scenarios = [dict(row._mapping) for row in scenario_result]
 
@@ -72,9 +72,20 @@ def view_class(class_id, term, year):
         for _, student in students.iterrows():
             nsn = student["NSN"]
             comp_data = pd.read_sql(
-                text("EXEC GetStudentCompetencyStatus :NSN, :Term, :CalendarYear"),
+                text("""
+                    EXEC FlaskGetStudentCompetencyStatus 
+                        @NSN = :NSN, 
+                        @Term = :Term, 
+                        @CalendarYear = :CalendarYear,
+                        @Email = :Email
+                """),
                 conn,
-                params={"NSN": nsn, "Term": term, "CalendarYear": year}
+                params={
+                    "NSN": nsn,
+                    "Term": term,
+                    "CalendarYear": year,
+                    "Email": session.get("user_email")
+                }
             )
             if not comp_data.empty:
                 comp_data = comp_data.merge(comp_df[["CompetencyID", "YearGroupID", "label"]],
@@ -405,10 +416,10 @@ def update_competency():
         engine = get_db_engine()
         with engine.begin() as conn:
 
-                result = conn.execute(
-                    text("EXEC FlaskUpdateAchievement @NSN = :nsn, @Header = :header, @Value = :value, @Debug = :debug"),
-                    {"nsn": nsn, "header": header_name, "value": status, "debug": debug}
-                )
+            result = conn.execute(
+                text("EXEC FlaskUpdateAchievement @NSN = :nsn, @Header = :header, @Value = :value, @Email = :email, @Debug = :debug"),
+                {"nsn": nsn, "header": header_name, "value": status, "email": session.get("user_email"), "debug": debug}
+            )
 
             # Fetch debug output from first result set (assuming it's a SELECT '...' AS Msg)
 
@@ -438,8 +449,8 @@ def update_scenario():
         engine = get_db_engine()
         with engine.begin() as conn:
             conn.execute(
-                text("EXEC FlaskUpdateAchievement @NSN = :nsn, @Header = :header, @Value = :value, @Debug = :debug"),
-                {"nsn": nsn, "header": header, "value": value, "debug": debug}
+                text("EXEC FlaskUpdateAchievement @NSN = :nsn, @Header = :header, @Value = :value, @Email = :email, @Debug = :debug"),
+                {"nsn": nsn, "header": header, "value": value, "email": session.get("user_email"), "debug": debug}
             )
         return jsonify(success=True)
     except Exception as e:

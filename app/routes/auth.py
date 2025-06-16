@@ -43,7 +43,7 @@ def login():
                 return render_template("login.html")
 
             if bcrypt.checkpw(password.encode('utf-8'), stored_hash.encode('utf-8')):
-                with engine.connect() as conn:
+                with engine.begin() as conn:
                     user_info = conn.execute(
                         text("EXEC FlaskLoginValidation :Email"),
                         {"Email": email}

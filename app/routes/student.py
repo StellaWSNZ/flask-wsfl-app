@@ -75,13 +75,15 @@ def edit_student():
                     @FirstName = :FirstName,
                     @LastName = :LastName,
                     @PreferredName = :PreferredName,
-                    @EthnicityID = :EthnicityID
+                    @EthnicityID = :EthnicityID,
+            @PerformedByEmail = :PerformedByEmail
             """), {
                 "NSN": nsn,
                 "FirstName": first,
                 "LastName": last,
                 "PreferredName": preferred,
-                "EthnicityID": ethnicity
+                "EthnicityID": ethnicity,
+        "PerformedByEmail": session["user_email"]
             })
 
         # print("✅ EXEC executed successfully.")
