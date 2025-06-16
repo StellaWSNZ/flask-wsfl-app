@@ -61,7 +61,8 @@ html = [
 
 # Render all sections and questions
 for (secorder, secname) in sorted(sections):
-    html.append(f'<h3 class="mt-4">{secname}</h2>')
+    if secname != "No Section":
+        html.append(f'<h3 class="mt-4">{secname}</h3>')
     for (qid, qtext, qcode), labels in sections[(secorder, secname)].items():
         html.append('<fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">')
         html.append(f'<legend class="h6"><strong>Q{qid}:</strong> {qtext}</legend>')
