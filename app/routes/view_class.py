@@ -107,8 +107,8 @@ def view_class(class_id, term, year):
                 scenario_df = scenario_df.set_index("ScenarioIndex")["ScenarioID"].to_dict()
                 scenario1 = scenario_df.get(1, "")
                 scenario2 = scenario_df.get(2, "")
-            #print(scenario1)
-            #print(scenario2)
+            
+            
             merged_row = {
                 "NSN": nsn,
                 "FirstName": student["FirstName"],

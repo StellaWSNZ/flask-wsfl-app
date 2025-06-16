@@ -2,7 +2,7 @@
 import bcrypt
 from flask import Blueprint, render_template, request, session, redirect, url_for, flash, current_app
 from app.utils.database import get_db_engine
-from app.utils.email import send_reset_email, generate_reset_token, verify_reset_token
+from app.utils.custom_email import send_reset_email, generate_reset_token, verify_reset_token
 from sqlalchemy import text
 from itsdangerous import URLSafeTimedSerializer
 from app.extensions import mail

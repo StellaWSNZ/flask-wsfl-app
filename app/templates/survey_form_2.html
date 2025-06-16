@@ -1,0 +1,104 @@
+{% extends "header.html" %}
+{% block title %}External Tester Feedback Form{% endblock %}
+{% block content %}
+<div class="container mt-5">
+  <h1 class="mb-4 text-center text-primary">External Tester Feedback Form</h2>
+<form action="/submit" method="post">
+<h3 class="mt-4">Tester Information</h2>
+<fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
+<legend class="h6"><strong>Q1:</strong> Job Title:</legend>
+<input type="text" name="q1" class="form-control" placeholder="Your response...">
+</fieldset>
+<h3 class="mt-4">Overall Experience</h2>
+<fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
+<legend class="h6"><strong>Q2:</strong> How would you rate your overall experience using the system?</legend>
+<div class="form-check"><input class="form-check-input" type="radio" name="q2" value="1"><label class="form-check-label">Excellent</label></div>
+<div class="form-check"><input class="form-check-input" type="radio" name="q2" value="2"><label class="form-check-label">Good</label></div>
+<div class="form-check"><input class="form-check-input" type="radio" name="q2" value="3"><label class="form-check-label">Fair</label></div>
+<div class="form-check"><input class="form-check-input" type="radio" name="q2" value="4"><label class="form-check-label">Poor</label></div>
+</fieldset>
+<fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
+<legend class="h6"><strong>Q3:</strong> General Comments:</legend>
+<textarea name="q3" class="form-control" rows="4" placeholder="Your response..."></textarea>
+</fieldset>
+<h3 class="mt-4">Usability</h2>
+<fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
+<legend class="h6"><strong>Q4:</strong> Was it easy to log in to the system?</legend>
+<div class="form-check"><input class="form-check-input" type="radio" name="q4" value="1"><label class="form-check-label">Yes</label></div>
+<div class="form-check"><input class="form-check-input" type="radio" name="q4" value="2"><label class="form-check-label">No</label></div>
+<div class="form-check"><input class="form-check-input" type="radio" name="q4" value="3"><label class="form-check-label">Somewhat</label></div>
+</fieldset>
+<fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
+<legend class="h6"><strong>Q5:</strong> Was the navigation/layout intuitive?</legend>
+<div class="form-check"><input class="form-check-input" type="radio" name="q5" value="1"><label class="form-check-label">Yes</label></div>
+<div class="form-check"><input class="form-check-input" type="radio" name="q5" value="2"><label class="form-check-label">No</label></div>
+<div class="form-check"><input class="form-check-input" type="radio" name="q5" value="3"><label class="form-check-label">Somewhat</label></div>
+</fieldset>
+<fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
+<legend class="h6"><strong>Q6:</strong> Did the instructions match what you experienced?</legend>
+<div class="form-check"><input class="form-check-input" type="radio" name="q6" value="1"><label class="form-check-label">Yes</label></div>
+<div class="form-check"><input class="form-check-input" type="radio" name="q6" value="2"><label class="form-check-label">No</label></div>
+<div class="form-check"><input class="form-check-input" type="radio" name="q6" value="3"><label class="form-check-label">Somewhat</label></div>
+</fieldset>
+<fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
+<legend class="h6"><strong>Q7:</strong> Were you able to successfully enter and save information?</legend>
+<div class="form-check"><input class="form-check-input" type="radio" name="q7" value="1"><label class="form-check-label">Yes</label></div>
+<div class="form-check"><input class="form-check-input" type="radio" name="q7" value="2"><label class="form-check-label">No</label></div>
+<div class="form-check"><input class="form-check-input" type="radio" name="q7" value="3"><label class="form-check-label">Somewhat</label></div>
+</fieldset>
+<fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
+<legend class="h6"><strong>Q8:</strong> How would you rate the system's speed/performance?</legend>
+<div class="form-check"><input class="form-check-input" type="radio" name="q8" value="1"><label class="form-check-label">Yes</label></div>
+<div class="form-check"><input class="form-check-input" type="radio" name="q8" value="2"><label class="form-check-label">No</label></div>
+<div class="form-check"><input class="form-check-input" type="radio" name="q8" value="3"><label class="form-check-label">Somewhat</label></div>
+</fieldset>
+<fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
+<legend class="h6"><strong>Q9:</strong> Additional comments on usability:</legend>
+<textarea name="q9" class="form-control" rows="4" placeholder="Your response..."></textarea>
+</fieldset>
+<h3 class="mt-4">Errors/Issues</h2>
+<fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
+<legend class="h6"><strong>Q10:</strong> Did you encounter any technical bugs or error messages?</legend>
+<div class="form-check"><input class="form-check-input" type="radio" name="q10" value="1"><label class="form-check-label">Yes</label></div>
+<div class="form-check"><input class="form-check-input" type="radio" name="q10" value="2"><label class="form-check-label">No</label></div>
+</fieldset>
+<fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
+<legend class="h6"><strong>Q11:</strong> If yes, please describe the issue.</legend>
+<textarea name="q11" class="form-control" rows="4" placeholder="Your response..."></textarea>
+</fieldset>
+<h3 class="mt-4">Support and Guidance</h2>
+<fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
+<legend class="h6"><strong>Q12:</strong> Did you receive clear instructions prior to testing?</legend>
+<div class="form-check"><input class="form-check-input" type="radio" name="q12" value="1"><label class="form-check-label">Yes</label></div>
+<div class="form-check"><input class="form-check-input" type="radio" name="q12" value="2"><label class="form-check-label">No</label></div>
+<div class="form-check"><input class="form-check-input" type="radio" name="q12" value="3"><label class="form-check-label">Somewhat</label></div>
+</fieldset>
+<fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
+<legend class="h6"><strong>Q13:</strong> Was the guidance material (videos, documents) helpful?</legend>
+<div class="form-check"><input class="form-check-input" type="radio" name="q13" value="1"><label class="form-check-label">Yes</label></div>
+<div class="form-check"><input class="form-check-input" type="radio" name="q13" value="2"><label class="form-check-label">No</label></div>
+<div class="form-check"><input class="form-check-input" type="radio" name="q13" value="3"><label class="form-check-label">Somewhat</label></div>
+</fieldset>
+<fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
+<legend class="h6"><strong>Q14:</strong> Did you need extra support during testing?</legend>
+<div class="form-check"><input class="form-check-input" type="radio" name="q14" value="1"><label class="form-check-label">Yes</label></div>
+<div class="form-check"><input class="form-check-input" type="radio" name="q14" value="2"><label class="form-check-label">No</label></div>
+<div class="form-check"><input class="form-check-input" type="radio" name="q14" value="3"><label class="form-check-label">Somewhat</label></div>
+</fieldset>
+<fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
+<legend class="h6"><strong>Q15:</strong> If yes, was the support helpful and timely?</legend>
+<div class="form-check"><input class="form-check-input" type="radio" name="q15" value="1"><label class="form-check-label">Yes</label></div>
+<div class="form-check"><input class="form-check-input" type="radio" name="q15" value="2"><label class="form-check-label">No</label></div>
+<div class="form-check"><input class="form-check-input" type="radio" name="q15" value="3"><label class="form-check-label">Somewhat</label></div>
+</fieldset>
+<fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
+<legend class="h6"><strong>Q16:</strong> Additional comments on support and guidance:</legend>
+<textarea name="q16" class="form-control" rows="4" placeholder="Your response..."></textarea>
+</fieldset>
+<h3 class="mt-4">Suggestions for Improvement</h2>
+<fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
+<legend class="h6"><strong>Q17:</strong> What changes would you recommend before full launch?</legend>
+<textarea name="q17" class="form-control" rows="4" placeholder="Your response..."></textarea>
+</fieldset>
+<button type="submit" class="btn btn-primary">Submit Survey</button>
+</form></div>{% endblock %}

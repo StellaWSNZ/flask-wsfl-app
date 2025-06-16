@@ -3,7 +3,7 @@ import pandas as pd
 from sqlalchemy import text
 from app.utils.database import get_db_engine  # adjust path as needed
 from app.routes.auth import login_required
-from app.utils.email import send_account_setup_email
+from app.utils.custom_email import send_account_setup_email
 from app.extensions import mail
 staff_bp = Blueprint("staff_bp", __name__)
 

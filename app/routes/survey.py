@@ -52,7 +52,7 @@ def survey_by_routename(routename):
             if qcode == "LIK" and label:
                 question["labels"].append(Label(pos, label))
 
-        return render_template("survey_form.html", questions=questions, route_name=routename)
+        return render_template(f"survey_form_{survey_id}.html", questions=questions, route_name=routename)
 
     except Exception:
         traceback.print_exc()
@@ -349,7 +349,7 @@ def guest_survey_by_id(survey_id):
                 question["labels"].append(Label(pos, label))
 
         return render_template(
-            "survey_form.html",
+            f"survey_form_{survey_id}.html",
             questions=questions,
             route_name=f"guest/{survey_id}",
             impersonated_name=f"{session.get('user_firstname')} from {session.get('desc', 'your organisation')}"
@@ -386,7 +386,7 @@ def survey_by_id(survey_id):
             if qcode == "LIK" and label:
                 question["labels"].append(Label(pos, label))
 
-        return render_template("survey_form.html", questions=questions, route_name=f"id/{survey_id}")
+        return render_template(f"survey_form_{survey_id}.html", questions=questions, route_name=f"id/{survey_id}")
 
     except Exception:
         traceback.print_exc()
@@ -394,7 +394,7 @@ def survey_by_id(survey_id):
     
     
 from flask import request, redirect, url_for, flash
-from app.utils.email import send_survey_invite_email
+from app.utils.custom_email import send_survey_invite_email
 
 @survey_bp.route("/send_invite", methods=["POST"])
 @login_required
@@ -427,7 +427,7 @@ def send_survey_invite():
 
 
 from flask import request, session, redirect, url_for, flash
-from app.utils.email import send_survey_invite_email, send_survey_reminder_email, send_survey_invitation_email
+from app.utils.custom_email import send_survey_invite_email, send_survey_reminder_email, send_survey_invitation_email
 from app.extensions import mail
 from app.routes.survey import survey_bp
 @survey_bp.route("/send_survey_link", methods=["POST"])

@@ -1,6 +1,5 @@
-{% extends "header.html" %}
-{% block title %}WSFL Self Review Survey{% endblock %}
-{% block content %}
+{% extends "header.html" %} {% block title %}WSFL Self Review Survey{% endblock
+%} {% block content %}
 <div class="container my-5">
   <h1 class="mb-4">WSFL Self Review Survey (Submitted)</h1>
   <form>
@@ -10,28 +9,16 @@
         <strong>Q{{ question.id }}:</strong> {{ question.text }}
       </legend>
 
-      {% if question.type == 'LIK' %}
-        {% for pos, label in question.labels %}
-        <div class="form-check">
-          <input
-            class="form-check-input"
-            type="radio"
-            name="q{{ question.id }}"
-            id="q{{ question.id }}_{{ pos }}"
-            value="{{ pos }}"
-            {% if question.answer_likert == pos %} checked {% endif %}
-            disabled
-          />
-          <label
-            class="form-check-label"
-            for="q{{ question.id }}_{{ pos }}"
-          >
-            {{ label }}
-          </label>
-        </div>
-        {% endfor %}
-
-      {% elif question.type == 'TEXT' %}
+      {% if question.type == 'LIK' %} {% for pos, label in question.labels %}
+      <div class="form-check">
+        <input class="form-check-input" type="radio" name="q{{ question.id }}"
+        id="q{{ question.id }}_{{ pos }}" value="{{ pos }}" {% if
+        question.answer_likert == pos %} checked {% endif %} disabled />
+        <label class="form-check-label" for="q{{ question.id }}_{{ pos }}">
+          {{ label }}
+        </label>
+      </div>
+      {% endfor %} {% elif question.type == 'TEXT' %}
       <input
         type="text"
         class="form-control mt-2"
@@ -41,14 +28,16 @@
         disabled
       />
 
-      {% elif question.type == 'TXT' %}
+      {% elif question.type == 'LNG' %}
       <textarea
         class="form-control mt-2"
         rows="4"
         name="q{{ question.id }}"
         id="q{{ question.id }}"
         disabled
-      >{{ question.answer_text }}</textarea>
+      >
+{{ question.answer_text }}</textarea
+      >
       {% endif %}
     </fieldset>
     {% endfor %}

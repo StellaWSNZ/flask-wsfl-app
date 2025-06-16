@@ -7,7 +7,7 @@ from app.routes.auth import login_required
 import bcrypt
 from sqlalchemy import text
 from datetime import datetime, timedelta
-from app.utils.email import send_account_setup_email
+from app.utils.custom_email import send_account_setup_email
 from app.extensions import mail
 admin_bp = Blueprint("admin_bp", __name__)
 
