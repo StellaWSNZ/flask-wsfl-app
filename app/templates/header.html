@@ -89,6 +89,13 @@
                 <li>
                   <a
                     class="dropdown-item py-2"
+                    href="{{ url_for('funder_bp.funder_dashboard') }}"
+                    >Overview
+                  </a>
+                </li>
+                <li>
+                  <a
+                    class="dropdown-item py-2"
                     href="{{ url_for('report_bp.reporting') }}"
                     >Reporting</a
                   >
@@ -239,7 +246,7 @@
                 data-bs-toggle="dropdown"
                 aria-expanded="false"
               >
-                <i class="bi bi-clipboard-check me-1"></i> Surveys
+                <i class="bi bi-clipboard-check me-1"></i> Self Reviews
               </a>
               <ul class="dropdown-menu dropdown-menu-end">
                 <li>
@@ -247,7 +254,7 @@
                     class="dropdown-item py-2"
                     href="{{ url_for('survey_bp.survey_by_routename', routename='SelfReview') }}"
                   >
-                    Complete a Self Review
+                    Complete a Review
                   </a>
                 </li>
                 <li>
@@ -255,7 +262,7 @@
                     class="dropdown-item py-2"
                     href="{{ url_for('survey_bp.list_my_surveys') }}"
                   >
-                    Past Reviews
+                    View Past Reviews
                   </a>
                 </li>
               </ul>

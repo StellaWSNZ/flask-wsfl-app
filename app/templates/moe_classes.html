@@ -5,7 +5,7 @@
 {% set selected_term = request.form.get("term") if request.method == "POST" else TERM %}
 {% set selected_year = request.form.get("calendaryear") if request.method == "POST" else YEAR %}
 
-<h3 class="text-center">Filter Classes</h3>
+<h3  class="text-primary mb-4 text-center">Filter Classes</h3>
 
 <form method="POST">
   <div class="container">
