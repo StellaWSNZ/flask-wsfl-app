@@ -375,7 +375,7 @@ def funder_classes():
                             }
                         )
                         suggestions = [row.Label for row in suggestion_result]
-    print(schools)
+
     return render_template(
         "funder_classes.html",
         schools=schools,

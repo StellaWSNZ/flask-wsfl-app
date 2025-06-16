@@ -295,7 +295,7 @@ def save_and_open_pdf(fig, filename):
         print(f"Could not open PDF automatically: {e}")
 
     plt.close(fig)  # Clean up
-    print(f"✅ PDF saved as {filename}")
+    # print(f"✅ PDF saved as {filename}")
 
 def sanitize_filename(s):
     return s.replace(" ", "_").replace("/", "_")  # remove problematic characters

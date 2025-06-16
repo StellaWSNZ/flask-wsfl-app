@@ -31,7 +31,7 @@
 <div class="row justify-content-center">
   <div class="col-md-8">
     <div class="alert text-center align-items-center gap-2" style="background-color: #4d544120; color: #4d5441; border: 2px solid #4d5441;">
-      <i class="bi bi-info-circle-fill"></i>
+      <!-- <i class="bi bi-info-circle-fill"></i> -->
       <span>{{ summary_string | safe }}</span>
     </div>
   </div>
@@ -64,19 +64,19 @@
                   {% for key, val in row.items() %}
                     {% if key != "Name" %}
                     <td>
-                      {% set status = val|string %}
-                      {% if status in ['Passed', 'Completed'] %}
-                        <span class="badge bg-success fs-6">{{ status }}</span>
-                      {% elif status == 'Cancelled' %}
-                        <span class="badge bg-danger fs-6">{{ status }}</span>
-                      {% elif status == 'In Progress' %}
-                        <span class="badge bg-warning text-dark fs-6">{{ status }}</span>
-                      {% elif status == 'Not Started' %}
-                        <span class="badge bg-secondary fs-6">{{ status }}</span>
-                      {% else %}
-                        <span class="badge bg-light text-dark fs-6">{{ status }}</span>
-                      {% endif %}
-                    </td>
+  {% set status = val|string %}
+  {% if status in ['Passed', 'Completed'] %}
+    <span class="badge bg-success" style="font-size: 0.8rem;">{{ status }}</span>
+  {% elif status == 'Cancelled' %}
+    <span class="badge bg-danger" style="font-size: 0.8rem;">{{ status }}</span>
+  {% elif status == 'In Progress' %}
+    <span class="badge bg-warning text-dark" style="font-size: 0.8rem;">{{ status }}</span>
+  {% elif status == 'Not Started' %}
+    <span class="badge bg-secondary" style="font-size: 0.8rem;">{{ status }}</span>
+  {% else %}
+    <span class="badge bg-light text-dark" style="font-size: 0.8rem;">{{ status }}</span>
+  {% endif %}
+</td>
                     {% endif %}
                   {% endfor %}
                 </tr>

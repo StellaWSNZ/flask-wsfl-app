@@ -64,12 +64,7 @@ def edit_student():
     preferred = data.get("PreferredName")
     ethnicity = data.get("EthnicityID")
 
-    print("📥 Received student update:")
-    print(f"  NSN: {nsn}")
-    print(f"  FirstName: {first}")
-    print(f"  LastName: {last}")
-    print(f"  PreferredName: {preferred}")
-    print(f"  EthnicityID: {ethnicity}")
+
 
     try:
         engine = get_db_engine()
@@ -89,7 +84,7 @@ def edit_student():
                 "EthnicityID": ethnicity
             })
 
-        print("✅ EXEC executed successfully.")
+        # print("✅ EXEC executed successfully.")
         return jsonify({"success": True})
     except Exception as e:
         print("❌ Error editing student:", e)

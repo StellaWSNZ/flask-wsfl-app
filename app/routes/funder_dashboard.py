@@ -14,8 +14,8 @@ def funder_dashboard():
     is_admin = session.get("user_admin") == 1
     funder_id = session.get("user_id") or session.get("funder_id")
 
-    print("🔍 Session values:", dict(session))
-    print(f"🧑 Role: {user_role}, Admin: {is_admin}, Funder ID: {funder_id}")
+   # print("🔍 Session values:", dict(session))
+   # print(f"🧑 Role: {user_role}, Admin: {is_admin}, Funder ID: {funder_id}")
 
     funder_dropdown = []
     selected_funder_id = None
@@ -27,7 +27,7 @@ def funder_dashboard():
         with engine.begin() as conn:
             result = conn.execute(text("EXEC FlaskHelperFunctions 'AllFunders'"))
             funder_dropdown = [{"id": row._mapping["id"], "name": row._mapping["Description"]} for row in result]
-        print(result)
+        # print(result)
         # Capture from POST or session fallback
         funder_val = request.form.get("funder_id")
         if funder_val and funder_val.isdigit():

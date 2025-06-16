@@ -103,8 +103,8 @@ def forgot_password():
                 ).fetchone()
 
             email_count = result[0] if result else 0
-            print(result)
-            print(email_count)
+
+            
             if email_count == 0:
                 flash('No account found with that email address.', 'danger')
                 return redirect(url_for('auth_bp.forgot_password'))

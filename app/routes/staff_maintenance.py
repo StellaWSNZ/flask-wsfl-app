@@ -95,7 +95,7 @@ def update_staff():
 @login_required
 def invite_user():
     try:
-        print("📥 Received form data:", request.form)
+        # print("📥 Received form data:", request.form)
 
         email = request.form['email'].strip().lower()
         admin = int(request.form['admin'])
@@ -104,17 +104,10 @@ def invite_user():
         if not role:
             raise ValueError("Missing user_role in session")
 
-        print("✅ Parsed form fields:")
-        print("  📧 Email:", email)
-        print("  🧑 First Name:", first_name)
-        print("  🧑 Role:", role)
-        print("  🔒 Admin:", admin)
-
+        
         invited_by = session.get('user_firstname') + ' ' + session.get('user_surname')
         inviter_desc = session.get('desc')
 
-        print("🙋 Invited by:", invited_by)
-        print("🏷️ Inviter desc:", inviter_desc)
 
         engine = get_db_engine()
         with engine.begin() as conn:
@@ -124,7 +117,7 @@ def invite_user():
                 {"email": email, "admin": admin}
             )
 
-        print("📨 Sending account setup email...")
+        # print("📨 Sending account setup email...")
         send_account_setup_email(
             mail = mail,
             recipient_email=email,
