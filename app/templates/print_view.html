@@ -6,19 +6,51 @@
     <style>
       body {
         font-family: Arial, sans-serif;
-        font-size: 11px;
+        font-size: 10px;
+        margin: 0;
+        padding: 0;
+      }
+
+      .container {
+        padding: 1cm;
+      }
+
+      .section {
+        margin-bottom: 40px;
+        page-break-after: always;
       }
 
       table {
         width: 100%;
         border-collapse: collapse;
         page-break-inside: auto;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        overflow: hidden;
+      }
+
+      thead {
+        display: table-header-group;
+      }
+
+      .meta-header {
+        background-color: #007bff;
+        color: white;
+        font-weight: bold;
+        font-size: 11px;
+        text-align: left;
+        padding: 6px;
+        border-bottom: none;
+      }
+
+      .meta-spacer {
+        height: 1mm;
       }
 
       th,
       td {
         border: 1px solid #999;
-        padding: 4px;
+        padding: 6px 8px;
         text-align: center;
         vertical-align: top;
         word-wrap: break-word;
@@ -28,74 +60,84 @@
         background-color: #f2f2f2;
       }
 
-      thead {
-        display: table-header-group; /* Keeps header on each page */
-      }
-
-      .page-break {
-        page-break-before: always;
-      }
-
-      .section {
-        display: block;
-        margin-bottom: 30px;
-      }
-
-      .section-header {
-        margin-bottom: 8px;
-        font-weight: bold;
+      tbody tr:nth-child(even) {
+        background-color: #f9f9f9;
       }
 
       @media print {
         @page {
           size: A4 landscape;
-          margin: 1cm;
+          margin: 0.5cm;
         }
 
         body {
           -webkit-print-color-adjust: exact;
           print-color-adjust: exact;
         }
+
+        th {
+          background-color: #ddd !important;
+        }
+
+        .section {
+          page-break-after: always;
+        }
+
+        .no-print {
+          display: none;
+        }
       }
     </style>
   </head>
 
   <body>
-    {% set group_headers = { '0–2': '(0-2)', '3–4': '(3-4)', '5–6': '(5-6)',
-    '7–8': '(7-8)' } %} {% for range, students in grouped.items() %}
-    <div class="section page-break">
-      <div class="section-header">
-        Class: {{ class_name }} | Teacher: {{ teacher_name }} | Competencies: {%
-        if filter_type == "water" %}Water-based only{% else %}All{% endif %} |
-        Year Group: {{ group_headers[range] }}
+    <div class="container">
+      {% set group_headers = { '0–2': '(0-2)', '3–4': '(3-4)', '5–6': '(5-6)',
+      '7–8': '(7-8)' } %} {% for range, students in grouped.items() %}
+      <div class="section">
+        <table>
+          <thead>
+            <tr>
+              <th
+                colspan="{{ 3 + columns_by_range.get(range, [])|length }}"
+                class="meta-header"
+              >
+                Class: {{ class_name or "?" }} | Teacher: {{ teacher_name or "?"
+                }} | Competencies: {% if filter_type == "water" %}Water-based
+                only{% else %}All{% endif %} | Year Group: {{
+                group_headers.get(range, range) }}
+              </th>
+            </tr>
+            <tr class="meta-spacer">
+              <td
+                colspan="{{ 3 + columns_by_range.get(range, [])|length }}"
+              ></td>
+            </tr>
+            <tr>
+              <th>Last Name</th>
+              <th>Preferred Name</th>
+              <th>Year Level</th>
+              {% for col in columns_by_range.get(range, []) %}
+              <th>{{ col|safe }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for student in students %}
+            <tr>
+              <td>{{ student.LastName }}</td>
+              <td>{{ student.PreferredName }}</td>
+              <td>{{ student.YearLevelID }}</td>
+              {% for col in columns_by_range.get(range, []) %}
+              <td>{{ student.get(col, '') }}</td>
+              {% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
       </div>
-
-      <table>
-        <thead>
-          <tr>
-            <th>Last Name</th>
-            <th>Preferred Name</th>
-            <th>Year Level</th>
-            {% for col in columns_by_range[range] %}
-            <th>{{ col|safe }}</th>
-            {% endfor %}
-          </tr>
-        </thead>
-        <tbody>
-          {% for student in students %}
-          <tr>
-            <td>{{ student.LastName }}</td>
-            <td>{{ student.PreferredName }}</td>
-            <td>{{ student.YearLevelID }}</td>
-            {% for col in columns_by_range[range] %}
-            <td>{{ student[col] }}</td>
-            {% endfor %}
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+      {% endfor %}
     </div>
-    {% endfor %}
 
     <script>
       window.onload = () => window.print();

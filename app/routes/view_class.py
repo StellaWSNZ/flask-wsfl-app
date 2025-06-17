@@ -9,6 +9,7 @@ import matplotlib
 matplotlib.use('Agg')  # Prevent GUI backend errors in web servers
 import matplotlib.pyplot as plt
 import io, base64
+from datetime import datetime
 import sys
 from app.utils.fundernationalplot import create_competency_report
 from app.utils.competencyplot import load_competency_rates, make_figure
@@ -857,5 +858,6 @@ def print_class_view(class_id, term, year):
         columns_by_range=columns_by_range,
         class_name=class_name,
         teacher_name=teacher_name,
-        filter_type=filter_type
+        filter_type=filter_type,
+        now=datetime.now
     )
