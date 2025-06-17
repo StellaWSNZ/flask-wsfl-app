@@ -24,6 +24,8 @@ def home():
         subtitle = f"You are logged in as {session['desc']} (funder) staff. Last Logged in: " + (datetime.fromisoformat(session["last_login_nzt"])).strftime('%A, %d %B %Y, %I:%M %p')
     elif role == "MOE":
         subtitle = f"You are logged in as {session['desc']} (school) staff. Last Logged in: " + (datetime.fromisoformat(session["last_login_nzt"])).strftime('%A, %d %B %Y, %I:%M %p')
+    elif role == "PRO":
+        subtitle = f"You are logged in as {session['desc']} (provider) staff. Last Logged in: " + (datetime.fromisoformat(session["last_login_nzt"])).strftime('%A, %d %B %Y, %I:%M %p')
 
     if role == "ADM":
         cards = [

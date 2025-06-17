@@ -28,7 +28,7 @@ def get_available_terms(nearest_year, nearest_term):
         options.append((nearest_year - 1, 4))
     return options
 
-@report_bp.route('/reporting', methods=["GET", "POST"])
+@report_bp.route('/Reporting', methods=["GET", "POST"])
 @login_required
 def reporting():
     global last_pdf_bytes, last_pdf_filename, last_png_bytes, last_png_filename

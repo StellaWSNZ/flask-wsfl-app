@@ -67,7 +67,7 @@ def load_provider_results(con, calendaryear, term, ProviderID):
 
 def get_colour(var):
     colours = {
-        'Funder Rate (YTD)': "#2EBDC2",
+        'National Rate (LY)': "#2EBDC2",
         'Provider Rate (YTD)': "#356FB6",
         'Funder Target': "#BBE6E9"
     }
@@ -77,7 +77,7 @@ def sanitize_filename(s):
     return s.replace(" ", "_").replace("/", "_")
 
 def draw_key(ax, x, y):
-    labels = ['Funder Rate (YTD)', 'Provider Rate (YTD)', 'Funder Target']
+    labels = ['National Rate (LY)', 'Provider Rate (YTD)', 'Funder Target']
     colors = ['#2EBDC2', '#356FB6', '#BBE6E9']
     box_size = 0.03
     padding = 0.01
@@ -109,7 +109,7 @@ def make_yeargroup_plot(ax, x, y_top, cell_height, title, df_relcomp, df_results
         on=['YearGroupID', 'CompetencyID', 'CompetencyDesc', 'YearGroupDesc'],
         how='inner'
     )
-    vars = ['Funder Rate (YTD)', 'Provider Rate (YTD)', 'Funder Target']
+    vars = ['National Rate (LY)', 'Provider Rate (YTD)', 'Funder Target']
     df = df[df['ResultType'].isin(vars)].sort_values(by=['YearGroupID', 'CompetencyID'])
 
     competency_text_offset = 0.08

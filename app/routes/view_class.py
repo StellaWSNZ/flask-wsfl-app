@@ -202,7 +202,7 @@ def update_class_info():
 
 
 
-@class_bp.route('/provider_classes', methods=['GET', 'POST'])
+@class_bp.route('/ProviderClasses', methods=['GET', 'POST'])
 @login_required
 def provider_classes():
     if session.get("user_role") != "PRO":
