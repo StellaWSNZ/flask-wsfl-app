@@ -82,7 +82,7 @@ def funder_dashboard():
         try:
             school_df_all = pd.read_sql(
                 text("""
-                    EXEC GetSchoolSummaryByFunder 
+                    EXEC FlaskGetSchoolSummaryByFunder 
                         @FunderID = :FunderID, 
                         @CalendarYear = :CalendarYear, 
                         @Term = :Term,
@@ -121,14 +121,16 @@ def funder_dashboard():
     })
 
     summary_string = ""
-    if funder_desc:
-        summary_string = (
-            f"{funder_desc if user_role == 'ADM' else 'You'} "
-            f"is delivering to <strong>{total_students:,}</strong> students across "
-            f"<strong>{total_schools}</strong> school{'s' if total_schools != 1 else ''} "
-            f"in <strong>Term {selected_term}</strong>, <strong>{selected_year}</strong>."
-        )
+    if user_role == "ADM":
+        subject = f"{funder_desc} is"
+    else:
+        subject = "You are"
 
+    summary_string = (
+        f"{subject} delivering to <strong>{total_students:,}</strong> students across "
+        f"<strong>{total_schools}</strong> school{'s' if total_schools != 1 else ''} "
+        f"in <strong>Term {selected_term}</strong>, <strong>{selected_year}</strong>."
+    )
     return render_template(
         "funder_dashboard.html",
         elearning=elearning_df.to_dict(orient="records"),
