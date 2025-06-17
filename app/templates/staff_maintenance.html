@@ -220,7 +220,6 @@ block content %}
 
           <div class="row g-4">
             <div class="col-md-3">
-              
               <p class="mb-1"><strong>Email:</strong> {{ row.Email }}</p>
               <p class="mb-1">
                 <strong>First Name:</strong> {{ row.FirstName }}
@@ -303,7 +302,7 @@ block content %}
                       type="submit"
                       class="btn btn-sm btn-outline-primary w-100"
                     >
-                      {% if row.Active != 1 %}Email Self Review Reminder{% else
+                      {% if row.Active == 1 %}Email Self Review Reminder{% else
                       %}Email Self Review Link{% endif %}
                     </button>
                   </form>

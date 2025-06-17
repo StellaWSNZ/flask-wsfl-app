@@ -274,7 +274,7 @@
                 </li>
               </ul>
             </li>
-            {% if session['user_admin'] == 1 %}
+            {% if session['user_admin'] == 1 and session["user_role"] =="FUN"%}
             <li class="nav-item">
               <a
                 class="nav-link"
