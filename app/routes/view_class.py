@@ -14,8 +14,9 @@ import sys
 from app.utils.fundernationalplot import create_competency_report
 from app.utils.competencyplot import load_competency_rates, make_figure
 from app.utils.nationalplot import generate_national_report
+
 class_bp = Blueprint("class_bp", __name__)
-@class_bp.route('/view_class/<int:class_id>/<int:term>/<int:year>')
+@class_bp.route('/Class/<int:class_id>/<int:term>/<int:year>')
 @login_required
 def view_class(class_id, term, year):
     filter_type = request.args.get("filter", "all")
@@ -294,7 +295,7 @@ def provider_classes():
     )
     
 
-@class_bp.route('/funder_classes', methods=['GET', 'POST'])
+@class_bp.route('/Classes', methods=['GET', 'POST'])
 @login_required
 def funder_classes():
     if session.get("user_role") not in ["FUN", "ADM"]:
@@ -458,7 +459,7 @@ def update_scenario():
         print("❌ Scenario update failed:", e)
         return jsonify(success=False, error=str(e)), 500
 
-@class_bp.route('/reporting', methods=["GET", "POST"])
+@class_bp.route('/Reporting', methods=["GET", "POST"])
 @login_required
 def reporting():
     global last_pdf_generated, last_pdf_filename, last_png_generated, last_png_filename
@@ -760,7 +761,7 @@ def moe_classes():
         YEAR=session.get("nearest_year")
     )
 
-@class_bp.route("/class/print/<int:class_id>/<int:term>/<int:year>")
+@class_bp.route("/Class/print/<int:class_id>/<int:term>/<int:year>")
 @login_required
 def print_class_view(class_id, term, year):
     cache_key = f"{class_id}_{term}_{year}"

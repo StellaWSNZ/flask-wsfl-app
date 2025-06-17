@@ -11,7 +11,7 @@ survey_bp = Blueprint("survey_bp", __name__)
 
 
 # 🔹 Load and show a survey form by its route name
-@survey_bp.route("/survey/<string:routename>")
+@survey_bp.route("/Form/<string:routename>")
 def survey_by_routename(routename):
     engine = get_db_engine()
     Label = namedtuple("Label", ["pos", "text"])
@@ -191,7 +191,7 @@ def submit_guest_survey(survey_id):
 
 
 # 🔹 For users to view their own surveys
-@survey_bp.route("/MySurveys")
+@survey_bp.route("/MyForms")
 @login_required
 def list_my_surveys():
     email = session.get("user_email")
@@ -199,7 +199,7 @@ def list_my_surveys():
 
 
 # 🔹 For admins to view surveys for someone else
-@survey_bp.route("/TargetSurveys")
+@survey_bp.route("/StaffForms")
 @login_required
 def list_target_surveys():
     if session.get("user_admin") != 1:
@@ -243,7 +243,7 @@ def _load_survey_list(email):
 
 
 # 🔹 View a specific completed survey by respondent ID
-@survey_bp.route("/MySurveys/<int:respondent_id>")
+@survey_bp.route("/MyForms/<int:respondent_id>")
 @login_required
 def view_my_survey_response(respondent_id):
     session_email = session.get("user_email")
@@ -290,7 +290,7 @@ def view_my_survey_response(respondent_id):
         traceback.print_exc()
         return "Internal Server Error", 500
 
-@survey_bp.route("/survey/invite/<token>")
+@survey_bp.route("/Form/invite/<token>")
 def survey_invite_token(token):
     try:
         s = URLSafeTimedSerializer(current_app.secret_key)
@@ -318,7 +318,7 @@ def survey_invite_token(token):
         return render_template("error.html", message="Something went wrong loading your survey."), 500
 
         
-@survey_bp.route("/survey/guest/<int:survey_id>")
+@survey_bp.route("/Form/guest/<int:survey_id>")
 def guest_survey_by_id(survey_id):
     if not session.get("guest_user"):
         return redirect(url_for("auth_bp.login"))
@@ -359,7 +359,7 @@ def guest_survey_by_id(survey_id):
         traceback.print_exc()
         return "Internal Server Error", 500
 
-@survey_bp.route("/survey/id/<int:survey_id>")
+@survey_bp.route("/Form/id/<int:survey_id>")
 def survey_by_id(survey_id):
     engine = get_db_engine()
     Label = namedtuple("Label", ["pos", "text"])

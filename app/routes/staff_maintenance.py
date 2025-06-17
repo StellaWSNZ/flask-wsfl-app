@@ -15,7 +15,7 @@ from app.utils.database import get_db_engine
 import traceback
 staff_bp = Blueprint("staff_bp", __name__)
 
-@staff_bp.route("/staff_maintenance")
+@staff_bp.route("/Staff")
 @login_required
 def staff_maintenance():
     user_id = session.get("user_id")

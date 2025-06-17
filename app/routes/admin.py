@@ -12,7 +12,7 @@ from app.extensions import mail
 admin_bp = Blueprint("admin_bp", __name__)
 
 import traceback
-@admin_bp.route('/create_user', methods=['GET', 'POST'])
+@admin_bp.route('/CreateUser', methods=['GET', 'POST'])
 @login_required
 def create_user():
     if not session.get("user_admin"):
@@ -159,7 +159,7 @@ from datetime import datetime
 from flask import session, render_template
 from sqlalchemy import text
 
-@admin_bp.route("/profile")
+@admin_bp.route("/Profile")
 @login_required
 def profile():
     try:
@@ -338,7 +338,7 @@ def serve_logo(logo_type, logo_id):
         return Response(result[0], mimetype=result[1])
     return '', 404
 
-@admin_bp.route('/provider_maintenance', methods=['GET', 'POST'])
+@admin_bp.route('/ProviderMaintenance', methods=['GET', 'POST'])
 @login_required
 def provider_maintenance():
     engine = get_db_engine()

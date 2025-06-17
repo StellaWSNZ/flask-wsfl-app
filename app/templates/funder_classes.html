@@ -120,7 +120,7 @@
       if (userRole === "PRO") {
         url = `/get_schools_by_provider?term=${term}&year=${year}`;
       } else if (userRole === "FUN" || userRole === "ADM") {
-        url = `/get_schools_by_funder?term=${term}&year=${year}`;
+        url = `/get_schools_for_term_year?term=${term}&year=${year}`;
       }
 
       fetch(url)
