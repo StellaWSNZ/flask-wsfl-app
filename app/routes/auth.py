@@ -19,6 +19,8 @@ def login_required(f):
             return redirect(url_for("auth_bp.login", next=request.url))
         return f(*args, **kwargs)
     return decorated_function
+
+
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     try:
@@ -37,7 +39,11 @@ def login():
                 flash("Email not found or invalid.", "danger")
                 return render_template("login.html")
 
-            stored_hash = result[0]
+            stored_hash = result.HashPassword
+            is_active = result.Active
+            if not is_active:
+                flash("Your account has been disabled. Please contact support.", "danger")
+                return render_template("login.html")
             if not stored_hash:
                 flash("Password not set for this account.", "danger")
                 return render_template("login.html")

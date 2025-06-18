@@ -2,7 +2,7 @@
 {% block title %}Overview{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
+<div class="container mt-5" style="max-width: 80%;">
   <h2 class="text-center text-primary mb-4">{{ title }}</h2>
 
   {% if user_role == "ADM" or (user_role in ["FUN", "PRO"] and user_admin == 1) %}
@@ -171,24 +171,27 @@
 
     entitySelect.addEventListener("change", function () {
       const selectedType = this.value;
-      const currentSelected = funderSelect.value;
       label.textContent = `Select ${selectedType}`;
 
-      fetch(`/get_entities?entity_type=${selectedType}`)
-        .then(response => response.json())
-        .then(data => {
-          funderSelect.innerHTML = `<option value="">-- Choose a ${selectedType} --</option>`;
-          data.forEach(item => {
-            const option = document.createElement("option");
-            option.value = item.id;
-            option.textContent = item.name;
-            if (item.id == currentSelected) {
-              option.selected = true;
-            }
-            funderSelect.appendChild(option);
+      // Clear dropdown
+      funderSelect.innerHTML = `<option value="">-- Choose a ${selectedType} --</option>`;
+
+      // Only fetch providers dynamically
+      if (selectedType === "Provider") {
+        fetch(`/get_entities?entity_type=Provider`)
+          .then(response => response.json())
+          .then(data => {
+            data.forEach(item => {
+              const option = document.createElement("option");
+              option.value = item.id;
+              option.textContent = item.name;
+              funderSelect.appendChild(option);
+            });
           });
-        });
+      }
     });
   });
 </script>
+
+
 {% endblock %}

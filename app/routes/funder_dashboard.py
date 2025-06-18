@@ -139,12 +139,19 @@ def get_entities():
         if entity_type == "Funder":
             stmt = text("EXEC FlaskHelperFunctions @Request = :Request")
             result = conn.execute(stmt, {"Request": "FunderDropdown"})
+            entities = [{"id": row._mapping["FunderID"], "name": row._mapping["Description"]} for row in result]
+
         elif entity_type == "Provider":
-            funder_id = session.get("selected_funder_id") or session.get("user_id")  # fallback if needed
-            stmt = text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :FunderID")
-            result = conn.execute(stmt, {"Request": "ProvidersByFunder", "FunderID": funder_id})
+            if session.get("user_id"):
+                stmt = text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :FunderID")
+                result = conn.execute(stmt, {"Request": "ProvidersByFunder", "FunderID": session.get("user_id")})
+            else:
+                stmt = text("EXEC FlaskHelperFunctions @Request = :Request")
+                result = conn.execute(stmt, {"Request": "ProviderDropdown"})
+            entities = [{"id": row._mapping["ProviderID"], "name": row._mapping["Description"]} for row in result]
+
         else:
             return jsonify([])
 
-        entities = [{"id": row[0], "name": row[1]} for row in result]
+        #print(entities)
         return jsonify(entities)
