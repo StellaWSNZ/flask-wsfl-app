@@ -6,12 +6,14 @@ from app.utils.database import get_db_engine
 from app.routes.auth import login_required
 import bcrypt
 from sqlalchemy import text
+import sqlalchemy.sql
 from datetime import datetime, timedelta
 from app.utils.custom_email import send_account_setup_email
 from app.extensions import mail
 admin_bp = Blueprint("admin_bp", __name__)
 
 import traceback
+
 @admin_bp.route('/CreateUser', methods=['GET', 'POST'])
 @login_required
 def create_user():
@@ -24,88 +26,104 @@ def create_user():
     user_id = session.get("user_id")
     user_desc = session.get("desc")
 
+    print(f"📌 user_role: {user_role}, user_id: {user_id}")
+
     providers = []
     schools = []
+    funders = None
     funder = None
     only_own_staff_or_empty = False
 
-    with engine.connect() as conn:
-        if user_role == "FUN":
-            providers = conn.execute(
-                text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :fid"),
-                {"Request": "ProvidersByFunderID", "fid": user_id}
-            ).fetchall()
+    try:
+        with engine.connect() as conn:
+            if user_role == "FUN":
+                print("🔍 Loading providers and schools for FUNDER...")
+                providers = conn.execute(
+                    text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :fid"),
+                    {"Request": "ProvidersByFunderID", "fid": user_id}
+                ).fetchall()
 
-            schools = conn.execute(
-                text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :fid"),
-                {"Request": "SchoolsByFunderID", "fid": user_id}
-            ).fetchall()
+                schools = conn.execute(
+                    text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :fid"),
+                    {"Request": "SchoolsByFunderID", "fid": user_id}
+                ).fetchall()
 
-            funder = conn.execute(
-                text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :fid"),
-                {"Request": "FunderByID", "fid": user_id}
-            ).fetchone()
+                funder = conn.execute(
+                    text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :fid"),
+                    {"Request": "FunderByID", "fid": user_id}
+                ).fetchone()
 
+                only_own_staff_or_empty = (
+                    len(providers) == 0 or
+                    (len(providers) == 1 and providers[0].Description.strip().lower() == "own staff")
+                )
 
+            elif user_role == "ADM":
+                print("🔍 Loading all data for ADMIN...")
+                providers = conn.execute(
+                    text("EXEC FlaskHelperFunctions @Request = :Request"),
+                    {"Request": "AllProviders"}
+                ).fetchall()
+                schools = conn.execute(
+                    text("EXEC FlaskHelperFunctions @Request = :Request"),
+                    {"Request": "AllSchools"}
+                ).fetchall()
+                funders = conn.execute(
+                    text("EXEC FlaskHelperFunctions @Request = :Request"),
+                    {"Request": "AllFunders"}
+                ).fetchall()
+            elif user_role == "MOE":
+                print("🔍 Loading school for MOE...")
+                schools = conn.execute(
+                    text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :moe"),
+                    {"Request": "SchoolByMOENumber", "moe": user_id}
+                ).fetchall()
 
-            only_own_staff_or_empty = (
-                len(providers) == 0 or
-                (len(providers) == 1 and providers[0].Description.strip().lower() == "own staff")
-            )
-        elif user_role=="ADM":
-            providers = conn.execute(
-                text("EXEC FlaskHelperFunctions @Request = :Request"),
-                {"Request": "AllProviders"}
-            ).fetchall()
+            elif user_role == "PRO":
+                print("🔍 Loading schools and provider for PROVIDER...")
+                schools = conn.execute(
+                    text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :pid"),
+                    {"Request": "SchoolsByProvider", "pid": user_id}
+                ).fetchall()
 
-            schools = conn.execute(
-                text("EXEC FlaskHelperFunctions @Request = :Request"),
-                {"Request": "AllSchools"}
-            ).fetchall()
+                providers = conn.execute(
+                    text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :pid"),
+                    {"Request": "ProviderByID", "pid": user_id}
+                ).fetchone()
 
-            funder = conn.execute(
-                text("EXEC FlaskHelperFunctions @Request = :Request"),
-                {"Request": "AllFunders"}
-            ).fetchall()
-        elif user_role == "MOE":
-        # Just one school, their own
-            schools = conn.execute(
-                text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :moe"),
-                {"Request": "SchoolByMOENumber", "moe": user_id}
-            ).fetchall()
-        elif user_role=="PRO":
-            schools = conn.execute(
-                text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :pid"),
-                {"Request": "SchoolsByProvider", "pid": user_id}
-            ).fetchall()
-
-            providers = conn.execute(
-                text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :pid"),
-                {"Request": "ProviderByID", "pid": user_id}
-            ).fetchone()
-
+    except Exception as e:
+        print("❌ Error during role-specific DB calls")
+        traceback.print_exc()
+        flash("An error occurred while loading data.", "danger")
 
     if request.method == "POST":
+        print("📥 POST request received")
         email = request.form.get("email")
         firstname = request.form.get("firstname")
         surname = request.form.get("surname")
         send_email = request.form.get("send_email") == "on"
         admin = 1 if request.form.get("admin") == "1" else 0
-        hashed_pw = None  # User will set their password later
+        hashed_pw = None
         selected_role = request.form.get("selected_role")
-        selected_id = request.form.get("selected_id")
+        selected_id = request.form.get("selected_id")  # <-- FIXED HERE
 
-        with engine.begin() as conn:
-            existing = conn.execute(
-                text("EXEC FlaskHelperFunctions @Request = :Request, @Text = :Text"),
-                {"Request": "CheckEmailExists", "Text": email}
-            ).fetchone()
+        if selected_id == "" or selected_id is None:
+            selected_id = None
+        else:
+            selected_id = int(selected_id)
 
+        print(f"🧾 Creating user: {email}, Role: {selected_role}, ID: {selected_id}")
 
-            if existing:
-                flash("⚠️ Email already exists.", "warning")
-            else:
-                with engine.begin() as conn:
+        try:
+            with engine.begin() as conn:
+                existing = conn.execute(
+                    text("EXEC FlaskHelperFunctions @Request = :Request, @Text = :Text"),
+                    {"Request": "CheckEmailExists", "Text": email}
+                ).fetchone()
+
+                if existing:
+                    flash("⚠️ Email already exists.", "warning")
+                else:
                     conn.execute(
                         text("""
                             EXEC FlaskInsertUser 
@@ -116,45 +134,46 @@ def create_user():
                                 @FirstName = :firstname,
                                 @Surname = :surname,
                                 @Admin = :admin,
-                                @Active = :active,
-            @PerformedByEmail = :performed_by
+                                @Active = :active
                         """),
                         {
                             "email": email,
                             "hash": hashed_pw,
                             "role": selected_role,
-                            "id": selected_id,
+                            "id": selected_id if selected_id is not None else sqlalchemy.sql.null(),
                             "firstname": firstname,
                             "surname": surname,
                             "admin": admin,
-                            "active": 1,
-        "performed_by": session["user_email"]
+                            "active": 1
                         }
                     )
-                flash(f"✅ User {email} created.", "success")
+                    flash(f"✅ User {email} created.", "success")
 
-                if send_email:
-                    send_account_setup_email(
-                        mail=mail,
-                        recipient_email=email,
-                        first_name=firstname,
-                        role=selected_role,
-                        is_admin=admin,
-                        invited_by_name=f"{session.get('user_firstname')} {session.get('user_surname')}",
-                        inviter_desc=user_desc
-                    )
-    
-   # print(user_role)
-   # print(providers)
-    return render_template("create_user.html",
+                    if send_email:
+                        send_account_setup_email(
+                            mail=mail,
+                            recipient_email=email,
+                            first_name=firstname,
+                            role=selected_role,
+                            is_admin=admin,
+                            invited_by_name=f"{session.get('user_firstname')} {session.get('user_surname')}",
+                            inviter_desc=user_desc
+                        )
+        except Exception as e:
+            print("❌ Error during user creation")
+            traceback.print_exc()
+            flash("Failed to create user due to an internal error.", "danger")
+
+    return render_template(
+        "create_user.html",
         user_role=user_role,
-        name=session.get("desc"),
+        name=user_desc,
         funder=funder,
+        funders=funders,
         provider=providers,
         schools=schools,
         only_own_staff_or_empty=only_own_staff_or_empty
     )
-
 from datetime import datetime
 from flask import session, render_template
 from sqlalchemy import text

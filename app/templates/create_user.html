@@ -85,7 +85,7 @@
           <label class="form-label">Select Funder</label>
           <select id="funder-id" class="form-select">
             {% if user_role == 'ADM' %}
-              {% for f in funder %}
+              {% for f in funders %}
                 <option value="{{ f.id }}">{{ f.Description }}</option>
               {% endfor %}
             {% else %}
@@ -100,7 +100,7 @@
           <label class="form-label">Select Provider</label>
           <select id="provider-id" class="form-select">
             {% if user_role != 'PRO' %}
-              {% for p in provider %}
+              {% for p in providers %}
                 <option value="{{ p.id }}">{{ p.Description }}</option>
               {% endfor %}
             {% else %}

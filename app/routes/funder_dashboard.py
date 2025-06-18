@@ -64,7 +64,7 @@ def funder_dashboard():
             selected_funder_id = funder_id
 
         if not selected_funder_id:
-            return render_template("funder_dashboard.html", elearning=[], schools=[], selected_year=None, selected_term=None,
+            return render_template("overview.html", elearning=[], schools=[], selected_year=None, selected_term=None,
                                    available_years=[], available_terms=[], no_elearning=True, no_schools=True,
                                    summary_string=None, user_role=user_role, funder_list=funder_dropdown,
                                    selected_funder_id=None, all_funders=all_funders, all_providers=all_providers,
@@ -111,7 +111,7 @@ def funder_dashboard():
 
         title = f"{session.get('user_desc')} Overview" if user_role in ["PRO", "FUN"] else "Overview"
 
-        return render_template("funder_dashboard.html", elearning=elearning_df.to_dict(orient="records"),
+        return render_template("overview.html", elearning=elearning_df.to_dict(orient="records"),
                                schools=school_df.to_dict(orient="records"),
                                selected_year=selected_year, selected_term=selected_term,
                                available_years=available_years, available_terms=available_terms,

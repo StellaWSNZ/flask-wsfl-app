@@ -57,7 +57,7 @@ def send_account_setup_email(mail, recipient_email, first_name, role, is_admin, 
 
     msg = Message(
         subject="You've Been Invited to WSFL",
-        sender="stella@watersafety.org.nz",
+        sender=(f"{invited_by_name} via WSFL", current_app.config["MAIL_DEFAULT_SENDER"]),
         recipients=[recipient_email]
     )
 
@@ -103,7 +103,7 @@ def generate_survey_link(email, firstname, lastname, role, user_id, survey_id):
     # Link goes to the token route, which then redirects to guest view
     return url_for("survey_bp.survey_invite_token", token=token, _external=True)
 
-def send_survey_invite_email(mail, recipient_email, first_name, role, user_id, survey_id):
+def send_survey_invite_email(mail, recipient_email, first_name, role, user_id, survey_id, invited_by_name):
     link = generate_survey_link(
         email=recipient_email,
         firstname=first_name,
@@ -115,7 +115,7 @@ def send_survey_invite_email(mail, recipient_email, first_name, role, user_id, s
 
     msg = Message(
         subject="You're Invited to Complete a WSFL Survey",
-        sender="stella@watersafety.org.nz",
+        sender=(f"{invited_by_name} via WSFL", current_app.config["MAIL_DEFAULT_SENDER"]),
         recipients=[recipient_email]
     )
 

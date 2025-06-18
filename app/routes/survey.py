@@ -419,7 +419,8 @@ def send_survey_invite():
         first_name=first_name,
         role=role,
         user_id=user_id,
-        survey_id=survey_id
+        survey_id=survey_id,
+        invited_by_name = session["user_firstname"] + session["user_surname"]
     )
 
     flash(f"📧 Invitation sent to {recipient_email}", "success")

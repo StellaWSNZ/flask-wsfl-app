@@ -274,7 +274,7 @@
                 </li>
               </ul>
             </li>
-            {% if session['user_admin'] == 1 and session["user_role"] =="FUN"%}
+            {% if session['user_admin'] == 1%}
             <li class="nav-item">
               <a
                 class="nav-link"
@@ -282,8 +282,6 @@
                 >Staff Maintenance</a
               >
             </li>
-            {% endif %} {% if session['user_admin'] == 1 %}
-
             <li class="nav-item mt-2 mt-lg-0 me-2">
               <a href="{{ url_for('admin_bp.create_user') }}" class="nav-link">
                 <i class="bi bi-person-plus me-1"></i> Create User
