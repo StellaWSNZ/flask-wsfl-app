@@ -29,7 +29,7 @@ def remove_macrons(s):
     normalized = unicodedata.normalize("NFD", s)
     return ''.join(c for c in normalized if unicodedata.category(c) != 'Mn')
 
-@upload_bp.route('/ClassList', methods=['GET', 'POST'])
+@upload_bp.route('/ClassUpload', methods=['GET', 'POST'])
 @login_required
 def classlistupload():
     validated=False
@@ -61,7 +61,7 @@ def classlistupload():
         session["selected_funder"] = selected_funder
 
         selected_school_str = request.form.get("school") or str(session.get("user_desc")) + "("+str(session.get("user_id"))+ ")"
-
+        selected_school = selected_school_str 
         moe_number = (
             int(selected_school_str)
             if selected_school_str.isdigit()
@@ -87,7 +87,8 @@ def classlistupload():
                     {"Request": "FilterSchoolID", "Number": selected_funder}
                 )
                 schools = [row.School for row in result]
-
+        else:
+            schools = selected_school
             
         if action == "preview" and file and file.filename:
             
@@ -231,14 +232,14 @@ def classlistupload():
 
         elif action == "preview":
             flash("Please upload a valid CSV file.", "danger")
-    #print("🟡 validated =", validated)
 
+    
     return render_template(
         "classlistupload.html",
         funders=funders,
         schools=schools,
         selected_funder=selected_funder,
-        selected_school=selected_school_str,
+        selected_school=selected_school,
         selected_term=selected_term,
         selected_year=selected_year,
         selected_teacher = selected_teacher,

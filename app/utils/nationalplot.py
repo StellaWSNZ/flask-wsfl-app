@@ -16,9 +16,9 @@ BUFFER = 0.05
 DEBUG = False
 DB = True
 
-TERM = 4
-CALENDARYEAR = 2024
-OUTPUT_FILENAME = "Competency_Report.pdf"
+TERM = 2
+CALENDARYEAR = 2025
+OUTPUT_FILENAME = "NationalResultReport_" +str(TERM)+"_"+str(CALENDARYEAR)+".pdf"
 
 # ===================
 # DATABASE FUNCTIONS
@@ -36,8 +36,8 @@ def load_national_results(con, calendaryear, term, from_db=True):
     if from_db:
         with con.connect() as connection:
             result = connection.execute(
-                text("EXEC GetNationalRates2 :CalendarYear, :Term"),
-                {"CalendarYear": calendaryear, "Term": term}
+                text("EXEC GetFunderNationalRatesSmart :CalendarYear, :Term, :FunderID"),
+                {"CalendarYear": calendaryear, "Term": term, "FunderID":200}
             )
             data = result.fetchall()
             columns = result.keys()

@@ -707,7 +707,7 @@ def get_schools_by_funder():
         schools = [dict(row._mapping) for row in result]
     return jsonify(schools)
 
-@class_bp.route('/moe_classes', methods=['GET', 'POST'])
+@class_bp.route('/SchoolClasses', methods=['GET', 'POST'])
 @login_required
 def moe_classes():
     if session.get("user_role") != "MOE":

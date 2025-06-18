@@ -31,4 +31,4 @@ RUN pip install --upgrade pip && pip install -r requirements.txt
 RUN pip install pyodbc  
 
 RUN pip install gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:10000", "run:app"]
+CMD ["gunicorn", "--bind", "0.0.0.0:10000", "--timeout", "90", "--workers", "2", "--threads", "4", "run:app"]

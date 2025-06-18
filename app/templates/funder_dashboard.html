@@ -1,19 +1,26 @@
 {% extends "header.html" %}
-{% block title%}Funder Overview{% endblock %}
+{% block title %}Overview{% endblock %}
 
 {% block content %}
 <div class="container mt-5">
-  <h2 class="text-center text-primary mb-4">Funder Dashboard</h2>
+  <h2 class="text-center text-primary mb-4">{{ title }}</h2>
 
-
-
-  {% if user_role == "ADM" %}
-  <form method="POST" class="mb-4">
+  {% if user_role == "ADM" or (user_role in ["FUN", "PRO"] and user_admin == 1) %}
+  <form method="POST" class="mb-4" id="entityForm">
     <div class="row g-2 align-items-end justify-content-center">
-      <div class="col-md-6">
-        <label for="funder_id" class="form-label">Select Funder</label>
+      <div class="col-md-3">
+        <label for="entity_type" class="form-label">Entity Type</label>
+        <select name="entity_type" id="entity_type" class="form-select">
+          <option value="Funder" {% if entity_type == "Funder" %}selected{% endif %}>Funder</option>
+          <option value="Provider" {% if entity_type == "Provider" %}selected{% endif %}>Provider</option>
+        </select>
+      </div>
+      <div class="col-md-5">
+        <label for="funder_id" class="form-label" id="entityLabel">
+          Select {{ entity_type or 'Funder' }}
+        </label>
         <select name="funder_id" id="funder_id" class="form-select">
-          <option value="">-- Choose a Funder --</option>
+          <option value="">-- Choose a {{ entity_type or 'Funder' }} --</option>
           {% for funder in funder_list %}
             <option value="{{ funder.id }}" {% if funder.id == selected_funder_id %}selected{% endif %}>
               {{ funder.name }}
@@ -27,16 +34,17 @@
     </div>
   </form>
   {% endif %}
+
   {% if summary_string %}
-<div class="row justify-content-center">
-  <div class="col-md-8">
-    <div class="alert text-center align-items-center gap-2" style="background-color: #4d544120; color: #4d5441; border: 2px solid #4d5441;">
-      <!-- <i class="bi bi-info-circle-fill"></i> -->
-      <span>{{ summary_string | safe }}</span>
+  <div class="row justify-content-center">
+    <div class="col-md-8">
+      <div class="alert text-center align-items-center gap-2" style="background-color: #4d544120; color: #4d5441; border: 2px solid #4d5441;">
+        <span>{{ summary_string | safe }}</span>
+      </div>
     </div>
   </div>
-</div>
   {% endif %}
+
   {% if selected_funder_id %}
   <div class="row g-4">
     <!-- Column 1: Staff eLearning -->
@@ -64,19 +72,19 @@
                   {% for key, val in row.items() %}
                     {% if key != "Name" %}
                     <td>
-  {% set status = val|string %}
-  {% if status in ['Passed', 'Completed'] %}
-    <span class="badge bg-success" style="font-size: 0.8rem;">{{ status }}</span>
-  {% elif status == 'Cancelled' %}
-    <span class="badge bg-danger" style="font-size: 0.8rem;">{{ status }}</span>
-  {% elif status == 'In Progress' %}
-    <span class="badge bg-warning text-dark" style="font-size: 0.8rem;">{{ status }}</span>
-  {% elif status == 'Not Started' %}
-    <span class="badge bg-secondary" style="font-size: 0.8rem;">{{ status }}</span>
-  {% else %}
-    <span class="badge bg-light text-dark" style="font-size: 0.8rem;">{{ status }}</span>
-  {% endif %}
-</td>
+                      {% set status = val|string %}
+                      {% if status in ['Passed', 'Completed'] %}
+                        <span class="badge bg-success" style="font-size: 0.8rem;">{{ status }}</span>
+                      {% elif status == 'Cancelled' %}
+                        <span class="badge bg-danger" style="font-size: 0.8rem;">{{ status }}</span>
+                      {% elif status == 'In Progress' %}
+                        <span class="badge bg-warning text-dark" style="font-size: 0.8rem;">{{ status }}</span>
+                      {% elif status == 'Not Started' %}
+                        <span class="badge bg-secondary" style="font-size: 0.8rem;">{{ status }}</span>
+                      {% else %}
+                        <span class="badge bg-light text-dark" style="font-size: 0.8rem;">{{ status }}</span>
+                      {% endif %}
+                    </td>
                     {% endif %}
                   {% endfor %}
                 </tr>
@@ -99,9 +107,8 @@
         </div>
         <div class="card-body">
           <form method="POST" class="row g-2 mb-3" id="filterForm">
-            {% if user_role == "ADM" and selected_funder_id %}
-              <input type="hidden" name="funder_id" value="{{ selected_funder_id }}">
-            {% endif %}
+            <input type="hidden" name="funder_id" value="{{ selected_funder_id }}">
+            <input type="hidden" name="entity_type" value="{{ entity_type }}">
             <div class="col-md-6">
               <label for="term" class="form-label">Term</label>
               <select name="term" id="term" class="form-select" onchange="document.getElementById('filterForm').submit();">
@@ -126,32 +133,14 @@
               <thead class="table-light">
                 <tr>
                   {% for col in schools[0].keys() %}
-                  {% if col == "Funder" %}
-                  <th>
-                    {{ col }}
-                    <span class="ms-1">
-                      <a href="#"
-                         tabindex="0"
-                         role="button"
-                         class="text-dark"
-                         data-bs-toggle="popover"
-                         data-bs-trigger="focus"
-                         data-bs-html="true"
-                         data-bs-content="Are any funders incorrect?<br><a href='{{ url_for('admin_bp.provider_maintenance') }}' class='alert-link'>Click here to edit</a>.">
-                        <i class="bi bi-info-circle-fill"></i>
-                      </a>
-                    </span>
-                  </th>
-                  {% else %}
                   <th>{{ col.replace('_', ' ') }}</th>
-                  {% endif %}
                   {% endfor %}
                 </tr>
               </thead>
               <tbody>
                 {% for row in schools %}
                 <tr>
-                  {% for key, val in row.items() %}
+                  {% for val in row.values() %}
                   <td>{{ val }}</td>
                   {% endfor %}
                 </tr>
@@ -168,16 +157,37 @@
   </div>
   {% elif user_role == "ADM" %}
   <div class="alert alert-info mt-4">
-    Please select a funder from the dropdown above to view the dashboard.
+    Please select a funder or provider from the dropdown above to view the dashboard.
   </div>
   {% endif %}
 </div>
 
+<!-- SCRIPT: Dynamic Entity Dropdown -->
 <script>
   document.addEventListener("DOMContentLoaded", function () {
-    var popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
-    popoverTriggerList.map(function (popoverTriggerEl) {
-      return new bootstrap.Popover(popoverTriggerEl);
+    const entitySelect = document.getElementById("entity_type");
+    const funderSelect = document.getElementById("funder_id");
+    const label = document.getElementById("entityLabel");
+
+    entitySelect.addEventListener("change", function () {
+      const selectedType = this.value;
+      const currentSelected = funderSelect.value;
+      label.textContent = `Select ${selectedType}`;
+
+      fetch(`/get_entities?entity_type=${selectedType}`)
+        .then(response => response.json())
+        .then(data => {
+          funderSelect.innerHTML = `<option value="">-- Choose a ${selectedType} --</option>`;
+          data.forEach(item => {
+            const option = document.createElement("option");
+            option.value = item.id;
+            option.textContent = item.name;
+            if (item.id == currentSelected) {
+              option.selected = true;
+            }
+            funderSelect.appendChild(option);
+          });
+        });
     });
   });
 </script>
