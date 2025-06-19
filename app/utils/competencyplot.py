@@ -13,7 +13,7 @@ TITLE_SPACE = 0.2
 DEBUG = False
 TERM = 2
 CALENDARYEAR = 2025
-OUTPUT_FILENAME = f"Competency_Report_{TERM}_{CALENDARYEAR}.pdf"
+OUTPUT_FILENAME = f"Competency_Report_{TERM}_{CALENDARYEAR}_w_nationalLY.pdf"
 
 # ========== DATABASE ==============
 def get_db_engine():
@@ -45,7 +45,11 @@ def load_competency_rates(con, calendaryear, term, competencyID, yearGroupID):
                 "YearGroupID": yearGroupID
             }
         )
-        return pd.DataFrame(result.fetchall(), columns=result.keys())
+        df = pd.DataFrame(result.fetchall(), columns=result.keys())
+
+    # Only filter here, sort later in make_figure
+    df = df[~df["FunderID"].isin([13, 15])]
+    return df
 
 def load_national_rates(con, calendaryear, term):
     with con.connect() as connection:
@@ -58,15 +62,17 @@ def load_national_rates(con, calendaryear, term):
             }
         )
         df = pd.DataFrame(result.fetchall(), columns=result.keys())
-    return df[df["ResultType"] == "National Rate (LY)"].reset_index(drop=True)
+    return df[df["ResultType"].isin(["National Rate (LY)"])].reset_index(drop=True)
 
 # ========== PLOTTING ==============
-def make_figure(ax, df, title, national_rate=None):
+def make_figure(ax, df, title, national_rate_ly=None, national_rate_ytd=None):
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1 + TITLE_SPACE)
     ax.set_xticks([])
     ax.set_yticks([])
-    df = df.sort_values(by='FunderDesc', ascending=False)
+
+    # Sort and reset index
+    df = df.sort_values("FunderDesc", ascending=False).reset_index(drop=True)
 
     wrapped_title = textwrap.wrap(title, width=70)
     line_spacing = 0.05
@@ -100,41 +106,56 @@ def make_figure(ax, df, title, national_rate=None):
         ax.text(buffer + buffer_name - value_offset, y_pos + height_per / 2, funder, ha='right', va='center', weight='bold')
 
     # Red dashed national line
-    if national_rate is not None and pd.notna(national_rate):
-        national_x = buffer + buffer_name + width_per * national_rate * 100
+    if national_rate_ly is not None and pd.notna(national_rate_ly):
+        national_x = buffer + buffer_name + width_per * national_rate_ly * 100
         line_bottom = buffer - 0.02
         line_top = 1 - buffer + 0.02
 
         ax.plot([national_x, national_x], [line_bottom, line_top],
                 color='red', linestyle='dashed', linewidth=1.5)
 
-        # Label above the line
-        ax.text(national_x, line_top + 0.015, f"{national_rate * 100:.1f}%",
+        ax.text(national_x, line_top + 0.015, f"{national_rate_ly * 100:.1f}%",
                 color='red', ha='center', va='bottom', fontsize=10, weight='bold')
 
-        # Label below the line
         ax.text(national_x, line_bottom - 0.015, "National (LY)",
-                color='red', ha='center', va='top', fontsize=9, weight='bold')
+                color='red', ha='right', va='top', fontsize=9, weight='bold')
+
+    # Blue dashed YTD line
+    if national_rate_ytd is not None and pd.notna(national_rate_ytd):
+        national_x = buffer + buffer_name + width_per * national_rate_ytd * 100
+        ax.plot([national_x, national_x], [line_bottom, line_top],
+                color='blue', linestyle='dashed', linewidth=1.5)
+
+        ax.text(national_x, line_top + 0.015, f"{national_rate_ytd * 100:.1f}%",
+                color='blue', ha='center', va='bottom', fontsize=10, weight='bold')
+
+        ax.text(national_x, line_bottom - 0.015, "National (YTD)",
+                color='blue', ha='left', va='top', fontsize=9, weight='bold')
+
     for spine in ax.spines.values():
         spine.set_visible(False)
 
 # ========== MAIN ===================
 def main():
     con = get_db_engine()
-    competencies = get_all_competencies(con, CALENDARYEAR, TERM)
+    competencies = get_all_competencies(con, CALENDARYEAR, TERM).sort_values(
+        by=["YearGroupID", "CompetencyID"]
+    ).reset_index(drop=True)
     national_df = load_national_rates(con, CALENDARYEAR, TERM)
 
     pdf_pages = PdfPages(OUTPUT_FILENAME)
 
     for i in range(0, len(competencies), 2):
         fig, axs = plt.subplots(2, 1, figsize=PAGE_SIZE)
-        
+
         for j in range(2):
             if i + j >= len(competencies):
                 fig.delaxes(axs[j])
                 continue
-
+            
             comp = competencies.iloc[i + j]
+            print(comp['CompetencyDesc'])
+            print(comp['YearGroupDesc'])
             competency_id = int(comp['CompetencyID'])
             year_group_id = int(comp['YearGroupID'])
 
@@ -144,10 +165,15 @@ def main():
                 (national_df["CompetencyID"] == competency_id) &
                 (national_df["YearGroupID"] == year_group_id)
             ]
-            national_rate = national_match["Rate"].values[0] if not national_match.empty else None
+            rate_ly = national_match[national_match["ResultType"] == "National Rate (LY)"]["Rate"]
+            rate_ytd = national_match[national_match["ResultType"] == "National Rate (YTD)"]["Rate"]
+
+            national_rate_ly = rate_ly.values[0] if not rate_ly.empty else None
+            national_rate_ytd = rate_ytd.values[0] if not rate_ytd.empty else None
 
             title = f"{comp['CompetencyDesc']} ({comp['YearGroupDesc']})"
-            make_figure(axs[j], df, title, national_rate=national_rate)
+            make_figure(axs[j], df, title, national_rate_ly=national_rate_ly, national_rate_ytd=national_rate_ytd)
+
 
         plt.tight_layout()
         pdf_pages.savefig(fig)
