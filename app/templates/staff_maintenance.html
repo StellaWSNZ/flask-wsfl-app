@@ -2,13 +2,45 @@
 block content %}
 
 <div class="container mt-5">
-  <h2 class="mb-4 text-center text-primary">{{ name }} Staff Maintenance</h2>
-  <h6 class="mb-4 text-center text-primary">
+  {% if user_role == "ADM" %}
+<div class="container mb-4">
+  <div class="row">
+    <div class="col-md-10 offset-md-1">
+      <div class="input-group">
+        <label class="input-group-text" for="entityTypeSelector">View by</label>
+        <select id="entityTypeSelector" class="form-select">
+          <option value="Funder" {% if selected_entity_type == "Funder" %}selected{% endif %}>Funder</option>
+          <option value="Provider" {% if selected_entity_type == "Provider" %}selected{% endif %}>Provider</option>
+        </select>
+        <select id="entityDropdown" class="form-select">
+          <option selected disabled>Loading options...</option>
+        </select>
+        <button id="loadStaffBtn" class="btn btn-primary" type="button">
+          Load Staff
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+
+  {% if user_role != "ADM" or selected_entity_name %}
+<h2 class="mb-4 text-center text-primary">
+  {% if user_role == "ADM" %}
+    Staff for {{ selected_entity_name }}
+  {% else %}
+    {{ name }} Staff Maintenance
+  {% endif %}
+</h2>
+<h6 class="mb-4 text-center text-primary">
     Are you missing staff?
     <a href="#" data-bs-toggle="modal" data-bs-target="#addStaffModal"
       >Click here</a
     >
   </h6>
+{% endif %}
+  
 
   <!-- Add Staff Modal -->
   <div
@@ -469,6 +501,48 @@ block content %}
   </div>
 </div>
 <!-- Modal Logic -->
+ {% if user_role == "ADM" %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const entityTypeSelector = document.getElementById("entityTypeSelector");
+  const entityDropdown = document.getElementById("entityDropdown");
+  const loadBtn = document.getElementById("loadStaffBtn");
+
+  async function loadEntities() {
+    const type = entityTypeSelector.value;
+    entityDropdown.innerHTML = `<option disabled selected>Loading...</option>`;
+    try {
+      const res = await fetch(`/get_entities?entity_type=${type}`);
+      const data = await res.json();
+      if (data.length === 0) {
+        entityDropdown.innerHTML = `<option disabled selected>No options found</option>`;
+        return;
+      }
+      entityDropdown.innerHTML = data.map(e =>
+        `<option value="${e.id}" ${e.id == "{{ selected_entity_id }}" ? "selected" : ""}>${e.name}</option>`
+      ).join('');
+    } catch (error) {
+      console.error("Error loading entities:", error);
+      entityDropdown.innerHTML = `<option disabled selected>Error loading</option>`;
+    }
+  }
+
+  loadEntities();
+
+  entityTypeSelector.addEventListener("change", loadEntities);
+
+  loadBtn.addEventListener("click", () => {
+    const type = entityTypeSelector.value;
+    const id = entityDropdown.value;
+    if (type && id) {
+      const query = new URLSearchParams({ entity_type: type, entity_id: id });
+      window.location.href = `/Staff?${query.toString()}`;
+    }
+  });
+});
+</script>
+{% else %}
+
 <script>
   document.addEventListener("DOMContentLoaded", function () {
     const statusSelect = document.getElementById("accountStatus");
@@ -488,4 +562,5 @@ block content %}
     toggleAdminVisibility(); // Trigger on load
   });
 </script>
+{% endif %}
 {% endblock %}

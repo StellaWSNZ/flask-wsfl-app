@@ -1,19 +1,14 @@
-from flask import Blueprint, render_template, session, redirect, url_for, flash, request
-import pandas as pd
-from sqlalchemy import text
-from app.utils.database import get_db_engine  # adjust path as needed
-from app.routes.auth import login_required
-from app.utils.custom_email import send_account_setup_email
-from app.extensions import mail
-staff_bp = Blueprint("staff_bp", __name__)
-
-import sys
-from flask import Blueprint, render_template, session
+from flask import Blueprint, render_template, session, redirect, url_for, flash, request, jsonify
 import pandas as pd
 from sqlalchemy import text
 from app.utils.database import get_db_engine
+from app.routes.auth import login_required
+from app.utils.custom_email import send_account_setup_email
+from app.extensions import mail
 import traceback
+
 staff_bp = Blueprint("staff_bp", __name__)
+
 
 @staff_bp.route("/Staff")
 @login_required
@@ -21,38 +16,108 @@ def staff_maintenance():
     user_id = session.get("user_id")
     user_role = session.get("user_role")
 
-    if not user_id or not user_role:
+    if not user_role:
         return "Unauthorized", 403
 
-    engine = get_db_engine()
-    with engine.connect() as conn:
-        # print("Connected to DB")
-        sys.stdout.flush()
+    selected_entity_id = request.args.get("entity_id")
+    selected_entity_type = request.args.get("entity_type")  # Funder or Provider
 
-        try:
-            with engine.begin() as conn:
-                result = conn.execute(
-                    text("EXEC FlaskGetStaffDetails @RoleType = :role, @ID = :id, @Email = :email"),
-                    {
-                        "role": user_role.upper(),
-                        "id": int(user_id),
-                        "email": session["user_email"]
-                    }
-                )
+    try:
+        selected_entity_name = None
 
-                rows = result.fetchall()
-            sys.stdout.flush()
+        with get_db_engine().connect() as conn:
+            # Admin user with selected filter
+            if user_role == "ADM":
+                if selected_entity_id and selected_entity_type:
+                    if selected_entity_type == "Provider":
+                        role_type = "PRO"
+                    elif selected_entity_type == "Funder":
+                        role_type = "FUN"
+                    else:
+                        flash("Invalid entity type selected.", "danger")
+                        return redirect(url_for("staff_bp.staff_maintenance"))
 
+                    target_id = int(selected_entity_id)
+
+                    # ✅ Fetch entity name while connection is open
+                    if selected_entity_type in ["Provider", "Funder"]:
+                        id_column = f"{selected_entity_type}ID"
+                        result = conn.execute(
+                            text(f"SELECT Description FROM {selected_entity_type} WHERE {id_column} = :id"),
+                            {"id": target_id}
+                        )
+                        selected_entity_name = result.scalar()
+                else:
+                    # No entity selected, show empty table
+                    return render_template(
+                        "staff_maintenance.html",
+                        data=[],
+                        columns=[],
+                        name=session.get("desc"),
+                        user_role=user_role,
+                        selected_entity_id=None,
+                        selected_entity_type=None,
+                        selected_entity_name=None
+                    )
+            else:
+                # Non-admin user views own staff
+                role_type = user_role.upper()
+                target_id = int(user_id)
+
+            result = conn.execute(
+                text("EXEC FlaskGetStaffDetails @RoleType = :role, @ID = :id, @Email = :email"),
+                {"role": role_type, "id": target_id, "email": session["user_email"]}
+            )
+            rows = result.fetchall()
             data = pd.DataFrame(rows, columns=result.keys())
-            sys.stdout.flush()
-            # print(data)
-            return render_template("staff_maintenance.html", data=data.to_dict(orient="records"), columns=data.columns, name = session.get('desc'))
+
+        return render_template(
+            "staff_maintenance.html",
+            data=data.to_dict(orient="records"),
+            columns=data.columns,
+            name=session.get("desc"),
+            user_role=user_role,
+            selected_entity_id=selected_entity_id,
+            selected_entity_type=selected_entity_type,
+            selected_entity_name=selected_entity_name
+        )
+
+    except Exception as e:
+        print("❌ Exception occurred:", e)
+        traceback.print_exc()
+        return f"Error: {e}", 500
 
 
-        except Exception as e:
-            print("❌ Exception occurred:", e)
-            sys.stdout.flush()
-            return f"Error: {e}", 500
+@staff_bp.route("/get_entities")
+@login_required
+def get_entities():
+    entity_type = request.args.get("entity_type")
+    if not entity_type:
+        return jsonify([])
+
+    try:
+        engine = get_db_engine()
+        with engine.connect() as conn:
+            if entity_type == "Funder":
+                result = conn.execute(
+                    text("EXEC FlaskHelperFunctions @Request = :Request"),
+                    {"Request": "FunderDropdown"}
+                )
+                return jsonify([{"id": row.FunderID, "name": row.Description} for row in result])
+
+            elif entity_type == "Provider":
+                result = conn.execute(
+                    text("EXEC FlaskHelperFunctions @Request = :Request"),
+                    {"Request": "ProviderDropdown"}
+                )
+                return jsonify([{"id": row.ProviderID, "name": row.Description} for row in result])
+
+        return jsonify([])
+    except Exception as e:
+        print("❌ Error in get_entities:", e)
+        return jsonify([]), 500
+
+
 
 
 @staff_bp.route('/update_staff', methods=['POST'])
