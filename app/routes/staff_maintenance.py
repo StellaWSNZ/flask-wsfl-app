@@ -13,109 +13,160 @@ staff_bp = Blueprint("staff_bp", __name__)
 @staff_bp.route("/Staff")
 @login_required
 def staff_maintenance():
-    user_id = session.get("user_id")
-    user_role = session.get("user_role")
-
-    if not user_role:
-        return "Unauthorized", 403
-
-    selected_entity_id = request.args.get("entity_id")
-    selected_entity_type = request.args.get("entity_type")  # Funder or Provider
-
     try:
+        user_id = session.get("user_id")
+        user_role = session.get("user_role")
+        user_email = session.get("user_email")
+        user_desc = session.get("desc")
+
+        if not user_role:
+            return "Unauthorized", 403
+
+        selected_entity_id = request.args.get("entity_id")
+        selected_entity_type = request.args.get("entity_type")
+
         selected_entity_name = None
+        data = pd.DataFrame()
+        provider_options = []
 
         with get_db_engine().connect() as conn:
-            # Admin user with selected filter
             if user_role == "ADM":
+                # Full dropdown for ADM: Funder or Provider
                 if selected_entity_id and selected_entity_type:
-                    if selected_entity_type == "Provider":
-                        role_type = "PRO"
-                    elif selected_entity_type == "Funder":
-                        role_type = "FUN"
-                    else:
-                        flash("Invalid entity type selected.", "danger")
-                        return redirect(url_for("staff_bp.staff_maintenance"))
-
+                    id_column = f"{selected_entity_type}ID"
+                    result = conn.execute(
+                        text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :id, @Text = :type"),
+                        {"Request": "GetEntityDescription", "id": int(selected_entity_id), "type": selected_entity_type}
+                    )
+                    selected_entity_name = result.scalar() 
+                    role_type = "FUN" if selected_entity_type == "Funder" else "PRO"
                     target_id = int(selected_entity_id)
+                else:
+                    return render_template("staff_maintenance.html",
+                        data=[], columns=[],
+                        user_role=user_role, name=user_desc,
+                        selected_entity_type=None, selected_entity_id=None,
+                        selected_entity_name=None, provider_options=[]
+                    )
 
-                    # ✅ Fetch entity name while connection is open
-                    if selected_entity_type in ["Provider", "Funder"]:
-                        id_column = f"{selected_entity_type}ID"
+            elif user_role == "FUN":
+                # Funder: dropdown with "Funder" or "Provider"
+                entity_type = selected_entity_type or "Funder"
+
+                if entity_type == "Funder":
+                    # View own staff
+                    role_type = "FUN"
+                    target_id = int(user_id)
+                    selected_entity_name = user_desc
+
+                elif entity_type == "Provider":
+                    # Provider dropdown for funded providers
+                    providers = conn.execute(
+                        text("EXEC FlaskHelperFunctions @Request = 'ProvidersByFunderID', @Number = :fid"),
+                        {"fid": user_id}
+                    ).fetchall()
+                    provider_options = [{"id": row.id, "name": row.Description} for row in providers]
+
+                    if selected_entity_id:
                         result = conn.execute(
-                            text(f"SELECT Description FROM {selected_entity_type} WHERE {id_column} = :id"),
-                            {"id": target_id}
+                            text("EXEC FlaskHelperFunctions @Request = 'ProviderName', @Number = :fid"),
+                            {"fid": selected_entity_id}
                         )
                         selected_entity_name = result.scalar()
+                        role_type = "PRO"
+                        target_id = int(selected_entity_id)
+                    else:
+                        return render_template("staff_maintenance.html",
+                            data=[], columns=[],
+                            user_role=user_role, name=user_desc,
+                            selected_entity_type="Provider", selected_entity_id=None,
+                            selected_entity_name=None, provider_options=provider_options
+                        )
                 else:
-                    # No entity selected, show empty table
-                    return render_template(
-                        "staff_maintenance.html",
-                        data=[],
-                        columns=[],
-                        name=session.get("desc"),
-                        user_role=user_role,
-                        selected_entity_id=None,
-                        selected_entity_type=None,
-                        selected_entity_name=None
-                    )
-            else:
-                # Non-admin user views own staff
-                role_type = user_role.upper()
-                target_id = int(user_id)
+                    return "Invalid entity type", 400
 
+            else:
+                # MOE/PRO user views own staff
+                role_type = user_role
+                target_id = int(user_id)
+                selected_entity_name = user_desc
+
+            # Get staff details
             result = conn.execute(
                 text("EXEC FlaskGetStaffDetails @RoleType = :role, @ID = :id, @Email = :email"),
-                {"role": role_type, "id": target_id, "email": session["user_email"]}
+                {"role": role_type, "id": target_id, "email": user_email}
             )
             rows = result.fetchall()
             data = pd.DataFrame(rows, columns=result.keys())
 
-        return render_template(
-            "staff_maintenance.html",
+        return render_template("staff_maintenance.html",
             data=data.to_dict(orient="records"),
             columns=data.columns,
-            name=session.get("desc"),
             user_role=user_role,
-            selected_entity_id=selected_entity_id,
+            name=user_desc,
             selected_entity_type=selected_entity_type,
-            selected_entity_name=selected_entity_name
+            selected_entity_id=selected_entity_id,
+            selected_entity_name=selected_entity_name,
+            provider_options=provider_options
         )
 
     except Exception as e:
-        print("❌ Exception occurred:", e)
+        print("❌ An error occurred in /Staff route:")
         traceback.print_exc()
         return f"Error: {e}", 500
-
 
 @staff_bp.route("/get_entities")
 @login_required
 def get_entities():
+    
+    
     entity_type = request.args.get("entity_type")
+    user_role = session.get("user_role")
+    print(f"📥 /get_entities called with entity_type={entity_type}, user_role={user_role}")
+
     if not entity_type:
         return jsonify([])
 
     try:
         engine = get_db_engine()
         with engine.connect() as conn:
-            if entity_type == "Funder":
-                result = conn.execute(
-                    text("EXEC FlaskHelperFunctions @Request = :Request"),
-                    {"Request": "FunderDropdown"}
-                )
-                return jsonify([{"id": row.FunderID, "name": row.Description} for row in result])
+            if entity_type == "Provider":
+                if user_role == "ADM":
+                    # ADM should get all providers
+                    result = conn.execute(
+                        text("EXEC FlaskHelperFunctions @Request = 'ProviderDropdown'")
+                    )
+                    return jsonify([{"id": row.ProviderID, "name": row.Description} for row in result])
+                else:
+                    # FUNDER gets providers by their own ID
+                    result = conn.execute(
+                        text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :FunderID"),
+                        {"Request": "ProvidersByFunder", "FunderID": session.get("user_id")}
+                    )
+                    return jsonify([{"id": row.ProviderID, "name": row.Description} for row in result])
 
-            elif entity_type == "Provider":
-                result = conn.execute(
-                    text("EXEC FlaskHelperFunctions @Request = :Request"),
-                    {"Request": "ProviderDropdown"}
-                )
-                return jsonify([{"id": row.ProviderID, "name": row.Description} for row in result])
+            elif entity_type == "Funder":
+                if user_role == "ADM":
+                    result = conn.execute(
+                        text("EXEC FlaskHelperFunctions @Request = 'FunderDropdown'")
+                    )
+                    rows = result.fetchall()
+                    print(rows)
+                    return jsonify([
+                        {"id": row.FunderID, "name": row.Description} for row in rows
+                    ])
+                else:
+                    # FUNDER user should only see themselves
+                    return jsonify([{
+                        "id": session.get("user_id"),
+                        "name": session.get("desc")
+                    }])
 
         return jsonify([])
     except Exception as e:
         print("❌ Error in get_entities:", e)
         return jsonify([]), 500
+
 
 
 
