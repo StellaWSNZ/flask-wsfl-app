@@ -217,70 +217,76 @@ def invite_user():
 @staff_bp.route('/add_staff', methods=['POST'])
 @login_required
 def add_staff():
-    email = request.form['email'].strip().lower()
-    firstname = request.form['firstname'].strip()
-    lastname = request.form['lastname'].strip()
-    selected_role = session.get("user_role")
-    selected_id = session.get("user_id")
-    account_status = request.form['account_status']
-    admin = 1 if request.form.get("admin") == "1" else 0
-    active = 1 if account_status == "enable" else 0
+    try:
+        email = request.form['email'].strip().lower()
+        firstname = request.form['firstname'].strip()
+        lastname = request.form['lastname'].strip()
+        selected_role = session.get("user_role")
+        selected_id = session.get("user_id")
+        account_status = request.form['account_status']
+        admin = 1 if request.form.get("admin") == "1" else 0
+        active = 1 if account_status == "enable" else 0
 
-    hashed_pw = None
-    send_email = account_status == "enable"
-    user_desc = session.get("desc")
+        hashed_pw = None
+        send_email = account_status == "enable"
+        user_desc = session.get("desc")
 
-    engine = get_db_engine()
+        engine = get_db_engine()
 
-    with engine.begin() as conn:
-        existing = conn.execute(
-            text("EXEC FlaskHelperFunctions @Request = :Request, @Text = :Text"),
-            {"Request": "CheckEmailExists", "Text": email}
-        ).fetchone()
+        with engine.begin() as conn:
+            existing = conn.execute(
+                text("EXEC FlaskHelperFunctions @Request = :Request, @Text = :Text"),
+                {"Request": "CheckEmailExists", "Text": email}
+            ).fetchone()
 
-        if existing:
-            flash("⚠️ Email already exists.", "warning")
-            return redirect(url_for('staff_bp.staff_maintenance'))
+            if existing:
+                flash("⚠️ Email already exists.", "warning")
+                return redirect(url_for('staff_bp.staff_maintenance'))
 
-    with engine.begin() as conn:
-         conn.execute(
-        text("""EXEC FlaskInsertUser 
-                @Email = :email,
-                @HashPassword = :hash,
-                @Role = :role,
-                @ID = :id,
-                @FirstName = :firstname,
-                @Surname = :surname,
-                @Admin = :admin,
-                @Active = :active,
-                  @PerformedByEmail = :performed_by"""),
-        {
-            "email": email,
-            "hash": hashed_pw,
-            "role": selected_role,
-            "id": selected_id,
-            "firstname": firstname,
-            "surname": lastname,
-            "admin": admin,
-            "active": active,
-        "performed_by": session["user_email"]
-        }
-    )
+        with engine.begin() as conn:
+            conn.execute(
+                text("""EXEC FlaskInsertUser 
+                        @Email = :email,
+                        @HashPassword = :hash,
+                        @Role = :role,
+                        @ID = :id,
+                        @FirstName = :firstname,
+                        @Surname = :surname,
+                        @Admin = :admin,
+                        @Active = :active"""),
+                {
+                    "email": email,
+                    "hash": hashed_pw,
+                    "role": selected_role,
+                    "id": selected_id,
+                    "firstname": firstname,
+                    "surname": lastname,
+                    "admin": admin,
+                    "active": active
+                }
+            )
 
-    flash(f"✅ User {email} created.", "success")
+        flash(f"✅ User {email} created.", "success")
 
-    if send_email:
-        send_account_setup_email(
-            mail=mail,
-            recipient_email=email,
-            first_name=firstname,
-            role=selected_role,
-            is_admin=admin,
-            invited_by_name=f"{session.get('user_firstname')} {session.get('user_surname')}",
-            inviter_desc=user_desc
-        )
+        if send_email:
+            send_account_setup_email(
+                mail=mail,
+                recipient_email=email,
+                first_name=firstname,
+                role=selected_role,
+                is_admin=admin,
+                invited_by_name=f"{session.get('user_firstname')} {session.get('user_surname')}",
+                inviter_desc=user_desc
+            )
 
-    return redirect(url_for('staff_bp.staff_maintenance'))
+        return redirect(request.referrer or url_for('staff_bp.staff_maintenance'))
+
+
+    except Exception as e:
+        print("❌ Exception in /add_staff:")
+        print(traceback.format_exc())
+        flash("❌ Failed to add user. Please check the logs.", "danger")
+        return redirect(url_for('staff_bp.staff_maintenance'))
 
 
 @staff_bp.route('/disable_user', methods=['POST'])
