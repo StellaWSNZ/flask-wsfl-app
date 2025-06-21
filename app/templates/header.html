@@ -131,6 +131,14 @@
                 <li>
                   <a
                     class="dropdown-item py-2"
+                    href="{{ url_for('funder_bp.funder_dashboard') }}"
+                    >Overview
+                  </a>
+                </li>
+
+                <li>
+                  <a
+                    class="dropdown-item py-2"
                     href="{% if user_role == 'ADM' %}{{ url_for('class_bp.funder_classes') }}{% else %}{{ url_for('class_bp.moe_classes') }}{% endif %}"
                   >
                     Class Lookup

@@ -364,3 +364,102 @@ def disable_user():
         flash(f"Error: {str(e)}", "danger")
 
     return redirect(url_for('staff_bp.staff_maintenance'))
+@staff_bp.route("/get_active_courses")
+@login_required
+def get_active_courses():
+    try:
+        print("📥 /get_active_courses route called")
+        engine = get_db_engine()
+        with engine.connect() as conn:
+            print("🔌 Connected to DB")
+            result = conn.execute(text("EXEC [FlaskHelperFunctionsSpecific] @Request = 'ActiveCourses'"))
+            rows = [dict(row._mapping) for row in result]
+            print(f"✅ Retrieved {len(rows)} active courses")
+            return jsonify(rows)
+    except Exception as e:
+        print("❌ /get_active_courses error:", e)
+        return jsonify([]), 500
+
+@staff_bp.route("/StaffELearning", methods=["GET"])
+@login_required
+def staff_elearning():
+    print("📥 Route '/StaffELearning' STARTED")
+    try:
+        engine = get_db_engine()
+        user_role = session.get("user_role")
+        default_id = session.get("user_id")
+        default_email = session.get("user_email")
+
+        # 🔽 Get selected values from URL or default to session
+        selected_entity_type = request.args.get("entity_type") or "Funder"
+        selected_entity_id = request.args.get("entity_id") or default_id
+
+        with engine.connect() as conn:
+            # 🔽 Fetch raw entity list from DB
+            raw_entity_list = conn.execute(
+                text("EXEC FlaskHelperFunctions @Request = :req"),
+                {"req": f"{selected_entity_type}Dropdown"}
+            ).fetchall()
+
+            # 🔽 Normalize list to contain id + name
+            entity_list = [
+                {
+                    "id": row.FunderID if "FunderID" in row._mapping else row.ProviderID,
+                    "name": row.Description
+                }
+                for row in raw_entity_list
+            ]
+
+            # 🔽 Fetch eLearning records
+            rows = conn.execute(
+                text("EXEC FlaskGetStaffELearning :RoleType, :ID, :Email"),
+                {
+                    "RoleType": selected_entity_type[:3].upper(),  # "Funder" → "FUN"
+                    "ID": selected_entity_id,
+                    "Email": default_email
+                }
+            ).fetchall()
+            print(f"📊 Retrieved {len(rows)} eLearning rows")
+
+            active_courses = conn.execute(
+                text("EXEC FlaskHelperFunctionsSpecific @Request = 'ActiveCourses'")
+            ).fetchall()
+            active_course_ids = [str(r.ELearningCourseID) for r in active_courses]
+
+        # 🔽 Group by email
+        grouped = {}
+        for row in rows:
+            email = row.Email
+            if email not in grouped:
+                grouped[email] = {
+                    "Email": row.Email,
+                    "FirstName": row.FirstName,
+                    "Surname": row.Surname,
+                    "Courses": {}
+                }
+
+            grouped[email]["Courses"][str(row.CourseID)] = {
+                "CourseName": row.CourseName,
+                "Status": row.Status
+            }
+
+        # 🔽 Determine selected name from list
+        selected_name = next(
+            (e["name"] for e in entity_list if str(e["id"]) == str(selected_entity_id)),
+            "Selected"
+        )
+
+        return render_template(
+            "staff_elearning.html",
+            staff_elearning_data=grouped,
+            course_ids=active_course_ids,
+            selected_entity_type=selected_entity_type,
+            selected_entity_id=int(selected_entity_id),
+            entity_list=entity_list,
+            name=selected_name
+        )
+
+    except Exception as e:
+        print("❌ staff_elearning route error:", e)
+        traceback.print_exc()
+        return "Internal Server Error", 500

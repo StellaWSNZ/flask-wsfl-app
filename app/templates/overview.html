@@ -3,6 +3,23 @@
 
 {% block content %}
 <div class="container mt-5" style="max-width: 80%;">
+
+  <!-- 🔄 Loading Spinner -->
+  <div id="loadingSpinner" style="
+    display: none;
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background-color: rgba(255, 255, 255, 0.75);
+    z-index: 9999;
+    text-align: center;
+    padding-top: 20%;
+  ">
+    <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+    <p class="mt-2">Loading, please wait...</p>
+  </div>
+
   <h2 class="text-center text-primary mb-4">{{ title }}</h2>
 
   {% if user_role == "ADM" or (user_role in ["FUN", "PRO"] and user_admin == 1) %}
@@ -161,8 +178,6 @@
   </div>
   {% endif %}
 </div>
-
-<!-- SCRIPT: Dynamic Entity Dropdown -->
 <script>
   document.addEventListener("DOMContentLoaded", function () {
     const entitySelect = document.getElementById("entity_type");
@@ -173,25 +188,35 @@
       const selectedType = this.value;
       label.textContent = `Select ${selectedType}`;
 
-      // Clear dropdown
-      funderSelect.innerHTML = `<option value="">-- Choose a ${selectedType} --</option>`;
+      // Clear and show loading message
+      funderSelect.innerHTML = `<option value="">Loading ${selectedType}s...</option>`;
+      funderSelect.disabled = true;
 
       // Only fetch providers dynamically
       if (selectedType === "Provider") {
         fetch(`/get_entities?entity_type=Provider`)
           .then(response => response.json())
           .then(data => {
+            funderSelect.innerHTML = `<option value="">-- Choose a Provider --</option>`;
             data.forEach(item => {
               const option = document.createElement("option");
               option.value = item.id;
               option.textContent = item.name;
               funderSelect.appendChild(option);
             });
+            funderSelect.disabled = false;
+          })
+          .catch(error => {
+            funderSelect.innerHTML = `<option value="">Error loading providers</option>`;
+            console.error("Error loading providers:", error);
           });
+      } else {
+        // If Funder, set only current user’s funder
+        funderSelect.innerHTML = `<option value="">-- Choose a Funder --</option>`;
+        funderSelect.disabled = false;
       }
     });
   });
 </script>
-
 
 {% endblock %}

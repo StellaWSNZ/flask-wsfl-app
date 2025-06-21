@@ -1,0 +1,138 @@
+{% extends "header.html" %}
+{% block title %}Staff eLearning{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+  <h2 class="mb-4 text-primary text-center">{{ name }}'s Staff eLearning</h2>
+
+  <!-- 🔽 Filter Form -->
+  <form method="GET" id="filterForm" class="row g-3 mb-4">
+    <div class="col-md-3">
+      <label for="entity_type" class="form-label">Entity Type</label>
+      <select class="form-select" name="entity_type" id="entity_type" required>
+        <option value="">-- Select Type --</option>
+        <option value="Funder" {% if selected_entity_type == "Funder" %}selected{% endif %}>Funder</option>
+        <option value="Provider" {% if selected_entity_type == "Provider" %}selected{% endif %}>Provider</option>
+      </select>
+    </div>
+    <div class="col-md-4">
+      <label for="entity_id" class="form-label" id="entityLabel">Select Entity</label>
+      <select class="form-select" name="entity_id" id="entity_id" required>
+        <option value="">-- Choose an entity --</option>
+        {% if entity_list %}
+          {% for entity in entity_list %}
+            <option value="{{ entity.id }}" {% if selected_entity_id == entity.id %}selected{% endif %}>
+              {{ entity.name }}
+            </option>
+          {% endfor %}
+        {% endif %}
+      </select>
+    </div>
+    <div class="col-md-2 align-self-end">
+      <button type="submit" class="btn btn-primary w-100">View</button>
+    </div>
+  </form>
+
+  <!-- 🔽 Results -->
+  {% if staff_elearning_data %}
+  <div class="row">
+    {% for email, details in staff_elearning_data.items() %}
+    <div class="col-12 mb-4">
+      <div class="card shadow-sm border-2" style="border-color: #1a427d">
+        <div class="card-body p-4">
+          <h4 class="text-uppercase text-primary fw-bold mb-3 text-center">
+            {{ details.FirstName }} {{ details.Surname }}
+          </h4>
+
+          <p class="text-center mb-4"><strong>Email:</strong> {{ details.Email }}</p>
+
+          <!-- Active Courses -->
+          <div class="row row-cols-2 g-2">
+            {% for cid in course_ids %}
+              {% set course = details.Courses.get(cid) %}
+              {% if course %}
+              <div class="col">
+                <div class="border rounded p-2 bg-light d-flex justify-content-between align-items-center">
+                  <small class="pe-2">{{ course.CourseName }}</small>
+                  <span class="badge 
+                    {% if course.Status == 'Passed' %}bg-success
+                    {% elif course.Status == 'In Progress' %}bg-warning text-dark
+                    {% elif course.Status == 'Cancelled' %}bg-danger
+                    {% elif course.Status == 'Not Started' %}bg-secondary
+                    {% else %}bg-light text-dark{% endif %}">
+                    {{ course.Status }}
+                  </span>
+                </div>
+              </div>
+              {% endif %}
+            {% endfor %}
+          </div>
+
+          <!-- Extra (Non-Active) Courses -->
+          {% set extra_courses = [] %}
+          {% for cid, course in details.Courses.items() %}
+            {% if cid not in course_ids and course.Status not in ['Not Enrolled', 'Not Started'] %}
+              {% set _ = extra_courses.append(course) %}
+            {% endif %}
+          {% endfor %}
+
+          {% if extra_courses %}
+          <div class="mt-4">
+            <h5 class="text-secondary fw-bold mb-3">Other Courses</h5>
+            <div class="row row-cols-2 g-2">
+              {% for course in extra_courses %}
+              <div class="col">
+                <div class="border rounded p-2 bg-white d-flex justify-content-between align-items-center">
+                  <small class="pe-2">{{ course.CourseName }}</small>
+                  <span class="badge 
+                    {% if course.Status == 'Passed' %}bg-success
+                    {% elif course.Status == 'In Progress' %}bg-warning text-dark
+                    {% elif course.Status == 'Cancelled' %}bg-danger
+                    {% elif course.Status == 'Not Started' %}bg-secondary
+                    {% else %}bg-light text-dark{% endif %}">
+                    {{ course.Status }}
+                  </span>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
+
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+    <p class="text-muted">No eLearning data found.</p>
+  {% endif %}
+</div>
+
+<!-- 🔽 JS to auto-fill entity_id based on entity_type -->
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const entityTypeSelect = document.getElementById("entity_type");
+    const entityIdSelect = document.getElementById("entity_id");
+    const entityLabel = document.getElementById("entityLabel");
+
+    entityTypeSelect.addEventListener("change", function () {
+      const selectedType = this.value;
+      entityLabel.textContent = `Select ${selectedType}`;
+      entityIdSelect.innerHTML = '<option>Loading...</option>';
+
+      fetch(`/get_entities?entity_type=${selectedType}`)
+        .then(res => res.json())
+        .then(data => {
+          entityIdSelect.innerHTML = '<option value="">-- Choose --</option>';
+          data.forEach(d => {
+            const option = document.createElement("option");
+            option.value = d.id;
+            option.textContent = d.name;
+            entityIdSelect.appendChild(option);
+          });
+        });
+    });
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,146 @@
+{% extends "header.html" %}
+{% block title %}School Overview{% endblock %}
+
+{% block content %}
+<div class="container mt-5" style="max-width: 80%;">
+  <h2 class="text-center text-primary mb-4">{{ title }}</h2>
+
+  <div class="row g-4">
+    <!-- Left: Class Summary -->
+    <div class="col-md-6">
+      {% if available_years and available_terms %}
+      <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+          <h5 class="mb-0">Class Summary</h5>
+        </div>
+        <div class="card-body">
+          <!-- Filter Form -->
+          <form method="POST" class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label for="term" class="form-label">Term</label>
+              <select name="term" id="term" class="form-select" onchange="this.form.submit()">
+                {% for t in available_terms %}
+                <option value="{{ t }}" {% if selected_term|int == t %}selected{% endif %}>Term {{ t }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label for="year" class="form-label">Year</label>
+              <select name="year" id="year" class="form-select" onchange="this.form.submit()">
+                {% for y in available_years %}
+                <option value="{{ y }}" {% if selected_year|int == y %}selected{% endif %}>{{ y }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </form>
+
+          {% if classes %}
+          <div class="table-responsive">
+            <table class="table table-bordered text-center align-middle">
+              <thead class="table-light">
+                <tr>
+                  <th>Class Name</th>
+                  <th>Teacher</th>
+                  <th>Class Size</th>
+                  <th>Year Levels</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in classes %}
+                <tr>
+                  <td>{{ row["ClassName"] }}</td>
+                  <td>{{ row["TeacherName"] }}</td>
+                  <td>{{ row["ClassSize"] }}</td>
+                  <td>{{ row["DistinctYearLevels"] }}</td>
+                  <td>
+                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editModal{{ loop.index }}">Edit</button>
+                  </td>
+                </tr>
+
+                <!-- Edit Modal -->
+                <div class="modal fade" id="editModal{{ loop.index }}" tabindex="-1" aria-labelledby="modalLabel{{ loop.index }}" aria-hidden="true">
+                  <div class="modal-dialog">
+                    <div class="modal-content">
+                      <form method="POST" action="/update_class_info">
+                        <div class="modal-header">
+                          <h5 class="modal-title" id="modalLabel{{ loop.index }}">Edit Class Info</h5>
+                          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                          <input type="hidden" name="class_id" value="{{ row['ClassID'] }}">
+                          <div class="mb-3">
+                            <label for="class_name_{{ loop.index }}" class="form-label">Class Name</label>
+                            <input type="text" class="form-control" id="class_name_{{ loop.index }}" name="class_name" value="{{ row['ClassName'] }}">
+                          </div>
+                          <div class="mb-3">
+                            <label for="teacher_name_{{ loop.index }}" class="form-label">Teacher Name</label>
+                            <input type="text" class="form-control" id="teacher_name_{{ loop.index }}" name="teacher_name" value="{{ row['TeacherName'] }}">
+                          </div>
+                        </div>
+                        <div class="modal-footer">
+                          <button type="submit" class="btn btn-primary">Save changes</button>
+                          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <div class="alert alert-warning mb-0">No class data found for this term and year.</div>
+          {% endif %}
+        </div>
+      </div>
+      {% else %}
+      <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+          <h5 class="mb-0">Class Summary</h5>
+        </div>
+        <div class="card-body">
+          <div class="alert alert-warning mb-0">No classes uploaded for this school.</div>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Right: Staff List -->
+    <div class="col-md-6">
+      <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+          <h5 class="mb-0">School Staff</h5>
+        </div>
+        <div class="card-body">
+          {% if staff %}
+          <div class="table-responsive">
+            <table class="table table-striped text-center align-middle">
+              <thead class="table-light">
+                <tr>
+                  {% for col in staff[0].keys() %}
+                  <th>{{ col.replace('_', ' ') }}</th>
+                  {% endfor %}
+                </tr>
+              </thead>
+              <tbody>
+                {% for person in staff %}
+                <tr>
+                  {% for value in person.values() %}
+                  <td>{{ value }}</td>
+                  {% endfor %}
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <div class="alert alert-info mb-0">No staff records found.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
