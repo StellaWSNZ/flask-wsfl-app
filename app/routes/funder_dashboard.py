@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, session, redirect, jsonify
+from flask import Blueprint, render_template, request, session, redirect, jsonify, abort
 from sqlalchemy import text
 from app.routes.auth import login_required
 from app.utils.database import get_db_engine
@@ -10,6 +10,10 @@ funder_bp = Blueprint("funder_bp", __name__)
 @funder_bp.route('/Overview', methods=["GET", "POST"])
 @login_required
 def funder_dashboard():
+    
+    if session.get("user_admin") != 1:
+        abort(403)
+
     try:
         #print("📍 Entered funder_dashboard route")
         engine = get_db_engine()

@@ -86,6 +86,7 @@
                 Funder Tools
               </a>
               <ul class="dropdown-menu dropdown-menu-end">
+                {% if session['user_admin'] == 1%}
                 <li>
                   <a
                     class="dropdown-item py-2"
@@ -93,6 +94,7 @@
                     >Overview
                   </a>
                 </li>
+                {%endif%}
                 <li>
                   <a
                     class="dropdown-item py-2"
@@ -100,6 +102,7 @@
                     >Reporting</a
                   >
                 </li>
+
                 <li>
                   <a
                     class="dropdown-item py-2"
@@ -107,6 +110,7 @@
                     >Class Lookup</a
                   >
                 </li>
+                {% if session['user_admin'] == 1%}
                 <li>
                   <a
                     class="dropdown-item py-2"
@@ -114,6 +118,7 @@
                     >Provider Maintenance</a
                   >
                 </li>
+                {% endif %}
               </ul>
             </li>
             {% endif %} {% if user_role == "MOE" %}
@@ -128,6 +133,7 @@
                 School Tools
               </a>
               <ul class="dropdown-menu dropdown-menu-end">
+                {% if session['user_admin'] == 1%}
                 <li>
                   <a
                     class="dropdown-item py-2"
@@ -135,7 +141,7 @@
                     >Overview
                   </a>
                 </li>
-
+                {%endif%}
                 <li>
                   <a
                     class="dropdown-item py-2"
@@ -151,6 +157,7 @@
                     >Upload Class List</a
                   >
                 </li>
+                {% if session['user_admin'] == 1%}
                 <li>
                   <a
                     class="dropdown-item py-2"
@@ -159,6 +166,7 @@
                     Edit Student Record
                   </a>
                 </li>
+                {% endif %}
               </ul>
             </li>
             {% endif %} {% if user_role == "PRO" %}
@@ -173,6 +181,7 @@
                 Provider Tools
               </a>
               <ul class="dropdown-menu dropdown-menu-end">
+                {% if session['user_admin'] == 1%}
                 <li>
                   <a
                     class="dropdown-item py-2"
@@ -180,6 +189,7 @@
                     >Overview
                   </a>
                 </li>
+                {%endif%}
                 <li>
                   <a
                     class="dropdown-item py-2"

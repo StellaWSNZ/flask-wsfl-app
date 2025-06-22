@@ -36,9 +36,9 @@ def create_app():
         MAIL_SERVER="smtp.office365.com",
         MAIL_PORT=587,
         MAIL_USE_TLS=True,
-        MAIL_USERNAME="dbadmin@watersafety.org.nz",
+        MAIL_USERNAME=os.getenv("EMAIL"),
         MAIL_PASSWORD=os.getenv("WSNZADMINPASS"),
-        MAIL_DEFAULT_SENDER="dbadmin@watersafety.org.nz",
+        MAIL_DEFAULT_SENDER=os.getenv("EMAIL"),
     )
     mail.init_app(app)
 

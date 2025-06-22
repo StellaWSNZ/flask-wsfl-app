@@ -1,5 +1,5 @@
 # app/routes/student.py
-from flask import Blueprint, render_template, request, jsonify, session
+from flask import Blueprint, render_template, request, jsonify, session, abort, session
 from sqlalchemy import text
 from app.utils.database import get_db_engine
 
@@ -7,6 +7,13 @@ students_bp = Blueprint("students_bp", __name__)
 
 @students_bp.route("/students")
 def student_search_page():
+    user_role = session.get("user_role")
+    user_admin = session.get("user_admin")
+
+    # Only allow ADM or MOE with admin rights
+    if not ((user_role == "ADM") or (user_role == "MOE" and user_admin == 1)):
+        abort(403)
+
     engine = get_db_engine()
     with engine.connect() as conn:
         result = conn.execute(text("""

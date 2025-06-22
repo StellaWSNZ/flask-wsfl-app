@@ -1,6 +1,6 @@
 # app/routes/admin.py
 
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash, Response, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, session, flash, Response, jsonify, abort
 from werkzeug.security import generate_password_hash
 from app.utils.database import get_db_engine
 from app.routes.auth import login_required
@@ -18,8 +18,7 @@ import traceback
 @login_required
 def create_user():
     if not session.get("user_admin"):
-        flash("Unauthorized access", "danger")
-        return redirect(url_for("home_bp.home"))
+        abort(403)
 
     engine = get_db_engine()
     user_role = session.get("user_role")
@@ -363,7 +362,8 @@ def provider_maintenance():
     engine = get_db_engine()
     user_role = session.get("user_role")
     user_id = session.get("user_id")
-
+    if not (user_role == "ADM" or (user_role == "FUN" and session.get("user_admin") == 1)):
+        abort(403)
     selected_funder = request.form.get("funder")
     selected_term = request.form.get("term") or session.get("nearest_term")
     selected_year = request.form.get("year") or session.get("nearest_year")

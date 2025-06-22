@@ -15,8 +15,8 @@ def send_reset_email(mail, email, token):
         <p>Ngā mihi,<br><strong>WSFL Admin Team</strong></p>
         <img src="cid:wsfl_logo" alt="WSFL Logo" style="height:60px;margin-top:10px;">
     """
-    with current_app.open_resource("static/DarkLogo.png") as fp:
-        msg.attach("DarkLogo.png", "image/png", fp.read(), disposition='inline',
+    with current_app.open_resource("static/WSFLLogo.png") as fp:
+        msg.attach("WSFLLogo.png", "image/png", fp.read(), disposition='inline',
                    headers={"Content-ID": "<wsfl_logo>"})
     mail.send(msg)
 
@@ -64,7 +64,7 @@ def send_account_setup_email(mail, recipient_email, first_name, role, is_admin, 
     msg.body = f"""\
     Kia ora {first_name},
 
-    {invited_by_name} from {inviter_desc} has invited you to join the Water Skills for Life (WSFL) platform as a {role_display}{admin_note}{context_tail}.
+    {invited_by_name}{f" from {inviter_desc}" if inviter_desc else ""} has invited you to join the Water Skills for Life (WSFL) platform as a {role_display}{admin_note}{context_tail}.
 
     To get started, go to the login page and click "Forgot password" to set your password:
     {url_for('auth_bp.login', _external=True)}
@@ -83,8 +83,8 @@ def send_account_setup_email(mail, recipient_email, first_name, role, is_admin, 
     </div>
     """
 
-    with current_app.open_resource("static/DarkLogo.png") as fp:
-        msg.attach("DarkLogo.png", "image/png", fp.read(), disposition='inline',
+    with current_app.open_resource("static/WSFLLogo.png") as fp:
+        msg.attach("WSFLLogo.png", "image/png", fp.read(), disposition='inline',
                    headers={"Content-ID": "<wsfl_logo>"})
 
     mail.send(msg)
@@ -144,8 +144,8 @@ def send_survey_invite_email(mail, recipient_email, first_name, role, user_id, s
     </div>
     """
 
-    with current_app.open_resource("static/DarkLogo.png") as fp:
-        msg.attach("DarkLogo.png", "image/png", fp.read(), disposition='inline',
+    with current_app.open_resource("static/WSFLLogo.png") as fp:
+        msg.attach("WSFLLogo.png", "image/png", fp.read(), disposition='inline',
                    headers={"Content-ID": "<wsfl_logo>"})
 
     mail.send(msg)
