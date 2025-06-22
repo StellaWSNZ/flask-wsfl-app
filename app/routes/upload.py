@@ -159,7 +159,8 @@ def classlistupload():
                     print(df["Birthdate"].head(5).to_string(index=False))
 
                     # Normalize all date strings
-                    birth_col = df["Birthdate"].apply(normalize_date_string)
+                    birth_col = pd.to_datetime(df["Birthdate"], errors='coerce', dayfirst=True)
+                    birth_col = birth_col.dt.strftime('%Y-%m-%d')
 
                     print("🧼 Cleaned Birthdate strings:")
                     print(birth_col.head(5).to_string(index=False))
@@ -177,9 +178,13 @@ def classlistupload():
                         if parsed_dayfirst.notna().sum() >= parsed_monthfirst.notna().sum():
                             df["Birthdate"] = parsed_dayfirst.dt.strftime("%Y-%m-%d")
                             print("✅ Using dayfirst=True")
+                            session["birthdate_format"] = "dayfirst"
+
                         else:
                             df["Birthdate"] = parsed_monthfirst.dt.strftime("%Y-%m-%d")
                             print("✅ Using dayfirst=False")
+                            session["birthdate_format"] = "monthfirst"
+
 
                     else:
                         df["Birthdate"] = birth_col
@@ -261,6 +266,13 @@ def classlistupload():
                     if "NSN" in df.columns:
                         df["NSN"] = pd.to_numeric(df["NSN"], errors="coerce").astype("Int64")
                     df.rename(columns={"BirthDate": "Birthdate"}, inplace=True)
+                    if "Birthdate" in df.columns:
+                        birthdate_format = session.get("birthdate_format", "dayfirst")  # fallback to dayfirst
+                        use_dayfirst = birthdate_format == "dayfirst"
+                        df["Birthdate"] = pd.to_datetime(df["Birthdate"], dayfirst=use_dayfirst, errors="coerce")
+                        df["Birthdate"] = df["Birthdate"].dt.strftime('%Y-%m-%d')
+                        df["Birthdate"] = df["Birthdate"].where(pd.notnull(df["Birthdate"]), None)
+
 
                     df_json = df.to_json(orient="records")
                     print("*")
