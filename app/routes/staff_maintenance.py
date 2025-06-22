@@ -395,8 +395,12 @@ def staff_elearning():
         user_email = session.get("user_email")
         user_desc = session.get("desc")
 
-        selected_entity_type = request.args.get("entity_type", "Funder")
-        selected_entity_id = request.args.get("entity_id", user_id)
+        if user_role == "PRO":
+            selected_entity_type = "Provider"
+            selected_entity_id = str(user_id)
+        else:
+            selected_entity_type = request.args.get("entity_type", "Funder")
+            selected_entity_id = request.args.get("entity_id", user_id)
 
         print(f"🔍 user_role: {user_role}, user_id: {user_id}, email: {user_email}, desc: {user_desc}")
         print(f"🔽 selected_entity_type = {selected_entity_type}, selected_entity_id = {selected_entity_id}")
@@ -487,6 +491,8 @@ def staff_elearning():
 
         # 🏷️ Get selected entity name
         selected_name = next((e["name"] for e in entity_list if e["id"] == selected_entity_id), "Selected")
+        if(user_role == "PRO"):
+            selected_name = user_desc
         print(f"🏷️ Selected entity name: {selected_name}")
 
         return render_template(
@@ -496,7 +502,8 @@ def staff_elearning():
             selected_entity_type=selected_entity_type,
             selected_entity_id=selected_entity_id,
             entity_list=entity_list,
-            name=selected_name
+            name=selected_name,
+            role = user_role
         )
 
     except Exception as e:

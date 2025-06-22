@@ -5,34 +5,46 @@
 <div class="container mt-5">
   <h2 class="mb-4 text-primary text-center">{{ name }}'s Staff eLearning</h2>
 
-  <!-- 🔽 Filter Form -->
-  <form method="GET" id="filterForm" class="row g-3 mb-4">
-    <div class="col-md-3">
-      <label for="entity_type" class="form-label">Entity Type</label>
-      <select class="form-select" name="entity_type" id="entity_type" required>
-        <option value="">-- Select Type --</option>
-        <option value="Funder" {% if selected_entity_type == "Funder" %}selected{% endif %}>Funder</option>
-        <option value="Provider" {% if selected_entity_type == "Provider" %}selected{% endif %}>Provider</option>
-      </select>
+  <div class="d-flex justify-content-center mb-4">
+    <div class="mx-auto" style="max-width: 1000px; width: 100%;">
+      <form method="GET" id="filterForm" class="w-100">
+        <div class="d-flex flex-wrap justify-content-center align-items-end gap-3">
+          {% if user_role != "PRO" %}
+          <div class="col-md-4">
+            <label for="entity_type" class="form-label">Entity Type</label>
+            <select class="form-select" name="entity_type" id="entity_type" required>
+              <option value="Funder" {% if selected_entity_type == "Funder" %}selected{% endif %}>Funder</option>
+              <option value="Provider" {% if selected_entity_type == "Provider" %}selected{% endif %}>Provider</option>
+            </select>
+          </div>
+          {% else %}
+          <input type="hidden" name="entity_type" value="Provider">
+          {% endif %}
+          {% if user_role != "PRO" %}
+  <div class="col-md-6">
+    <label for="entity_id" class="form-label" id="entityLabel">Select Entity</label>
+    <select class="form-select" name="entity_id" id="entity_id" required>
+      <option value="">-- Choose an entity --</option>
+      {% if entity_list %}
+        {% for entity in entity_list %}
+        <option value="{{ entity.id }}" {% if selected_entity_id == entity.id %}selected{% endif %}>
+          {{ entity.name }}
+        </option>
+        {% endfor %}
+      {% endif %}
+    </select>
+  </div>
+  <div class="col-md-2 align-self-end">
+    <button type="submit" class="btn btn-primary w-100">View</button>
+  </div>
+{% else %}
+  <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
+{% endif %}
+          
+        </div>
+      </form>
     </div>
-    <div class="col-md-4">
-      <label for="entity_id" class="form-label" id="entityLabel">Select Entity</label>
-      <select class="form-select" name="entity_id" id="entity_id" required >
-        <option value="">-- Choose an entity --</option>
-        {% if entity_list %}
-          {% for entity in entity_list %}
-            <option value="{{ entity.id }}" {% if selected_entity_id == entity.id %}selected{% endif %}>
-              {{ entity.name }}
-            </option>
-          {% endfor %}
-        {% endif %}
-      </select>
-    </div>
-    <div class="col-md-2 align-self-end">
-      <button type="submit" class="btn btn-primary w-100">View</button>
-    </div>
-  </form>
-
+  </div>
   <!-- 🔽 Results -->
   {% if staff_elearning_data %}
   <div class="row">
