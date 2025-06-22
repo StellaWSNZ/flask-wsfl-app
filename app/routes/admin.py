@@ -202,7 +202,10 @@ def profile():
         "user_type_desc": session.get("school_type_desc"),
         "funder_lat": session.get("funder_lat"),
         "funder_lon": session.get("funder_lon"),
-        "funder_address": session.get("funder_address")
+        "funder_address": session.get("funder_address"),
+        "provider_lat": session.get("provider_lat"),
+        "provider_lon": session.get("provider_lon"),
+        "provider_address": session.get("provider_address")
     }
 
     # Load dropdown options

@@ -155,6 +155,51 @@
         </div>
       </div>
       {% endif %}
+{% if user.role == "PRO" %}
+<!-- PROVIDER PROFILE CARD -->
+<div class="col-md-6">
+  <div class="card shadow p-4 h-100" style="background-color: rgba(255, 255, 255, 0.95)">
+    <h4 class="mb-3 text-center"><i class="bi bi-building me-2"></i>Provider Profile</h4>
+    <p><strong>Provider Name:</strong> {{ user.desc }}</p>
+
+    {% if user.admin == 1 %}
+    <div class="mb-3">
+      <label for="provider_address_input" class="form-label">Address</label>
+      <input type="text" class="form-control" id="provider_address_input" name="provider_address" value="{{ user.provider_address }}" readonly oninput="updateMap('provider')" />
+    </div>
+
+    <div class="row align-items-end">
+      <div class="mb-3 col-md-4">
+        <label for="provider_lat_input" class="form-label">Latitude</label>
+        <input type="text" class="form-control" id="provider_lat_input" name="provider_lat" value="{{ user.provider_lat }}" readonly oninput="updateMap('provider')" />
+      </div>
+      <div class="mb-3 col-md-4">
+        <label for="provider_lon_input" class="form-label">Longitude</label>
+        <input type="text" class="form-control" id="provider_lon_input" name="provider_lon" value="{{ user.provider_lon }}" readonly oninput="updateMap('provider')" />
+      </div>
+      <div class="mb-3 col-md-4 d-flex gap-2">
+        <button type="button" class="btn btn-outline-primary me-2" id="editProviderBtn" onclick="toggleProviderEdit(true)">Edit Provider</button>
+        <button type="submit" class="btn btn-success d-none" id="saveProviderBtn">Save</button>
+        <button type="button" class="btn btn-secondary d-none" id="exitProviderBtn" onclick="toggleProviderEdit(false)">Cancel</button>
+      </div>
+    </div>
+    {% else %}
+    <p><strong>Address:</strong> {{ user.provider_address }}</p>
+    <p><strong>Latitude:</strong> {{ user.provider_lat }}</p>
+    <p><strong>Longitude:</strong> {{ user.provider_lon }}</p>
+    {% endif %}
+
+    {% if user.provider_lat and user.provider_lon %}
+    <div class="card mt-3">
+      <div class="card-header bg-primary text-white">Provider Location Map</div>
+      <div class="card-body p-0">
+        <div id="providerMap" style="height: 200px; width: 100%"></div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
 
       {% if user.role == "FUN" %}
       <!-- FUNDER PROFILE CARD -->
@@ -217,11 +262,11 @@
 <script>
 document.addEventListener('DOMContentLoaded', function () {
   const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-  tooltipTriggerList.forEach(function (tooltipTriggerEl) {
-    new bootstrap.Tooltip(tooltipTriggerEl);
-  });
+  tooltipTriggerList.forEach(el => new bootstrap.Tooltip(el));
 });
-let schoolMap, schoolMarker, funderMap, funderMarker;
+
+let schoolMap, schoolMarker, funderMap, funderMarker, providerMap, providerMarker;
+
 function toggleUserEdit(editing) {
   ["firstname_input", "surname_input", "email_input"].forEach(id => {
     const el = document.getElementById(id);
@@ -231,6 +276,7 @@ function toggleUserEdit(editing) {
   document.getElementById("saveUserBtn").classList.toggle("d-none", !editing);
   document.getElementById("exitUserBtn").classList.toggle("d-none", !editing);
 }
+
 function toggleSchoolEdit(editing) {
   ["school_address_input", "school_town_input", "school_type_input", "school_lat_input", "school_lon_input"].forEach(id => {
     const el = document.getElementById(id);
@@ -243,6 +289,7 @@ function toggleSchoolEdit(editing) {
   document.getElementById("saveSchoolBtn").classList.toggle("d-none", !editing);
   document.getElementById("exitSchoolBtn").classList.toggle("d-none", !editing);
 }
+
 function toggleFunderEdit(editing) {
   ["funder_address_input", "funder_lat_input", "funder_lon_input"].forEach(id => {
     const el = document.getElementById(id);
@@ -252,22 +299,57 @@ function toggleFunderEdit(editing) {
   document.getElementById("saveFunderBtn").classList.toggle("d-none", !editing);
   document.getElementById("exitFunderBtn").classList.toggle("d-none", !editing);
 }
+
+function toggleProviderEdit(editing) {
+  ["provider_address_input", "provider_lat_input", "provider_lon_input"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.readOnly = !editing;
+  });
+  document.getElementById("editProviderBtn").classList.toggle("d-none", editing);
+  document.getElementById("saveProviderBtn").classList.toggle("d-none", !editing);
+  document.getElementById("exitProviderBtn").classList.toggle("d-none", !editing);
+}
+
 function updateMap(type) {
   const lat = parseFloat(document.getElementById(`${type}_lat_input`).value);
   const lon = parseFloat(document.getElementById(`${type}_lon_input`).value);
+  const name = {{ user.desc | tojson | default('"Unknown"' ) }};
   if (!isNaN(lat) && !isNaN(lon)) {
-    if (type === "school" && schoolMap) {
+    const mapId = `${type}Map`;
+    if (type === "school") {
+      if (!schoolMap) {
+        schoolMap = L.map(mapId).setView([lat, lon], 16);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(schoolMap);
+      }
       schoolMap.setView([lat, lon], 16);
       if (schoolMarker) schoolMap.removeLayer(schoolMarker);
-      schoolMarker = L.marker([lat, lon]).addTo(schoolMap);
-    }
-    if (type === "funder" && funderMap) {
+      schoolMarker = L.marker([lat, lon]).addTo(schoolMap).bindPopup(name);
+    } else if (type === "funder") {
+      if (!funderMap) {
+        funderMap = L.map(mapId).setView([lat, lon], 16);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(funderMap);
+      }
       funderMap.setView([lat, lon], 16);
       if (funderMarker) funderMap.removeLayer(funderMarker);
-      funderMarker = L.marker([lat, lon]).addTo(funderMap);
+      funderMarker = L.marker([lat, lon]).addTo(funderMap).bindPopup(name);
+    } else if (type === "provider") {
+      if (!providerMap) {
+        providerMap = L.map(mapId).setView([lat, lon], 16);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(providerMap);
+      }
+      providerMap.setView([lat, lon], 16);
+      if (providerMarker) providerMap.removeLayer(providerMarker);
+      providerMarker = L.marker([lat, lon]).addTo(providerMap).bindPopup(name);
     }
   }
 }
+
 document.addEventListener("DOMContentLoaded", function () {
   const schoolLat = parseFloat("{{ user.school_lat or 'NaN' }}");
   const schoolLon = parseFloat("{{ user.school_lon or 'NaN' }}");
@@ -280,6 +362,7 @@ document.addEventListener("DOMContentLoaded", function () {
     schoolMarker = L.marker([schoolLat, schoolLon]).addTo(schoolMap).bindPopup(schoolName).openPopup();
     setTimeout(() => schoolMap.invalidateSize(), 0);
   }
+
   const funderLat = parseFloat("{{ user.funder_lat or 'NaN' }}");
   const funderLon = parseFloat("{{ user.funder_lon or 'NaN' }}");
   const funderName = {{ user.desc | tojson | default('"Unknown Funder"') }};
@@ -291,7 +374,20 @@ document.addEventListener("DOMContentLoaded", function () {
     funderMarker = L.marker([funderLat, funderLon]).addTo(funderMap).bindPopup(funderName).openPopup();
     setTimeout(() => funderMap.invalidateSize(), 0);
   }
+
+  const providerLat = parseFloat("{{ user.provider_lat or 'NaN' }}");
+  const providerLon = parseFloat("{{ user.provider_lon or 'NaN' }}");
+  const providerName = {{ user.desc | tojson | default('"Unknown Provider"') }};
+  if (!isNaN(providerLat) && !isNaN(providerLon)) {
+    providerMap = L.map('providerMap').setView([providerLat, providerLon], 16);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(providerMap);
+    providerMarker = L.marker([providerLat, providerLon]).addTo(providerMap).bindPopup(providerName).openPopup();
+    setTimeout(() => providerMap.invalidateSize(), 0);
+  }
 });
 </script>
+
 
 {% endblock %}

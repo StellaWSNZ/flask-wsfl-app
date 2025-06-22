@@ -76,7 +76,10 @@ def login():
                     "funder_lat": getattr(user_info, "Funder_Latitude", None),
                     "funder_lon": getattr(user_info, "Funder_Longitude", None),
                     "nearest_term": getattr(user_info,"CurrentTerm", None),
-                    "nearest_year": getattr(user_info, "CurrentCalendarYear", None)
+                    "nearest_year": getattr(user_info, "CurrentCalendarYear", None),
+                    "provider_address": getattr(user_info, "Provider_Address", None),
+                    "provider_lat": getattr(user_info, "Provider_Latitude", None),
+                    "provider_lon": getattr(user_info, "Provider_Longitude", None)
                 })
 
                 return redirect(url_for("home_bp.home"))
