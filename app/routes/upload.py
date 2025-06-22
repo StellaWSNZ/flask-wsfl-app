@@ -12,7 +12,9 @@ from io import StringIO, BytesIO
 import os 
 import tempfile
 import unicodedata
-
+import re
+import datetime
+import traceback
 upload_bp = Blueprint("upload_bp", __name__)
 
 # Store processing results in memory (global for demo)
@@ -29,6 +31,32 @@ def remove_macrons(s):
     normalized = unicodedata.normalize("NFD", s)
     return ''.join(c for c in normalized if unicodedata.category(c) != 'Mn')
 
+def autodetect_date_column(series):
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+
+            parsed_dayfirst = pd.to_datetime(series, dayfirst=True, errors='coerce')
+            parsed_monthfirst = pd.to_datetime(series, dayfirst=False, errors='coerce')
+
+        count_dayfirst = parsed_dayfirst.notna().sum()
+        count_monthfirst = parsed_monthfirst.notna().sum()
+
+        if count_dayfirst >= count_monthfirst:
+            return parsed_dayfirst.dt.strftime("%Y-%m-%d")
+        else:
+            return parsed_monthfirst.dt.strftime("%Y-%m-%d")
+    except Exception:
+        return series
+def is_iso_format(series):
+    iso_regex = r"^\d{4}-\d{2}-\d{2}$"
+    return series.astype(str).str.match(iso_regex).all()
+
+def normalize_date_string(s):
+    s = str(s).strip()
+    # Replace any non-alphanumeric character (like em dash, slash, unicode junk) with "-"
+    s = re.sub(r"[^\w]", "-", s)
+    return s
 @upload_bp.route('/ClassUpload', methods=['GET', 'POST'])
 @login_required
 def classlistupload():
@@ -123,19 +151,61 @@ def classlistupload():
                 return redirect(url_for("upload_bp.classlistupload"))
 
             # Replace NaN and NaT with None
+            if "Birthdate" in df.columns:
+                print("\n📅 Starting Birthdate normalization...")
+
+                try:
+                    print("👀 Raw Birthdate column before normalization:")
+                    print(df["Birthdate"].head(5).to_string(index=False))
+
+                    # Normalize all date strings
+                    birth_col = df["Birthdate"].apply(normalize_date_string)
+
+                    print("🧼 Cleaned Birthdate strings:")
+                    print(birth_col.head(5).to_string(index=False))
+
+                    # Check if already ISO format
+                    if not is_iso_format(birth_col):
+                        print("🔍 Birthdate not in ISO format. Attempting parsing with dayfirst=True and False...")
+
+                        parsed_dayfirst = pd.to_datetime(birth_col, dayfirst=True, errors="coerce")
+                        parsed_monthfirst = pd.to_datetime(birth_col, dayfirst=False, errors="coerce")
+
+                        print(f"📊 Parsed (dayfirst=True):   {parsed_dayfirst.notna().sum()} valid")
+                        print(f"📊 Parsed (dayfirst=False): {parsed_monthfirst.notna().sum()} valid")
+
+                        if parsed_dayfirst.notna().sum() >= parsed_monthfirst.notna().sum():
+                            df["Birthdate"] = parsed_dayfirst.dt.strftime("%Y-%m-%d")
+                            print("✅ Using dayfirst=True")
+                        else:
+                            df["Birthdate"] = parsed_monthfirst.dt.strftime("%Y-%m-%d")
+                            print("✅ Using dayfirst=False")
+
+                    else:
+                        df["Birthdate"] = birth_col
+                        print("✅ Birthdate already in ISO format")
+
+                    print("✅ Final Birthdate values:")
+                    print(df["Birthdate"].head(5).to_string(index=False))
+
+                except Exception as e:
+                    print("❌ Error during Birthdate normalization:", str(e))
+                    raise
+            else:
+                print("⚠️ 'Birthdate' column not found in uploaded file.")
+
+
+
             df_cleaned = df.where(pd.notnull(df), None)
 
             # Convert datetime columns to string format
-            for col in df_cleaned.select_dtypes(include=["datetime64[ns]"]):
-                df_cleaned[col] = pd.to_datetime(df_cleaned[col], errors="coerce").dt.strftime("%Y-%m-%d")
-                df_cleaned[col] = df_cleaned[col].where(pd.notnull(df_cleaned[col]), None)
+            
             if "BirthDate" in df_cleaned.columns:
                 df_cleaned.rename(columns={"BirthDate": "Birthdate"}, inplace=True)
             # Save raw JSON version for later validation (as string)
-            df_cleaned = pd.DataFrame(
-                [[remove_macrons(cell) for cell in row] for row in df_cleaned.astype(str).values],
-                columns=df_cleaned.columns
-            )
+            for col in df_cleaned.columns:
+                df_cleaned[col] = df_cleaned[col].apply(lambda x: remove_macrons(x) if isinstance(x, str) else x)
+            df_cleaned.rename(columns={"BirthDate": "Birthdate"}, inplace=True)
 
             session["raw_csv_json"] = df_cleaned.to_json(orient="records")
             # print("✅ raw_csv_json saved with", len(df_cleaned), "rows")
@@ -170,24 +240,7 @@ def classlistupload():
                     usable_columns = [col for col in raw_df.columns if str(col) in reverse_mapping]
                     df = raw_df[usable_columns].rename(columns={col: reverse_mapping[str(col)] for col in usable_columns})
 
-                    # Handle birthdate first and unify to "Birthdate"
-                    if "BirthDate" in df.columns:
-                        df["BirthDate"] = (
-                            df["BirthDate"]
-                            .astype(str)
-                            .str.replace(r"\s+", "", regex=True)  # remove all internal spaces
-                        )
-                        df["BirthDate"] = pd.to_datetime(df["BirthDate"], errors="coerce").dt.strftime("%Y-%m-%d")
-                        df.rename(columns={"BirthDate": "Birthdate"}, inplace=True)
-
-                    elif "Birthdate" in df.columns:
-                        df["Birthdate"] = (
-                            df["Birthdate"]
-                            .astype(str)
-                            .str.replace(r"\s+", "", regex=True)
-                        )
-                        df["Birthdate"] = pd.to_datetime(df["Birthdate"], errors="coerce").dt.strftime("%Y-%m-%d")
-
+                    
                     # Ensure all required columns are present
                     for col in valid_fields:
                         if col not in df.columns:
@@ -195,7 +248,9 @@ def classlistupload():
 
                     # Reapply formatting in case new columns were added
                     if "Birthdate" in df.columns:
-                        df["Birthdate"] = pd.to_datetime(df["Birthdate"], dayfirst=True, errors="coerce").dt.strftime("%Y-%m-%d")
+                        df.rename(columns={"Birthdate": "BirthDate"}, inplace=True)
+                    if "BirthDate" in df.columns:
+                        df.rename(columns={"BirthDate": "BirthDate"}, inplace=True)
                     if "YearLevel" in df.columns:
                         # Remove all spaces and non-digit characters
                         df["YearLevel"] = df["YearLevel"].astype(str).str.replace(r"\D", "", regex=True)
@@ -205,28 +260,47 @@ def classlistupload():
                         df["YearLevel"] = df["YearLevel"].where(pd.notnull(df["YearLevel"]), None)
                     if "NSN" in df.columns:
                         df["NSN"] = pd.to_numeric(df["NSN"], errors="coerce").astype("Int64")
+                    df.rename(columns={"BirthDate": "Birthdate"}, inplace=True)
 
                     df_json = df.to_json(orient="records")
-                    
-                    parsed_json = json.loads(df_json)
-                    print("📦 Sample JSON being sent to SQL:")
-                    #for i, row in enumerate(parsed_json[:5]):
-                    #    print(f"Row {i+1}:", row)
-                    with engine.begin() as conn:
-                        result = conn.execute(
-                            text("EXEC FlaskCheckNSN_JSON :InputJSON, :Term, :CalendarYear, :MOENumber, :Email"),
-                            {
-                                "InputJSON": df_json,
-                                "Term": selected_term,
-                                "CalendarYear": selected_year,
-                                "MOENumber": moe_number,
-                                "Email": session.get("user_email"),
-                            }
-                        )
-                        print(session.get("user_email"))
-                        preview_data = [dict(row._mapping) for row in result]
-                        session["preview_data"] = preview_data
-
+                    print("*")
+                    try:
+                        parsed_json = json.loads(df_json)
+                        for i, row in enumerate(parsed_json[:5]):
+                            print(f"📦 Row {i+1}: {row}")
+                    except Exception as e:
+                        print("❌ JSON error:", e)
+                    print("*")
+                    try:
+                        with engine.begin() as conn:
+                            result = conn.execute(
+                                text("EXEC FlaskCheckNSN_JSON :InputJSON, :Term, :CalendarYear, :MOENumber, :Email"),
+                                {
+                                    "InputJSON": df_json,
+                                    "Term": selected_term,
+                                    "CalendarYear": selected_year,
+                                    "MOENumber": moe_number,
+                                    "Email": session.get("user_email"),
+                                }
+                            )
+                            preview_data = [dict(row._mapping) for row in result]
+                            session["preview_data"] = preview_data
+                    except Exception as e:
+                        print("❌ SQL execution error:", e)
+                        traceback.print_exc()
+                        
+                    print("🔍 Inspecting Birthdate values in preview_data:")
+                    for i, row in enumerate(preview_data[:5]):
+                        print(f"Row {i+1} Birthdate:", row.get("Birthdate"), "Type:", type(row.get("Birthdate")))
+                        print(row)
+                    for row in preview_data:
+                        if isinstance(row.get("Birthdate"), (datetime.date, datetime.datetime)):
+                            row["Birthdate"] = row["Birthdate"].strftime("%Y-%m-%d")
+                    print("🔍 Inspecting Birthdate values in preview_data:")
+                    for i, row in enumerate(preview_data[:5]):
+                        print(f"Row {i+1} Birthdate:", row.get("Birthdate"), "Type:", type(row.get("Birthdate")))
+                        #print(preview_data.head())
+                       
                 except Exception as e:
                     flash(f"Error during validation: {str(e)}", "danger")
 
@@ -445,9 +519,7 @@ def submitclass():
         if missing:
             flash(f"Missing required data to submit class list: {', '.join(missing)}", "danger")
             return redirect(url_for("upload_bp.classlistupload"))
-        for row in preview_data:
-            if "Birthdate" in row and row["Birthdate"] is not None:
-                row["Birthdate"] = pd.to_datetime(row["Birthdate"], errors="coerce").strftime("%Y-%m-%d")
+   
                 
         for row in preview_data:
             for k, v in row.items():
