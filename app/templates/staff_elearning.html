@@ -17,7 +17,7 @@
     </div>
     <div class="col-md-4">
       <label for="entity_id" class="form-label" id="entityLabel">Select Entity</label>
-      <select class="form-select" name="entity_id" id="entity_id" required>
+      <select class="form-select" name="entity_id" id="entity_id" required >
         <option value="">-- Choose an entity --</option>
         {% if entity_list %}
           {% for entity in entity_list %}
@@ -115,11 +115,20 @@
     const entityTypeSelect = document.getElementById("entity_type");
     const entityIdSelect = document.getElementById("entity_id");
     const entityLabel = document.getElementById("entityLabel");
+    const selectedEntityId = "{{ selected_entity_id }}";
 
+    // Handle entity_type change: fetch new entity_id options
     entityTypeSelect.addEventListener("change", function () {
       const selectedType = this.value;
+
+      if (!selectedType) {
+        entityLabel.textContent = "Select Entity";
+        entityIdSelect.innerHTML = '<option value="">-- Choose an entity --</option>';
+        return;
+      }
+
       entityLabel.textContent = `Select ${selectedType}`;
-      entityIdSelect.innerHTML = '<option>Loading...</option>';
+      entityIdSelect.innerHTML = '<option value="">Loading...</option>';
 
       fetch(`/get_entities?entity_type=${selectedType}`)
         .then(res => res.json())
@@ -131,8 +140,18 @@
             option.textContent = d.name;
             entityIdSelect.appendChild(option);
           });
+
+          // Try to preserve the selection if the same ID is still valid
+          if (selectedEntityId) {
+            entityIdSelect.value = selectedEntityId;
+          }
+        })
+        .catch(err => {
+          console.error("Error loading entities:", err);
+          entityIdSelect.innerHTML = '<option value="">-- Failed to load --</option>';
         });
     });
   });
 </script>
+
 {% endblock %}

@@ -379,82 +379,122 @@ def get_active_courses():
     except Exception as e:
         print("❌ /get_active_courses error:", e)
         return jsonify([]), 500
+from types import SimpleNamespace
+
+
 
 @staff_bp.route("/StaffELearning", methods=["GET"])
 @login_required
 def staff_elearning():
-    print("📥 Route '/StaffELearning' STARTED")
     try:
+        print("📥 Route '/StaffELearning' called")
+
         engine = get_db_engine()
         user_role = session.get("user_role")
-        default_id = session.get("user_id")
-        default_email = session.get("user_email")
+        user_id = session.get("user_id")
+        user_email = session.get("user_email")
+        user_desc = session.get("desc")
 
-        # 🔽 Get selected values from URL or default to session
-        selected_entity_type = request.args.get("entity_type") or "Funder"
-        selected_entity_id = request.args.get("entity_id") or default_id
+        selected_entity_type = request.args.get("entity_type", "Funder")
+        selected_entity_id = request.args.get("entity_id", user_id)
+
+        print(f"🔍 user_role: {user_role}, user_id: {user_id}, email: {user_email}, desc: {user_desc}")
+        print(f"🔽 selected_entity_type = {selected_entity_type}, selected_entity_id = {selected_entity_id}")
+
+        # Normalize for string comparison
+        selected_entity_id = str(selected_entity_id)
 
         with engine.connect() as conn:
-            # 🔽 Fetch raw entity list from DB
-            raw_entity_list = conn.execute(
-                text("EXEC FlaskHelperFunctions @Request = :req"),
-                {"req": f"{selected_entity_type}Dropdown"}
-            ).fetchall()
+            # 🔄 Load entities
+            if selected_entity_type == "Provider":
+                if user_role == "ADM":
+                    print("🔄 Getting ALL providers (ADM)")
+                    result = conn.execute(text("EXEC FlaskHelperFunctions @Request = 'ProviderDropdown'"))
+                else:
+                    print("🔄 Getting providers BY funder (FUN)")
+                    result = conn.execute(text(
+                        "EXEC FlaskHelperFunctions @Request = :Request, @Number = :FunderID"
+                    ), {"Request": "ProvidersByFunder", "FunderID": user_id})
+                raw_entity_list = result.fetchall()
 
-            # 🔽 Normalize list to contain id + name
-            entity_list = [
-                {
-                    "id": row.FunderID if "FunderID" in row._mapping else row.ProviderID,
+            elif selected_entity_type == "Funder":
+                if user_role == "ADM":
+                    print("🔄 Getting ALL funders (ADM)")
+                    result = conn.execute(text("EXEC FlaskHelperFunctions @Request = 'FunderDropdown'"))
+                    raw_entity_list = result.fetchall()
+                else:
+                    print("🔄 Returning self as Funder (FUN)")
+                    raw_entity_list = [SimpleNamespace(FunderID=user_id, Description=user_desc)]
+
+            else:
+                print("⚠️ Unknown entity_type passed, skipping list.")
+                raw_entity_list = []
+
+            # 🔄 Normalize list
+            print("🧪 Normalizing entity list...")
+            entity_list = []
+            for row in raw_entity_list:
+                if isinstance(row, dict):
+                    row = SimpleNamespace(**row)
+                if selected_entity_type == "Funder":
+                    entity_id = getattr(row, "FunderID", None)
+                elif selected_entity_type == "Provider":
+                    entity_id = getattr(row, "ProviderID", None)
+                else:
+                    entity_id = None
+
+                entity_list.append({
+                    "id": str(entity_id),
                     "name": row.Description
-                }
-                for row in raw_entity_list
-            ]
+                })
 
-            # 🔽 Fetch eLearning records
-            rows = conn.execute(
-                text("EXEC FlaskGetStaffELearning :RoleType, :ID, :Email"),
-                {
-                    "RoleType": selected_entity_type[:3].upper(),  # "Funder" → "FUN"
-                    "ID": selected_entity_id,
-                    "Email": default_email
-                }
-            ).fetchall()
-            print(f"📊 Retrieved {len(rows)} eLearning rows")
+            print(f"✅ entity_list: {entity_list}")
+
+            # 🧾 Get staff eLearning records
+            print("📚 Fetching eLearning records...")
+            el_rows = conn.execute(text("""
+                EXEC FlaskGetStaffELearning :RoleType, :ID, :Email
+            """), {
+                "RoleType": selected_entity_type[:3].upper(),
+                "ID": selected_entity_id,
+                "Email": user_email
+            }).fetchall()
+
+            print(f"📦 Retrieved {len(el_rows)} rows from eLearning data.")
 
             active_courses = conn.execute(
                 text("EXEC FlaskHelperFunctionsSpecific @Request = 'ActiveCourses'")
             ).fetchall()
-            active_course_ids = [str(r.ELearningCourseID) for r in active_courses]
 
-        # 🔽 Group by email
+        active_course_ids = [str(r.ELearningCourseID) for r in active_courses]
+        print(f"🎓 Active course IDs: {active_course_ids}")
+
+        # 📊 Group data by email
         grouped = {}
-        for row in rows:
+        for row in el_rows:
             email = row.Email
             if email not in grouped:
                 grouped[email] = {
-                    "Email": row.Email,
+                    "Email": email,
                     "FirstName": row.FirstName,
                     "Surname": row.Surname,
                     "Courses": {}
                 }
-
             grouped[email]["Courses"][str(row.CourseID)] = {
                 "CourseName": row.CourseName,
                 "Status": row.Status
             }
 
-        # 🔽 Determine selected name from list
-        selected_name = next(
-            (e["name"] for e in entity_list if str(e["id"]) == str(selected_entity_id)),
-            "Selected"
-        )
+        # 🏷️ Get selected entity name
+        selected_name = next((e["name"] for e in entity_list if e["id"] == selected_entity_id), "Selected")
+        print(f"🏷️ Selected entity name: {selected_name}")
 
         return render_template(
             "staff_elearning.html",
             staff_elearning_data=grouped,
             course_ids=active_course_ids,
             selected_entity_type=selected_entity_type,
-            selected_entity_id=int(selected_entity_id),
+            selected_entity_id=selected_entity_id,
             entity_list=entity_list,
             name=selected_name
         )
