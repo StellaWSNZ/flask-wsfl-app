@@ -5,7 +5,7 @@ from app.utils.database import get_db_engine
 
 students_bp = Blueprint("students_bp", __name__)
 
-@students_bp.route("/students")
+@students_bp.route("/Students")
 def student_search_page():
     user_role = session.get("user_role")
     user_admin = session.get("user_admin")
@@ -23,15 +23,20 @@ def student_search_page():
 
     return render_template("student_search.html", ethnicities=ethnicities)
 
-@students_bp.route("/students/search")
+@students_bp.route("/Students/search")
 def live_student_search():
     query = request.args.get("q", "")
 
+    print(f"🔎 Search query received: '{query}'")  # Debug
+
     if not query or len(query.strip()) < 2:
+        print("❌ Query too short or empty. Returning empty list.")
         return jsonify([])
 
     role = session.get("user_role")
     moe_number = session.get("user_id") if role == "MOE" else None
+
+    print(f"👤 Role: {role}, MOENumber: {moe_number}")  # Debug
 
     engine = get_db_engine()
     params = {
@@ -41,6 +46,8 @@ def live_student_search():
         "DateOfBirth": None,
         "MOENumber": moe_number
     }
+
+    print(f"📦 SQL Params: {params}")  # Debug
 
     try:
         with engine.connect() as conn:
@@ -54,14 +61,26 @@ def live_student_search():
             """), params)
             rows = result.fetchall()
 
+        print(f"✅ Rows fetched: {len(rows)}")  # Debug
+
         students = [dict(row._mapping) for row in rows]
         return jsonify(students)
 
     except Exception as e:
         print("❌ Error in live_student_search:", e)
         return jsonify({"error": str(e)}), 500
+
+
+
+
+
+
+
+
+
+
     
-@students_bp.route("/students/edit", methods=["POST"])
+@students_bp.route("/Students/edit", methods=["POST"])
 def edit_student():
     data = request.get_json()
 

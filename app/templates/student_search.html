@@ -118,7 +118,7 @@ block content %}
   }
 
   function fetchStudents(query) {
-    fetch(`/students/search?q=${encodeURIComponent(query)}&t=${Date.now()}`)
+    fetch(`/Students/search?q=${encodeURIComponent(query)}&t=${Date.now()}`)
       .then((response) => response.json())
       .then((data) => {
         resultsList.innerHTML = "";
@@ -229,7 +229,7 @@ block content %}
         EthnicityID: document.getElementById("edit-ethnicity").value,
       };
 
-      fetch("/students/edit", {
+      fetch("/Students/edit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
