@@ -19,13 +19,13 @@
                 onchange="toggleReportFields()"
                 required
               >
-{% if user_role in ["PRO", "FUN", "ADM","MOE"] %}
+{% if user_role in ["PRO", "FUN", "ADM"] %}
                 <option value="Provider" {% if selected_report_type == "Provider" %}selected{% endif %}>Provider Report</option>
                 {%endif%}{% if user_role in ["FUN","ADM"] %}
                 <option value="Funder" {% if selected_report_type == "Funder" %}selected{% endif %}>Funder Report</option>
                 {%endif%}{% if user_role == 'ADM' %}
                 <option value="Competency" {% if selected_report_type == "Competency" %}selected{% endif %}>Competency Report</option>
-                {%endif%}{% if user_role in ["FUN", "ADM","PRO"] %}
+                {%endif%}{% if user_role in ["FUN", "ADM","PRO","MOE"] %}
                 <option value="School" {% if selected_report_type == "School" %}selected{% endif %}>School Report</option>
                 {% endif %}
                 
@@ -52,7 +52,7 @@
   </select>
 </div>
 {% endif %}
-{% if user_role in ["PRO", "FUN", "ADM","MOE"] %}
+{% if user_role in ["PRO", "FUN", "ADM"] %}
 
 <div class="col-12" id="school_section">
   <label for="school" class="form-label">School</label>
