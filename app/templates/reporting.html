@@ -9,7 +9,7 @@
       <div class="card">
         <div class="card-header">Report Options</div>
         <div class="card-body">
-          <form action="/reporting" method="POST" class="row g-3">
+          <form action="/Reporting" method="POST" class="row g-3">
             <div class="col-12">
               <label for="report_type" class="form-label">Report Type</label>
               <select
@@ -19,13 +19,16 @@
                 onchange="toggleReportFields()"
                 required
               >
-{% if user_role in ["PRO", "FUN", "ADM"] %}
+{% if user_role in ["PRO", "FUN", "ADM","MOE"] %}
                 <option value="Provider" {% if selected_report_type == "Provider" %}selected{% endif %}>Provider Report</option>
                 {%endif%}{% if user_role in ["FUN","ADM"] %}
                 <option value="Funder" {% if selected_report_type == "Funder" %}selected{% endif %}>Funder Report</option>
                 {%endif%}{% if user_role == 'ADM' %}
                 <option value="Competency" {% if selected_report_type == "Competency" %}selected{% endif %}>Competency Report</option>
-                {%endif%}
+                {%endif%}{% if user_role in ["FUN", "ADM","PRO"] %}
+                <option value="School" {% if selected_report_type == "School" %}selected{% endif %}>School Report</option>
+                {% endif %}
+                
               </select>
             </div>
 
@@ -49,6 +52,18 @@
   </select>
 </div>
 {% endif %}
+{% if user_role in ["PRO", "FUN", "ADM","MOE"] %}
+
+<div class="col-12" id="school_section">
+  <label for="school" class="form-label">School</label>
+  <select name="school" id="school" class="form-select">
+    {% for name in schools %}
+      <option value="{{ name }}" {% if name == selected_funder %}selected{% endif %}>{{ name }}</option>
+    {% endfor %}
+  </select>
+</div>
+{% endif %}
+
             <div class="col-6">
               <label for="term_year" class="form-label">Reporting Term</label>
               <select name="term_year" id="term_year" class="form-select" required>
@@ -128,6 +143,12 @@
     if (providerSection) {
       providerSection.style.display = type === 'Provider' ? 'block' : 'none';
     }
+
+    const schoolSection = document.getElementById('school_section');
+    if (schoolSection) {
+      schoolSection.style.display = type === 'School' ? 'block' : 'none';
+    }
+
   }
 
   // Run once on page load to set correct visibility
