@@ -456,15 +456,13 @@ def email_survey_link():
     return redirect(url_for("staff_bp.staff_maintenance"))
 
 
-
-
 @survey_bp.route("/send_survey_reminder", methods=["POST"])
 @login_required
 def send_survey_reminder():
     try:
         email = request.form["email"]
         firstname = request.form["firstname"]
-        requested_by = request.form["requested_by"]
+        requested_by = request.form["requested_by"]  # Should be full name
         from_org = request.form["from_org"]
         
         send_survey_reminder_email(mail, email, firstname, requested_by, from_org)

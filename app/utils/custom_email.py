@@ -6,7 +6,11 @@ from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 
 def send_reset_email(mail, email, token):
     reset_url = url_for('auth_bp.reset_password', token=token, _external=True)
-    msg = Message('Reset Your WSFL Password', recipients=[email])
+    msg = Message(
+        subject='Reset Your WSFL Password',
+        recipients=[email],
+        sender=("WSFL Admin", current_app.config["MAIL_USERNAME"])
+    )
     msg.html = f"""
         <p>Kia ora,</p>
         <p>We received a request to reset your WSFL account password.</p>
@@ -151,18 +155,12 @@ def send_survey_invite_email(mail, recipient_email, first_name, role, user_id, s
     mail.send(msg)
     
     
-def send_survey_invite_email(mail, email, firstname, link):
-    msg = Message("Complete Your Self Review", recipients=[email])
-    msg.html = f"""
-    <p>Kia ora {firstname},</p>
-    <p>You’ve been invited to complete a Water Skills for Life Self Review.</p>
-    <p><a href="{link}">Click here to complete your self review</a></p>
-    <p>Ngā mihi,<br>WSFL Team</p>
-    """
-    mail.send(msg)
-
 def send_survey_reminder_email(mail, email, firstname, requested_by, from_org):
-    msg = Message("Reminder: Complete Your Self Review", recipients=[email])
+    msg = Message(
+        subject="Reminder: Complete Your Self Review",
+        recipients=[email],
+        sender=(f"{requested_by} via WSFL", current_app.config["MAIL_DEFAULT_SENDER"])
+    )
     msg.html = f"""
     <p>Kia ora {firstname},</p>
     <p>This is a friendly reminder to log into the WSFL site and complete your self review.</p>
@@ -176,7 +174,12 @@ def send_survey_invitation_email(mail, email, firstname, lastname, role, user_id
     # Generate tokenized one-time link
     survey_url = generate_survey_link(email, firstname, lastname, role, user_id, survey_id)
 
-    msg = Message("Your Self Review Survey Link", recipients=[email])
+    msg = Message(
+        subject="Your Self Review Survey Link",
+        recipients=[email],
+        sender=(f"{requested_by} via WSFL", current_app.config["MAIL_DEFAULT_SENDER"])
+    )
+    
     msg.html = f"""
     <p>Kia ora {firstname},</p>
     <p>Please complete your self review by clicking the secure link below:</p>
