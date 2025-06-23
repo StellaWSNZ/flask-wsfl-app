@@ -3,33 +3,44 @@
 {% block content %}
 <div class="container mt-5" style="max-width: 80%;">
 
-  {% if user_role == "ADM" or (user_role in ["FUN"] and user_admin == 1) %}
-  <form method="GET" class="mb-4" id="staffFilterForm">
-    <div class="row g-2 align-items-end justify-content-center">
-      <div class="col-md-3">
-        <label for="entity_type" class="form-label">Entity Type</label>
-        <select name="entity_type" id="entity_type" class="form-select">
-          <option value="Funder" {% if selected_entity_type == "Funder" %}selected{% endif %}>Funder</option>
-          <option value="Provider" {% if selected_entity_type == "Provider" %}selected{% endif %}>Provider</option>
-        </select>
-      </div>
-      <div class="col-md-5">
-        <label for="entity_id" class="form-label" id="entityLabel">
-          Select {{ selected_entity_type or 'Funder' }}
-        </label>
-        <select name="entity_id" id="entity_id" class="form-select">
-          <option value="">-- Choose a {{ selected_entity_type or 'Funder' }} --</option>
-          {% for p in provider_options %}
-          <option value="{{ p.id }}" {% if selected_entity_id == p.id %}selected{% endif %}>{{ p.name }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-md-2">
-        <button type="submit" class="btn btn-primary w-100">Submit</button>
-      </div>
+  {% if user_role in ["ADM", "FUN"] or (user_role == "PRO" and user_admin == 1) %}
+<form method="POST" class="mb-4" id="entityForm">
+  <div class="row g-2 align-items-end justify-content-center">
+    <div class="col-md-3">
+      <label for="entity_type" class="form-label">Entity Type</label>
+      <select name="entity_type" id="entity_type" class="form-select" {% if user_role == "PRO" %}readonly disabled{% endif %}>
+        {% if user_role != "PRO" %}
+        <option value="Funder" {% if entity_type == "Funder" %}selected{% endif %}>Funder</option>
+        {% endif %}
+        <option value="Provider" selected>Provider</option>
+      </select>
+      {% if user_role == "PRO" %}
+      <input type="hidden" name="entity_type" value="Provider">
+      {% endif %}
     </div>
-  </form>
-  {% endif %}
+
+    <div class="col-md-5">
+      <label for="funder_id" class="form-label" id="entityLabel">
+        Select {{ entity_type or 'Funder' }}
+      </label>
+      <select name="funder_id" id="funder_id" class="form-select" {% if user_role == "PRO" %}readonly disabled{% endif %}>
+        {% for funder in funder_list %}
+          <option value="{{ funder.id }}" {% if funder.id == selected_funder_id %}selected{% endif %}>
+            {{ funder.name }}
+          </option>
+        {% endfor %}
+      </select>
+      {% if user_role == "PRO" %}
+      <input type="hidden" name="funder_id" value="{{ selected_funder_id }}">
+      {% endif %}
+    </div>
+
+    <div class="col-md-2">
+      <button type="submit" class="btn btn-primary w-100">Submit</button>
+    </div>
+  </div>
+</form>
+{% endif %}
 {% if selected_entity_name %}
   <div class="text-center mb-4">
       <h2 class="text-center text-primary mb-4">{{ selected_entity_name }} Staff Maintenance</h2>
@@ -220,39 +231,30 @@
                   </form>
                 </div>
                 <div class="col-md-3">
-                  {% if row.LastSelfReview and row.LastSelfReview|string !=
-                  "NaT" %}
-                  <form
-                    method="POST"
-                    action="{{ url_for('survey_bp.set_survey_target') }}"
-                  >
-                    <input type="hidden" name="email" value="{{ row.Email }}" />
-                    <input
-                      type="hidden"
-                      name="firstname"
-                      value="{{ row.FirstName }}"
-                    />
-                    <input
-                      type="hidden"
-                      name="lastname"
-                      value="{{ row.Surname }}"
-                    />
-                    <button
-                      type="submit"
-                      class="btn btn-sm btn-outline-primary w-100"
-                    >
-                      View Past Self Reviews
-                    </button>
-                  </form>
-                  {% else %}
-                  <button
-                    type="button"
-                    class="btn btn-sm btn-outline-primary w-100"
-                    onclick="showNoReviewsPopup(this, '{{ row.FirstName }} {{ row.Surname }}')"
-                  >
-                    View Past Self Reviews
-                  </button>
-                  {% endif %}
+                  {% if not row.LastSelfReview or row.LastSelfReview|string == "NaT" %}
+  <!-- This shows the popover -->
+  <button
+    type="button"
+    class="btn btn-sm btn-outline-primary w-100"
+    data-bs-toggle="popover"
+    data-bs-trigger="focus"
+    data-bs-placement="top"
+    title="No Self Reviews"
+    data-bs-content="{{ row.FirstName }} {{ row.Surname }} has not completed a self review yet."
+  >
+    View Past Self Reviews
+  </button>
+{% else %}
+  <form method="POST" action="{{ url_for('survey_bp.set_survey_target') }}">
+    <input type="hidden" name="email" value="{{ row.Email }}">
+    <input type="hidden" name="firstname" value="{{ row.FirstName }}">
+    <input type="hidden" name="lastname" value="{{ row.Surname }}">
+    <button type="submit" class="btn btn-sm btn-outline-primary w-100">
+      View Past Self Reviews
+    </button>
+  </form>
+{% endif %}
+
                 </div>
                 <div class="col-md-3">
                   <button
@@ -415,6 +417,16 @@
   </div>
 </div>
 <script>
+
+  document.addEventListener("DOMContentLoaded", function () {
+    const popoverTriggerList = [].slice.call(
+      document.querySelectorAll('[data-bs-toggle="popover"]')
+    );
+    const popoverList = popoverTriggerList.map(function (popoverTriggerEl) {
+      return new bootstrap.Popover(popoverTriggerEl);
+    });
+  });
+
 document.addEventListener("DOMContentLoaded", function () {
   const entityTypeSelector = document.getElementById("entity_type");
   const entityDropdown = document.getElementById("entity_id");

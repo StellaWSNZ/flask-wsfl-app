@@ -124,12 +124,13 @@ def funder_dashboard():
                                    entity_type=entity_type, title="Overview")
 
         # Funder/Provider metadata
-        funder_desc = session.get("desc")
+        entity_desc = session.get("desc")
         search_list = all_providers if entity_type == "Provider" else all_funders
         for item in search_list:
             if int(item["id"]) == int(selected_funder_id):
-                funder_desc = item["name"]
+                entity_desc = item["name"]
                 break
+
 
         # Choose procedure
         if user_role == "PRO" or (user_role in ["ADM", "FUN"] and entity_type == "Provider"):
@@ -177,10 +178,10 @@ def funder_dashboard():
         school_df = school_df.drop(columns=["TotalStudents", "CalendarYear", "Term"], errors="ignore")
         school_df = school_df.rename(columns={"SchoolName": "School", "NumClasses": "Number of Classes"})
 
-        subject = f"{funder_desc} is" if user_role in ["ADM", "FUN"] else "You are"
+        subject = f"{entity_desc} is" if user_role in ["ADM", "FUN"] else "You are"
         summary_string = f"{subject} delivering to <strong>{total_students:,}</strong> students across <strong>{total_schools}</strong> school{'s' if total_schools != 1 else ''} in <strong>Term {selected_term}</strong>, <strong>{selected_year}</strong>."
 
-        title = f"{session.get('user_desc') or funder_desc} Overview" if user_role in ["PRO", "FUN"] else "Overview"
+        title = f"{session.get('user_desc') or entity_desc} Overview"
 
         return render_template("overview.html",
                                elearning=elearning_df.to_dict(orient="records"),
@@ -223,15 +224,23 @@ def get_entities():
             stmt = text("EXEC FlaskHelperFunctions @Request = :Request")
             result = conn.execute(stmt, {"Request": "FunderDropdown"})
             entities = [{"id": row._mapping["FunderID"], "name": row._mapping["Description"]} for row in result]
-
         elif entity_type == "Provider":
-            if session.get("user_id"):
-                stmt = text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :FunderID")
-                result = conn.execute(stmt, {"Request": "ProvidersByFunder", "FunderID": session.get("user_id")})
+            user_role = session.get("user_role")
+            if user_role == "PRO":
+                # Only return the current provider
+                entities = [{
+                    "id": session.get("user_id"),
+                    "name": session.get("desc")
+                }]
             else:
-                stmt = text("EXEC FlaskHelperFunctions @Request = :Request")
-                result = conn.execute(stmt, {"Request": "ProviderDropdown"})
-            entities = [{"id": row._mapping["ProviderID"], "name": row._mapping["Description"]} for row in result]
+                # Funder/Admin logic
+                if session.get("user_id"):
+                    stmt = text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :FunderID")
+                    result = conn.execute(stmt, {"Request": "ProvidersByFunder", "FunderID": session.get("user_id")})
+                else:
+                    stmt = text("EXEC FlaskHelperFunctions @Request = :Request")
+                    result = conn.execute(stmt, {"Request": "ProviderDropdown"})
+                entities = [{"id": row._mapping["ProviderID"], "name": row._mapping["Description"]} for row in result]
 
         else:
             return jsonify([])

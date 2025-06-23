@@ -28,7 +28,9 @@
       <div class="col-md-3">
         <label for="entity_type" class="form-label">Entity Type</label>
         <select name="entity_type" id="entity_type" class="form-select">
-          <option value="Funder" {% if entity_type == "Funder" %}selected{% endif %}>Funder</option>
+          {% if user_role != "PRO" %}
+      <option value="Funder" {% if entity_type == "Funder" %}selected{% endif %}>Funder</option>
+    {% endif %}
           <option value="Provider" {% if entity_type == "Provider" %}selected{% endif %}>Provider</option>
         </select>
       </div>

@@ -77,15 +77,20 @@
 <!-- Suggestions if no classes -->
 {% if suggestions and not classes %}
 <div class="container mt-4">
-  <div class="alert alert-warning">
-    <strong>No classes found.</strong>
-    Your school has classes from:
-    <ul class="mb-0">
-      {% for s in suggestions %}
-        <li>{{ s }}</li>
-      {% endfor %}
-    </ul>
+  <div class="row justify-content-center">
+    <div class="col-md-6">
+      <div class="alert alert-warning text-center">
+        <strong>No classes found.</strong><br />
+        Your school has classes from:
+        <ul class="mb-0 text-start">
+          {% for s in suggestions %}
+            <li>{{ s }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
   </div>
 </div>
 {% endif %}
 {% endblock %}
+
