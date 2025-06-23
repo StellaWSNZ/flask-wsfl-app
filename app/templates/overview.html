@@ -212,10 +212,23 @@
             funderSelect.innerHTML = `<option value="">Error loading providers</option>`;
             console.error("Error loading providers:", error);
           });
-      } else {
-        // If Funder, set only current user’s funder
-        funderSelect.innerHTML = `<option value="">-- Choose a Funder --</option>`;
-        funderSelect.disabled = false;
+      } else if (selectedType === "Funder") {
+        fetch(`/get_entities?entity_type=Funder`)
+          .then(response => response.json())
+          .then(data => {
+            funderSelect.innerHTML = `<option value="">-- Choose a Funder --</option>`;
+            data.forEach(item => {
+              const option = document.createElement("option");
+              option.value = item.id;
+              option.textContent = item.name;
+              funderSelect.appendChild(option);
+            });
+            funderSelect.disabled = false;
+          })
+          .catch(error => {
+            funderSelect.innerHTML = `<option value="">Error loading funders</option>`;
+            console.error("Error loading funders:", error);
+          });
       }
     });
   });

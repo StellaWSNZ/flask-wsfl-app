@@ -219,25 +219,31 @@ def get_entities():
         return jsonify([])
 
     engine = get_db_engine()
+    user_role = session.get("user_role")
+    user_id = session.get("user_id")
+    user_desc = session.get("desc")
+
     with engine.connect() as conn:
         if entity_type == "Funder":
-            stmt = text("EXEC FlaskHelperFunctions @Request = :Request")
-            result = conn.execute(stmt, {"Request": "FunderDropdown"})
-            entities = [{"id": row._mapping["FunderID"], "name": row._mapping["Description"]} for row in result]
+            if user_role == "ADM":
+                stmt = text("EXEC FlaskHelperFunctions @Request = :Request")
+                result = conn.execute(stmt, {"Request": "FunderDropdown"})
+                entities = [{"id": row._mapping["FunderID"], "name": row._mapping["Description"]} for row in result]
+            else:
+                # Only return the user's own funder info
+                entities = [{"id": user_id, "name": user_desc}]
+
         elif entity_type == "Provider":
-            user_role = session.get("user_role")
             if user_role == "PRO":
                 # Only return the current provider
-                entities = [{
-                    "id": session.get("user_id"),
-                    "name": session.get("desc")
-                }]
+                entities = [{"id": user_id, "name": user_desc}]
             else:
-                # Funder/Admin logic
-                if session.get("user_id"):
+                if user_role == "FUN" and user_id:
+                    # Get providers for this funder
                     stmt = text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :FunderID")
-                    result = conn.execute(stmt, {"Request": "ProvidersByFunder", "FunderID": session.get("user_id")})
+                    result = conn.execute(stmt, {"Request": "ProvidersByFunder", "FunderID": user_id})
                 else:
+                    # Admin gets all providers
                     stmt = text("EXEC FlaskHelperFunctions @Request = :Request")
                     result = conn.execute(stmt, {"Request": "ProviderDropdown"})
                 entities = [{"id": row._mapping["ProviderID"], "name": row._mapping["Description"]} for row in result]
@@ -245,5 +251,4 @@ def get_entities():
         else:
             return jsonify([])
 
-        #print(entities)
         return jsonify(entities)

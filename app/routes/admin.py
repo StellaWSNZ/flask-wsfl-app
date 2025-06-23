@@ -365,27 +365,34 @@ def provider_maintenance():
     engine = get_db_engine()
     user_role = session.get("user_role")
     user_id = session.get("user_id")
+    print(f"🔐 User Role: {user_role}, User ID: {user_id}")
+
     if not (user_role == "ADM" or (user_role == "FUN" and session.get("user_admin") == 1)):
         abort(403)
+
     selected_funder = request.form.get("funder")
     selected_term = request.form.get("term") or session.get("nearest_term")
     selected_year = request.form.get("year") or session.get("nearest_year")
+    print(f"📥 Selected funder: {selected_funder}, Term: {selected_term}, Year: {selected_year}")
 
     funders, schools, providers = [], [], []
 
     with engine.connect() as conn:
         if user_role == "ADM":
+            print("🔍 Loading all funders for admin...")
             funders_result = conn.execute(
                 text("EXEC FlaskHelperFunctions @Request = :Request"),
                 {"Request": "AllFunders"}
             )
             funders = [dict(row._mapping) for row in funders_result]
-            
+            print(f"📊 Funders loaded: {len(funders)}")
 
         if user_role == "FUN":
             selected_funder = str(user_id)
+            print(f"🔍 Funder user - using own ID as funder: {selected_funder}")
 
         if selected_funder:
+            print(f"🔎 Querying schools and providers for funder: {selected_funder}")
             schools_result = conn.execute(text("""
                 EXEC FlaskHelperFunctionsSpecific
                     @Request = 'GetSchoolsForProviderAssignment',
@@ -398,23 +405,29 @@ def provider_maintenance():
                 "funder_id": selected_funder
             })
             schools = [dict(row._mapping) for row in schools_result]
+            print(f"🏫 Schools loaded: {len(schools)}")
+
             providers_result = conn.execute(
                 text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :funder_id"),
                 {"Request": "GetProviderByFunder", "funder_id": selected_funder}
             )
             providers = [dict(row._mapping) for row in providers_result]
+            print(f"🏢 Providers loaded: {len(providers)}")
+
     try:
+        print("✅ Rendering provider_maintenance.html")
         return render_template(
             "provider_maintenance.html",
             schools=schools,
             providers=providers,
             funders=funders,
-        selected_funder=int(selected_funder) if selected_funder else None,
+            selected_funder=int(selected_funder) if selected_funder else None,
             selected_term=int(selected_term),
             selected_year=int(selected_year),
             user_role=user_role
         )
     except Exception as e:
+        print("❌ Error rendering provider_maintenance.html")
         traceback.print_exc()
         return str(e), 500
     
