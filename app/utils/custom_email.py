@@ -46,7 +46,14 @@ def send_account_setup_email(mail, recipient_email, first_name, role, is_admin, 
     role_display = role_names.get(role, role)
     admin_note = " with administrator privileges" if is_admin else ""
 
-    # Add contextual tail if inviter_desc == role_display
+    # Fallback inviter_desc if None, empty string, or "None"
+    if not inviter_desc or str(inviter_desc).strip().lower() == "none":
+        inviter_desc = "Administration"
+
+    # Debug print (remove in prod)
+    print(f"[DEBUG] inviter_desc used in email: {inviter_desc}")
+
+    # Add contextual tail if inviter_desc matches role_display
     if inviter_desc == role_display:
         if role == "FUN":
             context_tail = " for their funded organisation"
@@ -68,26 +75,26 @@ def send_account_setup_email(mail, recipient_email, first_name, role, is_admin, 
     )
 
     msg.body = f"""\
-    Kia ora {first_name},
+Kia ora {first_name},
 
-    {invited_by_name}{f" from {inviter_desc}" if inviter_desc else ""} has invited you to join the Water Skills for Life (WSFL) platform as a {role_display}{admin_note}{context_tail}.
+{invited_by_name} from {inviter_desc} has invited you to join the Water Skills for Life (WSFL) platform as a {role_display}{admin_note}{context_tail}.
 
-    To get started, go to the login page and click "Forgot password" to set your password:
-    {url_for('auth_bp.login', _external=True)}
+To get started, go to the login page and click "Forgot password" to set your password:
+{url_for('auth_bp.login', _external=True)}
 
-    Ngā mihi,
-    The WSFL Team
-    """
+Ngā mihi,
+The WSFL Team
+"""
 
     msg.html = f"""\
-    <div style="font-family: Arial, sans-serif; font-size: 16px; line-height: 1.6;">
-    <p>Kia ora <strong>{first_name}</strong>,</p>
-    <p><strong>{invited_by_name}</strong> from <strong>{inviter_desc}</strong> has invited you to join the <strong>Water Skills for Life</strong> platform as <strong>{role_display}{admin_note}{context_tail}</strong>.</p>
-    <p>To get started, visit the <a href="{url_for('auth_bp.login', _external=True)}">login page</a> and click <strong>"Forgot password"</strong> to set your password.</p>
-    <p>Ngā mihi nui,<br>The WSFL Team</p>
-    <img src="cid:wsfl_logo" alt="WSFL Logo" style="margin-top: 20px; width: 200px;">
-    </div>
-    """
+<div style="font-family: Arial, sans-serif; font-size: 16px; line-height: 1.6;">
+  <p>Kia ora <strong>{first_name}</strong>,</p>
+  <p><strong>{invited_by_name}</strong> from <strong>{inviter_desc}</strong> has invited you to join the <strong>Water Skills for Life</strong> platform as <strong>{role_display}{admin_note}{context_tail}</strong>.</p>
+  <p>To get started, visit the <a href="{url_for('auth_bp.login', _external=True)}">login page</a> and click <strong>"Forgot password"</strong> to set your password.</p>
+  <p>Ngā mihi nui,<br>The WSFL Team</p>
+  <img src="cid:wsfl_logo" alt="WSFL Logo" style="margin-top: 20px; width: 200px;">
+</div>
+"""
 
     with current_app.open_resource("static/WSFLLogo.png") as fp:
         msg.attach("WSFLLogo.png", "image/png", fp.read(), disposition='inline',
