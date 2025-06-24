@@ -3,6 +3,8 @@ from flask_mail import Message
 from itsdangerous import URLSafeTimedSerializer
 from flask import current_app, url_for
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
+import os
+import smtplib
 
 def send_reset_email(mail, email, token):
     reset_url = url_for('auth_bp.reset_password', token=token, _external=True)
@@ -187,4 +189,56 @@ def send_survey_invitation_email(mail, email, firstname, lastname, role, user_id
     <p>This invitation was sent at the request of <strong>{requested_by}</strong> from <strong>{from_org}</strong>.</p>
     <p>Ngā mihi,<br>WSFL Team</p>
     """
+    mail.send(msg)
+
+
+
+def send_feedback_email(mail, user_email, issue_text, display_name, role, is_admin, desc, screenshot_file=None):
+    admin_text = "Yes" if is_admin else "No"
+
+    msg = Message(
+        subject="WSFL Feedback Submitted",
+        recipients=["stella@watersafety.org.nz"],
+        sender=(f"{display_name} via WSFL", current_app.config["MAIL_DEFAULT_SENDER"])
+    )
+
+    msg.body = f"""\
+    Feedback submitted in WSFL
+
+    Name: {display_name}
+    Email: {user_email}
+    Role: {role}
+    Admin: {admin_text}
+    Entity: {desc}
+
+    Issue:
+    {issue_text}
+    """
+
+    msg.html = f"""\
+    <div style="font-family: Arial, sans-serif; font-size: 16px; line-height: 1.6;">
+      <p><strong>New feedback submitted in WSFL</strong></p>
+      <p><strong>Name:</strong> {display_name}<br>
+         <strong>Email:</strong> {user_email}<br>
+         <strong>Role:</strong> {role}<br>
+         <strong>Admin:</strong> {admin_text}<br>
+         <strong>Entity:</strong> {desc}</p>
+      <p><strong>Issue:</strong></p>
+      <p style="white-space: pre-line;">{issue_text}</p>
+      <p>Ngā mihi,<br>WSFL Auto Notification System</p>
+      <img src="cid:wsfl_logo" alt="WSFL Logo" style="margin-top: 20px; width: 200px;">
+    </div>
+    """
+    if screenshot_file and screenshot_file.filename:
+        screenshot_file.seek(0)  # Ensure it's at the start
+        msg.attach(
+            filename="feedback_screenshot.png",  # or screenshot_file.filename if you prefer
+            content_type="image/png",
+            data=screenshot_file.read()
+        )
+    with current_app.open_resource("static/WSFLLogo.png") as fp:
+        msg.attach("WSFLLogo.png", "image/png", fp.read(), disposition='inline',
+                   headers={"Content-ID": "<wsfl_logo>"})
+    
+    
     mail.send(msg)

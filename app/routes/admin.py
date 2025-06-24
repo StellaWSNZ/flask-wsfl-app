@@ -214,7 +214,7 @@ def profile():
         result = conn.execute(text("EXEC FlaskHelperFunctions 'SchoolTypeDropdown'"))
         school_type_options = [dict(row._mapping) for row in result]
         result = conn.execute(text("EXEC GetElearningStatus :Email"), {"Email": user_info["email"]})
-        elearning_status = [dict(row._mapping) for row in result]
+        eLearning_status = [dict(row._mapping) for row in result]
 
         # optionally pass a static last_updated date for now 
         last_self_review_row = conn.execute(text("EXEC SVY_LatestSelfReveiw :Email"), {"Email": user_info["email"]}).fetchone()
@@ -233,7 +233,7 @@ def profile():
     return render_template("profile.html",
                        user=user_info,
                        school_type_options=school_type_options,
-                       elearning_status=elearning_status)
+                       eLearning_status=eLearning_status)
 
 from flask import request, redirect, url_for, flash
 

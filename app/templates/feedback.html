@@ -1,0 +1,55 @@
+{% extends "header.html" %} {% block title %}Submit Feedback{% endblock %} {%
+block content %}
+<div class="container d-flex justify-content-center mt-5">
+  <div class="col-md-8 col-lg-6">
+    <div class="text-center mb-4">
+      <h3 class="text-primary mb-4 text-center">
+        Submit Feedback or Report an Issue
+      </h3>
+      <p class="text-muted fst-italic">
+        Submitting this form as {{ display_name }}, {{ user_desc }}
+      </p>
+    </div>
+    {% with messages = get_flashed_messages(with_categories=true) %} {% if
+    messages %}
+    <div
+      id="feedbackAlert"
+      class="alert alert-success alert-dismissible fade show"
+      role="alert"
+      style="position: fixed; top: 80px; right: 20px; z-index: 1051"
+    >
+      {% for category, message in messages %} {{ message }} {% endfor %}
+      <button
+        type="button"
+        class="btn-close"
+        data-bs-dismiss="alert"
+        aria-label="Close"
+      ></button>
+    </div>
+    {% endif %} {% endwith %}
+
+    <form method="POST" enctype="multipart/form-data">
+      <div class="mb-3">
+        <label for="issue" class="form-label">Describe the issue</label>
+        <textarea
+          name="issue"
+          id="issue"
+          class="form-control"
+          rows="6"
+          required
+        ></textarea>
+      </div>
+      <div class="mb-3">
+        <label for="screenshot" class="form-label">Optional Screenshot</label>
+        <input
+          class="form-control"
+          type="file"
+          name="screenshot"
+          accept="image/*"
+        />
+      </div>
+      <button type="submit" class="btn btn-primary">Submit Feedback</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

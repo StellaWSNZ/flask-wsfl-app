@@ -5,11 +5,11 @@ import json
 from sqlalchemy import text
 from app.routes.auth import login_required
 
-elearning_bp = Blueprint("elearning_bp", __name__)
+eLearning_bp = Blueprint("eLearning_bp", __name__)
 
-@elearning_bp.route("/elearning", methods=["GET", "POST"])
+@eLearning_bp.route("/eLearning", methods=["GET", "POST"])
 @login_required
-def admin_elearning_upload():
+def admin_eLearning_upload():
     #print("*")
     #print(session.get("user_role"))
     if session.get("user_role") != "ADM":
@@ -46,10 +46,15 @@ def admin_elearning_upload():
 
         return redirect(request.url)
 
-    return render_template("elearning_upload.html")
+    return render_template("eLearning_upload.html")
 
 
-@elearning_bp.route("/my-ip")
+@eLearning_bp.route("/my-ip")
 def get_my_ip():
     import requests
     return requests.get("https://api.ipify.org").text
+
+@eLearning_bp.route("/eLearning-guide")
+@login_required
+def eLearning_guide():
+    return render_template("eLearning_guide.html")

@@ -1,0 +1,40 @@
+{% extends "header.html" %} {% block title %}eLearning Guide{% endblock %} {%
+block content %}
+<div class="container mt-5">
+  <h2 class="mb-4 text-center text-primary">eLearning Guide</h2>
+  <div class="text-center">
+    <a
+      href="https://sporttutor.nz/ilp/pages/catalogsearch.jsf?catalogId=3712496&menuId=3712463&locale=en-GB&showbundlekeys=false&client=watersafetynz&sidebarExpanded=true&q=*:*&rows=9"
+      class="btn btn-outline-primary mb-3"
+      target="_blank"
+    >
+      🔗 Go to Sport Tutor Course Search
+    </a>
+  </div>
+  <!-- Embedded PDF viewer -->
+  <div class="container d-flex justify-content-center">
+    <div
+      class="mb-5 rounded border shadow-sm overflow-hidden"
+      style="width: 60%; height: 800px; min-width: 320px"
+    >
+      <iframe
+        src="{{ url_for('static', filename='eLearningGuide.pdf') }}"
+        width="100%"
+        height="100%"
+        style="border: none"
+      >
+        <p class="p-3">
+          Your browser does not support embedded PDFs.
+          <a
+            href="{{ url_for('static', filename='eLearningGuide.pdf') }}"
+            class="btn btn-outline-primary mt-2"
+            >Download PDF</a
+          >
+        </p>
+      </iframe>
+    </div>
+  </div>
+
+  <!-- Useful Links -->
+</div>
+{% endblock %}

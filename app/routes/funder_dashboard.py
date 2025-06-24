@@ -117,8 +117,8 @@ def funder_dashboard():
         #print(f"🎯 selected_funder_id: {selected_funder_id}")
 
         if not selected_funder_id:
-            return render_template("overview.html", elearning=[], schools=[], selected_year=None, selected_term=None,
-                                   available_years=[], available_terms=[], no_elearning=True, no_schools=True,
+            return render_template("overview.html", eLearning=[], schools=[], selected_year=None, selected_term=None,
+                                   available_years=[], available_terms=[], no_eLearning=True, no_schools=True,
                                    summary_string=None, user_role=user_role, funder_list=funder_dropdown,
                                    selected_funder_id=None, all_funders=all_funders, all_providers=all_providers,
                                    entity_type=entity_type, title="Overview")
@@ -136,17 +136,17 @@ def funder_dashboard():
         if user_role == "PRO" or (user_role in ["ADM", "FUN"] and entity_type == "Provider"):
             proc = "FlaskGetSchoolSummaryByProvider"
             id_param_name = "ProviderID"
-            elearning_proc = "FlaskGetProviderELearningStatus"
+            eLearning_proc = "FlaskGetProvidereLearningStatus"
         else:
             proc = "FlaskGetSchoolSummaryByFunder"
             id_param_name = "FunderID"
-            elearning_proc = "FlaskGetFunderELearningStatus"
+            eLearning_proc = "FlaskGetFundereLearningStatus"
 
-        print(f"🔄 proc: {proc}, elearning_proc: {elearning_proc}, id_param: {id_param_name}")
+        print(f"🔄 proc: {proc}, eLearning_proc: {eLearning_proc}, id_param: {id_param_name}")
 
         with engine.begin() as conn:
-            elearning_df = pd.read_sql(
-                text(f"EXEC {elearning_proc} @{id_param_name} = :id_val, @Email = :email"),
+            eLearning_df = pd.read_sql(
+                text(f"EXEC {eLearning_proc} @{id_param_name} = :id_val, @Email = :email"),
                 conn,
                 params={"id_val": selected_funder_id, "email": session.get("user_email") or "unknown@example.com"}
             )
@@ -158,7 +158,7 @@ def funder_dashboard():
             )
 
        #print(f"📚 school_df_all.shape: {school_df_all.shape}")
-        #print(f"📗 elearning_df.columns: {elearning_df.columns.tolist()}")
+        #print(f"📗 eLearning_df.columns: {eLearning_df.columns.tolist()}")
 
         available_years = sorted(school_df_all.get("CalendarYear", pd.Series(dtype=int)).dropna().unique(), reverse=True)
         available_terms = sorted(school_df_all.get("Term", pd.Series(dtype=int)).dropna().unique())
@@ -184,13 +184,13 @@ def funder_dashboard():
         title = f"{session.get('user_desc') or entity_desc} Overview"
 
         return render_template("overview.html",
-                               elearning=elearning_df.to_dict(orient="records"),
+                               eLearning=eLearning_df.to_dict(orient="records"),
                                schools=school_df.to_dict(orient="records"),
                                selected_year=selected_year,
                                selected_term=selected_term,
                                available_years=available_years,
                                available_terms=available_terms,
-                               no_elearning=elearning_df.empty,
+                               no_eLearning=eLearning_df.empty,
                                no_schools=school_df.empty,
                                summary_string=summary_string,
                                user_role=user_role,

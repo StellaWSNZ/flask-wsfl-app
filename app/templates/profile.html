@@ -46,7 +46,7 @@
   <input type="text" class="form-control" value="{{ user.desc }}" readonly disabled />
 </div>
 {% endif %}
-{% if elearning_status %}
+{% if eLearning_status %}
 <div class="mb-3">
   <label class="form-label">E-Learning Status</label>
     <i class="bi bi-info-circle-fill text-muted ms-1"
@@ -55,7 +55,7 @@
      title="This shows your progress in each e-learning course. 'Not Started' means you haven't enrolled yet.">
   </i>
   <ul class="list-group">
-    {% for course in elearning_status %}
+    {% for course in eLearning_status %}
     <li class="list-group-item d-flex justify-content-between align-items-center">
       {{ course.ElearningCourseDesc }}
       <span class="badge 

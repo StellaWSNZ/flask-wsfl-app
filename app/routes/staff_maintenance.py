@@ -380,11 +380,11 @@ from types import SimpleNamespace
 
 
 
-@staff_bp.route("/StaffELearning", methods=["GET"])
+@staff_bp.route("/StaffeLearning", methods=["GET"])
 @login_required
-def staff_elearning():
+def staff_eLearning():
     
-    print("📥 Route '/StaffELearning' called")
+    print("📥 Route '/StaffeLearning' called")
 
     engine = get_db_engine()
     user_role = session.get("user_role")
@@ -456,7 +456,7 @@ def staff_elearning():
         # 🧾 Get staff eLearning records
         print("📚 Fetching eLearning records...")
         el_rows = conn.execute(text("""
-            EXEC FlaskGetStaffELearning :RoleType, :ID, :Email
+            EXEC FlaskGetStaffeLearning :RoleType, :ID, :Email
         """), {
             "RoleType": selected_entity_type[:3].upper(),
             "ID": selected_entity_id,
@@ -469,7 +469,7 @@ def staff_elearning():
             text("EXEC FlaskHelperFunctionsSpecific @Request = 'ActiveCourses'")
         ).fetchall()
 
-    active_course_ids = [str(r.ELearningCourseID) for r in active_courses]
+    active_course_ids = [str(r.eLearningCourseID) for r in active_courses]
     print(f"🎓 Active course IDs: {active_course_ids}")
 
     # 📊 Group data by email
@@ -495,8 +495,8 @@ def staff_elearning():
     print(f"🏷️ Selected entity name: {selected_name}")
 
     return render_template(
-        "staff_elearning.html",
-        staff_elearning_data=grouped,
+        "staff_eLearning.html",
+        staff_eLearning_data=grouped,
         course_ids=active_course_ids,
         selected_entity_type=selected_entity_type,
         selected_entity_id=selected_entity_id,

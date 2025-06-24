@@ -16,8 +16,13 @@ from app.utils.competencyplot import load_competency_rates, make_figure
 from app.utils.nationalplot import generate_national_report
 import traceback
 from collections import defaultdict
+from datetime import datetime, timedelta
 
 class_bp = Blueprint("class_bp", __name__)
+
+from datetime import datetime, timedelta
+from dateutil.parser import isoparse
+from collections import defaultdict
 
 @class_bp.route('/Class/<int:class_id>/<int:term>/<int:year>')
 @login_required
@@ -26,8 +31,24 @@ def view_class(class_id, term, year):
         filter_type = request.args.get("filter", "all")
         order_by = request.args.get("order_by", "last")
         cache_key = f"{class_id}_{term}_{year}"
-
         cached = session.get("class_cache", {}).get(cache_key)
+
+        # ⏳ Cache expiry check
+        if cached:
+            expires_str = cached.get("expires")
+            if expires_str:
+                try:
+                    expires_at = isoparse(expires_str)
+                    if datetime.utcnow() > expires_at:
+                        print(f"🕒 Cache expired for {cache_key}")
+                        session["class_cache"].pop(cache_key, None)
+                        cached = None
+                except Exception as e:
+                    print("⚠️ Failed to parse cache expiry:", e)
+                    session["class_cache"].pop(cache_key, None)
+                    cached = None
+
+        # ✅ Use cache if valid
         if cached and "student_competencies" in cached:
             try:
                 df_combined = pd.DataFrame(cached["student_competencies"])
@@ -59,7 +80,7 @@ def view_class(class_id, term, year):
                 print("⚠️ Error while rendering from cache:")
                 traceback.print_exc()
 
-        # If no cache or cache fails, rebuild from DB
+        # ❌ If no cache or cache failed, load from DB
         engine = get_db_engine()
         with engine.begin() as conn:
             scenario_result = conn.execute(text("EXEC FlaskHelperFunctions @Request = :request"), {"request": "Scenario"})
@@ -80,7 +101,7 @@ def view_class(class_id, term, year):
             school_name = school_result.SchoolName if school_result else "(Unknown)"
             title_string = f"Class Name: {class_name} | Teacher Name: {teacher_name} | School Name: {school_name}"
 
-            result = conn.execute(
+            student_result = conn.execute(
                 text("""EXEC FlaskHelperFunctionsSpecific
                         @Request = :Request,
                         @ClassID = :class_id,
@@ -88,13 +109,13 @@ def view_class(class_id, term, year):
                         @Year = :year"""),
                 {"Request": "StudentsByClassTermYear", "class_id": class_id, "term": term, "year": year}
             )
-            students = pd.DataFrame(result.fetchall(), columns=result.keys())
+            students = pd.DataFrame(student_result.fetchall(), columns=student_result.keys())
             if students.empty:
                 flash("No students found.", "warning")
                 return redirect(url_for("class_bp.funder_classes"))
 
             comp_result = conn.execute(text("EXEC GetRelevantCompetencies :CalendarYear, :Term"),
-                                    {"CalendarYear": year, "Term": term})
+                                       {"CalendarYear": year, "Term": term})
             comp_df = pd.DataFrame(comp_result.fetchall(), columns=comp_result.keys())
             if filter_type == "water":
                 comp_df = comp_df[comp_df["WaterBased"] == 1]
@@ -107,6 +128,7 @@ def view_class(class_id, term, year):
             all_records = []
             for _, student in students.iterrows():
                 nsn = student["NSN"]
+
                 comp_data = pd.read_sql(
                     text("""EXEC FlaskGetStudentCompetencyStatus 
                             @NSN = :NSN, 
@@ -159,7 +181,10 @@ def view_class(class_id, term, year):
             for row in auto_result:
                 header_map[row.HeaderPre].append(row.HeaderPost)
 
+            expiry_time = datetime.utcnow() + timedelta(minutes=15)
             session.setdefault("class_cache", {})[cache_key] = {
+                "timestamp": datetime.utcnow().isoformat(),
+                "expires": expiry_time.isoformat(),
                 "students": students.to_dict(),
                 "competencies": comp_df.to_dict(),
                 "filter": filter_type,
@@ -188,11 +213,12 @@ def view_class(class_id, term, year):
                 year=year,
                 order_by=order_by
             )
+
     except Exception as e:
         print("❌ An error occurred in view_class:")
         traceback.print_exc()
-        return "An internal error occurred. Check logs for details.", 500        
-     
+        return "An internal error occurred. Check logs for details.", 500
+
 @class_bp.route("/update_class_info", methods=["POST"])
 @login_required
 def update_class_info():

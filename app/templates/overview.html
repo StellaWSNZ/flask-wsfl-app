@@ -73,19 +73,19 @@
           <h5 class="mb-0">Your Staff eLearning Progress</h5>
         </div>
         <div class="card-body">
-          {% if elearning %}
+          {% if eLearning %}
           <div class="table-responsive">
             <table class="table table-bordered text-center align-middle">
               <thead class="table-light">
                 <tr>
                   <th>Staff</th>
-                  {% for module in elearning[0].keys() if module != 'Name' %}
+                  {% for module in eLearning[0].keys() if module != 'Name' %}
                   <th>{{ module }}</th>
                   {% endfor %}
                 </tr>
               </thead>
               <tbody>
-                {% for row in elearning %}
+                {% for row in eLearning %}
                 <tr>
                   <td>{{ row["Name"] }}</td>
                   {% for key, val in row.items() %}

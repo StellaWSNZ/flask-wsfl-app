@@ -247,9 +247,9 @@
                 <li>
                   <a
                     class="dropdown-item py-2"
-                    href="{{ url_for('elearning_bp.admin_elearning_upload') }}"
+                    href="{{ url_for('eLearning_bp.admin_eLearning_upload') }}"
                   >
-                    Upload ELearning CSV
+                    Upload eLearning CSV
                   </a>
                 </li>
                 <li>
@@ -278,7 +278,7 @@
                 data-bs-toggle="dropdown"
                 aria-expanded="false"
               >
-                <i class="bi bi-clipboard-check me-1"></i> Self Reviews
+                <i class="bi bi-ui-checks me-1"></i> Forms
               </a>
               <ul class="dropdown-menu dropdown-menu-end">
                 <li>
@@ -286,7 +286,7 @@
                     class="dropdown-item py-2"
                     href="{{ url_for('survey_bp.survey_by_routename', routename='SelfReview') }}"
                   >
-                    Complete a Review
+                    Complete a Self Review
                   </a>
                 </li>
                 <li>
@@ -295,6 +295,23 @@
                     href="{{ url_for('survey_bp.list_my_surveys') }}"
                   >
                     View Past Reviews
+                  </a>
+                </li>
+                <li><hr class="dropdown-divider" /></li>
+                <li>
+                  <a
+                    class="dropdown-item py-2"
+                    href="{{ url_for('feedback_bp.feedback') }}"
+                  >
+                    Report an Issue / Submit Feedback
+                  </a>
+                </li>
+                <li>
+                  <a
+                    class="dropdown-item py-2"
+                    href="{{ url_for('survey_bp.survey_by_routename', routename='Feedback') }}"
+                  >
+                    Testing Feedback
                   </a>
                 </li>
               </ul>
@@ -322,12 +339,20 @@
                 <li>
                   <a
                     class="dropdown-item py-2"
-                    href="{{ url_for('staff_bp.staff_elearning') }}"
+                    href="{{ url_for('staff_bp.staff_eLearning') }}"
                   >
                     View All eLearnings
                   </a>
                 </li>
               </ul>
+            </li>
+            <li class="nav-item mt-2 mt-lg-0 me-2">
+              <a
+                href="{{ url_for('eLearning_bp.eLearning_guide') }}"
+                class="nav-link"
+              >
+                eLearning
+              </a>
             </li>
             <li class="nav-item mt-2 mt-lg-0 me-2">
               <a href="{{ url_for('admin_bp.create_user') }}" class="nav-link">

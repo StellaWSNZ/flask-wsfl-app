@@ -169,7 +169,7 @@
             </div>
             <div class="col-md-6">
               <div class="row row-cols-2 g-2">
-                {% for col in columns if col.startswith("ELearningName_") %} {%
+                {% for col in columns if col.startswith("eLearningName_") %} {%
                 set course_id = col.split('_')[1] %}
                 <div class="col">
                   <div
@@ -179,9 +179,9 @@
                       <small>{{ row[col] }}</small>
                     </div>
                     <span
-                      class="badge me-3 {% if row['ELearningStatus_' + course_id] == 'Passed' %}bg-success {% elif row['ELearningStatus_' + course_id] == 'In Progress' %}bg-warning text-dark {% elif row['ELearningStatus_' + course_id] == 'Cancelled' %}bg-danger {% elif row['ELearningStatus_' + course_id] == 'Not Started' %}bg-secondary {% else %}bg-light text-dark{% endif %}"
+                      class="badge me-3 {% if row['eLearningStatus_' + course_id] == 'Passed' %}bg-success {% elif row['eLearningStatus_' + course_id] == 'In Progress' %}bg-warning text-dark {% elif row['eLearningStatus_' + course_id] == 'Cancelled' %}bg-danger {% elif row['eLearningStatus_' + course_id] == 'Not Started' %}bg-secondary {% else %}bg-light text-dark{% endif %}"
                     >
-                      {{ row['ELearningStatus_' + course_id] }}
+                      {{ row['eLearningStatus_' + course_id] }}
                     </span>
                   </div>
                 </div>
