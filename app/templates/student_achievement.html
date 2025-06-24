@@ -259,6 +259,9 @@ select option {
 
 <script>
   const autofillMap = {{ autofill_map | tojson }};
+  const classId = {{ class_id | tojson }};
+  const term = {{ term | tojson }};
+  const year = {{ year | tojson }};
 
   function toggleEditMode(editing) {
     const displayBox = document.getElementById("class-info-display");
@@ -306,6 +309,7 @@ select option {
   }
 
   document.addEventListener("DOMContentLoaded", function () {
+    // Handle competency checkbox updates
     document.querySelectorAll('input[type="checkbox"][name="competency"]').forEach(cb => {
       cb.addEventListener("change", function () {
         const nsn = this.dataset.nsn;
@@ -315,22 +319,27 @@ select option {
         fetch('/update_competency', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ nsn, header_name: headerName, status })
+          body: JSON.stringify({
+            nsn,
+            header_name: headerName,
+            status,
+            class_id: classId,
+            term: term,
+            year: year
+          })
         })
         .then(response => response.json())
         .then(data => {
-          if (data.success && status === 1) {
-            if (autofillMap[headerName]) {
-              autofillMap[headerName].forEach(postHeader => {
-                const target = document.querySelector(
-                  `input[type="checkbox"][name="competency"][data-nsn="${nsn}"][data-competency="${postHeader}"]`
-                );
-                if (target && !target.checked) {
-                  target.checked = true;
-                  target.dispatchEvent(new Event("change"));
-                }
-              });
-            }
+          if (data.success && status === 1 && autofillMap[headerName]) {
+            autofillMap[headerName].forEach(postHeader => {
+              const target = document.querySelector(
+                `input[type="checkbox"][name="competency"][data-nsn="${nsn}"][data-competency="${postHeader}"]`
+              );
+              if (target && !target.checked) {
+                target.checked = true;
+                target.dispatchEvent(new Event("change"));
+              }
+            });
           } else if (!data.success) {
             alert("❌ Failed to update competency.");
           }
@@ -339,16 +348,24 @@ select option {
       });
     });
 
+    // Handle scenario dropdown updates
     document.querySelectorAll('select[data-scenario-index]').forEach(select => {
       select.addEventListener("change", function () {
         const nsn = this.dataset.nsn;
         const headerName = this.dataset.header;
-        const value = this.value;
+        const value = parseInt(this.value);
 
         fetch('/update_scenario', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ nsn, header: headerName, value: parseInt(value) })
+          body: JSON.stringify({
+            nsn,
+            header: headerName,
+            value,
+            class_id: classId,
+            term: term,
+            year: year
+          })
         })
         .then(response => response.json())
         .then(data => {
@@ -361,4 +378,5 @@ select option {
     });
   });
 </script>
+
 {% endblock %}

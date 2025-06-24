@@ -431,27 +431,30 @@ def update_competency():
     nsn = data.get("nsn")
     header_name = data.get("header_name")
     status = data.get("status")
+    class_id = data.get("class_id")
+    term = data.get("term")
+    year = data.get("year")
     debug = 0
+
     print(f"📥 Incoming update request: NSN={nsn}, Header='{header_name}', Status={status}")
 
-    if nsn is None or header_name is None or status is None:
+    if None in (nsn, header_name, status, class_id, term, year):
         return jsonify({"success": False, "message": "Missing data"}), 400
 
     try:
         engine = get_db_engine()
         with engine.begin() as conn:
-
-            result = conn.execute(
+            conn.execute(
                 text("EXEC FlaskUpdateAchievement @NSN = :nsn, @Header = :header, @Value = :value, @Email = :email, @Debug = :debug"),
                 {"nsn": nsn, "header": header_name, "value": status, "email": session.get("user_email"), "debug": debug}
             )
 
-            # Fetch debug output from first result set (assuming it's a SELECT '...' AS Msg)
+        # 🧹 Invalidate cache for this class
+        cache_key = f"{class_id}_{term}_{year}"
+        session.get("class_cache", {}).pop(cache_key, None)
+        print(f"🧹 Cache cleared for {cache_key}")
 
-        return jsonify({
-            "success": True
-        })
-
+        return jsonify({"success": True})
     except Exception as e:
         print("❌ Competency update failed:", e)
         return jsonify({"success": False, "error": str(e)}), 500
@@ -463,11 +466,14 @@ def update_scenario():
     nsn = data.get("nsn")
     header = data.get("header")
     value = data.get("value")
-    debug = 0  # Optional: change to 1 if you want debug mode
+    class_id = data.get("class_id")
+    term = data.get("term")
+    year = data.get("year")
+    debug = 0
 
     print(f"📥 Incoming update request: NSN={nsn}, Header='{header}', Status={value}")
 
-    if nsn is None or header is None or value is None:
+    if None in (nsn, header, value, class_id, term, year):
         return jsonify(success=False, error="Missing parameters"), 400
 
     try:
@@ -477,11 +483,136 @@ def update_scenario():
                 text("EXEC FlaskUpdateAchievement @NSN = :nsn, @Header = :header, @Value = :value, @Email = :email, @Debug = :debug"),
                 {"nsn": nsn, "header": header, "value": value, "email": session.get("user_email"), "debug": debug}
             )
+
+        # 🧹 Invalidate cache for this class
+        cache_key = f"{class_id}_{term}_{year}"
+        session.get("class_cache", {}).pop(cache_key, None)
+        print(f"🧹 Cache cleared for {cache_key}")
+
         return jsonify(success=True)
     except Exception as e:
         print("❌ Scenario update failed:", e)
         return jsonify(success=False, error=str(e)), 500
 
+@class_bp.route('/Reporting', methods=["GET", "POST"])
+@login_required
+def reporting():
+    global last_pdf_generated, last_pdf_filename, last_png_generated, last_png_filename
+
+    engine = get_db_engine()
+    role = session.get("user_role")
+    user_id = session.get("user_id")
+
+    funders = []
+    competencies = []
+    img_data = None
+    report_type = None
+    term = None
+    year = None
+    funder_name = None
+    dropdown_string = None
+
+    with engine.connect() as conn:
+        if role == "ADM":
+            result = conn.execute(text("EXEC FlaskHelperFunctions :Request"), {"Request": "FunderDropdown"})
+            funders = [row.Description for row in result]
+
+        result = conn.execute(text("EXEC FlaskHelperFunctions :Request"), {"Request": "CompetencyDropdown"})
+        competencies = [row.Competency for row in result]
+    #print("Session dump:", dict(session), file=sys.stderr)
+
+    if request.method == "POST":
+        report_type = request.form.get("report_type")
+        term = int(request.form.get("term"))
+        year = int(request.form.get("year"))
+        funder_name = request.form.get("funder") or session.get("desc")
+        #print(request.form.get("funder"))
+        #print(session.get("desc"))
+        if report_type == "Funder":
+            with engine.connect() as conn:
+                result = conn.execute(
+                    text("EXEC FlaskHelperFunction @Request =:Request, Text = :Description"),
+                    {"Request":"FunderIDDescription","Description": funder_name}
+                )
+                row = result.fetchone()
+
+            if not row:
+                flash("Funder not found.", "danger")
+                return redirect(url_for("class_bp.reporting"))
+
+            funder_id = int(row.FunderID)
+            fig = create_competency_report(term, year, funder_id, funder_name)
+
+            png_buf = io.BytesIO()
+            plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
+            fig.savefig(png_buf, format="png")
+            png_buf.seek(0)
+            img_data = base64.b64encode(png_buf.getvalue()).decode("utf-8")
+
+            last_png_generated = io.BytesIO(png_buf.getvalue())
+
+            pdf_buf = io.BytesIO()
+            fig.savefig(pdf_buf, format="pdf")
+            pdf_buf.seek(0)
+            last_pdf_generated = pdf_buf
+            last_pdf_filename = f"{report_type}_Report_{funder_name}_{term}_{year}.pdf"
+
+            plt.close(fig)
+
+        elif report_type == "Competency":
+            dropdown_string = request.form.get("competency")
+
+            with engine.connect() as conn:
+                result = conn.execute(
+                    text("EXEC GetCompetencyIDsFromDropdown :DropdownValue"),
+                    {"DropdownValue": dropdown_string}
+                )
+                row = result.fetchone()
+
+            if not row:
+                flash("Invalid competency selected.", "danger")
+                return redirect(url_for("class_bp.reporting"))
+
+            competency_id = row.CompetencyID
+            year_group_id = row.YearGroupID
+
+            df = load_competency_rates(engine, year, term, competency_id, year_group_id)
+            if df.empty:
+                flash("No data found.", "warning")
+                return redirect(url_for("class_bp.reporting"))
+
+            title = f"{df['CompetencyDesc'].iloc[0]} ({df['YearGroupDesc'].iloc[0]})"
+            fig = make_figure(df, title)
+
+            png_buf = io.BytesIO()
+            plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
+            fig.savefig(png_buf, format="png")
+            png_buf.seek(0)
+            img_data = base64.b64encode(png_buf.read()).decode("utf-8")
+
+            last_png_generated = io.BytesIO(png_buf.getvalue())
+            last_png_filename = f"{report_type}_Report_{dropdown_string.replace(' ', '_')}_{term}_{year}.png"
+
+            pdf_buf = io.BytesIO()
+            fig.savefig(pdf_buf, format="pdf")
+            pdf_buf.seek(0)
+            last_pdf_generated = pdf_buf
+            last_pdf_filename = f"{report_type}_Report_{dropdown_string.replace(' ', '_')}_{term}_{year}.pdf"
+
+            plt.close(fig)
+
+    return render_template(
+        "reporting.html",
+        funders=funders,
+        competencies=competencies,
+        selected_report_type=report_type,
+        selected_term=term,
+        selected_year=year,
+        selected_funder=funder_name,
+        selected_competency=dropdown_string,
+        img_data=img_data,
+        user_role=role
+    )
 
 @class_bp.route("/comingsoon")
 @login_required
