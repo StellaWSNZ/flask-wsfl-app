@@ -20,18 +20,18 @@
     </div>
 
     <div class="col-md-5">
-      <label for="funder_id" class="form-label" id="entityLabel">
+      <label for="entity_id" class="form-label" id="entityLabel">
         Select {{ entity_type or 'Funder' }}
       </label>
-      <select name="funder_id" id="funder_id" class="form-select" {% if user_role == "PRO" %}readonly disabled{% endif %}>
-        {% for funder in funder_list %}
-          <option value="{{ funder.id }}" {% if funder.id == selected_funder_id %}selected{% endif %}>
-            {{ funder.name }}
+      <select name="entity_id" id="entity_id" class="form-select" {% if user_role == "PRO" %}readonly disabled{% endif %}>
+        {% for entity in funder_list %}
+          <option value="{{ entity.id }}" {% if entity.id == selected_funder_id %}selected{% endif %}>
+            {{ entity.name }}
           </option>
         {% endfor %}
       </select>
       {% if user_role == "PRO" %}
-      <input type="hidden" name="funder_id" value="{{ selected_funder_id }}">
+        <input type="hidden" name="entity_id" value="{{ selected_funder_id }}">
       {% endif %}
     </div>
 
@@ -169,7 +169,7 @@
             </div>
             <div class="col-md-6">
               <div class="row row-cols-2 g-2">
-                {% for col in columns if col.startswith("eLearningName_") %} {%
+                {% for col in columns if col.startswith("ELearningName_") %} {%
                 set course_id = col.split('_')[1] %}
                 <div class="col">
                   <div
@@ -179,9 +179,9 @@
                       <small>{{ row[col] }}</small>
                     </div>
                     <span
-                      class="badge me-3 {% if row['eLearningStatus_' + course_id] == 'Passed' %}bg-success {% elif row['eLearningStatus_' + course_id] == 'In Progress' %}bg-warning text-dark {% elif row['eLearningStatus_' + course_id] == 'Cancelled' %}bg-danger {% elif row['eLearningStatus_' + course_id] == 'Not Started' %}bg-secondary {% else %}bg-light text-dark{% endif %}"
+                      class="badge me-3 {% if row['ELearningStatus_' + course_id] == 'Passed' %}bg-success {% elif row['ELearningStatus_' + course_id] == 'In Progress' %}bg-warning text-dark {% elif row['ELearningStatus_' + course_id] == 'Cancelled' %}bg-danger {% elif row['ELearningStatus_' + course_id] == 'Not Started' %}bg-secondary {% else %}bg-light text-dark{% endif %}"
                     >
-                      {{ row['eLearningStatus_' + course_id] }}
+                      {{ row['ELearningStatus_' + course_id] }}
                     </span>
                   </div>
                 </div>
@@ -417,63 +417,43 @@
   </div>
 </div>
 <script>
-
   document.addEventListener("DOMContentLoaded", function () {
-    const popoverTriggerList = [].slice.call(
-      document.querySelectorAll('[data-bs-toggle="popover"]')
-    );
-    const popoverList = popoverTriggerList.map(function (popoverTriggerEl) {
-      return new bootstrap.Popover(popoverTriggerEl);
-    });
-  });
+    const entityTypeSelector = document.getElementById("entity_type");
+    const entityDropdown = document.getElementById("entity_id");
+    const entityLabel = document.getElementById("entityLabel");
 
-document.addEventListener("DOMContentLoaded", function () {
-  const entityTypeSelector = document.getElementById("entity_type");
-  const entityDropdown = document.getElementById("entity_id");
-  const entityLabel = document.getElementById("entityLabel");
+    // Only trigger fetch if role is not PRO (readonly)
+    const userRole = "{{ user_role }}";
+    if (userRole !== "PRO") {
+      function updateLabelAndDropdown() {
+        const selectedType = entityTypeSelector.value;
+        entityLabel.textContent = `Select ${selectedType}`;
 
-  function updateLabelAndDropdown() {
-    const selectedType = entityTypeSelector.value;
-    entityLabel.textContent = `Select ${selectedType}`;
-    entityDropdown.innerHTML = `<option value="">-- Choose a ${selectedType} --</option>`;
+        entityDropdown.innerHTML = `<option value="">-- Choose a ${selectedType} --</option>`;
 
-    if (selectedType === "Provider") {
-      fetch(`/get_entities?entity_type=Provider`)
-        .then(response => response.json())
-        .then(data => {
-          data.forEach(p => {
-            const option = document.createElement("option");
-            option.value = p.id;
-            option.textContent = p.name;
-            entityDropdown.appendChild(option);
+        fetch(`/get_entities?entity_type=${selectedType}`)
+          .then((response) => response.json())
+          .then((data) => {
+            data.forEach((item) => {
+              const option = document.createElement("option");
+              option.value = item.id;
+              option.textContent = item.name;
+              entityDropdown.appendChild(option);
+            });
+          })
+          .catch((err) => {
+            console.error(`❌ Failed to load ${selectedType}s`, err);
           });
-        })
-        .catch(err => {
-          console.error("Failed to load providers", err);
-        });
-    }  else {
-  // Load funders from backend
-  fetch(`/get_entities?entity_type=Funder`)
-    .then(response => response.json())
-    .then(data => {
-      data.forEach(f => {
-        const option = document.createElement("option");
-        option.value = f.id;
-        option.textContent = f.name;
-        entityDropdown.appendChild(option);
-      });
-    })
-    .catch(err => {
-      console.error("Failed to load funders", err);
-    });
-}
-  }
+      }
 
-  // Run when page loads
-  updateLabelAndDropdown();
-
-  // Run when selection changes
-  entityTypeSelector.addEventListener("change", updateLabelAndDropdown);
-});
+      if (entityTypeSelector && entityDropdown) {
+        updateLabelAndDropdown(); // initial load
+        entityTypeSelector.addEventListener("change", updateLabelAndDropdown);
+      }
+    }
+  });
 </script>
+
+  
+
 {% endblock %}

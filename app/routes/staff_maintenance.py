@@ -10,7 +10,7 @@ import traceback
 staff_bp = Blueprint("staff_bp", __name__)
 
 
-@staff_bp.route("/Staff")
+@staff_bp.route("/Staff", methods=["GET", "POST"])
 @login_required
 def staff_maintenance():
    
@@ -22,8 +22,8 @@ def staff_maintenance():
     if not user_role or user_admin != 1:
         abort(403)
 
-    selected_entity_id = request.args.get("entity_id")
-    selected_entity_type = request.args.get("entity_type")
+    selected_entity_type = request.form.get("entity_type") or request.args.get("entity_type")
+    selected_entity_id = request.form.get("entity_id") or request.args.get("entity_id")
 
     selected_entity_name = None
     data = pd.DataFrame()
