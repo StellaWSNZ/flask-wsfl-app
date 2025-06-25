@@ -393,6 +393,8 @@
     <div class="modal-dialog">
       <div class="modal-content">
         <form method="POST" action="{{ url_for('staff_bp.add_staff') }}">
+          <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
+<input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
           <div class="modal-header bg-primary text-white">
             <h5 class="modal-title" id="addStaffLabel">Add New Staff</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>

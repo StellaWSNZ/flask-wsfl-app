@@ -300,13 +300,19 @@ def add_staff():
         firstname = request.form['first_name'].strip()
         lastname = request.form['last_name'].strip()
         selected_role = session.get("user_role")
-        selected_id = session.get("user_id")
+        selected_id = request.form.get("entity_id") or session.get("user_id")
         account_status = request.form['account_status']
         entity_type = request.form.get("entity_type") or "Funder" if selected_role == "FUN" else "Provider"
         entity_id = request.form.get("entity_id") or selected_id
         admin = 1 if request.form.get("admin") == "1" else 0
         active = 1 if account_status == "enable" else 0
     	
+        if entity_type == "Provider":
+            selected_role = "PRO"
+        elif entity_type == "Funder":
+            selected_role = "FUN"
+        else:
+            selected_role = session.get("user_role")
         hashed_pw = None
         send_email = account_status == "enable"
         user_desc = session.get("desc")
