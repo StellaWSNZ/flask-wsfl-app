@@ -270,6 +270,8 @@
                     method="POST"
                     action="{{ url_for('staff_bp.disable_user') }}"
                   >
+                  <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
+<input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
                     <input type="hidden" name="email" value="{{ row.Email }}" />
                     <button
                       type="submit"
@@ -310,6 +312,8 @@
           </div>
           <form method="POST" action="{{ url_for('staff_bp.update_staff') }}">
             <div class="modal-body">
+              <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
+  <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
               <input type="hidden" name="user_id" value="{{ row.ID }}" />
               <div class="mb-3">
                 <label for="firstName_{{ safe_id }}" class="form-label"

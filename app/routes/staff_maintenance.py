@@ -209,7 +209,9 @@ def update_staff():
         print(traceback.format_exc())
         flash("An error occurred while updating staff details.", "danger")
 
-    return redirect(url_for("staff_bp.staff_maintenance"))
+    entity_type = request.form.get("entity_type")
+    entity_id = request.form.get("entity_id")
+    return redirect(url_for("staff_bp.staff_maintenance", entity_type=entity_type, entity_id=entity_id))
 
 @staff_bp.route('/invite_user', methods=['POST'])
 @login_required
