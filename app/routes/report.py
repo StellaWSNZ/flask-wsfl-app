@@ -94,7 +94,7 @@ def reporting():
                     print("Sample rows:", rows[:3])  # Show the first 3 rows for inspection
 
                     # Now extract SchoolName from the rows
-                    schools = [r.SchoolName for r in rows]
+                    schools = [r.Description for r in rows]
                     print("Extracted school names:", schools)
             elif role == "PRO":
                 result = conn.execute(
@@ -103,8 +103,8 @@ def reporting():
                 ).fetchone()
                 if result:
                     provider_id = int(result.ProviderID)
-                    schools = [r.SchoolName for r in conn.execute(
-                        text("EXEC FlaskHelperFunctions @Request = 'SchoolsForProviderID', @Number = :ProviderID"),
+                    schools = [r.Description for r in conn.execute(
+                        text("EXEC FlaskHelperFunctions @Request = 'SchoolsByProviderID', @Number = :ProviderID"),
                         {"ProviderID": provider_id}
                     )]
 
