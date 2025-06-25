@@ -81,7 +81,7 @@ def home():
                     {"title": "Class Lookup", "text": "Search classes you’ve delivered", "href": url_for("class_bp.provider_classes"), "image": "ViewClass.png"},
                     {"title": "Staff Maintenance", "text": "Manage provider staff accounts", "href": url_for("staff_bp.staff_maintenance"), "image": "StaffMaintenance.png"},
                     {"title": "Reporting", "text": "Access provider reports", "href": url_for("report_bp.reporting"), "image": "Reporting.png"},
-                    {"title": "Overview", "text": "See your organisation's overview by term.=", "href": url_for("funder_bp.funder_dashboard"), "image": "Overview.png"},
+                    {"title": "Overview", "text": "See your organisation's overview by term.", "href": url_for("funder_bp.funder_dashboard"), "image": "Overview.png"},
                 ]
             else:
                 cards = [

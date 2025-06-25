@@ -2,7 +2,7 @@
 {% block title %}Overview{% endblock %}
 
 {% block content %}
-<div class="container mt-5" style="max-width: 80%;">
+<div class="container mt-5" style="max-width: 95%;">
 
   <!-- 🔄 Loading Spinner -->
   <div id="loadingSpinner" style="
@@ -36,7 +36,7 @@
       </div>
       <div class="col-md-5">
         <label for="funder_id" class="form-label" id="entityLabel">
-          Select {{ entity_type or 'Funder' }}
+          Select 
         </label>
         <select name="funder_id" id="funder_id" class="form-select">
           <option value="">-- Choose a {{ entity_type or 'Funder' }} --</option>

@@ -3,7 +3,7 @@
 {% block content %}
 <div class="container mt-5" style="max-width: 80%;">
 
-  {% if user_role in ["ADM", "FUN"] or (user_role == "PRO" and user_admin == 1) %}
+  {% if user_role in ["ADM", "FUN"]  %}
 <form method="POST" class="mb-4" id="entityForm">
   <div class="row g-2 align-items-end justify-content-center">
     <div class="col-md-3">
@@ -394,7 +394,7 @@
       <div class="modal-content">
         <form method="POST" action="{{ url_for('staff_bp.add_staff') }}">
           <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
-<input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
+          <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
           <div class="modal-header bg-primary text-white">
             <h5 class="modal-title" id="addStaffLabel">Add New Staff</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
