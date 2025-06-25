@@ -79,10 +79,23 @@ def reporting():
                         text("EXEC FlaskHelperFunctions @Request = 'ProvidersByFunderID', @Number = :FunderID"),
                         {"FunderID": funder_id}
                     )]
-                    schools = [r.SchoolName for r in conn.execute(
-                        text("EXEC FlaskHelperFunctions @Request = 'SchoolsByFunderID', @Number = :FunderID"),
-                        {"FunderID": funder_id}
-                    )]
+                    query = text("EXEC FlaskHelperFunctions @Request = 'SchoolsByFunderID', @Number = :FunderID")
+                    print("Query prepared:", query)
+
+                    # Execute the query
+                    result = conn.execute(query, {"FunderID": funder_id})
+                    print("Query executed successfully.")
+
+                    # Print the keys (i.e., column names returned by the stored procedure)
+                    print("Returned columns:", result.keys())
+
+                    # Optionally print the first few rows to inspect
+                    rows = result.fetchall()
+                    print("Sample rows:", rows[:3])  # Show the first 3 rows for inspection
+
+                    # Now extract SchoolName from the rows
+                    schools = [r.SchoolName for r in rows]
+                    print("Extracted school names:", schools)
             elif role == "PRO":
                 result = conn.execute(
                     text("EXEC FlaskHelperFunctions @Request = :Request, @Text = :Text"),
