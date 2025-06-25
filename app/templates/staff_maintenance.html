@@ -25,8 +25,8 @@
       </label>
       <select name="entity_id" id="entity_id" class="form-select" {% if user_role == "PRO" %}readonly disabled{% endif %}>
         {% for entity in funder_list %}
-          <option value="{{ entity.id }}" {% if entity.id == selected_funder_id %}selected{% endif %}>
-            {{ entity.name }}
+        <option value="{{ entity.id }}" {% if entity.id|string == selected_entity_id|string %}selected{% endif %}>
+          {{ entity.name }}
           </option>
         {% endfor %}
       </select>
@@ -54,8 +54,7 @@
   
   </div>
 {% endif %}
-  {% if data %}
-  <div class="row g-4">
+{% if data|length > 0 %}  <div class="row g-4">
       {% for row in data %} {% set safe_id = row.Email.replace('@',
     '_').replace('.', '_') %}
     <div
