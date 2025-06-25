@@ -297,14 +297,16 @@ def invite_user():
 def add_staff():
     try:
         email = request.form['email'].strip().lower()
-        firstname = request.form['firstname'].strip()
-        lastname = request.form['lastname'].strip()
+        firstname = request.form['first_name'].strip()
+        lastname = request.form['last_name'].strip()
         selected_role = session.get("user_role")
         selected_id = session.get("user_id")
         account_status = request.form['account_status']
+        entity_type = request.form.get("entity_type") or "Funder" if selected_role == "FUN" else "Provider"
+        entity_id = request.form.get("entity_id") or selected_id
         admin = 1 if request.form.get("admin") == "1" else 0
         active = 1 if account_status == "enable" else 0
-
+    	
         hashed_pw = None
         send_email = account_status == "enable"
         user_desc = session.get("desc")
@@ -357,7 +359,7 @@ def add_staff():
                 inviter_desc=user_desc
             )
 
-        return redirect(request.referrer or url_for('staff_bp.staff_maintenance'))
+        return redirect(url_for('staff_bp.staff_maintenance', entity_type=entity_type, entity_id=entity_id))
 
 
     except Exception as e:
