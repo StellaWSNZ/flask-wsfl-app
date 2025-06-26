@@ -57,4 +57,4 @@ def get_my_ip():
 @eLearning_bp.route("/eLearning-guide")
 @login_required
 def eLearning_guide():
-    return render_template("eLearning_guide.html")
+    return render_template("elearning_guide.html")
