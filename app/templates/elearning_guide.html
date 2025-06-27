@@ -6,6 +6,25 @@ block content %}
   <div class="row">
     <!-- 🧑 Small Left Column -->
     <div class="col-12 col-md-4 mb-4">
+      <!-- 📎 Buttons Row -->
+      <div class="d-flex flex-column flex-md-row gap-2 mb-3">
+        <a
+          href="{{ url_for('static', filename='eLearningGuide.pdf') }}"
+          class="btn btn-outline-primary w-100"
+          download
+        >
+          📥 Download Guide PDF
+        </a>
+        <a
+          href="https://sporttutor.nz/ilp/pages/catalogsearch.jsf?catalogId=3712496&menuId=3712463&locale=en-GB&showbundlekeys=false&client=watersafetynz&sidebarExpanded=true&q=*:*&rows=9"
+          class="btn btn-primary w-100"
+          target="_blank"
+        >
+          🔎 Search SportTutor Courses
+        </a>
+      </div>
+
+      <!-- 📋 Results Card -->
       <div class="card shadow-sm border">
         <div class="card-header bg-primary text-white text-center fw-bold">
           My eLearning Results
