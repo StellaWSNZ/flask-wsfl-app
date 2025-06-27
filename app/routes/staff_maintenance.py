@@ -122,7 +122,7 @@ def staff_maintenance():
             funder_list=funder_list,
             data=staff_data.to_dict(orient="records"),
             columns=columns,
-            name=name,
+            name=name+"'s Staff eLearning",
             user_role=user_role,
             user_admin=is_admin
         )
@@ -416,9 +416,7 @@ def get_active_courses():
         return jsonify([]), 500
 from types import SimpleNamespace
 
-
-
-@staff_bp.route("/StaffeLearning", methods=["GET"])
+@staff_bp.route("/StaffeLearning", methods=["GET", "POST"])
 @login_required
 def staff_eLearning():
     
@@ -437,8 +435,19 @@ def staff_eLearning():
         selected_entity_id = str(user_id)
     else:
         selected_entity_type = request.args.get("entity_type", "Funder")
-        selected_entity_id = request.args.get("entity_id", user_id)
+        selected_entity_id = request.args.get("entity_id")
 
+        if user_role == "ADM" and not selected_entity_id:
+            flash("Please select an entity to view staff eLearning.", "warning")
+            return render_template("staff_elearning.html",
+                staff_eLearning_data={},
+                course_ids=[],
+                selected_entity_type=selected_entity_type,
+                selected_entity_id=None,
+                entity_list=[],  # you can still populate this if needed
+                name="Staff eLearning",
+                role=user_role
+            )
     print(f"🔍 user_role: {user_role}, user_id: {user_id}, email: {user_email}, desc: {user_desc}")
     print(f"🔽 selected_entity_type = {selected_entity_type}, selected_entity_id = {selected_entity_id}")
 
@@ -507,7 +516,7 @@ def staff_eLearning():
             text("EXEC FlaskHelperFunctionsSpecific @Request = 'ActiveCourses'")
         ).fetchall()
 
-    active_course_ids = [str(r.eLearningCourseID) for r in active_courses]
+    active_course_ids = [str(r.ELearningCourseID) for r in active_courses]
     print(f"🎓 Active course IDs: {active_course_ids}")
 
     # 📊 Group data by email
@@ -532,15 +541,21 @@ def staff_eLearning():
         selected_name = user_desc
     print(f"🏷️ Selected entity name: {selected_name}")
 
-    return render_template(
-        "staff_eLearning.html",
-        staff_eLearning_data=grouped,
-        course_ids=active_course_ids,
-        selected_entity_type=selected_entity_type,
-        selected_entity_id=selected_entity_id,
-        entity_list=entity_list,
-        name=selected_name,
-        role = user_role
-    )
+    try:
+        return render_template(
+            "staff_eLearning.html",
+            staff_eLearning_data=grouped,
+            course_ids=active_course_ids,
+            selected_entity_type=selected_entity_type,
+            selected_entity_id=selected_entity_id,
+            entity_list=entity_list,
+            name=selected_name,
+            role=user_role
+        )
+    except Exception as e:
+        print("❌ Error rendering staff_eLearning.html:")
+        print(traceback.format_exc())
+        return "500 Template Error", 500
+
 
     

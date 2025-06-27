@@ -231,7 +231,7 @@ def create_competency_report(term, year, provider_id, provider_name=None):
 # ===================
 # MAIN
 # ===================
-
+""" 
 def main():
     con = get_db_engine()
 
@@ -257,8 +257,27 @@ def main():
 
         save_and_open_pdf(fig, filepath)
 
-    print("✅ All done.")
+    print("✅ All done.") """
 
+def main():
+    con = get_db_engine()
+
+    provider_id = 101  # 🎯 The specific ProviderID you want
+    provider_name = load_provider_name(con, provider_id)
+    print(f"🏷️ Provider ID: {provider_id}, Name: {provider_name}")
+
+    safe_provider = sanitize_filename(provider_name)
+    today = date.today().isoformat().replace("-", ".")
+    filename = f"{safe_provider}_Term{TERM}_{CALENDARYEAR}_CompetencyReport_{today}.pdf"
+    output_folder = f"CompetencyReports_Term{TERM}_{CALENDARYEAR}"
+    os.makedirs(output_folder, exist_ok=True)
+    filepath = os.path.join(output_folder, filename)
+
+    fig = create_competency_report(TERM, CALENDARYEAR, provider_id, provider_name)
+
+    save_and_open_pdf(fig, filepath)
+
+    print("✅ Report complete.")
 
 if __name__ == "__main__":
     print("👟 Running script...")

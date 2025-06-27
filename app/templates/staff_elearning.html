@@ -3,12 +3,12 @@
 
 {% block content %}
 <div class="container mt-5">
-  <h2 class="mb-4 text-primary text-center">{{ name }}'s Staff eLearning</h2>
+  <h2 class="mb-4 text-primary text-center">{{ name }}</h2>
 
   <div class="d-flex justify-content-center mb-4">
     <div class="mx-auto" style="max-width: 1000px; width: 100%;">
       <form method="GET" id="filterForm" class="w-100">
-        <div class="d-flex flex-wrap justify-content-center align-items-end gap-3">
+        <div class="d-flex flex-wrap justify-content-center align-items-end gap-1">
           {% if user_role != "PRO" %}
           <div class="col-md-4">
             <label for="entity_type" class="form-label">Entity Type</label>
@@ -34,7 +34,7 @@
       {% endif %}
     </select>
   </div>
-  <div class="col-md-2 align-self-end">
+  <div class="col-md-1 align-self-end">
     <button type="submit" class="btn btn-primary w-100">View</button>
   </div>
 {% else %}
@@ -117,11 +117,13 @@
     {% endfor %}
   </div>
   {% else %}
-    <p class="text-muted">No eLearning data found.</p>
-  {% endif %}
+  <div class="d-flex justify-content-center">
+    <div class="alert alert-warning text-center w-100" style="max-width: 600px;">
+      No eLearning data found for this selection.
+    </div>
+  </div>  {% endif %}
 </div>
 
-<!-- 🔽 JS to auto-fill entity_id based on entity_type -->
 <script>
   document.addEventListener("DOMContentLoaded", function () {
     const entityTypeSelect = document.getElementById("entity_type");
@@ -129,10 +131,7 @@
     const entityLabel = document.getElementById("entityLabel");
     const selectedEntityId = "{{ selected_entity_id }}";
 
-    // Handle entity_type change: fetch new entity_id options
-    entityTypeSelect.addEventListener("change", function () {
-      const selectedType = this.value;
-
+    function loadEntities(selectedType) {
       if (!selectedType) {
         entityLabel.textContent = "Select Entity";
         entityIdSelect.innerHTML = '<option value="">-- Choose an entity --</option>';
@@ -153,7 +152,6 @@
             entityIdSelect.appendChild(option);
           });
 
-          // Try to preserve the selection if the same ID is still valid
           if (selectedEntityId) {
             entityIdSelect.value = selectedEntityId;
           }
@@ -162,6 +160,16 @@
           console.error("Error loading entities:", err);
           entityIdSelect.innerHTML = '<option value="">-- Failed to load --</option>';
         });
+    }
+
+    // 🔁 Load once on page load if ADM and no preloaded entity_list
+    if (entityTypeSelect && entityIdSelect) {
+      loadEntities(entityTypeSelect.value);
+    }
+
+    // 🔁 Reload on dropdown change
+    entityTypeSelect?.addEventListener("change", function () {
+      loadEntities(this.value);
     });
   });
 </script>
