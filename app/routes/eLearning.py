@@ -57,4 +57,23 @@ def get_my_ip():
 @eLearning_bp.route("/eLearning-guide")
 @login_required
 def eLearning_guide():
-    return render_template("elearning_guide.html")
+    try:
+        user_email = session.get("user_email")
+        print("📧 user_email:", user_email)
+
+        engine = get_db_engine()
+        with engine.begin() as conn:
+            result = conn.execute(
+                text("EXEC GetUserElearningResults :Email"),
+                {"Email": user_email}
+            )
+            courses = [dict(row._mapping) for row in result.fetchall()]  # 💡 use _mapping here
+            print("✅ Courses:", courses)
+
+        return render_template("elearning_guide.html", courses=courses)
+
+    except Exception as e:
+        import traceback
+        print("❌ Error in /eLearning-guide:", e)
+        traceback.print_exc()
+        return "An error occurred", 500

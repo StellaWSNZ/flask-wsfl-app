@@ -2,39 +2,56 @@
 block content %}
 <div class="container mt-5">
   <h2 class="mb-4 text-center text-primary">eLearning Guide</h2>
-  <div class="text-center">
-    <a
-      href="https://sporttutor.nz/ilp/pages/catalogsearch.jsf?catalogId=3712496&menuId=3712463&locale=en-GB&showbundlekeys=false&client=watersafetynz&sidebarExpanded=true&q=*:*&rows=9"
-      class="btn btn-outline-primary mb-3"
-      target="_blank"
-    >
-      🔗 Go to Sport Tutor Course Search
-    </a>
-  </div>
-  <!-- Embedded PDF viewer -->
-  <div class="container d-flex justify-content-center">
-    <div
-      class="mb-5 rounded border shadow-sm overflow-hidden"
-      style="width: 60%; height: 800px; min-width: 320px"
-    >
-      <iframe
-        src="{{ url_for('static', filename='eLearningGuide.pdf') }}"
-        width="100%"
-        height="100%"
-        style="border: none"
-      >
-        <p class="p-3">
-          Your browser does not support embedded PDFs.
+
+  <div class="row">
+    <!-- 🧑 Small Left Column -->
+    <div class="col-12 col-md-4 mb-4">
+      <div class="card shadow-sm border">
+        <div class="card-header bg-primary text-white text-center fw-bold">
+          My eLearning Results
+        </div>
+        <div class="card-body">
+          <div class="row row-cols-1 g-2">
+            {% for course in courses %}
+            <div class="col">
+              <div
+                class="d-flex justify-content-between align-items-center border rounded p-2 bg-light"
+              >
+                <div class="flex-grow-1 pe-3">
+                  <small>{{ course.Course }}</small>
+                </div>
+                <span
+                  class="badge {% if course.Status == 'Passed' %}bg-success {% elif course.Status == 'In Progress' %}bg-warning text-dark {% elif course.Status == 'Cancelled' %}bg-danger {% elif course.Status == 'Not Started' %}bg-secondary {% elif course.Status == 'Not Enrolled' %}bg-secondary {% else %}bg-secondary text-white{% endif %}"
+                >
+                  {{ course.Status }}
+                </span>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 📘 Large Right Column -->
+    <div class="col-12 col-md-8 d-flex justify-content-center">
+      <div class="card shadow-sm border w-100" style="max-width: 650px">
+        <img
+          src="{{ url_for('static', filename='eLearningGuide.jpg') }}"
+          alt="eLearning Guide Preview"
+          class="img-fluid rounded-top"
+        />
+        <div class="card-body text-center">
           <a
             href="{{ url_for('static', filename='eLearningGuide.pdf') }}"
-            class="btn btn-outline-primary mt-2"
-            >Download PDF</a
+            class="btn btn-outline-primary"
+            download
           >
-        </p>
-      </iframe>
+            📥 Download Full PDF
+          </a>
+        </div>
+      </div>
     </div>
   </div>
-
-  <!-- Useful Links -->
 </div>
 {% endblock %}
