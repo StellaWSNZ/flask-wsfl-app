@@ -543,7 +543,7 @@ def staff_eLearning():
 
     try:
         return render_template(
-            "staff_eLearning.html",
+            "staff_elearning.html",
             staff_eLearning_data=grouped,
             course_ids=active_course_ids,
             selected_entity_type=selected_entity_type,
@@ -553,7 +553,7 @@ def staff_eLearning():
             role=user_role
         )
     except Exception as e:
-        print("❌ Error rendering staff_eLearning.html:")
+        print("❌ Error rendering staff_elearning.html:")
         print(traceback.format_exc())
         return "500 Template Error", 500
 
