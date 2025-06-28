@@ -103,7 +103,7 @@ def home():
                     {"title": "Overview", "text": "See provider performance and progress", "href": url_for("funder_bp.funder_dashboard"), "image": "Overview.png"},
                     {"title": "Class Lookup", "text": "Search all relevant classes", "href": url_for("class_bp.funder_classes"), "image": "ViewClass.png"},
                     {"title": "Staff Maintenance", "text": "Manage your school’s staff", "href": url_for("staff_bp.staff_maintenance"), "image": "StaffMaintenance.png"},
-                    {"title": "Profile", "text": "Update your account details", "href": url_for("admin_bp.profile"), "image": "Profile.png"},
+                    {"title": "Reporting", "text": "Access provider reports", "href": url_for("report_bp.reporting"), "image": "Reporting.png"},
                 ]
             else:
                 cards = []

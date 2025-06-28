@@ -639,6 +639,38 @@ def reporting():
 def comingsoon():
     return render_template("comingsoon.html")
 
+@class_bp.route("/get_schools_by_group")
+@login_required
+def get_schools_by_group():
+    user_role = session.get("user_role")
+    if user_role != "GRP":
+        return jsonify([])
+
+    group_entities = session.get("group_entities", {})
+    provider_ids = [str(e["id"]) for e in group_entities.get("PRO", [])]
+    funder_ids = [str(e["id"]) for e in group_entities.get("FUN", [])]
+    term = request.args.get("term", type=int)
+    year = request.args.get("year", type=int)
+
+    engine = get_db_engine()
+    with engine.connect() as conn:
+        if provider_ids:
+            csv_providers = ",".join(provider_ids)
+            result = conn.execute(
+                text("EXEC FlaskSchoolsByGroupProviders :ProviderList, :Term, :Year"),
+                {"ProviderList": csv_providers, "Term": term, "Year": year}
+            )
+        elif funder_ids:
+            csv_funders = ",".join(funder_ids)
+            result = conn.execute(
+                text("EXEC FlaskSchoolsByGroupFunders :FunderList, :Term, :Year"),
+                {"FunderList": csv_funders, "Term": term, "Year": year}
+            )
+        else:
+            return jsonify([])
+
+        schools = [{"MOENumber": row.MOENumber, "School": row.School} for row in result]
+        return jsonify(schools)
 
 @class_bp.route("/get_schools_for_term_year")
 @login_required

@@ -30,10 +30,11 @@
         <select name="entity_type" id="entity_type" class="form-select">
           {% if user_role in ["ADM","FUN"] %}
       <option value="Funder" {% if entity_type == "Funder" %}selected{% endif %}>Funder</option>
-    {% endif %}
-    {% if user_role in ["ADM","FUN","GRP"] and has_groups  %}
-    <option value="Group" {% if entity_type == "Group" %}selected{% endif %}>Group</option>
-  {% endif %}
+    {% endif %}{# 
+      {% if user_role in ["ADM","FUN","GRP"] and has_groups  %}
+      <option value="Group" {% if entity_type == "Group" %}selected{% endif %}>Group</option>
+      {% endif %}
+      #}
           <option value="Provider" {% if entity_type == "Provider" %}selected{% endif %}>Provider</option>
         </select>
       </div>

@@ -91,16 +91,21 @@
 {% endif %}
 
 <!-- Suggestions if no classes -->
+
 {% if suggestions and not classes %}
 <div class="container mt-4">
-  <div class="alert alert-warning">
-    <strong>No classes found.</strong>
-    This school has classes from:
-    <ul class="mb-0">
-      {% for s in suggestions %}
-        <li>{{ s }}</li>
-      {% endfor %}
-    </ul>
+  <div class="row justify-content-center">
+    <div class="col-md-6">
+      <div class="alert alert-warning text-center">
+        <strong>No classes found.</strong><br />
+        Your school has classes from:
+        <ul class="mb-0 text-start">
+          {% for s in suggestions %}
+            <li>{{ s }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
   </div>
 </div>
 {% endif %}
@@ -121,6 +126,8 @@
         url = `/get_schools_by_provider?term=${term}&year=${year}`;
       } else if (userRole === "FUN" || userRole === "ADM") {
         url = `/get_schools_for_term_year?term=${term}&year=${year}`;
+      } else if (userRole === "GRP") {
+        url = `/get_schools_by_group?term=${term}&year=${year}`;
       }
 
       fetch(url)
