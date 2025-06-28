@@ -96,6 +96,7 @@ def reporting():
                     # Now extract SchoolName from the rows
                     schools = [r.Description for r in rows]
                     print("Extracted school names:", schools)
+            
             elif role == "PRO":
                 result = conn.execute(
                     text("EXEC FlaskHelperFunctions @Request = :Request, @Text = :Text"),
@@ -107,7 +108,18 @@ def reporting():
                         text("EXEC FlaskHelperFunctions @Request = 'SchoolsByProviderID', @Number = :ProviderID"),
                         {"ProviderID": provider_id}
                     )]
+            elif role == "GRP":
+                group_id = session.get("user_id")
+                
+                providers = [r.Description for r in conn.execute(
+                    text("EXEC FlaskHelperFunctions @Request = 'ProvidersByGroupID', @Number = :GroupID"),
+                    {"GroupID": group_id}
+                )]
 
+                schools = [r.Description for r in conn.execute(
+                    text("EXEC FlaskHelperFunctions @Request = 'SchoolsByGroupID', @Number = :GroupID"),
+                    {"GroupID": group_id}
+                )]
         if request.method == "POST":
             selected_year, selected_term = map(int, (request.form.get("term_year") or "0_0").split("_"))
 
