@@ -22,13 +22,13 @@
 
   <h2 class="text-center text-primary mb-4">{{ title }}</h2>
 
-  {% if user_role == "ADM" or (user_role in ["FUN", "PRO"] and user_admin == 1) %}
+  {% if user_role == "ADM" or (user_role in ["FUN", "PRO","GRP"] and user_admin == 1) %}
   <form method="POST" class="mb-4" id="entityForm">
     <div class="row g-2 align-items-end justify-content-center">
       <div class="col-md-3">
         <label for="entity_type" class="form-label">Entity Type</label>
         <select name="entity_type" id="entity_type" class="form-select">
-          {% if user_role != "PRO" %}
+          {% if user_role in ["ADM","FUN"] %}
       <option value="Funder" {% if entity_type == "Funder" %}selected{% endif %}>Funder</option>
     {% endif %}
           <option value="Provider" {% if entity_type == "Provider" %}selected{% endif %}>Provider</option>
@@ -175,8 +175,10 @@
     </div>
   </div>
   {% elif user_role == "ADM" %}
-  <div class="alert alert-info mt-4">
-    Please select a funder or provider from the dropdown above to view the dashboard.
+  <div class="d-flex justify-content-center">
+    <div class="alert alert-info mt-4 w-75 text-center">
+      Please select a funder or provider from the dropdown above to view the dashboard.
+    </div>
   </div>
   {% endif %}
 </div>
@@ -231,6 +233,9 @@
           });
       }
     });
+
+    entitySelect.dispatchEvent(new Event("change"));
+
   });
 </script>
 

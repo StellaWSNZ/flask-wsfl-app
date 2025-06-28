@@ -62,7 +62,7 @@
         >
           <span class="navbar-toggler-icon"></span>
         </button>
-        {% if user_role in ["ADM", "PRO", "MOE", "FUN"] %}
+        {% if user_role in ["ADM", "PRO", "MOE", "FUN","GRP"] %}
 
         <div class="collapse navbar-collapse mt-2 mt-lg-0" id="navbarNav">
           <ul class="navbar-nav ms-auto align-items-lg-center">
@@ -73,8 +73,45 @@
                 >Dashboard</a
               >
             </li>
-
-            {% if user_role == "FUN"%}
+            {% if user_role == "GRP" %}
+            <li class="nav-item dropdown">
+              <a
+                class="nav-link dropdown-toggle"
+                href="#"
+                role="button"
+                data-bs-toggle="dropdown"
+                aria-expanded="false"
+              >
+                Group Tools
+              </a>
+              <ul class="dropdown-menu dropdown-menu-end">
+                <li>
+                  <a
+                    class="dropdown-item py-2"
+                    href="{{ url_for('funder_bp.funder_dashboard') }}"
+                  >
+                    Overview
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item py-2" href="#">
+                    Group Class Lookup
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item py-2" href="#"> Group Reporting </a>
+                </li>
+                <li>
+                  <a
+                    class="dropdown-item py-2"
+                    href="{{ url_for('admin_bp.profile') }}"
+                  >
+                    Profile
+                  </a>
+                </li>
+              </ul>
+            </li>
+            {% endif %} {% if user_role == "FUN"%}
             <li class="nav-item dropdown">
               <a
                 class="nav-link dropdown-toggle"

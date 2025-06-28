@@ -54,7 +54,7 @@ def login():
                         text("EXEC FlaskLoginValidation :Email"),
                         {"Email": email}
                     ).fetchone()
-
+                    print(user_info)
                 session.update({
                     "logged_in": True,
                     "user_role": user_info.Role,
@@ -81,7 +81,25 @@ def login():
                     "provider_lat": getattr(user_info, "Provider_Latitude", None),
                     "provider_lon": getattr(user_info, "Provider_Longitude", None)
                 })
+                if user_info.Role == "GRP":
+                    with engine.connect() as conn:
+                        result = conn.execute(
+                            text("EXEC FlaskGetGroupEntities :Email"),
+                            {"Email": email}
+                        ).fetchall()
 
+                    group_entities = {}
+                    for row in result:
+                        etype = row.EntityType  # 'PRO' or 'FUN'
+                        group_entities.setdefault(etype, []).append({
+                            "id": row.EntityID,
+                            "name": row.Description
+                        })
+
+                    print("🗂 Populated group_entities =", group_entities)
+                    session["group_entities"] = group_entities
+                #else:
+                #    session["provider_ids"] = [user_info.ID]
                 return redirect(url_for("home_bp.home"))
 
             flash("Invalid password", "danger")

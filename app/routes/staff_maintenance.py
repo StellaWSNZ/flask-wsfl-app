@@ -132,7 +132,7 @@ def staff_maintenance():
         print(traceback.format_exc())
         return "500 Internal Server Error", 500
    
-
+""" 
 @staff_bp.route("/get_entities")
 @login_required
 def get_entities():
@@ -184,7 +184,7 @@ def get_entities():
     except Exception as e:
         print("❌ Error in get_entities:", e)
         return jsonify([]), 500
-
+ """
 
 
 

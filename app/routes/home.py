@@ -93,8 +93,20 @@ def home():
             last_login = session.get("last_login_nzt")
             if last_login:
                 subtitle += " Last Logged in: " + datetime.fromisoformat(last_login).strftime('%A, %d %B %Y, %I:%M %p')
-        else:
-            cards = []
+        elif role == "GRP":
+            subtitle = f"You are logged in as a Group Administrator ({session['desc']})"
+            last_login = session.get("last_login_nzt")
+            if last_login:
+                subtitle += " Last Logged in: " + datetime.fromisoformat(last_login).strftime('%A, %d %B %Y, %I:%M %p')
+
+                cards = [
+                    {"title": "Overview", "text": "See provider performance and progress", "href": url_for("funder_bp.funder_dashboard"), "image": "Overview.png"},
+                    {"title": "Class Lookup", "text": "Search across all group-linked classes", "href": "#", "image": "placeholder.png"},
+                    {"title": "Group Reporting", "text": "Download combined provider reports", "href": "#", "image": "placeholder.png"},
+                    {"title": "Profile", "text": "Update your account details", "href": url_for("admin_bp.profile"), "image": "Profile.png"},
+                ]
+            else:
+                cards = []
 
         return render_template("index.html", display_name=display_name, subtitle=subtitle, cards=cards)
     except Exception as e:
