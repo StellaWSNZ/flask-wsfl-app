@@ -101,7 +101,7 @@ def home():
 
                 cards = [
                     {"title": "Overview", "text": "See provider performance and progress", "href": url_for("funder_bp.funder_dashboard"), "image": "Overview.png"},
-                    {"title": "Class Lookup", "text": "Search across all group-linked classes", "href": "#", "image": "placeholder.png"},
+                    {"title": "Class Lookup", "text": "Search all relevant classes", "href": url_for("class_bp.funder_classes"), "image": "ViewClass.png"},
                     {"title": "Group Reporting", "text": "Download combined provider reports", "href": "#", "image": "placeholder.png"},
                     {"title": "Profile", "text": "Update your account details", "href": url_for("admin_bp.profile"), "image": "Profile.png"},
                 ]

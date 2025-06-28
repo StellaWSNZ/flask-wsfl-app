@@ -343,100 +343,93 @@ def provider_classes():
     user_role=session.get("user_role") 
     )
     
-
 @class_bp.route('/Classes', methods=['GET', 'POST'])
 @login_required
 def funder_classes():
-    if session.get("user_role") not in ["FUN", "ADM"]:
+    if session.get("user_role") not in ["FUN", "ADM", "GRP"]:
         flash("Unauthorized access", "danger")
         return redirect(url_for("home_bp.home"))
 
     engine = get_db_engine()
-    classes = []
-    students = []
-    suggestions = []
-    schools = []
+    classes, students, suggestions, schools = [], [], [], []
     selected_class_id = None
 
     user_role = session.get("user_role")
     user_id = session.get("user_id")
+    group_entities = session.get("group_entities", {})
+    provider_ids = [str(e["id"]) for e in group_entities.get("PRO", [])]
+    funder_ids = [str(e["id"]) for e in group_entities.get("FUN", [])]
 
+    default_term = session.get("nearest_term")
+    default_year = session.get("nearest_year")
+
+    # ========================
+    # Always Load Schools List
+    # ========================
     with engine.connect() as conn:
+        if user_role == "GRP":
+            if provider_ids:
+                csv_providers = ",".join(provider_ids)
+                result = conn.execute(
+                    text("EXEC FlaskSchoolsByGroupProviders :ProviderList, :Term, :Year"),
+                    {"ProviderList": csv_providers, "Term": default_term, "Year": default_year}
+                )
+            elif funder_ids:
+                csv_funders = ",".join(funder_ids)
+                result = conn.execute(
+                    text("EXEC FlaskSchoolsByGroupFunders :FunderList, :Term, :Year"),
+                    {"FunderList": csv_funders, "Term": default_term, "Year": default_year}
+                )
+            else:
+                result = []
+        elif user_role == "FUN":
+            result = conn.execute(
+                text("""EXEC FlaskHelperFunctionsSpecific 
+                        @Request = :request,
+                        @Term = :term,
+                        @Year = :year,
+                        @FunderID = :funder_id"""),
+                {"request": "SchoolsByFunderTermYear", "term": default_term, "year": default_year, "funder_id": user_id}
+            )
+        else:  # ADM
+            result = conn.execute(
+                text("""EXEC FlaskHelperFunctionsSpecific 
+                        @Request = :request, 
+                        @Term = :term, 
+                        @Year = :year"""),
+                {"request": "SchoolsByTermYear", "term": default_term, "year": default_year}
+            )
+        schools = [dict(row._mapping) for row in result]
+
+        # ======================================
+        # Only Load Classes Table After Form POST
+        # ======================================
         if request.method == "POST":
             term = request.form.get("term", "").strip()
             year = request.form.get("calendaryear", "").strip()
             moe_number = request.form.get("moe_number", "").strip()
 
-            if term.isdigit() and year.isdigit():
-                term = int(term)
-                year = int(year)
+            if term.isdigit() and year.isdigit() and moe_number:
+                term, year = int(term), int(year)
 
-                # Get school list
-                if user_role == "FUN":
-                    result = conn.execute(
-                       text("""
-                            EXEC FlaskHelperFunctionsSpecific 
-                                @Request = :request,
-                                @Term = :term,
-                                @Year = :year,
-                                @FunderID = :funder_id
-                        """),
-                        {
-                            "request": "SchoolsByFunderTermYear",
-                            "term": term,
-                            "year": year,
-                            "funder_id": user_id
-                        }
-                    )
-                else:
-                    result = conn.execute(
-                        text("""
-                            EXEC FlaskHelperFunctionsSpecific 
+                result = conn.execute(
+                    text("""EXEC FlaskHelperFunctionsSpecific 
+                            @Request = :request,
+                            @MOENumber = :moe,
+                            @Term = :term,
+                            @Year = :year"""),
+                    {"request": "ClassesBySchoolTermYear", "moe": moe_number, "term": term, "year": year}
+                )
+                classes = [row._mapping for row in result.fetchall()]
+
+                if not classes:
+                    suggestion_result = conn.execute(
+                        text("""EXEC FlaskHelperFunctionsSpecific 
                                 @Request = :request, 
-                                @Term = :term, 
-                                @Year = :year
-                        """),
-                        {
-                            "request": "SchoolsByTermYear",
-                            "term": term,
-                            "year": year
-                        }
+                                @MOENumber = :moe"""),
+                        {"request": "DistinctTermsForSchool", "moe": moe_number}
                     )
-                schools = [dict(row._mapping) for row in result]
-
-                # Get classes
-                if moe_number:
-                    result = conn.execute(
-                        text("""
-                            EXEC FlaskHelperFunctionsSpecific 
-                                @Request = :request,
-                                @MOENumber = :moe,
-                                @Term = :term,
-                                @Year = :year
-                        """),
-                        {
-                            "request": "ClassesBySchoolTermYear",
-                            "moe": moe_number,
-                            "term": term,
-                            "year": year
-                        }
-                    )
-                    classes = [row._mapping for row in result.fetchall()]
-
-
-                    if not classes:
-                        suggestion_result = conn.execute(
-                             text("""
-                                EXEC FlaskHelperFunctionsSpecific 
-                                    @Request = :request, 
-                                    @MOENumber = :moe
-                            """),
-                            {
-                                "request": "DistinctTermsForSchool",
-                                "moe": moe_number
-                            }
-                        )
-                        suggestions = [row.Label for row in suggestion_result]
+                    suggestions = [row.Label for row in suggestion_result]
 
     return render_template(
         "funder_classes.html",
@@ -445,10 +438,11 @@ def funder_classes():
         students=students,
         suggestions=suggestions,
         selected_class_id=selected_class_id,
-        TERM=session.get("nearest_term"),
-        YEAR=session.get("nearest_year"),
-    user_role=session.get("user_role") 
+        TERM=default_term,
+        YEAR=default_year,
+        user_role=user_role
     )
+
 
 @class_bp.route('/update_competency', methods=['POST'])
 @login_required
