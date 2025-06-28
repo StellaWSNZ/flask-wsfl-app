@@ -3,47 +3,56 @@
 {% block content %}
 <div class="container mt-5" style="max-width: 80%;">
 
-  {% if user_role in ["ADM", "FUN"]  %}
-<form method="POST" class="mb-4" id="entityForm">
-  <div class="row g-2 align-items-end justify-content-center">
-    <div class="col-md-3">
-      <label for="entity_type" class="form-label">Entity Type</label>
-      <select name="entity_type" id="entity_type" class="form-select" {% if user_role == "PRO" %}readonly disabled{% endif %}>
-        {% if user_role != "PRO" %}
-        <option value="Funder" {% if entity_type == "Funder" %}selected{% endif %}>Funder</option>
+  {% if user_role in ["ADM", "FUN","GRP"]  %}
+  <form method="POST" class="mb-4" id="entityForm">
+    <div class="row g-2 align-items-end justify-content-center">
+  
+      <div class="col-md-3">
+        <label for="entity_type" class="form-label">Entity Type</label>
+        <select name="entity_type" id="entity_type" class="form-select" {% if user_role == "PRO" %}readonly disabled{% endif %}>
+          {% if user_role != "GRP" %}
+          <option value="Funder" {% if entity_type == "Funder" %}selected{% endif %}>Funder</option>
+          {% endif %}
+          {% if user_role == "GRP" or user_role == "ADM" or has_groups %}
+          <option value="Group" {% if entity_type == "Group" %}selected{% endif %}>Group</option>
+          
+          {% endif %}
+          <option value="Provider" selected>Provider</option>
+        </select>
+        {% if user_role == "PRO" %}
+        <input type="hidden" name="entity_type" value="Provider">
         {% endif %}
-        <option value="Provider" selected>Provider</option>
-      </select>
-      {% if user_role == "PRO" %}
-      <input type="hidden" name="entity_type" value="Provider">
-      {% endif %}
-    </div>
-
-    <div class="col-md-5">
-      <label for="entity_id" class="form-label" id="entityLabel">
-        Select {{ entity_type or 'Funder' }}
-      </label>
-      <select name="entity_id" id="entity_id" class="form-select" {% if user_role == "PRO" %}readonly disabled{% endif %}>
-        {% for entity in funder_list %}
-        <option value="{{ entity.id }}" {% if entity.id|string == selected_entity_id|string %}selected{% endif %}>
-          {{ entity.name }}
+      </div>
+  
+      
+  
+      <div class="col-md-5">
+        <label for="entity_id" class="form-label" id="entityLabel">
+          Select {{ entity_type or 'Funder' }}
+        </label>
+        <select name="entity_id" id="entity_id" class="form-select" {% if user_role == "PRO" %}readonly disabled{% endif %}>
+          {% for entity in funder_list %}
+          <option value="{{ entity.id }}" {% if entity.id|string == selected_entity_id|string %}selected{% endif %}>
+            {{ entity.name }}
           </option>
-        {% endfor %}
-      </select>
-      {% if user_role == "PRO" %}
+          {% endfor %}
+        </select>
+        {% if user_role == "PRO" %}
         <input type="hidden" name="entity_id" value="{{ selected_funder_id }}">
-      {% endif %}
+        {% endif %}
+      </div>
+  
+      <div class="col-md-2">
+        <button type="submit" class="btn btn-primary w-100">Submit</button>
+      </div>
+  
     </div>
-
-    <div class="col-md-2">
-      <button type="submit" class="btn btn-primary w-100">Submit</button>
-    </div>
-  </div>
-</form>
+  </form>
 {% endif %}
-{% if selected_entity_name %}
+<h2 class="mb-4 text-center text-primary">{{ selected_entity_name }} – Staff Maintenance</h2>
+
+{% if name %}
   <div class="text-center mb-4">
-      <h2 class="text-center text-primary mb-4">{{ selected_entity_name }} Staff Maintenance</h2>
   <!-- Add New Staff Modal Button -->
 <h6 class="mb-4 text-center text-primary">
     Are you missing staff?
@@ -437,43 +446,58 @@
 </div>
 <script>
   document.addEventListener("DOMContentLoaded", function () {
-    // ===============================
-    // 🔹 Entity Dropdown Handling
-    // ===============================
+    // 🔹 Selectors
     const entityTypeSelector = document.getElementById("entity_type");
     const entityDropdown = document.getElementById("entity_id");
     const entityLabel = document.getElementById("entityLabel");
+    const groupWrapper = document.getElementById("groupDropdownWrapper");
     const userRole = "{{ user_role }}";
 
-    if (userRole !== "PRO" && entityTypeSelector && entityDropdown && entityLabel) {
-      function updateLabelAndDropdown() {
-        const selectedType = entityTypeSelector.value;
-        entityLabel.textContent = `Select ${selectedType}`;
+    // 🔹 Dynamic dropdown updater
+    function updateLabelAndDropdown() {
+      const selectedType = entityTypeSelector.value;
+      entityLabel.textContent = `Select ${selectedType}`;
 
-        entityDropdown.innerHTML = `<option value="">-- Choose a ${selectedType} --</option>`;
-
-        fetch(`/get_entities?entity_type=${selectedType}`)
-          .then((response) => response.json())
-          .then((data) => {
-            data.forEach((item) => {
-              const option = document.createElement("option");
-              option.value = item.id;
-              option.textContent = item.name;
-              entityDropdown.appendChild(option);
-            });
-          })
-          .catch((err) => {
-            console.error(`❌ Failed to load ${selectedType}s`, err);
-          });
+      // 🔸 Show/hide group selector
+      if (groupWrapper) {
+        if (selectedType === "Group") {
+          groupWrapper.style.display = "block";
+        } else {
+          groupWrapper.style.display = "none";
+          const groupSelect = document.getElementById("group_id");
+          if (groupSelect) groupSelect.value = "";
+        }
       }
 
-      updateLabelAndDropdown();
+      // 🔸 Populate entity dropdown
+      entityDropdown.innerHTML = `<option value=""  disabled selected>-- Choose a ${selectedType} --</option>`;
+
+      fetch(`/get_entities?entity_type=${selectedType}`)
+        .then((response) => response.json())
+        .then((data) => {
+          data.forEach((item) => {
+            const option = document.createElement("option");
+            option.value = item.id;
+            option.textContent = item.name;
+            entityDropdown.appendChild(option);
+          });
+        })
+        .catch((err) => {
+          console.error(`❌ Failed to load ${selectedType}s`, err);
+        });
+    }
+
+    if (
+      userRole !== "PRO" &&
+      entityTypeSelector &&
+      entityDropdown &&
+      entityLabel
+    ) {
+      updateLabelAndDropdown(); // 🔄 Initialize on load
       entityTypeSelector.addEventListener("change", updateLabelAndDropdown);
     }
 
-    // ===============================
-    // 🔹 Admin Checkbox Visibility
-    // ===============================
+    // 🔹 Admin checkbox toggle
     const accountStatusSelect = document.getElementById("account_status");
     const adminCheckboxGroup = document.getElementById("admin_checkbox_group");
     const adminCheckbox = document.getElementById("admin_checkbox");

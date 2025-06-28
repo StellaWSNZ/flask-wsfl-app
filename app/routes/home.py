@@ -94,7 +94,7 @@ def home():
             if last_login:
                 subtitle += " Last Logged in: " + datetime.fromisoformat(last_login).strftime('%A, %d %B %Y, %I:%M %p')
         elif role == "GRP":
-            subtitle = f"You are logged in as a Group Administrator ({session['desc']})"
+            subtitle = f"You are logged in as a Provider Administrator ({session['desc']})"
             last_login = session.get("last_login_nzt")
             if last_login:
                 subtitle += " Last Logged in: " + datetime.fromisoformat(last_login).strftime('%A, %d %B %Y, %I:%M %p')
@@ -102,7 +102,7 @@ def home():
                 cards = [
                     {"title": "Overview", "text": "See provider performance and progress", "href": url_for("funder_bp.funder_dashboard"), "image": "Overview.png"},
                     {"title": "Class Lookup", "text": "Search all relevant classes", "href": url_for("class_bp.funder_classes"), "image": "ViewClass.png"},
-                    {"title": "Group Reporting", "text": "Download combined provider reports", "href": "#", "image": "placeholder.png"},
+                    {"title": "Staff Maintenance", "text": "Manage your school’s staff", "href": url_for("staff_bp.staff_maintenance"), "image": "StaffMaintenance.png"},
                     {"title": "Profile", "text": "Update your account details", "href": url_for("admin_bp.profile"), "image": "Profile.png"},
                 ]
             else:

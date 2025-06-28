@@ -25,11 +25,29 @@ def staff_maintenance():
 
         if not user_role or user_admin != 1:
             abort(403)
+        has_groups = False
+        group_list = []
 
+        with get_db_engine().begin() as conn:
+            if user_role == "ADM":
+                result = conn.execute(text("EXEC FlaskGetAllGroups"))
+                group_list = [{"id": row.GroupID, "name": row.Description} for row in result]
+                has_groups = len(group_list) > 0
+            elif user_role == "FUN":
+                result = conn.execute(
+                    text("EXEC FlaskGetGroupsByFunder @FunderID = :fid"),
+                    {"fid": user_id}
+                )
+                group_list = [{"id": row.GroupID, "name": row.Description} for row in result]
+                has_groups = len(group_list) > 0
+            elif user_role == "GRP":
+                group_list = [{"id": user_id, "name": user_desc}]
+                has_groups = True
         selected_entity_type = request.form.get("entity_type") or request.args.get("entity_type")
         selected_entity_id = request.form.get("entity_id") or request.args.get("entity_id")
         print(f"📌 Initial entity_type: {selected_entity_type}, entity_id: {selected_entity_id}")
-
+        if request.method == "POST":
+            print("📩 POST received")
         if not selected_entity_type or not selected_entity_id:
             if user_role in ["PRO", "MOE"]:
                 selected_entity_type = user_role  # "Provider" or "School"
@@ -98,6 +116,22 @@ def staff_maintenance():
                         )
                 else:
                     return "Invalid entity type", 400
+            elif user_role == "GRP":
+                entity_type = selected_entity_type or "Group"
+                target_id = int(selected_entity_id)
+                if entity_type == "Provider":
+                    role_type = "PRO"
+                    result = conn.execute(
+                        text("EXEC FlaskHelperFunctions @Request = 'ProviderName', @Number = :fid"),
+                        {"fid": target_id}
+                    )
+                    selected_entity_name = result.scalar()
+                elif entity_type == "Group":
+                    role_type = "GRP"
+                    selected_entity_name = next((g["name"] for g in group_list if g["id"] == target_id), None)
+                else:
+                    print(f"⚠️ GRP selected invalid entity type: {entity_type}")
+                    return "Invalid entity type", 400
             else:
                 role_type = user_role
                 target_id = int(user_id)
@@ -124,7 +158,8 @@ def staff_maintenance():
             columns=columns,
             name=name+"'s Staff eLearning",
             user_role=user_role,
-            user_admin=is_admin
+            user_admin=is_admin,
+            has_groups=has_groups
         )
 
     except Exception as e:
@@ -132,59 +167,6 @@ def staff_maintenance():
         print(traceback.format_exc())
         return "500 Internal Server Error", 500
    
-""" 
-@staff_bp.route("/get_entities")
-@login_required
-def get_entities():
-    
-    
-    entity_type = request.args.get("entity_type")
-    user_role = session.get("user_role")
-    print(f"📥 /get_entities called with entity_type={entity_type}, user_role={user_role}")
-
-    if not entity_type:
-        return jsonify([])
-
-    try:
-        engine = get_db_engine()
-        with engine.connect() as conn:
-            if entity_type == "Provider":
-                if user_role == "ADM":
-                    # ADM should get all providers
-                    result = conn.execute(
-                        text("EXEC FlaskHelperFunctions @Request = 'ProviderDropdown'")
-                    )
-                    return jsonify([{"id": row.ProviderID, "name": row.Description} for row in result])
-                else:
-                    # FUNDER gets providers by their own ID
-                    result = conn.execute(
-                        text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :FunderID"),
-                        {"Request": "ProvidersByFunder", "FunderID": session.get("user_id")}
-                    )
-                    return jsonify([{"id": row.ProviderID, "name": row.Description} for row in result])
-
-            elif entity_type == "Funder":
-                if user_role == "ADM":
-                    result = conn.execute(
-                        text("EXEC FlaskHelperFunctions @Request = 'FunderDropdown'")
-                    )
-                    rows = result.fetchall()
-                    print(rows)
-                    return jsonify([
-                        {"id": row.FunderID, "name": row.Description} for row in rows
-                    ])
-                else:
-                    # FUNDER user should only see themselves
-                    return jsonify([{
-                        "id": session.get("user_id"),
-                        "name": session.get("desc")
-                    }])
-
-        return jsonify([])
-    except Exception as e:
-        print("❌ Error in get_entities:", e)
-        return jsonify([]), 500
- """
 
 
 
@@ -201,7 +183,7 @@ def update_staff():
         admin = 1 if request.form.get("admin") == "1" else 0
         role = session.get("role")
         id_from_session = session.get("id")
-
+        
         engine = get_db_engine()
         with engine.begin() as conn:
             conn.execute(
