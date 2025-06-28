@@ -7,15 +7,14 @@ import traceback
 
 funder_bp = Blueprint("funder_bp", __name__)
 
+
 @funder_bp.route('/Overview', methods=["GET", "POST"])
 @login_required
 def funder_dashboard():
-    
     if session.get("user_admin") != 1:
         abort(403)
 
     try:
-        #print("📍 Entered funder_dashboard route")
         engine = get_db_engine()
         user_role = session.get("user_role")
         is_admin = session.get("user_admin") == 1
@@ -24,16 +23,12 @@ def funder_dashboard():
         entity_type = request.form.get("entity_type") or session.get("entity_type") or "Funder"
         session["entity_type"] = entity_type
 
-        #print(f"🧠 user_role: {user_role}, is_admin: {is_admin}, funder_id: {funder_id}, entity_type: {entity_type}")
-
-        # ✅ MOE SchoolOverview
+        # MOE view
         if user_role == "MOE":
             user_email = session.get("user_email") or "unknown@example.com"
             school_id = session.get("user_id")
             selected_year = int(request.form.get("year", session.get("nearest_year", 2024)))
             selected_term = int(request.form.get("term", session.get("nearest_term", 1)))
-
-          #  print(f"📚 MOE School ID: {school_id}, Year: {selected_year}, Term: {selected_term}")
 
             with engine.begin() as conn:
                 class_df = pd.read_sql(
@@ -48,12 +43,8 @@ def funder_dashboard():
                     params={"r": "SchoolStaff", "sid": school_id}
                 )
 
-           # print(f"📊 class_df.columns: {class_df.columns.tolist()}")
-           # print(f"👨‍🏫 staff_df.shape: {staff_df.shape}")
-
             available_years = sorted(class_df.get("CalendarYear", pd.Series(dtype=int)).dropna().unique(), reverse=True)
             available_terms = sorted(class_df.get("Term", pd.Series(dtype=int)).dropna().unique())
-          #  print(f"📅 available_years: {available_years}, available_terms: {available_terms}")
 
             class_df = class_df.rename(columns={"YearLevel": "Year Level", "StudentCount": "Students",
                                                 "ClassName": "Class Name", "TeacherName": "Teacher"})
@@ -68,7 +59,6 @@ def funder_dashboard():
                                    no_classes=class_df.empty,
                                    title="School Overview")
 
-        # ✅ Other user roles (Funder/Provider/Admin)
         all_funders, all_providers = [], []
         funder_dropdown, selected_funder_id = [], None
 
@@ -99,16 +89,24 @@ def funder_dashboard():
                 with engine.begin() as conn:
                     providers_result = list(conn.execute(text("EXEC FlaskHelperFunctions :Request"), {"Request": "ProviderDropdown"}))
                     all_providers = [{"id": row._mapping["ProviderID"], "name": row._mapping["Description"]}
-                                    for row in providers_result if row._mapping["ProviderID"] == funder_id]
+                                     for row in providers_result if row._mapping["ProviderID"] == funder_id]
             elif user_role == "GRP":
-                all_providers = [{"id": e["id"], "name": e["desc"]} for e in session.get("group_entities", {}).get("PRO", [])]
-
+                all_providers = [{"id": e["id"], "desc": e["name"]} for e in session.get("group_entities", {}).get("PRO", [])]
             funder_dropdown = all_providers
 
-        #print(f"📥 funder_dropdown: {funder_dropdown}")
+        has_groups = False
+        if user_role == "ADM":
+            with engine.begin() as conn:
+                result = conn.execute(text("EXEC FlaskGetAllGroups"))
+                has_groups = result.first() is not None
+        elif user_role == "FUN":
+            with engine.begin() as conn:
+                result = conn.execute(text("EXEC FlaskGetGroupsByFunder @FunderID = :fid"), {"fid": funder_id})
+                has_groups = result.first() is not None
+        elif user_role == "GRP":
+            has_groups = len(session.get("group_entities", {}).get("PRO", [])) > 0
 
-        # Determine selected funder/provider ID
-        if user_role in ["ADM", "FUN","GRP"]:
+        if user_role in ["ADM", "FUN", "GRP"]:
             funder_val = request.form.get("funder_id")
             if funder_val and funder_val.isdigit():
                 selected_funder_id = int(funder_val)
@@ -118,26 +116,21 @@ def funder_dashboard():
         elif user_role == "PRO":
             selected_funder_id = funder_id
 
-        #print(f"🎯 selected_funder_id: {selected_funder_id}")
-
         if not selected_funder_id:
             return render_template("overview.html", eLearning=[], schools=[], selected_year=None, selected_term=None,
                                    available_years=[], available_terms=[], no_eLearning=True, no_schools=True,
                                    summary_string=None, user_role=user_role, funder_list=funder_dropdown,
                                    selected_funder_id=None, all_funders=all_funders, all_providers=all_providers,
-                                   entity_type=entity_type, title="Overview")
+                                   entity_type=entity_type, title="Overview", has_groups=has_groups)
 
-        # Funder/Provider metadata
         entity_desc = session.get("desc")
         search_list = all_providers if entity_type == "Provider" else all_funders
         for item in search_list:
             if int(item["id"]) == int(selected_funder_id):
-                entity_desc = item["name"]
+                entity_desc = item["desc"]
                 break
 
-
-        # Choose procedure
-        if user_role == "PRO" or (user_role in ["ADM", "FUN","GRP"] and entity_type == "Provider"):
+        if user_role == "PRO" or (user_role in ["ADM", "FUN", "GRP"] and entity_type == "Provider"):
             proc = "FlaskGetSchoolSummaryByProvider"
             id_param_name = "ProviderID"
             eLearning_proc = "FlaskGetProvidereLearningStatus"
@@ -145,8 +138,6 @@ def funder_dashboard():
             proc = "FlaskGetSchoolSummaryByFunder"
             id_param_name = "FunderID"
             eLearning_proc = "FlaskGetFundereLearningStatus"
-
-        print(f"🔄 proc: {proc}, eLearning_proc: {eLearning_proc}, id_param: {id_param_name}")
 
         with engine.begin() as conn:
             eLearning_df = pd.read_sql(
@@ -161,17 +152,11 @@ def funder_dashboard():
                         "Email": session.get("user_email") or "unknown@example.com"}
             )
 
-       #print(f"📚 school_df_all.shape: {school_df_all.shape}")
-        #print(f"📗 eLearning_df.columns: {eLearning_df.columns.tolist()}")
-
         available_years = sorted(school_df_all.get("CalendarYear", pd.Series(dtype=int)).dropna().unique(), reverse=True)
         available_terms = sorted(school_df_all.get("Term", pd.Series(dtype=int)).dropna().unique())
-        #print(f"📆 available_years: {available_years}, available_terms: {available_terms}")
 
         selected_year = int(request.form.get("year", session.get("nearest_year", available_years[0] if available_years else 2025)))
         selected_term = int(request.form.get("term", session.get("nearest_term", available_terms[0] if available_terms else 1)))
-
-        #print(f"📌 selected_year: {selected_year}, selected_term: {selected_term}")
 
         school_df = school_df_all[(school_df_all["CalendarYear"] == selected_year) &
                                   (school_df_all["Term"] == selected_term)]
@@ -184,8 +169,7 @@ def funder_dashboard():
 
         subject = f"{entity_desc} is" if user_role in ["ADM", "FUN"] else "You are"
         summary_string = f"{subject} delivering to <strong>{total_students:,}</strong> students across <strong>{total_schools}</strong> school{'s' if total_schools != 1 else ''} in <strong>Term {selected_term}</strong>, <strong>{selected_year}</strong>."
-        print(entity_desc)
-        title = f"{ entity_desc or session.get('user_desc') } Overview"
+        title = f"{entity_desc or session.get('user_desc')} Overview"
 
         return render_template("overview.html",
                                eLearning=eLearning_df.to_dict(orient="records"),
@@ -203,15 +187,12 @@ def funder_dashboard():
                                all_funders=all_funders,
                                all_providers=all_providers,
                                entity_type=entity_type,
-                               title=title)
+                               title=title,
+                               has_groups=has_groups)
 
     except Exception as e:
-        import traceback
         traceback.print_exc()
-        print(f"❌ Exception occurred: {e}")
         return "Internal Server Error", 500
-
-
 
 @funder_bp.route("/get_entities")
 @login_required
@@ -233,44 +214,59 @@ def get_entities():
         if entity_type == "Provider":
             if user_role == "PRO":
                 print("🎯 Handling PRO role")
-                print(f"Returning only: {user_desc}")
                 entities = [{"id": user_id, "name": user_desc}]
 
             elif user_role == "GRP":
-                print("🎯 Handling GRP role")
+                print("🎯 Handling GRP role for Provider")
                 raw_providers = session.get("group_entities", {}).get("PRO", [])
                 print(f"🗂 raw_providers from session = {raw_providers}")
-                entities = [{"id": e["id"], "name": e["desc"]} for e in raw_providers]
-                print(f"📤 returning GRP entities = {entities}")
+                entities = [{"id": e["id"], "name": e["name"]} for e in raw_providers]
 
             elif user_role == "FUN":
-                print("🎯 Handling FUN role (Funder)")
+                print("🎯 Handling FUN role for Provider")
                 stmt = text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :FunderID")
                 result = conn.execute(stmt, {
                     "Request": "ProvidersByFunder",
                     "FunderID": user_id
                 })
                 entities = [{"id": row._mapping["ProviderID"], "name": row._mapping["Description"]} for row in result]
-                print(f"📤 returning FUN-linked providers = {entities}")
 
-            else:  # ADM or other
-                print("🎯 Handling ADM role or default")
+            else:  # ADM or fallback
+                print("🎯 Handling ADM role or default for Provider")
                 stmt = text("EXEC FlaskHelperFunctions @Request = 'ProviderDropdown'")
                 result = conn.execute(stmt)
                 entities = [{"id": row._mapping["ProviderID"], "name": row._mapping["Description"]} for row in result]
-                print(f"📤 returning all providers = {entities}")
 
         elif entity_type == "Funder":
             if user_role == "FUN":
                 print("🎯 Handling FUN role for Funder")
                 entities = [{"id": user_id, "name": user_desc}]
-                print(f"📤 returning FUN funder = {entities}")
-            else:  # ADM or other
+            else:  # ADM or fallback
                 print("🎯 Handling ADM role for Funder")
                 stmt = text("EXEC FlaskHelperFunctions @Request = 'FunderDropdown'")
                 result = conn.execute(stmt)
                 entities = [{"id": row._mapping["FunderID"], "name": row._mapping["Description"]} for row in result]
-                print(f"📤 returning all funders = {entities}")
+
+        elif entity_type == "Group":
+            print("🎯 Handling Group entity type")
+
+            if user_role == "GRP":
+                print("🔹 GRP user: loading from session")
+                raw_groups = session.get("group_entities", {}).get("PRO", [])
+                print(f"🗂 raw_groups = {raw_groups}")
+                entities = [{"id": user_id, "name": user_desc} ]
+
+            elif user_role == "ADM":
+                print("🔹 ADM user: loading all groups via stored procedure")
+                stmt = text("EXEC FlaskGetAllGroups")
+                result = conn.execute(stmt)
+                entities = [{"id": row._mapping["ID"], "name": row._mapping["Name"]} for row in result]
+
+            elif user_role == "FUN":
+                print("🔹 FUN user: loading groups restricted to funder")
+                stmt = text("EXEC FlaskGetGroupsByFunder @FunderID = :fid")
+                result = conn.execute(stmt, {"fid": user_id})
+                entities = [{"id": row._mapping["ID"], "name": row._mapping["Name"]} for row in result]
 
     print(f"✅ Final entities being returned = {entities}\n")
     return jsonify(entities)

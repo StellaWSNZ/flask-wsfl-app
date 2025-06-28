@@ -82,7 +82,7 @@
                 data-bs-toggle="dropdown"
                 aria-expanded="false"
               >
-                Group Tools
+                Provider Tools
               </a>
               <ul class="dropdown-menu dropdown-menu-end">
                 <li>
@@ -94,9 +94,11 @@
                   </a>
                 </li>
                 <li>
-                  <a class="dropdown-item py-2" href="#">
-                    Group Class Lookup
-                  </a>
+                  <a
+                    class="dropdown-item py-2"
+                    href="{{ url_for('class_bp.funder_classes') }}"
+                    >Class Lookup</a
+                  >
                 </li>
                 <li>
                   <a class="dropdown-item py-2" href="#"> Group Reporting </a>
