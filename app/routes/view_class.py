@@ -368,6 +368,9 @@ def funder_classes():
     # ========================
     with engine.connect() as conn:
         if user_role == "GRP":
+            print(group_entities)
+            print(provider_ids)
+            print(funder_ids)
             if provider_ids:
                 csv_providers = ",".join(provider_ids)
                 result = conn.execute(

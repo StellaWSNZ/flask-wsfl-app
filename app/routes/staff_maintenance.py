@@ -15,7 +15,7 @@ staff_bp = Blueprint("staff_bp", __name__)
 def staff_maintenance():
     try:
         print("📥 /Staff route called")
-
+        school_list = []
         user_id = session.get("user_id")
         user_role = session.get("user_role")
         user_email = session.get("user_email")
@@ -49,8 +49,14 @@ def staff_maintenance():
         if request.method == "POST":
             print("📩 POST received")
         if not selected_entity_type or not selected_entity_id:
-            if user_role in ["PRO", "MOE"]:
-                selected_entity_type = user_role  # "Provider" or "School"
+            if user_role == "PRO":
+                selected_entity_type = "Provider"  # "Provider" or "School"
+                selected_entity_id = user_id
+            elif user_role == "MOE":
+                selected_entity_type = "School"  # "Provider" or "School"
+                selected_entity_id = user_id
+            elif user_role == "GRP":
+                selected_entity_type = "Group"  # "Provider" or "School"
                 selected_entity_id = user_id
             else:
                 selected_entity_type = "Funder"
@@ -118,20 +124,43 @@ def staff_maintenance():
                     return "Invalid entity type", 400
             elif user_role == "GRP":
                 entity_type = selected_entity_type or "Group"
+                provider_options = []
+                school_list = []
+                target_id = int(selected_entity_id)
                 target_id = int(selected_entity_id)
                 if entity_type == "Provider":
                     role_type = "PRO"
+                    providers = conn.execute(
+                        text("EXEC FlaskHelperFunctions @Request = 'ProvidersByGroupID', @Number = :gid"),
+                        {"gid": user_id}
+                    ).fetchall()
+                    provider_options = [{"id": row.id, "name": row.Description} for row in providers]
                     result = conn.execute(
                         text("EXEC FlaskHelperFunctions @Request = 'ProviderName', @Number = :fid"),
                         {"fid": target_id}
                     )
                     selected_entity_name = result.scalar()
+
+                elif entity_type == "School":
+                    role_type = "MOE"
+                    schools = conn.execute(
+                        text("EXEC FlaskHelperFunctions @Request = 'SchoolsByGroupID', @Number = :gid"),
+                        {"gid": user_id}
+                    ).fetchall()
+                    school_list = [{"id": row.id, "name": row.Description} for row in schools]
+                    result = conn.execute(
+                        text("EXEC FlaskHelperFunctions @Request = 'SchoolName', @Number = :fid"),
+                        {"fid": target_id}
+                    )
+                    selected_entity_name = result.scalar()
+
                 elif entity_type == "Group":
                     role_type = "GRP"
                     selected_entity_name = next((g["name"] for g in group_list if g["id"] == target_id), None)
                 else:
                     print(f"⚠️ GRP selected invalid entity type: {entity_type}")
                     return "Invalid entity type", 400
+
             else:
                 role_type = user_role
                 target_id = int(user_id)
@@ -153,6 +182,9 @@ def staff_maintenance():
             selected_entity_type=selected_entity_type,
             selected_entity_id=selected_entity_id,
             selected_entity_name=selected_entity_name,
+            provider_options=provider_options,
+school_list=school_list,
+group_list=group_list,
             funder_list=funder_list,
             data=staff_data.to_dict(orient="records"),
             columns=columns,

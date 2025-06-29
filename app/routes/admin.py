@@ -13,7 +13,6 @@ from app.extensions import mail
 admin_bp = Blueprint("admin_bp", __name__)
 
 import traceback
-
 @admin_bp.route('/CreateUser', methods=['GET', 'POST'])
 @login_required
 def create_user():
@@ -29,6 +28,7 @@ def create_user():
 
     providers = []
     schools = []
+    groups = []
     funders = None
     funder = None
     only_own_staff_or_empty = False
@@ -56,6 +56,7 @@ def create_user():
                     len(providers) == 0 or
                     (len(providers) == 1 and providers[0].Description.strip().lower() == "own staff")
                 )
+                print(f"ℹ️ only_own_staff_or_empty: {only_own_staff_or_empty}")
 
             elif user_role == "ADM":
                 print("🔍 Loading all data for ADMIN...")
@@ -70,6 +71,10 @@ def create_user():
                 funders = conn.execute(
                     text("EXEC FlaskHelperFunctions @Request = :Request"),
                     {"Request": "AllFunders"}
+                ).fetchall()
+                groups = conn.execute(
+                    text("EXEC FlaskHelperFunctions @Request = :Request"),
+                    {"Request": "AllGroups"}
                 ).fetchall()
             elif user_role == "MOE":
                 print("🔍 Loading school for MOE...")
@@ -90,6 +95,52 @@ def create_user():
                     {"Request": "ProviderByID", "pid": user_id}
                 ).fetchone()
 
+            elif user_role == "GRP":
+                groups = [{"id": user_id, "Description": user_desc}]
+                print("🔍 Loading schools and providers for GRP...")
+                group_entities = session.get("group_entities", {})
+                provider_ids = [str(e["id"]) for e in group_entities.get("PRO", [])]
+                funder_ids = [str(e["id"]) for e in group_entities.get("FUN", [])]
+                print(f"🧮 group_entities: {group_entities}")
+                print(f"🧾 provider_ids: {provider_ids}")
+                print(f"🧾 funder_ids: {funder_ids}")
+
+                schools = []
+                providers = []
+
+                if provider_ids:
+                    csv_providers = ",".join(provider_ids)
+                    print(f"📤 Fetching schools for providers: {csv_providers}")
+                    schools_result = conn.execute(
+                        text("EXEC FlaskSchoolsByGroupProviders :ProviderList"),
+                        {"ProviderList": csv_providers}
+                    )
+                    schools = schools_result.fetchall()
+                    print(f"✅ Got {len(schools)} schools")
+                    print(f"📤 Fetching providers by ID list")
+                    providers_result = conn.execute(
+                        text("EXEC FlaskProvidersByIDList :ProviderList"),
+                        {"ProviderList": csv_providers}
+                    )
+                    providers = providers_result.fetchall()
+                    print(f"✅ Got {len(providers)} providers")
+                    schools = [{"description": s[0], "id": s[1], "provider_id": s[2]} for s in schools]
+                    providers = [{"id": p[0], "Description": p[1]} for p in providers]
+                if funder_ids:
+                    csv_funders = ",".join(funder_ids)
+                    print(f"📤 Fetching schools for funders: {csv_funders}")
+                    funder_schools = conn.execute(
+                        text("EXEC FlaskSchoolsByGroupFunders :FunderList"),
+                        {"FunderList": csv_funders}
+                    ).fetchall()
+                    print(f"✅ Got {len(funder_schools)} funder schools")
+
+                    # Merge and deduplicate schools
+                    schools += funder_schools
+                    seen = set()
+                    schools = [s for s in schools if not (s.id in seen or seen.add(s.id))]
+                    print(f"🧼 Deduplicated to {len(schools)} total schools")
+
     except Exception as e:
         print("❌ Error during role-specific DB calls")
         traceback.print_exc()
@@ -104,8 +155,9 @@ def create_user():
         admin = 1 if request.form.get("admin") == "1" else 0
         hashed_pw = None
         selected_role = request.form.get("selected_role")
-        selected_id = request.form.get("selected_id")  # <-- FIXED HERE
+        selected_id = request.form.get("selected_id")
 
+        print(f"📄 Raw selected_id: {selected_id}")
         if selected_id == "" or selected_id is None:
             selected_id = None
         else:
@@ -122,6 +174,7 @@ def create_user():
 
                 if existing:
                     flash("⚠️ Email already exists.", "warning")
+                    print("⚠️ Email already exists")
                 else:
                     conn.execute(
                         text("""
@@ -147,8 +200,10 @@ def create_user():
                         }
                     )
                     flash(f"✅ User {email} created.", "success")
+                    print(f"✅ Created user: {email}")
 
                     if send_email:
+                        print("📧 Sending setup email...")
                         send_account_setup_email(
                             mail=mail,
                             recipient_email=email,
@@ -162,15 +217,18 @@ def create_user():
             print("❌ Error during user creation")
             traceback.print_exc()
             flash("Failed to create user due to an internal error.", "danger")
-
+    print(schools)
+    print(providers)
     return render_template(
         "create_user.html",
         user_role=user_role,
         name=user_desc,
         funder=funder,
         funders=funders,
-        provider=providers,
+        providers=providers,
         schools=schools,
+                groups=groups,  # ← Add this
+
         only_own_staff_or_empty=only_own_staff_or_empty
     )
 from datetime import datetime

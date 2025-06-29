@@ -1,132 +1,144 @@
 {% extends "header.html" %}
-
 {% block title %}Create User{% endblock %}
-
 {% block content %}
-  <div class="row justify-content-center">
-    <div class="col-10">
-      {% if user_role == 'MOE' %}
-        <div class="alert alert-info">
-          You are creating a <strong>school user</strong> for <strong>{{ name }}</strong>.
-        </div>
-      {% elif user_role == 'FUN' %}
-        <div class="alert alert-info">
-          {% if not only_own_staff_or_empty %}
-            You are creating a user for {{ name }}, one of its providers or one of its schools. Choose a role and target entity below.
-          {% else %}
-            You are creating a user for {{ name }} or one of its schools. Choose a role and target entity below.
-          {% endif %}
-        </div>
-      {% endif %}
-    </div>
+<div class="row justify-content-center">
+  <div class="col-10">
+    {% if user_role == 'MOE' %}
+      <div class="alert alert-info">
+        You are creating a <strong>school user</strong> for <strong>{{ name }}</strong>.
+      </div>
+    {% elif user_role == 'FUN' %}
+      <div class="alert alert-info">
+        {% if not only_own_staff_or_empty %}
+          You are creating a user for {{ name }}, one of its providers or one of its schools. Choose a role and target entity below.
+        {% else %}
+          You are creating a user for {{ name }} or one of its schools. Choose a role and target entity below.
+        {% endif %}
+      </div>
+    {% endif %}
   </div>
-
-
+</div>
 
 <div class="row justify-content-center">
   <div class="col-10">
-  <div class="card">
-    <div class="card-header bg-secondary text-white">Create New User</div>
-    <div class="card-body">
-      <form method="POST">
-        <div class="mb-3">
-          <label class="form-label">Email</label>
-          <input type="email" name="email" class="form-control" required value="{{ request.form.email }}" />
-        </div>
+    <div class="card">
+      <div class="card-header bg-secondary text-white">Create New User</div>
+      <div class="card-body">
+        
 
-        <div class="mb-3">
-          <label class="form-label">First Name</label>
-          <input type="text" name="firstname" class="form-control" required value="{{ request.form.firstname }}" />
-        </div>
+        <form method="POST">
+          <div class="mb-3">
+            <label class="form-label">Email</label>
+            <input type="email" name="email" class="form-control" required value="{{ request.form.email }}" />
+          </div>
 
-        <div class="mb-3">
-          <label class="form-label">Surname</label>
-          <input type="text" name="surname" class="form-control" required value="{{ request.form.surname }}" />
-        </div>
+          <div class="mb-3">
+            <label class="form-label">First Name</label>
+            <input type="text" name="firstname" class="form-control" required value="{{ request.form.firstname }}" />
+          </div>
 
-        <div class="mb-3">
-          <label class="form-label">Select Role</label>
-          <select name="selected_role" id="selected_role" class="form-select" required>
-            {% if user_role == 'MOE' %}
-              <option value="MOE" selected>School</option>
-            {% else %}
-              <option disabled selected value="">Assign a role...</option>
-              {% if user_role in ['ADM', 'FUN', 'PRO','MOE','GRP'] %}
-                <option value="MOE" {% if request.form.selected_role == 'MOE' %}selected{% endif %}>School</option>
+          <div class="mb-3">
+            <label class="form-label">Surname</label>
+            <input type="text" name="surname" class="form-control" required value="{{ request.form.surname }}" />
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Select Role</label>
+            <select name="selected_role" id="selected_role" class="form-select" required>
+              {% if user_role == 'MOE' %}
+                <option value="MOE" selected>School</option>
+              {% else %}
+                <option disabled selected value="">Assign a role...</option>
+                {% if user_role in ['ADM', 'FUN', 'PRO', 'MOE', 'GRP'] %}
+                  <option value="MOE" {% if request.form.selected_role == 'MOE' %}selected{% endif %}>School</option>
+                {% endif %}
+                {% if user_role in ['ADM', 'FUN', 'PRO', 'GRP'] %}
+                  <option value="PRO" {% if request.form.selected_role == 'PRO' %}selected{% endif %}>Provider</option>
+                {% endif %}
+                {% if user_role in ['ADM', 'FUN'] %}
+                  <option value="FUN" {% if request.form.selected_role == 'FUN' %}selected{% endif %}>Funder</option>
+                {% endif %}
+                {% if user_role == 'ADM' %}
+                  <option value="ADM" {% if request.form.selected_role == 'ADM' %}selected{% endif %}>Admin</option>
+                {% endif %}
+                {% if user_role in ['ADM', 'GRP'] %}
+                  <option value="GRP" {% if request.form.selected_role == 'GRP' %}selected{% endif %}>Group</option>
+                {% endif %}
               {% endif %}
-              {% if user_role in ['ADM', 'FUN', 'PRO','GRP'] %}
-                <option value="PRO" {% if request.form.selected_role == 'PRO' %}selected{% endif %}>Provider</option>
-              {% endif %}
-              {% if user_role in ['ADM', 'FUN'] %}
-                <option value="FUN" {% if request.form.selected_role == 'FUN' %}selected{% endif %}>Funder</option>
-              {% endif %}
+            </select>
+          </div>
+          {% if user_role in ['ADM', 'GRP'] %}
+          <div class="mb-3" id="group-section" style="display: none;">
+            <label class="form-label">Select Group</label>
+            <select id="group-id" name="group" class="form-select">
+              {% for g in groups %}
+                <option value="{{ g.id }}">{{ g.Description }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          {% endif %}
+          {% if user_role in ['ADM', 'FUN'] %}
+          <div class="mb-3" id="funder-section" style="display: none;">
+            <label class="form-label">Select Funder</label>
+            <select id="funder-id" name="funder" class="form-select">
               {% if user_role == 'ADM' %}
-                <option value="ADM" {% if request.form.selected_role == 'ADM' %}selected{% endif %}>Admin</option>
+                {% for f in funders %}
+                  <option value="{{ f.id }}">{{ f.Description }}</option>
+                {% endfor %}
+              {% else %}
+                <option value="{{ funder.id }}">{{ funder.Description }}</option>
               {% endif %}
-            {% endif %}
-          </select>
-        </div>
+            </select>
+          </div>
+          {% endif %}
 
-        {% if user_role in ['ADM', 'FUN'] %}
-        <div class="mb-3" id="funder-section" style="display: none;">
-          <label class="form-label">Select Funder</label>
-          <select id="funder-id" class="form-select">
-            {% if user_role == 'ADM' %}
-              {% for f in funders %}
-                <option value="{{ f.id }}">{{ f.Description }}</option>
+          {% if user_role in ['ADM', 'FUN', 'PRO', 'GRP'] %}
+          <div class="mb-3" id="provider-section" style="display: none;">
+            <label class="form-label">Select Provider</label>
+            <select id="provider-id" name="provider" class="form-select">
+              {% if user_role != 'PRO' %}
+                {% for p in providers %}
+                  <option value="{{ p.id }}">{{ p.Description }}</option>
+                {% endfor %}
+              {% else %}
+                <option value="{{ provider.id }}">{{ provider.Description }}</option>
+              {% endif %}
+            </select>
+          </div>
+          {% endif %}
+
+          {% if user_role in ['ADM', 'FUN', 'PRO', 'MOE', 'GRP'] %}
+          <div class="mb-3" id="school-section" style="display: none;">
+            <label class="form-label">Select School</label>
+            <select id="school-id" name="school" class="form-select">
+              {% for s in schools %}
+                <option value="{{ s.id }}"
+                  {% if s.id|string == request.form.get('selected_id') or (user_role == 'MOE' and loop.first) %}selected{% endif %}>{{ s.description }}</option>
               {% endfor %}
-            {% else %}
-              <option value="{{ funder.id }}">{{ funder.Description }}</option>
-            {% endif %}
-          </select>
-        </div>
-        {% endif %}
+            </select>
+          </div>
+          {% endif %}
 
-        {% if user_role in ['ADM', 'FUN', 'PRO'] %}
-        <div class="mb-3" id="provider-section" style="display: none;">
-          <label class="form-label">Select Provider</label>
-          <select id="provider-id" class="form-select">
-            {% if user_role != 'PRO' %}
-              {% for p in providers %}
-                <option value="{{ p.id }}">{{ p.Description }}</option>
-              {% endfor %}
-            {% else %}
-              <option value="{{ provider.id }}">{{ provider.Description }}</option>
-            {% endif %}
-          </select>
-        </div>
-        {% endif %}
+          <input type="hidden" name="selected_id" id="selected_id" value="{{ request.form.get('selected_id', selected_id_default) }}" />
 
-        <div class="mb-3" id="school-section" style="display: none;">
-          <label class="form-label">Select School</label>
-          <select id="school-id" name="school" class="form-select">
-            {% for s in schools %}
-              <option value="{{ s.id }}"
-                {% if s.id|string == request.form.get('selected_id') or (user_role == 'MOE' and loop.first) %}selected{% endif %}>{{ s.description }}</option>
-            {% endfor %}
-          </select>
-        </div>
+          <div class="form-check mb-3" id="admin-checkbox-section">
+            <input class="form-check-input" type="checkbox" value="1" name="admin" id="adminCheck"
+              {% if request.form.admin or request.form.selected_role == 'ADM' %}checked{% endif %} />
+            <label class="form-check-label" for="adminCheck">Administrator Permissions</label>
+          </div>
 
-        <input type="hidden" name="selected_id" id="selected_id" value="{{ request.form.get('selected_id', selected_id_default) }}" />
+          <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" name="send_email" id="sendEmail" {% if request.form.send_email %}checked{% endif %} />
+            <label class="form-check-label" for="sendEmail">Send confirmation email to user</label>
+          </div>
 
-        <div class="form-check mb-3" id="admin-checkbox-section">
-          <input class="form-check-input" type="checkbox" value="1" name="admin" id="adminCheck"
-            {% if request.form.admin or request.form.selected_role == 'ADM' %}checked{% endif %} />
-          <label class="form-check-label" for="adminCheck">Administrator Permissions</label>
-        </div>
-
-        <div class="form-check mb-3">
-          <input class="form-check-input" type="checkbox" name="send_email" id="sendEmail" {% if request.form.send_email %}checked{% endif %} />
-          <label class="form-check-label" for="sendEmail">Send confirmation email to user</label>
-        </div>
-
-        <button type="submit" class="btn btn-success">Create User</button>
-      </form>
+          <button type="submit" class="btn btn-success">Create User</button>
+        </form>
+      </div>
     </div>
-  </div></div>
   </div>
+</div>
 {% endblock %}
-
 {% block scripts %}
 <script>
   document.addEventListener("DOMContentLoaded", function () {
@@ -134,6 +146,7 @@
     const funderSection = document.getElementById("funder-section");
     const providerSection = document.getElementById("provider-section");
     const schoolSection = document.getElementById("school-section");
+    const groupSection = document.getElementById("group-section");
     const selectedIdInput = document.getElementById("selected_id");
     const adminCheckboxSection = document.getElementById("admin-checkbox-section");
     const adminCheckbox = document.getElementById("adminCheck");
@@ -141,6 +154,7 @@
     const funderDropdown = document.getElementById("funder-id");
     const providerDropdown = document.getElementById("provider-id");
     const schoolDropdown = document.getElementById("school-id");
+    const groupDropdown = document.getElementById("group-id");
 
     function updateSelectedId() {
       if (roleSelect?.value === "FUN" && funderDropdown) {
@@ -149,6 +163,8 @@
         selectedIdInput.value = providerDropdown.value;
       } else if (roleSelect?.value === "MOE" && schoolDropdown) {
         selectedIdInput.value = schoolDropdown.value;
+      } else if (roleSelect?.value === "GRP" && groupDropdown) {
+        selectedIdInput.value = groupDropdown.value;
       } else {
         selectedIdInput.value = "";
       }
@@ -164,13 +180,24 @@
     }
 
     function toggleSectionsByRole(role) {
-      funderSection.style.display = "none";
-      providerSection.style.display = "none";
-      schoolSection.style.display = "none";
+      const sections = [
+        { section: funderSection, dropdown: funderDropdown },
+        { section: providerSection, dropdown: providerDropdown },
+        { section: schoolSection, dropdown: schoolDropdown },
+        { section: groupSection, dropdown: groupDropdown }
+      ];
 
-      if (role === "FUN") funderSection.style.display = "block";
-      else if (role === "PRO") providerSection.style.display = "block";
-      else if (role === "MOE") schoolSection.style.display = "block";
+      sections.forEach(({ section, dropdown }) => {
+        if (!section || !dropdown) return;
+        const show =
+          (role === "FUN" && section === funderSection) ||
+          (role === "PRO" && section === providerSection) ||
+          (role === "MOE" && section === schoolSection) ||
+          (role === "GRP" && section === groupSection);
+
+        section.style.display = show ? "block" : "none";
+        dropdown.disabled = !show;
+      });
     }
 
     if (roleSelect) {
@@ -180,13 +207,12 @@
         updateAdminCheckboxVisibility();
       });
 
-      // On load, if role is preselected (e.g., due to validation fail), display relevant section
       toggleSectionsByRole(roleSelect.value);
       updateSelectedId();
       updateAdminCheckboxVisibility();
     }
 
-    [funderDropdown, providerDropdown, schoolDropdown].forEach((dropdown) => {
+    [funderDropdown, providerDropdown, schoolDropdown, groupDropdown].forEach((dropdown) => {
       if (dropdown) dropdown.addEventListener("change", updateSelectedId);
     });
   });
