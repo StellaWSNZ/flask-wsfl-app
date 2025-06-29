@@ -10,23 +10,6 @@ block content %}
         Submitting this form as {{ display_name }}, {{ user_desc }}
       </p>
     </div>
-    {% with messages = get_flashed_messages(with_categories=true) %} {% if
-    messages %}
-    <div
-      id="feedbackAlert"
-      class="alert alert-success alert-dismissible fade show"
-      role="alert"
-      style="position: fixed; top: 80px; right: 20px; z-index: 1051"
-    >
-      {% for category, message in messages %} {{ message }} {% endfor %}
-      <button
-        type="button"
-        class="btn-close"
-        data-bs-dismiss="alert"
-        aria-label="Close"
-      ></button>
-    </div>
-    {% endif %} {% endwith %}
 
     <form method="POST" enctype="multipart/form-data">
       <div class="mb-3">

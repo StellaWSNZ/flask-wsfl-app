@@ -17,7 +17,8 @@ def feedback():
         "MOE": "School",
         "PRO": "Provider",
         "FUN": "Funder",
-        "ADM": "Administrator"
+        "ADM": "Administrator",
+        "GRP":"Group"
     }.get(user_role, "User")
     if(user_role == "ADM"):
         user_desc = f"{user_role_desc}"

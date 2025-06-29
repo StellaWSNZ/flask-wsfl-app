@@ -30,7 +30,7 @@ def survey_by_routename(routename):
 
             if not row:
                 flash(f"Survey '{routename}' not found.", "danger")
-                return redirect("/profile")
+                return redirect("/Profile")
 
             survey_id = row.SurveyID
 
@@ -126,11 +126,13 @@ def submit_survey(routename):
                             @AnswerText = :val;
                     """), {"rid": respondent_id, "qid": qid, "val": value})
 
-        flash("✅ Survey submitted successfully!")
+        flash("✅ Survey submitted successfully!", "success")
         # Redirect to a guest-friendly thank-you page if needed
         if routename.startswith("guest/"):
             return redirect("/thankyou")
-        return redirect("/profile")
+        return redirect(url_for("survey_bp.list_my_surveys"))
+
+
 
     except Exception:
         traceback.print_exc()

@@ -25,7 +25,7 @@
                 <option value="Funder" {% if selected_report_type == "Funder" %}selected{% endif %}>Funder Report</option>
                 {%endif%}{% if user_role == 'ADM' %}
                 <option value="Competency" {% if selected_report_type == "Competency" %}selected{% endif %}>Competency Report</option>
-                {%endif%}{% if user_role in ["FUN", "ADM","PRO","MOE"] %}
+                {%endif%}{% if user_role in ["FUN", "ADM","PRO","MOE","GRP"] %}
                 <option value="School" {% if selected_report_type == "School" %}selected{% endif %}>School Report</option>
                 {% endif %}
                 

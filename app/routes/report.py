@@ -211,7 +211,7 @@ def reporting():
     except Exception as e:
         print("\u274c An error occurred in /Reporting")
         traceback.print_exc()
-        flash("Something went wrong. Please check the logs.", "danger")
+        #flash("Something went wrong. Please check the logs.", "danger")
         return redirect(url_for("report_bp.reporting"))
 
 @report_bp.route('/Reporting/download_pdf')
