@@ -252,6 +252,7 @@ def _load_survey_list(email):
 
 
 # 🔹 View a specific completed survey by respondent ID
+# 🔹 View a specific completed survey by respondent ID
 @survey_bp.route("/MyForms/<int:respondent_id>")
 @login_required
 def view_my_survey_response(respondent_id):
@@ -260,7 +261,8 @@ def view_my_survey_response(respondent_id):
 
     engine = get_db_engine()
     try:
-        with engine.connect() as conn:
+        with engine.begin() as conn:
+            # Get all questions and answers (including unanswered)
             rows = conn.execute(text("""
                 EXEC SVY_GetSurveyResponseByRespondentID @RespondentID = :rid
             """), {"rid": respondent_id}).fetchall()
@@ -270,34 +272,37 @@ def view_my_survey_response(respondent_id):
                 return redirect(url_for("survey_bp.list_my_surveys"))
 
             response_email = rows[0][1]
-            # Optionally restrict non-admin access here
 
-            questions = []
+            questions = {}
             for row in rows:
                 (_, _, _, _, qid, qtext, qcode, answer_likert, answer_text) = row
 
+                if qid not in questions:
+                    question = {
+                        "id": qid,
+                        "text": qtext,
+                        "type": qcode,
+                        "answer_likert": answer_likert,
+                        "answer_text": answer_text,
+                        "labels": []
+                    }
 
-                question = {
-                    "id": qid,
-                    "text": qtext,
-                    "type": qcode,
-                    "answer_likert": answer_likert,
-                    "answer_text": answer_text,
-                    "labels": []
-                }
+                    # For Likert questions, load all labels
+                    if qcode == "LIK":
+                        label_rows = conn.execute(text("""
+                            EXEC SVY_GetLikertLabelsByQuestionID @QuestionID = :qid
+                        """), {"qid": qid}).fetchall()
+                        question["labels"] = [(pos, label) for pos, label in label_rows]
 
-                if qcode == "LIK":
-                    label_rows = conn.execute(text("""
-                        EXEC SVY_GetLikertLabelsByQuestionID @QuestionID = :qid
-                    """), {"qid": qid}).fetchall()
+                    questions[qid] = question
+                else:
+                    # Just in case, update answers if found in another row
+                    if answer_likert and not questions[qid]["answer_likert"]:
+                        questions[qid]["answer_likert"] = answer_likert
+                    if answer_text and not questions[qid]["answer_text"]:
+                        questions[qid]["answer_text"] = answer_text
 
-
-                    
-                    question["labels"] = [(pos, label) for pos, label in label_rows]
-
-                questions.append(question)
-
-        return render_template("survey_view.html", questions=questions)
+        return render_template("survey_view.html", questions=list(questions.values()))
 
     except Exception:
         traceback.print_exc()

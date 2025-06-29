@@ -380,6 +380,7 @@
                     Manage My Staff
                   </a>
                 </li>
+                {% if user_role != "MOE" %}
                 <li>
                   <a
                     class="dropdown-item py-2"
@@ -388,6 +389,7 @@
                     View All eLearnings
                   </a>
                 </li>
+                {% endif %}
               </ul>
             </li>
             <li class="nav-item mt-2 mt-lg-0 me-2">
