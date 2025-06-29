@@ -51,10 +51,10 @@
               <option value="MOE" selected>School</option>
             {% else %}
               <option disabled selected value="">Assign a role...</option>
-              {% if user_role in ['ADM', 'FUN', 'PRO','MOE'] %}
+              {% if user_role in ['ADM', 'FUN', 'PRO','MOE','GRP'] %}
                 <option value="MOE" {% if request.form.selected_role == 'MOE' %}selected{% endif %}>School</option>
               {% endif %}
-              {% if user_role in ['ADM', 'FUN', 'PRO'] %}
+              {% if user_role in ['ADM', 'FUN', 'PRO','GRP'] %}
                 <option value="PRO" {% if request.form.selected_role == 'PRO' %}selected{% endif %}>Provider</option>
               {% endif %}
               {% if user_role in ['ADM', 'FUN'] %}
