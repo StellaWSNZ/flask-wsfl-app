@@ -74,7 +74,9 @@ def view_class(class_id, term, year):
                     autofill_map=cached.get("autofill_map", {}),
                     term=term,
                     year=year,
-                    order_by=order_by
+                    order_by=order_by,
+                filter_type = request.args.get("filter", "all")
+
                 )
             except Exception:
                 print("⚠️ Error while rendering from cache:")
@@ -195,7 +197,8 @@ def view_class(class_id, term, year):
                 "scenarios": scenarios,
                 "autofill_map": dict(header_map)
             }
-
+            print(request.args.get("filter", "all")
+)
             return render_template(
                 "student_achievement.html",
                 students=df_combined.to_dict(orient="records"),
@@ -211,7 +214,9 @@ def view_class(class_id, term, year):
                 autofill_map=header_map,
                 term=term,
                 year=year,
-                order_by=order_by
+                order_by=order_by,
+                filter_type = request.args.get("filter", "all")
+
             )
 
     except Exception as e:
@@ -473,8 +478,11 @@ def update_competency():
             )
 
         # 🧹 Invalidate cache for this class
-        cache_key = f"{class_id}_{term}_{year}_{filter_type}"
-        session.get("class_cache", {}).pop(cache_key, None)
+        class_cache = session.get("class_cache", {})
+        matching_keys = [key for key in class_cache if key.startswith(f"{class_id}_{term}_{year}_")]
+        for key in matching_keys:
+            class_cache.pop(key, None)
+        print(f"🧹 Cache cleared for keys: {matching_keys}")
         print(f"🧹 Cache cleared for {cache_key}")
 
         return jsonify({"success": True})
@@ -508,8 +516,11 @@ def update_scenario():
             )
 
         # 🧹 Invalidate cache for this class
-        cache_key = f"{class_id}_{term}_{year}_{filter_type}"
-        session.get("class_cache", {}).pop(cache_key, None)
+        class_cache = session.get("class_cache", {})
+        matching_keys = [key for key in class_cache if key.startswith(f"{class_id}_{term}_{year}_")]
+        for key in matching_keys:
+            class_cache.pop(key, None)
+        print(f"🧹 Cache cleared for keys: {matching_keys}")
         print(f"🧹 Cache cleared for {cache_key}")
 
         return jsonify(success=True)

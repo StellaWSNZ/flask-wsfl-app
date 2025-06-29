@@ -160,15 +160,16 @@ select option {
   </div>
 </div>
 <div class="text-center mb-3">
-  <a href="{{ url_for('class_bp.view_class', class_id=class_id, term=term, year=year, order_by='first') }}"
+  <a href="{{ url_for('class_bp.view_class', class_id=class_id, term=term, year=year, filter=filter_type, order_by='first') }}"
      class="btn btn-sm btn-outline-secondary {% if order_by == 'first' %}active{% endif %}">
     Sort by First Name
   </a>
-  <a href="{{ url_for('class_bp.view_class', class_id=class_id, term=term, year=year, order_by='last') }}"
+  <a href="{{ url_for('class_bp.view_class', class_id=class_id, term=term, year=year, filter=filter_type, order_by='last') }}"
      class="btn btn-sm btn-outline-secondary {% if order_by == 'last' %}active{% endif %}">
     Sort by Last Name
   </a>
 </div>
+
 
 <!-- TABLE WRAPPER -->
 <div class="scroll-table-wrapper">
