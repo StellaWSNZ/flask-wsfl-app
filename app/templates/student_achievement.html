@@ -130,9 +130,10 @@ select option {
     {% if edit == 1 %}
     <button type="button" class="btn btn-sm btn-outline-primary ms-2" onclick="toggleEditMode(true)">Edit</button>
     {% endif %}
-    <a class="btn btn-sm btn-outline-secondary" 
-       href="{{ url_for('class_bp.print_class_view', class_id=class_id, term=term, year=year) }}" 
-       target="_blank">Print View</a>
+    <a class="btn btn-sm btn-outline-secondary ms-2"
+    href="{{ url_for('class_bp.print_class_view', class_id=class_id, term=term, year=year, filter=filter_type, order_by=order_by) }}" target="_blank">
+   🖨️ Print
+ </a>
   </div>
 
   <!-- ✅ EDIT MODE -->
