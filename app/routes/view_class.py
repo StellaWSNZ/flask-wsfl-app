@@ -451,7 +451,6 @@ def funder_classes():
         user_role=user_role
     )
 
-
 @class_bp.route('/update_competency', methods=['POST'])
 @login_required
 def update_competency():
@@ -464,29 +463,45 @@ def update_competency():
     year = data.get("year")
     debug = 0
 
-    print(f"📥 Incoming update request: NSN={nsn}, Header='{header_name}', Status={status}")
+    print("📥 Incoming update_competency call")
+    print(f"➡️ NSN: {nsn}, Header: {header_name}, Status: {status}, Class ID: {class_id}, Term: {term}, Year: {year}")
 
+    # ✅ Validate inputs
     if None in (nsn, header_name, status, class_id, term, year):
+        print("❌ Missing one or more required fields")
         return jsonify({"success": False, "message": "Missing data"}), 400
 
     try:
         engine = get_db_engine()
         with engine.begin() as conn:
-            conn.execute(
+            print("🔄 Running stored procedure FlaskUpdateAchievement...")
+            result = conn.execute(
                 text("EXEC FlaskUpdateAchievement @NSN = :nsn, @Header = :header, @Value = :value, @Email = :email, @Debug = :debug"),
-                {"nsn": nsn, "header": header_name, "value": status, "email": session.get("user_email"), "debug": debug}
+                {
+                    "nsn": nsn,
+                    "header": header_name,
+                    "value": status,
+                    "email": session.get("user_email"),
+                    "debug": debug
+                }
             )
+            print("✅ Stored procedure executed")
 
-        # 🧹 Invalidate cache for this class
+        # 🧹 Invalidate session cache for this class
         class_cache = session.get("class_cache", {})
         matching_keys = [key for key in class_cache if key.startswith(f"{class_id}_{term}_{year}_")]
+        print(f"🧹 Found {len(matching_keys)} cache keys to invalidate: {matching_keys}")
         for key in matching_keys:
+            print(f"🗑️ Removing cache key: {key}")
             class_cache.pop(key, None)
-        print(f"🧹 Cache cleared for keys: {matching_keys}")
+
+        session["class_cache"] = class_cache  # Make sure to reassign if modified
 
         return jsonify({"success": True})
     except Exception as e:
-        print("❌ Competency update failed:", e)
+        print("❌ Exception occurred during update_competency:")
+        import traceback
+        traceback.print_exc()
         return jsonify({"success": False, "error": str(e)}), 500
 @class_bp.route("/update_scenario", methods=["POST"])
 @login_required
@@ -863,8 +878,8 @@ def moe_classes():
 @class_bp.route("/Class/print/<int:class_id>/<int:term>/<int:year>")
 @login_required
 def print_class_view(class_id, term, year):
+    filter_type = request.args.get("filter", "all")
     cache_key = f"{class_id}_{term}_{year}_{filter_type}"
-
 
     if request.args.get("refresh") == "1":
         session.get("class_cache", {}).pop(cache_key, None)
