@@ -30,7 +30,7 @@ def view_class(class_id, term, year):
     try:
         filter_type = request.args.get("filter", "all")
         order_by = request.args.get("order_by", "last")
-        cache_key = f"{class_id}_{term}_{year}"
+        cache_key = f"{class_id}_{term}_{year}_{filter_type}"
         cached = session.get("class_cache", {}).get(cache_key)
 
         # ⏳ Cache expiry check
@@ -473,7 +473,7 @@ def update_competency():
             )
 
         # 🧹 Invalidate cache for this class
-        cache_key = f"{class_id}_{term}_{year}"
+        cache_key = f"{class_id}_{term}_{year}_{filter_type}"
         session.get("class_cache", {}).pop(cache_key, None)
         print(f"🧹 Cache cleared for {cache_key}")
 
@@ -508,7 +508,7 @@ def update_scenario():
             )
 
         # 🧹 Invalidate cache for this class
-        cache_key = f"{class_id}_{term}_{year}"
+        cache_key = f"{class_id}_{term}_{year}_{filter_type}"
         session.get("class_cache", {}).pop(cache_key, None)
         print(f"🧹 Cache cleared for {cache_key}")
 
@@ -854,7 +854,8 @@ def moe_classes():
 @class_bp.route("/Class/print/<int:class_id>/<int:term>/<int:year>")
 @login_required
 def print_class_view(class_id, term, year):
-    cache_key = f"{class_id}_{term}_{year}"
+    cache_key = f"{class_id}_{term}_{year}_{filter_type}"
+
 
     if request.args.get("refresh") == "1":
         session.get("class_cache", {}).pop(cache_key, None)
