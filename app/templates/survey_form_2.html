@@ -3,8 +3,8 @@
 {% block content %}
 <div class="container mt-5">
   <h1 class="mb-4 text-center text-primary">External Tester Feedback Form</h2>
-<form action="/submit" method="post">
-<h3 class="mt-4">Tester Information</h2>
+    <form action="{{ url_for('survey_bp.submit_survey', routename='Feedback') }}" method="post">
+      <h3 class="mt-4">Tester Information</h2>
 <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
 <legend class="h6"><strong>Q1:</strong> Job Title:</legend>
 <input type="text" name="q1" class="form-control" placeholder="Your response...">

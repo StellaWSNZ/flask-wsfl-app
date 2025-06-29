@@ -72,7 +72,7 @@ def submit_survey(routename):
         responses = {k[1:]: v for k, v in form_data.items() if k.startswith("q")}
 
         with engine.begin() as conn:
-            # 🔹 Support guest/1 as a route name
+            # 🔹 Get survey ID
             if routename.startswith("guest/") and routename.split("/")[1].isdigit():
                 survey_id = int(routename.split("/")[1])
             else:
@@ -108,31 +108,38 @@ def submit_survey(routename):
             if not respondent_id:
                 raise Exception("❌ Could not retrieve RespondentID")
 
+            # 🔹 Get question types
+            question_types_result = conn.execute(text("""
+                EXEC SVY_GetQuestionTypesBySurveyID @SurveyID = :sid
+            """), {"sid": survey_id}).fetchall()
+            question_type_map = {str(row.QuestionID): row.QuestionCode for row in question_types_result}
+
             # 🔹 Insert answers
             for qid_str, value in responses.items():
+                qtype = question_type_map.get(qid_str)
                 qid = int(qid_str)
-                if value.isdigit():
-                    conn.execute(text("""
-                        EXEC SVY_InsertAnswer 
-                            @RespondentID = :rid, 
-                            @QuestionID = :qid, 
-                            @AnswerLikert = :val;
-                    """), {"rid": respondent_id, "qid": qid, "val": int(value)})
+
+                if qtype == "LIK":
+                    if value:
+                        conn.execute(text("""
+                            EXEC SVY_InsertAnswer 
+                                @RespondentID = :rid, 
+                                @QuestionID = :qid, 
+                                @AnswerLikert = :val;
+                        """), {"rid": respondent_id, "qid": qid, "val": int(value)})
                 else:
-                    conn.execute(text("""
-                        EXEC SVY_InsertAnswer 
-                            @RespondentID = :rid, 
-                            @QuestionID = :qid, 
-                            @AnswerText = :val;
-                    """), {"rid": respondent_id, "qid": qid, "val": value})
+                    if value is not None:
+                        conn.execute(text("""
+                            EXEC SVY_InsertAnswer 
+                                @RespondentID = :rid, 
+                                @QuestionID = :qid, 
+                                @AnswerText = :val;
+                        """), {"rid": respondent_id, "qid": qid, "val": value})
 
         flash("✅ Survey submitted successfully!", "success")
-        # Redirect to a guest-friendly thank-you page if needed
         if routename.startswith("guest/"):
             return redirect("/thankyou")
         return redirect(url_for("survey_bp.list_my_surveys"))
-
-
 
     except Exception:
         traceback.print_exc()
@@ -269,6 +276,7 @@ def view_my_survey_response(respondent_id):
             for row in rows:
                 (_, _, _, _, qid, qtext, qcode, answer_likert, answer_text) = row
 
+
                 question = {
                     "id": qid,
                     "text": qtext,
@@ -282,6 +290,9 @@ def view_my_survey_response(respondent_id):
                     label_rows = conn.execute(text("""
                         EXEC SVY_GetLikertLabelsByQuestionID @QuestionID = :qid
                     """), {"qid": qid}).fetchall()
+
+
+                    
                     question["labels"] = [(pos, label) for pos, label in label_rows]
 
                 questions.append(question)

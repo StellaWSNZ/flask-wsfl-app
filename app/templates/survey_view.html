@@ -27,7 +27,15 @@
         value="{{ question.answer_text }}"
         disabled
       />
-
+      {% elif question.type == 'SHT' %}
+      <input
+        type="text"
+        class="form-control mt-2"
+        name="q{{ question.id }}"
+        id="q{{ question.id }}"
+        value="{{ question.answer_text }}"
+        disabled
+      />
       {% elif question.type == 'LNG' %}
       <textarea
         class="form-control mt-2"
