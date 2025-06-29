@@ -483,13 +483,11 @@ def update_competency():
         for key in matching_keys:
             class_cache.pop(key, None)
         print(f"🧹 Cache cleared for keys: {matching_keys}")
-        print(f"🧹 Cache cleared for {cache_key}")
 
         return jsonify({"success": True})
     except Exception as e:
         print("❌ Competency update failed:", e)
         return jsonify({"success": False, "error": str(e)}), 500
-
 @class_bp.route("/update_scenario", methods=["POST"])
 @login_required
 def update_scenario():
@@ -521,12 +519,12 @@ def update_scenario():
         for key in matching_keys:
             class_cache.pop(key, None)
         print(f"🧹 Cache cleared for keys: {matching_keys}")
-        print(f"🧹 Cache cleared for {cache_key}")
 
         return jsonify(success=True)
     except Exception as e:
         print("❌ Scenario update failed:", e)
         return jsonify(success=False, error=str(e)), 500
+
 
 @class_bp.route('/Reporting', methods=["GET", "POST"])
 @login_required
