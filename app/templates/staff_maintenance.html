@@ -17,7 +17,8 @@
           <option value="Group" {% if entity_type == "Group" %}selected{% endif %}>Group</option>
           
           {% endif %}
-          <option value="Provider" selected>Provider</option>
+          <option value="Provider" {% if entity_type == "Provider" %}selected{% endif %}>Provider</option>
+
         </select>
         {% if user_role == "PRO" %}
         <input type="hidden" name="entity_type" value="Provider">
@@ -31,12 +32,27 @@
           Select {{ entity_type or 'Funder' }}
         </label>
         <select name="entity_id" id="entity_id" class="form-select" {% if user_role == "PRO" %}readonly disabled{% endif %}>
-          {% for entity in funder_list %}
-          <option value="{{ entity.id }}" {% if entity.id|string == selected_entity_id|string %}selected{% endif %}>
-            {{ entity.name }}
-          </option>
-          {% endfor %}
+          {% if entity_type == "Funder" %}
+            {% for entity in funder_list %}
+              <option value="{{ entity.id }}" {% if entity.id|string == selected_entity_id|string %}selected{% endif %}>
+                {{ entity.name }}
+              </option>
+            {% endfor %}
+          {% elif entity_type == "Provider" %}
+            {% for entity in provider_list %}
+              <option value="{{ entity.id }}" {% if entity.id|string == selected_entity_id|string %}selected{% endif %}>
+                {{ entity.name }}
+              </option>
+            {% endfor %}
+          {% elif entity_type == "Group" %}
+            {% for entity in group_list %}
+              <option value="{{ entity.id }}" {% if entity.id|string == selected_entity_id|string %}selected{% endif %}>
+                {{ entity.name }}
+              </option>
+            {% endfor %}
+          {% endif %}
         </select>
+        
         {% if user_role == "PRO" %}
         <input type="hidden" name="entity_id" value="{{ selected_funder_id }}">
         {% endif %}
@@ -458,22 +474,18 @@
 </div>
 <script>
   document.addEventListener("DOMContentLoaded", function () {
-    // 🔹 Selectors
     const entityTypeSelector = document.getElementById("entity_type");
     const entityDropdown = document.getElementById("entity_id");
     const entityLabel = document.getElementById("entityLabel");
     const groupWrapper = document.getElementById("groupDropdownWrapper");
     const userRole = "{{ user_role }}";
+    const selectedEntityID = "{{ selected_entity_id }}";
 
-    // 🔹 Dynamic dropdown updater
     function updateLabelAndDropdown() {
       const selectedType = entityTypeSelector.value;
       entityLabel.textContent = `Select ${selectedType}`;
-    
-      // Show "Loading..." placeholder
       entityDropdown.innerHTML = `<option disabled selected>Loading ${selectedType}s...</option>`;
-    
-      // Optional: clear group selection
+
       if (groupWrapper) {
         if (selectedType === "Group") {
           groupWrapper.style.display = "block";
@@ -483,16 +495,18 @@
           if (groupSelect) groupSelect.value = "";
         }
       }
-    
-      // Fetch and populate dropdown
+
       fetch(`/get_entities?entity_type=${selectedType}`)
         .then((response) => response.json())
         .then((data) => {
-          entityDropdown.innerHTML = `<option disabled selected>-- Choose a ${selectedType} --</option>`;
+          entityDropdown.innerHTML = `<option disabled>-- Choose a ${selectedType} --</option>`;
           data.forEach((item) => {
             const option = document.createElement("option");
             option.value = item.id;
             option.textContent = item.name;
+            if (item.id.toString() === selectedEntityID.toString()) {
+              option.selected = true;
+            }
             entityDropdown.appendChild(option);
           });
         })
@@ -508,11 +522,11 @@
       entityDropdown &&
       entityLabel
     ) {
-      updateLabelAndDropdown(); // 🔄 Initialize on load
+      updateLabelAndDropdown(); // Run on load
       entityTypeSelector.addEventListener("change", updateLabelAndDropdown);
     }
 
-    // 🔹 Admin checkbox toggle
+    // Admin checkbox toggle
     const accountStatusSelect = document.getElementById("account_status");
     const adminCheckboxGroup = document.getElementById("admin_checkbox_group");
     const adminCheckbox = document.getElementById("admin_checkbox");
@@ -527,11 +541,12 @@
         }
       }
 
-      toggleAdminCheckbox(); // Run once on load
+      toggleAdminCheckbox(); // Initial run
       accountStatusSelect.addEventListener("change", toggleAdminCheckbox);
     }
   });
 </script>
+
 
 
 {% endblock %}

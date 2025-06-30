@@ -340,7 +340,8 @@ def add_staff():
         selected_role = session.get("user_role")
         selected_id = request.form.get("entity_id") or session.get("user_id")
         account_status = request.form['account_status']
-        entity_type = request.form.get("entity_type") or "Funder" if selected_role == "FUN" else "Provider"
+        entity_type = request.form.get("entity_type")        
+        print(entity_type)
         entity_id = request.form.get("entity_id") or selected_id
         admin = 1 if request.form.get("admin") == "1" else 0
         active = 1 if account_status == "enable" else 0

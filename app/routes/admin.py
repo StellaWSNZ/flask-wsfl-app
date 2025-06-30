@@ -217,8 +217,10 @@ def create_user():
             print("❌ Error during user creation")
             traceback.print_exc()
             flash("Failed to create user due to an internal error.", "danger")
-    print(schools)
-    print(providers)
+    print(len(schools))
+    print(len(providers))
+    print(len(groups))
+    print(len(funders))
     return render_template(
         "create_user.html",
         user_role=user_role,
