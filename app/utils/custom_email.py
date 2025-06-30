@@ -89,7 +89,7 @@ The WSFL Team
     msg.html = f"""\
 <div style="font-family: Arial, sans-serif; font-size: 16px; line-height: 1.6;">
   <p>Kia ora <strong>{first_name}</strong>,</p>
-  <p><strong>{invited_by_name}</strong> from <strong>{inviter_desc}</strong> has invited you to join the <strong>Water Skills for Life</strong> platform as <strong>{role_display}{admin_note}{context_tail}</strong>.</p>
+  <p><strong>{invited_by_name}</strong> from <strong>{inviter_desc}</strong> has invited you to join the <strong>Water Skills for Life</strong>.</p>
   <p>To get started, visit the <a href="{url_for('auth_bp.login', _external=True)}">login page</a> and click <strong>"Forgot password"</strong> to set your password.</p>
   <p>Ngā mihi nui,<br>The WSFL Team</p>
   <img src="cid:wsfl_logo" alt="WSFL Logo" style="margin-top: 20px; width: 200px;">

@@ -283,6 +283,8 @@
   <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
   <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
   <input type="hidden" name="email" value="{{ row.Email }}" />
+  <input type="hidden" name="firstname" value="{{ row.FirstName }}">
+  <input type="hidden" name="admin" value="{{ row.Admin or 0 }}">
   <button type="submit" class="btn btn-sm btn-outline-primary w-100">
     Invite User
   </button>
@@ -292,6 +294,8 @@
   <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
   <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
   <input type="hidden" name="email" value="{{ row.Email }}" />
+  <input type="hidden" name="firstname" value="{{ row.FirstName }}">
+  <input type="hidden" name="admin" value="{{ row.Admin or 0 }}">
   <button type="submit" class="btn btn-sm btn-outline-primary w-100">
     Disable User
   </button>
@@ -465,8 +469,11 @@
     function updateLabelAndDropdown() {
       const selectedType = entityTypeSelector.value;
       entityLabel.textContent = `Select ${selectedType}`;
-
-      // 🔸 Show/hide group selector
+    
+      // Show "Loading..." placeholder
+      entityDropdown.innerHTML = `<option disabled selected>Loading ${selectedType}s...</option>`;
+    
+      // Optional: clear group selection
       if (groupWrapper) {
         if (selectedType === "Group") {
           groupWrapper.style.display = "block";
@@ -476,13 +483,12 @@
           if (groupSelect) groupSelect.value = "";
         }
       }
-
-      // 🔸 Populate entity dropdown
-      entityDropdown.innerHTML = `<option value=""  disabled selected>-- Choose a ${selectedType} --</option>`;
-
+    
+      // Fetch and populate dropdown
       fetch(`/get_entities?entity_type=${selectedType}`)
         .then((response) => response.json())
         .then((data) => {
+          entityDropdown.innerHTML = `<option disabled selected>-- Choose a ${selectedType} --</option>`;
           data.forEach((item) => {
             const option = document.createElement("option");
             option.value = item.id;
@@ -492,6 +498,7 @@
         })
         .catch((err) => {
           console.error(`❌ Failed to load ${selectedType}s`, err);
+          entityDropdown.innerHTML = `<option disabled selected>Failed to load ${selectedType}s</option>`;
         });
     }
 

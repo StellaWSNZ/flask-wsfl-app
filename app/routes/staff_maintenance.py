@@ -259,19 +259,21 @@ def update_staff():
 @login_required
 def invite_user():
     try:
-        # print("📥 Received form data:", request.form)
+        print("📥 Received form data:", request.form)
 
-        email = request.form['email'].strip().lower()
-        admin = int(request.form['admin'])
-        first_name = request.form['firstname']
-        role = session.get("user_role")
-        if not role:
-            raise ValueError("Missing user_role in session")
+        email = request.form.get("email", "").strip().lower()
+        firstname = request.form.get("firstname", "").strip()
+        admin_raw = request.form.get("admin", "0")
+        admin = 1 if admin_raw in ["1", "true", "True", True] else 0
 
-        
-        invited_by = session.get('user_firstname') + ' ' + session.get('user_surname')
-        inviter_desc = session.get('desc')
+        if not email:
+            raise ValueError("Missing email")
+        if not firstname:
+            firstname = "Staff"
 
+        role = session.get("user_role") or "UNKNOWN"
+        invited_by = session.get("user_firstname", "") + ' ' + session.get("user_surname", "")
+        inviter_desc = session.get("desc", "")
 
         engine = get_db_engine()
         with engine.begin() as conn:
@@ -285,11 +287,11 @@ def invite_user():
                 }
             )
 
-        # print("📨 Sending account setup email...")
+        print("📨 Sending invitation email...")
         send_account_setup_email(
-            mail = mail,
+            mail=mail,
             recipient_email=email,
-            first_name=first_name,
+            first_name=firstname,
             role=role,
             invited_by_name=invited_by,
             inviter_desc=inviter_desc,
@@ -297,14 +299,12 @@ def invite_user():
         )
 
         flash(f"✅ Invitation sent to {email}.", "success")
-        return redirect(url_for('staff_bp.staff_maintenance'))
 
     except Exception as e:
         print("🚨 Error in /invite_user:", e)
         flash("⚠️ Failed to invite user. Please check the logs.", "danger")
-        return redirect(url_for('staff_bp.staff_maintenance'))
 
-
+    return redirect(url_for('staff_bp.staff_maintenance'))
     
 @staff_bp.route('/add_staff', methods=['POST'])
 @login_required
