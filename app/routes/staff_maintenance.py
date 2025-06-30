@@ -31,7 +31,7 @@ def staff_maintenance():
         with get_db_engine().begin() as conn:
             if user_role == "ADM":
                 result = conn.execute(text("EXEC FlaskGetAllGroups"))
-                group_list = [{"id": row.GroupID, "name": row.Description} for row in result]
+                group_list = [{"id": row.ID, "name": row.Name} for row in result]
                 has_groups = len(group_list) > 0
             elif user_role == "FUN":
                 result = conn.execute(

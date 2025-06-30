@@ -77,7 +77,7 @@ def send_account_setup_email(mail, recipient_email, first_name, role, is_admin, 
     msg.body = f"""\
 Kia ora {first_name},
 
-{invited_by_name} from {inviter_desc} has invited you to join the Water Skills for Life (WSFL) platform as a {role_display}{admin_note}{context_tail}.
+{invited_by_name} from {inviter_desc} has invited you to join the Water Skills for Life (WSFL) platform.
 
 To get started, go to the login page and click "Forgot password" to set your password:
 {url_for('auth_bp.login', _external=True)}

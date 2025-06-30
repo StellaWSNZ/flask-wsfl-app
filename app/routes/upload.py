@@ -60,284 +60,292 @@ def normalize_date_string(s):
 @upload_bp.route('/ClassUpload', methods=['GET', 'POST'])
 @login_required
 def classlistupload():
-    validated=False
-
-    engine = get_db_engine()
-    preview_data = None
-    original_columns = [] 
-    funders, schools = [], []
-    selected_csv = selected_funder = selected_school = selected_school_str = selected_term = selected_year = selected_teacher = selected_class = None
-    selected_school = session.get("desc") 
-    
-    with engine.connect() as conn:
-        result = conn.execute(text("EXEC FlaskHelperFunctions :Request"), {"Request": "FunderDropdown"})
-        funders = [dict(row._mapping) for row in result]
-
-    if request.method == 'POST':
-        action = request.form.get('action')  # 'preview' or 'validate'
-        selected_funder = request.form.get('funder')
+    try:
+        validated=False
+        if session.get("user_role") not in ["ADM","FUN","MOE"]:
+            abort(403)
+        engine = get_db_engine()
+        preview_data = None
+        original_columns = [] 
+        funders, schools = [], []
+        selected_csv = selected_funder = selected_school = selected_school_str = selected_term = selected_year = selected_teacher = selected_class = None
+        selected_school = session.get("desc") or ""
         
-        selected_term = request.form.get('term')
-        selected_year = request.form.get('year')
-        selected_teacher = request.form.get('teachername')
-        selected_class = request.form.get('classname')
-        session["selected_class"] = selected_class
-        session["selected_teacher"] = selected_teacher
-        session["selected_year"] = selected_year
-        session["selected_term"] = selected_term
-        session["selected_funder"] = selected_funder
-        session["selected_funder"] = selected_funder
+        with engine.connect() as conn:
+            if session.get("user_role") == "FUN":
+                funders = [{"Description": session.get("desc"), "FunderID": session.get("user_id")}]
+            else:
+                result = conn.execute(text("EXEC FlaskHelperFunctions :Request"), {"Request": "FunderDropdown"})
+                funders = [dict(row._mapping) for row in result]
 
-        selected_school_str = request.form.get("school") or str(session.get("user_desc")) + "("+str(session.get("user_id"))+ ")"
-        selected_school = selected_school_str 
-        moe_number = (
-            int(selected_school_str)
-            if selected_school_str.isdigit()
-            else int(selected_school_str.split('(')[-1].rstrip(')'))
-        )
-        session["selected_moe"] = moe_number
-        
-        column_mappings_json = request.form.get('column_mappings')
-        
-        file = request.files.get('csv_file')
-        selected_csv = file if file and file.filename else None
-
-        if selected_funder and selected_funder.isdigit():
-            selected_funder = int(selected_funder)
-        if selected_year and selected_year.isdigit():
-            selected_year = int(selected_year)
-
-        # Populate school dropdown
-        if selected_funder and session.get("user_role") != "MOE":
-            with engine.connect() as conn:
-                result = conn.execute(
-                    text("EXEC FlaskHelperFunctions :Request, @Number=:Number"),
-                    {"Request": "FilterSchoolID", "Number": selected_funder}
-                )
-                schools = [row.School for row in result]
-        else:
-            schools = selected_school
+        if request.method == 'POST':
+            action = request.form.get('action')  # 'preview' or 'validate'
+            selected_funder = request.form.get('funder')
             
-        if action == "preview" and file and file.filename:
+            selected_term = request.form.get('term')
+            selected_year = request.form.get('year')
+            selected_teacher = request.form.get('teachername')
+            selected_class = request.form.get('classname')
+            session["selected_class"] = selected_class
+            session["selected_teacher"] = selected_teacher
+            session["selected_year"] = selected_year
+            session["selected_term"] = selected_term
+            session["selected_funder"] = selected_funder
+            session["selected_funder"] = selected_funder
+
+            selected_school_str = request.form.get("school") or str(session.get("user_desc")) + "("+str(session.get("user_id"))+ ")"
+            selected_school = selected_school_str 
+            moe_number = (
+                int(selected_school_str)
+                if selected_school_str.isdigit()
+                else int(selected_school_str.split('(')[-1].rstrip(')'))
+            )
+            session["selected_moe"] = moe_number
             
-            filename = file.filename.lower()
-            file_ext = os.path.splitext(filename)[-1]
-            has_headers = not bool(request.form.get("no_headers"))
-            session["has_headers"] = has_headers
+            column_mappings_json = request.form.get('column_mappings')
+            
+            file = request.files.get('csv_file')
+            selected_csv = file if file and file.filename else None
 
-            try:
-                if file_ext == ".csv":
-                    try:
-                        df = pd.read_csv(file, header=0 if has_headers else None)
-                    except UnicodeDecodeError:
-                        file.seek(0)  # Reset pointer to start of file
-                        df = pd.read_csv(file, header=0 if has_headers else None, encoding="latin1")               
-                elif file_ext in [".xls", ".xlsx"]:
-                    with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:
-                        file.save(tmp.name)
+            if selected_funder and selected_funder.isdigit():
+                selected_funder = int(selected_funder)
+            if selected_year and selected_year.isdigit():
+                selected_year = int(selected_year)
 
-                        # Convert Excel to CSV using pandas
-                        excel_df = pd.read_excel(tmp.name, header=0 if has_headers else None)
-                        tmp_csv_path = tmp.name.replace(".xlsx", ".csv")
-                        excel_df.to_csv(tmp_csv_path, index=False)
-
-                    # Now load the CSV version for consistent handling
-                        df = pd.read_csv(tmp_csv_path, header=0 if has_headers else None, encoding="latin1")               
-                else:
-                    flash("Unsupported file format. Please upload a .csv, .xls, or .xlsx file.", "danger")
-                    return redirect(url_for("upload_bp.classlistupload"))
-            except Exception as e:
-                flash(f"Failed to read uploaded file: {str(e)}", "danger")
-                return redirect(url_for("upload_bp.classlistupload"))
-
-            # Replace NaN and NaT with None
-            if "Birthdate" in df.columns:
-                print("\n📅 Starting Birthdate normalization...")
+            # Populate school dropdown
+            if selected_funder and session.get("user_role") != "MOE":
+                with engine.connect() as conn:
+                    result = conn.execute(
+                        text("EXEC FlaskHelperFunctions :Request, @Number=:Number"),
+                        {"Request": "FilterSchoolID", "Number": selected_funder}
+                    )
+                    schools = [row.School for row in result]
+            else:
+                schools = selected_school
+            print(selected_funder)
+            print(schools)
+            if action == "preview" and file and file.filename:
+                
+                filename = file.filename.lower()
+                file_ext = os.path.splitext(filename)[-1]
+                has_headers = not bool(request.form.get("no_headers"))
+                session["has_headers"] = has_headers
 
                 try:
-                    print("👀 Raw Birthdate column before normalization:")
-                    print(df["Birthdate"].head(5).to_string(index=False))
+                    if file_ext == ".csv":
+                        try:
+                            df = pd.read_csv(file, header=0 if has_headers else None)
+                        except UnicodeDecodeError:
+                            file.seek(0)  # Reset pointer to start of file
+                            df = pd.read_csv(file, header=0 if has_headers else None, encoding="latin1")               
+                    elif file_ext in [".xls", ".xlsx"]:
+                        with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:
+                            file.save(tmp.name)
 
-                    # Normalize all date strings
-                    birth_col = pd.to_datetime(df["Birthdate"], errors='coerce', dayfirst=True)
-                    birth_col = birth_col.dt.strftime('%Y-%m-%d')
+                            # Convert Excel to CSV using pandas
+                            excel_df = pd.read_excel(tmp.name, header=0 if has_headers else None)
+                            tmp_csv_path = tmp.name.replace(".xlsx", ".csv")
+                            excel_df.to_csv(tmp_csv_path, index=False)
 
-                    print("🧼 Cleaned Birthdate strings:")
-                    print(birth_col.head(5).to_string(index=False))
+                        # Now load the CSV version for consistent handling
+                            df = pd.read_csv(tmp_csv_path, header=0 if has_headers else None, encoding="latin1")               
+                    else:
+                        flash("Unsupported file format. Please upload a .csv, .xls, or .xlsx file.", "danger")
+                        return redirect(url_for("upload_bp.classlistupload"))
+                except Exception as e:
+                    flash(f"Failed to read uploaded file: {str(e)}", "danger")
+                    return redirect(url_for("upload_bp.classlistupload"))
 
-                    # Check if already ISO format
-                    if not is_iso_format(birth_col):
-                        print("🔍 Birthdate not in ISO format. Attempting parsing with dayfirst=True and False...")
+                # Replace NaN and NaT with None
+                if "Birthdate" in df.columns:
+                    print("\n📅 Starting Birthdate normalization...")
 
-                        parsed_dayfirst = pd.to_datetime(birth_col, dayfirst=True, errors="coerce")
-                        parsed_monthfirst = pd.to_datetime(birth_col, dayfirst=False, errors="coerce")
+                    try:
+                        print("👀 Raw Birthdate column before normalization:")
+                        print(df["Birthdate"].head(5).to_string(index=False))
 
-                        print(f"📊 Parsed (dayfirst=True):   {parsed_dayfirst.notna().sum()} valid")
-                        print(f"📊 Parsed (dayfirst=False): {parsed_monthfirst.notna().sum()} valid")
+                        # Normalize all date strings
+                        birth_col = pd.to_datetime(df["Birthdate"], errors='coerce', dayfirst=True)
+                        birth_col = birth_col.dt.strftime('%Y-%m-%d')
 
-                        if parsed_dayfirst.notna().sum() >= parsed_monthfirst.notna().sum():
-                            df["Birthdate"] = parsed_dayfirst.dt.strftime("%Y-%m-%d")
-                            print("✅ Using dayfirst=True")
-                            session["birthdate_format"] = "dayfirst"
+                        print("🧼 Cleaned Birthdate strings:")
+                        print(birth_col.head(5).to_string(index=False))
+
+                        # Check if already ISO format
+                        if not is_iso_format(birth_col):
+                            print("🔍 Birthdate not in ISO format. Attempting parsing with dayfirst=True and False...")
+
+                            parsed_dayfirst = pd.to_datetime(birth_col, dayfirst=True, errors="coerce")
+                            parsed_monthfirst = pd.to_datetime(birth_col, dayfirst=False, errors="coerce")
+
+                            print(f"📊 Parsed (dayfirst=True):   {parsed_dayfirst.notna().sum()} valid")
+                            print(f"📊 Parsed (dayfirst=False): {parsed_monthfirst.notna().sum()} valid")
+
+                            if parsed_dayfirst.notna().sum() >= parsed_monthfirst.notna().sum():
+                                df["Birthdate"] = parsed_dayfirst.dt.strftime("%Y-%m-%d")
+                                print("✅ Using dayfirst=True")
+                                session["birthdate_format"] = "dayfirst"
+
+                            else:
+                                df["Birthdate"] = parsed_monthfirst.dt.strftime("%Y-%m-%d")
+                                print("✅ Using dayfirst=False")
+                                session["birthdate_format"] = "monthfirst"
+
 
                         else:
-                            df["Birthdate"] = parsed_monthfirst.dt.strftime("%Y-%m-%d")
-                            print("✅ Using dayfirst=False")
-                            session["birthdate_format"] = "monthfirst"
+                            df["Birthdate"] = birth_col
+                            print("✅ Birthdate already in ISO format")
 
+                        print("✅ Final Birthdate values:")
+                        print(df["Birthdate"].head(5).to_string(index=False))
 
-                    else:
-                        df["Birthdate"] = birth_col
-                        print("✅ Birthdate already in ISO format")
-
-                    print("✅ Final Birthdate values:")
-                    print(df["Birthdate"].head(5).to_string(index=False))
-
-                except Exception as e:
-                    print("❌ Error during Birthdate normalization:", str(e))
-                    raise
-            else:
-                print("⚠️ 'Birthdate' column not found in uploaded file.")
+                    except Exception as e:
+                        print("❌ Error during Birthdate normalization:", str(e))
+                        raise
+                else:
+                    print("⚠️ 'Birthdate' column not found in uploaded file.")
 
 
 
-            df_cleaned = df.where(pd.notnull(df), None)
+                df_cleaned = df.where(pd.notnull(df), None)
 
-            # Convert datetime columns to string format
-            
-            if "BirthDate" in df_cleaned.columns:
+                # Convert datetime columns to string format
+                
+                if "BirthDate" in df_cleaned.columns:
+                    df_cleaned.rename(columns={"BirthDate": "Birthdate"}, inplace=True)
+                # Save raw JSON version for later validation (as string)
+                for col in df_cleaned.columns:
+                    df_cleaned[col] = df_cleaned[col].apply(lambda x: remove_macrons(x) if isinstance(x, str) else x)
                 df_cleaned.rename(columns={"BirthDate": "Birthdate"}, inplace=True)
-            # Save raw JSON version for later validation (as string)
-            for col in df_cleaned.columns:
-                df_cleaned[col] = df_cleaned[col].apply(lambda x: remove_macrons(x) if isinstance(x, str) else x)
-            df_cleaned.rename(columns={"BirthDate": "Birthdate"}, inplace=True)
 
-            session["raw_csv_json"] = df_cleaned.to_json(orient="records")
-            # print("✅ raw_csv_json saved with", len(df_cleaned), "rows")
+                session["raw_csv_json"] = df_cleaned.to_json(orient="records")
+                # print("✅ raw_csv_json saved with", len(df_cleaned), "rows")
 
-            # Save top 10 rows preview to session
-            preview_data = df_cleaned.head(10).to_dict(orient="records")
-            session["preview_data"] = preview_data
+                # Save top 10 rows preview to session
+                preview_data = df_cleaned.head(10).to_dict(orient="records")
+                session["preview_data"] = preview_data
 
 
-            # Save original column headers
-            original_columns = list(df.columns)
+                # Save original column headers
+                original_columns = list(df.columns)
 
 
-        elif action == "validate":
-            validated = True
-            if not session.get("raw_csv_json"):
-                flash("No CSV file has been uploaded for validation.", "danger")
-            else:
-                try:
-                    raw_df = pd.read_json(StringIO(session["raw_csv_json"]))
-                    column_mappings = json.loads(column_mappings_json)
-                    #print("📋 Column mappings received from frontend:", column_mappings_json)
-                    #print("📊 Raw DataFrame columns:", raw_df.columns.tolist())
-                    valid_fields = ["NSN", "FirstName", "LastName", "PreferredName", "BirthDate", "Ethnicity", "YearLevel"]
-
-                    # Build reverse mapping: selected column name → expected name
-                    reverse_mapping = {
-                        k: v for k, v in column_mappings.items()
-                        if v.strip().lower() in [field.lower() for field in valid_fields]
-                    }
-
-                    usable_columns = [col for col in raw_df.columns if str(col) in reverse_mapping]
-                    df = raw_df[usable_columns].rename(columns={col: reverse_mapping[str(col)] for col in usable_columns})
-
-                    
-                    # Ensure all required columns are present
-                    for col in valid_fields:
-                        if col not in df.columns:
-                            df[col] = None
-
-                    # Reapply formatting in case new columns were added
-                    if "Birthdate" in df.columns:
-                        df.rename(columns={"Birthdate": "BirthDate"}, inplace=True)
-                    if "BirthDate" in df.columns:
-                        df.rename(columns={"BirthDate": "BirthDate"}, inplace=True)
-                    if "YearLevel" in df.columns:
-                        # Remove all spaces and non-digit characters
-                        df["YearLevel"] = df["YearLevel"].astype(str).str.replace(r"\D", "", regex=True)
-                        
-                        # Convert to integer (nullable Int64)
-                        df["YearLevel"] = pd.to_numeric(df["YearLevel"], errors="coerce").astype("Int64")
-                        df["YearLevel"] = df["YearLevel"].where(pd.notnull(df["YearLevel"]), None)
-                    if "NSN" in df.columns:
-                        df["NSN"] = pd.to_numeric(df["NSN"], errors="coerce").astype("Int64")
-                    df.rename(columns={"BirthDate": "Birthdate"}, inplace=True)
-                    if "Birthdate" in df.columns:
-                        birthdate_format = session.get("birthdate_format", "dayfirst")  # fallback to dayfirst
-                        use_dayfirst = birthdate_format == "dayfirst"
-                        df["Birthdate"] = pd.to_datetime(df["Birthdate"], dayfirst=use_dayfirst, errors="coerce")
-                        df["Birthdate"] = df["Birthdate"].dt.strftime('%Y-%m-%d')
-                        df["Birthdate"] = df["Birthdate"].where(pd.notnull(df["Birthdate"]), None)
-
-
-                    df_json = df.to_json(orient="records")
-                    print("*")
+            elif action == "validate":
+                validated = True
+                if not session.get("raw_csv_json"):
+                    flash("No CSV file has been uploaded for validation.", "danger")
+                else:
                     try:
-                        parsed_json = json.loads(df_json)
-                        for i, row in enumerate(parsed_json[:5]):
-                            print(f"📦 Row {i+1}: {row}")
-                    except Exception as e:
-                        print("❌ JSON error:", e)
-                    print("*")
-                    try:
-                        with engine.begin() as conn:
-                            result = conn.execute(
-                                text("EXEC FlaskCheckNSN_JSON :InputJSON, :Term, :CalendarYear, :MOENumber, :Email"),
-                                {
-                                    "InputJSON": df_json,
-                                    "Term": selected_term,
-                                    "CalendarYear": selected_year,
-                                    "MOENumber": moe_number,
-                                    "Email": session.get("user_email"),
-                                }
-                            )
-                            preview_data = [dict(row._mapping) for row in result]
-                            session["preview_data"] = preview_data
-                    except Exception as e:
-                        print("❌ SQL execution error:", e)
-                        traceback.print_exc()
+                        raw_df = pd.read_json(StringIO(session["raw_csv_json"]))
+                        column_mappings = json.loads(column_mappings_json)
+                        #print("📋 Column mappings received from frontend:", column_mappings_json)
+                        #print("📊 Raw DataFrame columns:", raw_df.columns.tolist())
+                        valid_fields = ["NSN", "FirstName", "LastName", "PreferredName", "BirthDate", "Ethnicity", "YearLevel"]
+
+                        # Build reverse mapping: selected column name → expected name
+                        reverse_mapping = {
+                            k: v for k, v in column_mappings.items()
+                            if v.strip().lower() in [field.lower() for field in valid_fields]
+                        }
+
+                        usable_columns = [col for col in raw_df.columns if str(col) in reverse_mapping]
+                        df = raw_df[usable_columns].rename(columns={col: reverse_mapping[str(col)] for col in usable_columns})
+
                         
-                    print("🔍 Inspecting Birthdate values in preview_data:")
-                    for i, row in enumerate(preview_data[:5]):
-                        print(f"Row {i+1} Birthdate:", row.get("Birthdate"), "Type:", type(row.get("Birthdate")))
-                        print(row)
-                    for row in preview_data:
-                        if isinstance(row.get("Birthdate"), (datetime.date, datetime.datetime)):
-                            row["Birthdate"] = row["Birthdate"].strftime("%Y-%m-%d")
-                    print("🔍 Inspecting Birthdate values in preview_data:")
-                    for i, row in enumerate(preview_data[:5]):
-                        print(f"Row {i+1} Birthdate:", row.get("Birthdate"), "Type:", type(row.get("Birthdate")))
-                        #print(preview_data.head())
-                       
-                except Exception as e:
-                    flash(f"Error during validation: {str(e)}", "danger")
+                        # Ensure all required columns are present
+                        for col in valid_fields:
+                            if col not in df.columns:
+                                df[col] = None
 
-        elif action == "preview":
-            flash("Please upload a valid CSV file.", "danger")
+                        # Reapply formatting in case new columns were added
+                        if "Birthdate" in df.columns:
+                            df.rename(columns={"Birthdate": "BirthDate"}, inplace=True)
+                        if "BirthDate" in df.columns:
+                            df.rename(columns={"BirthDate": "BirthDate"}, inplace=True)
+                        if "YearLevel" in df.columns:
+                            # Remove all spaces and non-digit characters
+                            df["YearLevel"] = df["YearLevel"].astype(str).str.replace(r"\D", "", regex=True)
+                            
+                            # Convert to integer (nullable Int64)
+                            df["YearLevel"] = pd.to_numeric(df["YearLevel"], errors="coerce").astype("Int64")
+                            df["YearLevel"] = df["YearLevel"].where(pd.notnull(df["YearLevel"]), None)
+                        if "NSN" in df.columns:
+                            df["NSN"] = pd.to_numeric(df["NSN"], errors="coerce").astype("Int64")
+                        df.rename(columns={"BirthDate": "Birthdate"}, inplace=True)
+                        if "Birthdate" in df.columns:
+                            birthdate_format = session.get("birthdate_format", "dayfirst")  # fallback to dayfirst
+                            use_dayfirst = birthdate_format == "dayfirst"
+                            df["Birthdate"] = pd.to_datetime(df["Birthdate"], dayfirst=use_dayfirst, errors="coerce")
+                            df["Birthdate"] = df["Birthdate"].dt.strftime('%Y-%m-%d')
+                            df["Birthdate"] = df["Birthdate"].where(pd.notnull(df["Birthdate"]), None)
 
-    
-    return render_template(
-        "classlistupload.html",
-        funders=funders,
-        schools=schools,
-        selected_funder=selected_funder,
-        selected_school=selected_school,
-        selected_term=selected_term,
-        selected_year=selected_year,
-        selected_teacher = selected_teacher,
-        selected_class = selected_class,
-        selected_csv = selected_csv,
-        preview_data=preview_data,
-        validated = validated,
-        original_columns = original_columns,
-        has_headers = session.get("has_headers", True)
 
-    )
+                        df_json = df.to_json(orient="records")
+                        print("*")
+                        try:
+                            parsed_json = json.loads(df_json)
+                            for i, row in enumerate(parsed_json[:5]):
+                                print(f"📦 Row {i+1}: {row}")
+                        except Exception as e:
+                            print("❌ JSON error:", e)
+                        print("*")
+                        try:
+                            with engine.begin() as conn:
+                                result = conn.execute(
+                                    text("EXEC FlaskCheckNSN_JSON :InputJSON, :Term, :CalendarYear, :MOENumber, :Email"),
+                                    {
+                                        "InputJSON": df_json,
+                                        "Term": selected_term,
+                                        "CalendarYear": selected_year,
+                                        "MOENumber": moe_number,
+                                        "Email": session.get("user_email"),
+                                    }
+                                )
+                                preview_data = [dict(row._mapping) for row in result]
+                                session["preview_data"] = preview_data
+                        except Exception as e:
+                            print("❌ SQL execution error:", e)
+                            traceback.print_exc()
+                            
+                        print("🔍 Inspecting Birthdate values in preview_data:")
+                        for i, row in enumerate(preview_data[:5]):
+                            print(f"Row {i+1} Birthdate:", row.get("Birthdate"), "Type:", type(row.get("Birthdate")))
+                            print(row)
+                        for row in preview_data:
+                            if isinstance(row.get("Birthdate"), (datetime.date, datetime.datetime)):
+                                row["Birthdate"] = row["Birthdate"].strftime("%Y-%m-%d")
+                        print("🔍 Inspecting Birthdate values in preview_data:")
+                        for i, row in enumerate(preview_data[:5]):
+                            print(f"Row {i+1} Birthdate:", row.get("Birthdate"), "Type:", type(row.get("Birthdate")))
+                            #print(preview_data.head())
+                        
+                    except Exception as e:
+                        flash(f"Error during validation: {str(e)}", "danger")
 
+            elif action == "preview":
+                flash("Please upload a valid CSV file.", "danger")
+                return redirect(url_for("upload_bp.classlistupload"))
+        
+        return render_template(
+            "classlistupload.html",
+            funders=funders,
+            schools=schools,
+            selected_funder=selected_funder,
+            selected_school=selected_school,
+            selected_term=selected_term,
+            selected_year=selected_year,
+            selected_teacher = selected_teacher,
+            selected_class = selected_class,
+            selected_csv = selected_csv,
+            preview_data=preview_data,
+            validated = validated,
+            original_columns = original_columns,
+            has_headers = session.get("has_headers", True)
+
+        )
+    except Exception as e:
+        print("ERROR: ", e)
+        traceback.print_exc()
 
 @upload_bp.route('/classlistdownload', methods=['POST'])
 @login_required
@@ -626,6 +634,7 @@ def download_excel():
 @login_required
 def get_schools_for_funder():
     funder_id = request.args.get("funder_id", type=int)
+    print(funder_id)
     if not funder_id:
         return jsonify([])
 
@@ -636,5 +645,5 @@ def get_schools_for_funder():
             {"Request": "FilterSchoolID", "Number": funder_id}
         )
         schools = [row.School for row in result]
-
+        print(schools)
     return jsonify(schools)

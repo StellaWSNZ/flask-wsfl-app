@@ -20,7 +20,7 @@
     <div class="col-md-6">
       <label for="school" class="form-label">School</label>
       <select class="form-select" id="school" name="school" required {% if user_role == 'MOE' %}disabled{% endif %}>
-        {% if user_role == 'ADM' %}
+        {% if user_role == 'ADM' or user_role == 'PRO' %}
           <option selected disabled value="">Select a school</option>
           {% for name in schools %}
             <option value="{{ name }}" {% if selected_school == name %}selected{% endif %}>{{ name }}</option>
@@ -63,7 +63,7 @@
 
     <div class="col-md-3">
       <label for="csv_file" class="form-label">Upload CSV File</label>
-      <input type="file" class="form-control" id="csv_file" name="csv_file" accept=".csv, .xls, .xlsx" {% if not preview_data %}required{% endif %}>
+      <input type="file" class="form-control" id="csv_file" name="csv_file" accept=".csv, .xls, .xlsx, .xlsm" {% if not preview_data %}required{% endif %}>
     </div>
 
     <div class="form-check">

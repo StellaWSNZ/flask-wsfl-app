@@ -49,8 +49,12 @@
     </div>
   </form>
 {% endif %}
-<h2 class="mb-4 text-center text-primary">{{ selected_entity_name }} – Staff Maintenance</h2>
+{% if selected_entity_name %}
+  <h2 class="mb-4 text-center text-primary">{{ selected_entity_name }} – Staff Maintenance</h2>
+  {%else%}
+  <h2 class="mb-4 text-center text-primary">Staff Maintenance</h2>
 
+{% endif %}
 {% if name %}
   <div class="text-center mb-4">
   <!-- Add New Staff Modal Button -->
@@ -274,21 +278,25 @@
                   </button>
                 </div>
                 <div class="col-md-3">
-                  <form
-                    method="POST"
-                    action="{{ url_for('staff_bp.disable_user') }}"
-                  >
-                  <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
-<input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
-                    <input type="hidden" name="email" value="{{ row.Email }}" />
-                    <button
-                      type="submit"
-                      class="btn btn-sm {% if row.Active != 1 %}btn-outline-primary{% else %}btn-outline-primary{% endif %} w-100"
-                    >
-                      {% if row.Active != 1 %}Invite User{% else %}Disable
-                      User{% endif %}
-                    </button>
-                  </form>
+                  {% if row.Active != 1 %}
+<form method="POST" action="{{ url_for('staff_bp.disable_user') }}">
+  <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
+  <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
+  <input type="hidden" name="email" value="{{ row.Email }}" />
+  <button type="submit" class="btn btn-sm btn-outline-primary w-100">
+    Invite User
+  </button>
+</form>
+{% else %}
+<form method="POST" action="{{ url_for('staff_bp.disable_user') }}">
+  <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
+  <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
+  <input type="hidden" name="email" value="{{ row.Email }}" />
+  <button type="submit" class="btn btn-sm btn-outline-primary w-100">
+    Disable User
+  </button>
+</form>
+{% endif %}
                 </div>
               </div>
             </div>
