@@ -46,7 +46,7 @@ def staff_maintenance():
         selected_entity_type = request.form.get("entity_type") or request.args.get("entity_type")
         selected_entity_id = request.form.get("entity_id") or request.args.get("entity_id")
         print(f"📌 Initial entity_type: {selected_entity_type}, entity_id: {selected_entity_id}")
-        if request.method == "POST":
+        if request.method == "POST" or request.args.get("trigger_load") == "1":
             print("📩 POST received")
         if not selected_entity_type or not selected_entity_id:
             if user_role == "PRO":
@@ -183,8 +183,8 @@ def staff_maintenance():
             selected_entity_id=selected_entity_id,
             selected_entity_name=selected_entity_name,
             provider_options=provider_options,
-school_list=school_list,
-group_list=group_list,
+            school_list=school_list,
+            group_list=group_list,
             funder_list=funder_list,
             data=staff_data.to_dict(orient="records"),
             columns=columns,
@@ -247,10 +247,19 @@ def update_staff():
     entity_type = request.form.get("entity_type")
     entity_id = request.form.get("entity_id")
     if not entity_type:
-        entity_type = "Funder" if session.get("user_role") == "FUN" else "Provider" if session.get("user_role") == "PRO" else None
+        entity_type = session.get("user_role")
+        if entity_type == "FUN":
+            entity_type = "Funder"
+        elif entity_type == "PRO":
+            entity_type = "Provider"
+        elif entity_type == "MOE":
+            entity_type = "School"
+        elif entity_type == "GRP":
+            entity_type = "Group"
 
     if not entity_id:
         entity_id = session.get("user_id")
+
     print(entity_type)
     print(entity_id)
     return redirect(url_for("staff_bp.staff_maintenance", entity_type=entity_type, entity_id=entity_id))
@@ -265,6 +274,20 @@ def invite_user():
         firstname = request.form.get("firstname", "").strip()
         admin_raw = request.form.get("admin", "0")
         admin = 1 if admin_raw in ["1", "true", "True", True] else 0
+        entity_type = request.form.get("entity_type")
+        entity_id = request.form.get("entity_id")
+
+        if not entity_type:
+            role = session.get("user_role")
+            entity_type = {
+                "FUN": "Funder",
+                "PRO": "Provider",
+                "MOE": "School",
+                "GRP": "Group"
+            }.get(role, None)
+
+        if not entity_id:
+            entity_id = session.get("user_id")
 
         if not email:
             raise ValueError("Missing email")
@@ -304,7 +327,8 @@ def invite_user():
         print("🚨 Error in /invite_user:", e)
         flash("⚠️ Failed to invite user. Please check the logs.", "danger")
 
-    return redirect(url_for('staff_bp.staff_maintenance'))
+    return redirect(url_for('staff_bp.staff_maintenance', entity_type=entity_type, entity_id=entity_id, trigger_load=1))
+
     
 @staff_bp.route('/add_staff', methods=['POST'])
 @login_required
@@ -341,7 +365,8 @@ def add_staff():
 
             if existing:
                 flash("⚠️ Email already exists.", "warning")
-                return redirect(url_for('staff_bp.staff_maintenance'))
+                return redirect(url_for('staff_bp.staff_maintenance', entity_type=entity_type, entity_id=entity_id, trigger_load=1))
+
 
         with engine.begin() as conn:
             conn.execute(
@@ -379,7 +404,7 @@ def add_staff():
                 inviter_desc=user_desc
             )
 
-        return redirect(url_for('staff_bp.staff_maintenance', entity_type=entity_type, entity_id=entity_id))
+        return redirect(url_for('staff_bp.staff_maintenance', entity_type=entity_type, entity_id=entity_id, trigger_load=1))
 
 
     except Exception as e:
@@ -390,11 +415,27 @@ def add_staff():
 
 
 @staff_bp.route('/disable_user', methods=['POST'])
+@login_required
 def disable_user():
     email = request.form.get('email')
+    entity_type = request.form.get('entity_type')
+    entity_id = request.form.get('entity_id')
+
+    if not entity_type:
+        role = session.get("user_role")
+        entity_type = {
+            "FUN": "Funder",
+            "PRO": "Provider",
+            "MOE": "School",
+            "GRP": "Group"
+        }.get(role, None)
+
+    if not entity_id:
+        entity_id = session.get("user_id")
     if not email:
         flash("Missing email address.", "danger")
-        return redirect(url_for('staff_bp.staff_maintenance'))
+        return redirect(url_for('staff_bp.staff_maintenance', entity_type=entity_type, entity_id=entity_id))
+
 
     try:
         engine = get_db_engine()
@@ -412,7 +453,8 @@ def disable_user():
         print(f"❌ Error in /disable_user: {e}")
         flash(f"Error: {str(e)}", "danger")
 
-    return redirect(url_for('staff_bp.staff_maintenance'))
+    return redirect(url_for('staff_bp.staff_maintenance', entity_type=entity_type, entity_id=entity_id, trigger_load=1))
+
 @staff_bp.route("/get_active_courses")
 @login_required
 def get_active_courses():

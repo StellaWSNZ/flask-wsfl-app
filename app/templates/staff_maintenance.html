@@ -208,7 +208,7 @@
                 <div class="col-md-3">
                   <form
                     method="POST"
-                    action="{{ url_for('survey_bp.send_survey_reminder') if row.Active != 1 else url_for('survey_bp.email_survey_link') }}"
+                    action="{{ url_for('survey_bp.send_survey_reminder') if row.Active == 1 else url_for('survey_bp.email_survey_link') }}"
                   >
                     <input type="hidden" name="email" value="{{ row.Email }}" />
                     <input

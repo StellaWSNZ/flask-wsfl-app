@@ -137,7 +137,7 @@ def submit_survey(routename):
                         """), {"rid": respondent_id, "qid": qid, "val": value})
 
         flash("✅ Survey submitted successfully!", "success")
-        if routename.startswith("guest/"):
+        if routename.startswith("Form/guest"):
             return redirect("/thankyou")
         return redirect(url_for("survey_bp.list_my_surveys"))
 
