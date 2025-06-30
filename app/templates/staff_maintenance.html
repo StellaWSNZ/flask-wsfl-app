@@ -279,7 +279,7 @@
                 </div>
                 <div class="col-md-3">
                   {% if row.Active != 1 %}
-<form method="POST" action="{{ url_for('staff_bp.disable_user') }}">
+<form method="POST" action="{{ url_for('staff_bp.invite_user') }}">
   <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
   <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
   <input type="hidden" name="email" value="{{ row.Email }}" />
