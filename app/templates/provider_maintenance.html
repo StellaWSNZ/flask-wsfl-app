@@ -10,15 +10,15 @@
   <div class="col-md-3">
     <label for="funder" class="form-label">Funder</label>
     <select id="funder" name="funder" class="form-select" required>
-  {% if not selected_funder %}
-    <option value="" disabled selected>Pick a funder...</option>
-  {% endif %}
-  {% for f in funders %}
-    <option value="{{ f['id'] }}" {% if selected_funder == f['id'] %}selected{% endif %}>
-      {{ f['Description'] }}
-    </option>
-  {% endfor %}
-</select>
+      {% if not selected_funder %}
+        <option value="" disabled selected>Pick a funder...</option>
+      {% endif %}
+      {% for f in funders %}
+        <option value="{{ f['id'] }}" {% if selected_funder == f['id'] %}selected{% endif %}>
+          {{ f['Description'] }}
+        </option>
+      {% endfor %}
+    </select>
   </div>
   {% endif %}
 
@@ -77,7 +77,6 @@
         <td>{{ school.TotalStudents }}</td>
         <td>{{ school.EquityIndex }}</td>
         <td>{{ school.DistinctYearLevels }}</td>
-
         <td>
           <div class="input-group input-group-sm">
             <select class="form-select provider-select"
@@ -90,9 +89,6 @@
                   {% if school.ProviderID and school.ProviderID|int == provider.ProviderID %}selected{% endif %}>
                   {{ provider.Description }}
                 </option>
-               <!-- ProviderID Check: school={{ school.ProviderID }}, provider={{ provider.ProviderID }} -->
- 
-
               {% endfor %}
             </select>
             <button type="button" class="btn btn-outline-secondary add-provider-btn" data-bs-toggle="modal" data-bs-target="#newProviderModal">
@@ -107,10 +103,11 @@
 </div>
 {% else %}
 <div class="d-flex justify-content-center">
-<div class="alert text-center w-40" style="background-color: #4d544120; color: #4d5441; border: 2px solid #4d5441;">
-  No schools found for the selected term and year. Please contact your schools regarding uploading the relevant class lists. 
+  <div class="alert text-center w-40" style="background-color: #4d544120; color: #4d5441; border: 2px solid #4d5441;">
+    No schools found for the selected term and year. Please contact your schools regarding uploading the relevant class lists. 
+  </div>
 </div>
-</div>{% endif %}
+{% endif %}
 
 <!-- Modal for Adding New Provider -->
 <div class="modal fade" id="newProviderModal" tabindex="-1" aria-labelledby="newProviderModalLabel" aria-hidden="true">
@@ -128,6 +125,7 @@
             <input type="text" class="form-control" id="providerName" name="provider_name" required>
           </div>
           <div id="addProviderSuccess" class="alert alert-success d-none" role="alert"></div>
+          <div id="addProviderError" class="alert alert-danger d-none" role="alert"></div>
         </div>
         <div class="modal-footer">
           <button type="submit" class="btn btn-primary">Add Provider</button>
@@ -180,9 +178,10 @@ addProviderForm.addEventListener("submit", async function (e) {
   });
 
   const result = await res.json();
+  const successAlert = document.getElementById("addProviderSuccess");
+  const errorAlert = document.getElementById("addProviderError");
 
   if (result.success) {
-    // Insert new option in all dropdowns
     const newOption = document.createElement("option");
     newOption.value = result.new_id;
     newOption.textContent = result.provider_name;
@@ -191,21 +190,21 @@ addProviderForm.addEventListener("submit", async function (e) {
       select.appendChild(newOption.cloneNode(true));
     });
 
-    // Show success message
-    const successAlert = document.getElementById("addProviderSuccess");
     successAlert.textContent = `✅ Provider '${result.provider_name}' added successfully for '${result.funder_name}'.`;
     successAlert.classList.remove("d-none");
-
-    // Reset input field
+    errorAlert.classList.add("d-none");
     document.getElementById("providerName").value = "";
   } else {
-    alert("❌ Failed to add provider: " + result.message);
+    errorAlert.textContent = "❌ " + result.message;
+    errorAlert.classList.remove("d-none");
+    successAlert.classList.add("d-none");
   }
 });
 
-// Clear success alert when modal is shown again
+// Clear alerts when modal opens again
 document.getElementById("newProviderModal").addEventListener("show.bs.modal", () => {
   document.getElementById("addProviderSuccess").classList.add("d-none");
+  document.getElementById("addProviderError").classList.add("d-none");
 });
 </script>
 {% endblock %}

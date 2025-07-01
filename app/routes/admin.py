@@ -192,7 +192,7 @@ def create_user():
                             "email": email,
                             "hash": hashed_pw,
                             "role": selected_role,
-                            "id": selected_id if selected_id is not None else sqlalchemy.sql.null(),
+"id": selected_id ,
                             "firstname": firstname,
                             "surname": surname,
                             "admin": admin,
@@ -562,4 +562,9 @@ def add_provider():
                 "provider_name": provider_name
             })        
         except Exception as e:
-            return jsonify({"success": False, "message": str(e)}), 500
+            error_message = str(e)
+
+            if "Provider name already exists" in error_message:
+                return jsonify({"success": False, "message": "A provider with this name already exists for the selected funder."}), 400
+
+            return jsonify({"success": False, "message": error_message}), 500

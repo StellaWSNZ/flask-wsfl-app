@@ -25,7 +25,7 @@
           {% for name in schools %}
             <option value="{{ name }}" {% if selected_school == name %}selected{% endif %}>{{ name }}</option>
           {% endfor %}
-        {% elif user_role == 'MOE' %}
+        {% else %}
           <option value="{{ selected_school }}" selected>{{ selected_school }}</option>
         {% endif %}
       </select>
@@ -193,7 +193,7 @@
     <div class="modal-dialog">
       <div class="modal-content border-danger">
         <div class="modal-header bg-danger text-white">
-          <h5 class="modal-title" id="validationErrorModalLabel">Missing Required Mappings</h5>
+          <h5 class="modal-title" id="validationErrorModalLabel">Missing Required Columns</h5>
           <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">

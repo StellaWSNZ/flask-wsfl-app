@@ -95,6 +95,7 @@ def classlistupload():
 
             selected_school_str = request.form.get("school") or str(session.get("user_desc")) + "("+str(session.get("user_id"))+ ")"
             selected_school = selected_school_str 
+            print(selected_school_str)
             moe_number = (
                 int(selected_school_str)
                 if selected_school_str.isdigit()
@@ -138,7 +139,7 @@ def classlistupload():
                         except UnicodeDecodeError:
                             file.seek(0)  # Reset pointer to start of file
                             df = pd.read_csv(file, header=0 if has_headers else None, encoding="latin1")               
-                    elif file_ext in [".xls", ".xlsx"]:
+                    elif file_ext in [".xls", ".xlsx",".xlsm"]:
                         with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:
                             file.save(tmp.name)
 
@@ -325,7 +326,7 @@ def classlistupload():
             elif action == "preview":
                 flash("Please upload a valid CSV file.", "danger")
                 return redirect(url_for("upload_bp.classlistupload"))
-        
+        print(selected_school)
         return render_template(
             "classlistupload.html",
             funders=funders,
