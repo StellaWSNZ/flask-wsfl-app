@@ -99,18 +99,21 @@
           <div class="mt-2 staff-dropdown-wrapper {% if 'kaiako' not in school.ProviderDesc|lower %}d-none{% endif %}">
             <div class="input-group input-group-sm">
               <select class="form-select form-select-sm funder-staff-select"
+                name="staff_email_{{ school.MOENumber }}"
                 data-moe="{{ school.MOENumber }}"
                 data-term="{{ selected_term }}"
                 data-year="{{ selected_year }}">
+                
                 <option value="">Not Assigned</option>
+                
                 {% for staff in staff_list %}
-                <option value="{{ staff.Email }}"
-                  {% if school.SelectedStaffEmail == staff.Email %}selected{% endif %}>
-                  {{ staff.Name or (staff.FirstName ~ ' ' ~ staff.Surname) }}
-                </option>
+                  <option value="{{ staff.Email }}"
+                    {% if school.SelectedStaffEmail == staff.Email %}selected{% endif %}>
+                    {{ staff.Name or (staff.FirstName ~ ' ' ~ staff.Surname) }}
+                  </option>
                 {% endfor %}
+                
               </select>
-              
             </div>
           </div>
         </td>
@@ -215,42 +218,11 @@
 
       if (selectedText?.includes("kaiako")) {
         staffWrapper.classList.remove("d-none");
-
-        if (staffSelect.options.length <= 1) {
-          try {
-            const response = await fetch(`/get_funder_staff/${funderId}`);
-            const staffList = await response.json();
-
-            staffSelect.innerHTML = '<option value="">Not Assigned</option>';
-            let matched = false;
-
-            staffList.forEach(staff => {
-              const opt = document.createElement("option");
-              opt.value = staff.Email || staff.ID || staff.StaffID;
-              opt.textContent = staff.Name || `${staff.FirstName} ${staff.Surname}`;
-
-              if (presetEmail && presetEmail.toLowerCase() === opt.value.toLowerCase()) {
-                opt.selected = true;
-                matched = true;
-              }
-
-              staffSelect.appendChild(opt);
-            });
-
-            if (!matched && presetEmail) {
-              const fallbackOpt = document.createElement("option");
-              fallbackOpt.value = presetEmail;
-              fallbackOpt.textContent = presetEmail + " (Unknown Staff)";
-              fallbackOpt.selected = true;
-              staffSelect.appendChild(fallbackOpt);
-            }
-          } catch (err) {
-            console.error("❌ Error fetching funder staff:", err);
-          }
-        }
       } else {
         staffWrapper.classList.add("d-none");
-        staffSelect.innerHTML = '<option value="">Not Assigned</option>';
+      
+        // Optionally clear selection (if needed)
+        staffSelect.selectedIndex = 0;
       }
     };
 

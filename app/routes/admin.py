@@ -435,7 +435,7 @@ def provider_maintenance():
     selected_year = request.form.get("year") or session.get("nearest_year")
     print(f"📥 Selected funder: {selected_funder}, Term: {selected_term}, Year: {selected_year}")
 
-    funders, schools, providers = [], [], []
+    funders, schools, providers,staff_list = [], [], [],[]
 
     with engine.connect() as conn:
         if user_role == "ADM":
@@ -473,7 +473,7 @@ def provider_maintenance():
             )
             providers = [dict(row._mapping) for row in providers_result]
             print(f"🏢 Providers loaded: {len(providers)}")
-            if(selected_funder is not null):
+            if selected_funder is not None:
                 staff_result = conn.execute(
                     text("EXEC FlaskHelperFunctionsSpecific @Request = 'FunderStaff', @FunderID = :fid"),
                     {"fid": selected_funder}
