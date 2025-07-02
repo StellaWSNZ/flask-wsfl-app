@@ -1,16 +1,20 @@
 {% extends "header.html" %} {% block title %}E-Learning Upload{% endblock %} {%
 block content %}
 <div class="container mt-5">
-  <h2 class="mb-4 text-centre text-primary">Upload E-Learning CSV</h2>
+  <h2 class="mb-2 text-center text-primary">Upload E-Learning Excel</h2>
+  <p class="mb-4 text-center text-muted">
+    A place for WSNZ admins to upload the Sport Tutor report
+  </p>
 
   <form method="POST" enctype="multipart/form-data">
     <div class="mb-3">
-      <label for="csv_file" class="form-label">Choose CSV file</label>
+      <label for="csv_file" class="form-label">Choose Excel file (.xlsx)</label>
       <input
         class="form-control"
         type="file"
         name="csv_file"
         id="csv_file"
+        accept=".xlsx"
         required
       />
     </div>

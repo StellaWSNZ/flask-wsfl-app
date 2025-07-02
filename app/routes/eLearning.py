@@ -10,25 +10,28 @@ eLearning_bp = Blueprint("eLearning_bp", __name__)
 @eLearning_bp.route("/eLearning", methods=["GET", "POST"])
 @login_required
 def admin_eLearning_upload():
-    #print("*")
-    #print(session.get("user_role"))
     if session.get("user_role") != "ADM":
-        # flash("Access denied.", "danger")
         return redirect(url_for("main_bp.home"))
 
     if request.method == "POST":
         file = request.files.get("csv_file")
         if not file:
-            flash("Please upload a CSV file.", "warning")
+            flash("Please upload an Excel file.", "warning")
             return redirect(request.url)
 
         try:
-            df = pd.read_csv(file, encoding="windows-1252")
-            df = df[["Email", "Course number", "Course enrolment status", "First name", "Last name"]].dropna()
-            df.columns = ["Email", "CourseNumber", "EnrolmentStatus", "FirstName", "LastName"]
+            # Read Excel (instead of CSV)
+            df = pd.read_excel(file, dtype=str)
+
+            # Rename and select needed columns
+            df = df[["Email", "Course name", "Course number", "Course enrolment status"]].dropna()
+            df.columns = ["Email", "CourseName", "CourseNumber", "EnrolmentStatus"]
+
+            # Convert CourseNumber to integer safely
+            df["CourseNumber"] = pd.to_numeric(df["CourseNumber"], errors="coerce").fillna(0).astype(int)
+
             json_payload = df.to_json(orient="records")
-           #print(df.head())
-            #print(json_payload[:500])
+
             engine = get_db_engine()
             with engine.begin() as conn:
                 conn.execute(
@@ -47,7 +50,6 @@ def admin_eLearning_upload():
         return redirect(request.url)
 
     return render_template("eLearning_upload.html")
-
 
 @eLearning_bp.route("/my-ip")
 def get_my_ip():
