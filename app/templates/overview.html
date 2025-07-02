@@ -156,8 +156,15 @@
               <thead class="table-light">
                 <tr>
                   {% for col in schools[0].keys() %}
-                  <th>{{ col.replace('_', ' ') }}</th>
-                  {% endfor %}
+                  <!-- {{col}}-->
+  <th>
+    {{ col.replace('_', ' ') }}
+    {% if col == 'Classes Edited' %}
+      <i class="bi bi-info-circle-fill text-primary ms-1" data-bs-toggle="tooltip" data-bs-placement="top"
+         title="This is calculated by counting classes where at least 85% of students were edited."></i>
+    {% endif %}
+  </th>
+{% endfor %}
                 </tr>
               </thead>
               <tbody>
@@ -257,6 +264,12 @@
 
     entitySelect.dispatchEvent(new Event("change"));
 
+  });
+  document.addEventListener("DOMContentLoaded", function () {
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    tooltipTriggerList.forEach(function (tooltipTriggerEl) {
+      new bootstrap.Tooltip(tooltipTriggerEl)
+    })
   });
 </script>
 

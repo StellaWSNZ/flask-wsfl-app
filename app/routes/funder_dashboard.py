@@ -166,10 +166,10 @@ def funder_dashboard():
         total_schools = school_df["SchoolName"].nunique()
 
         school_df = school_df.drop(columns=["TotalStudents", "CalendarYear", "Term"], errors="ignore")
-        school_df = school_df.rename(columns={"SchoolName": "School", "NumClasses": "Number of Classes"})
+        school_df = school_df.rename(columns={"SchoolName": "School", "NumClasses": "Number of Classes","EditedClasses":"Classes Edited"})
         print(entity_type)
-        if "EditedClasses" in school_df.columns:
-            school_df = school_df.drop(columns=["EditedClasses"], errors="ignore")
+        #if "EditedClasses" in school_df.columns:
+        #    school_df = school_df.drop(columns=["EditedClasses"], errors="ignore")
 
         subject = f"{entity_desc} is" if user_role in ["ADM", "FUN"] else "You are"
         summary_string = f"{subject} delivering to <strong>{total_students:,}</strong> students across <strong>{total_schools}</strong> school{'s' if total_schools != 1 else ''} in <strong>Term {selected_term}</strong>, <strong>{selected_year}</strong>."
