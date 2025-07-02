@@ -45,7 +45,6 @@
   </div>
 </form>
 
-<!-- Custom table header style -->
 <style>
   thead.custom-header th {
     background-color: #004080 !important;
@@ -55,7 +54,6 @@
   }
 </style>
 
-<!-- Table Display -->
 {% if schools %}
 <div class="container">
   <table class="table table-bordered table-hover align-middle">
@@ -82,7 +80,8 @@
             <select class="form-select provider-select"
                     data-moe="{{ school.MOENumber }}"
                     data-term="{{ selected_term }}"
-                    data-year="{{ selected_year }}">
+                    data-year="{{ selected_year }}"
+                    data-funder="{{ selected_funder }}">
               <option value="">Not chosen</option>
               {% for provider in providers %}
                 <option value="{{ provider.ProviderID }}"
@@ -94,6 +93,25 @@
             <button type="button" class="btn btn-outline-secondary add-provider-btn" data-bs-toggle="modal" data-bs-target="#newProviderModal">
               <i class="bi bi-plus-lg"></i>
             </button>
+          </div>
+
+          <!-- Staff Dropdown for Kaiako Led -->
+          <div class="mt-2 staff-dropdown-wrapper {% if 'kaiako' not in school.ProviderDesc|lower %}d-none{% endif %}">
+            <div class="input-group input-group-sm">
+              <select class="form-select form-select-sm funder-staff-select"
+                data-moe="{{ school.MOENumber }}"
+                data-term="{{ selected_term }}"
+                data-year="{{ selected_year }}">
+                <option value="">Not Assigned</option>
+                {% for staff in staff_list %}
+                <option value="{{ staff.Email }}"
+                  {% if school.SelectedStaffEmail == staff.Email %}selected{% endif %}>
+                  {{ staff.Name or (staff.FirstName ~ ' ' ~ staff.Surname) }}
+                </option>
+                {% endfor %}
+              </select>
+              
+            </div>
           </div>
         </td>
       </tr>
@@ -109,14 +127,14 @@
 </div>
 {% endif %}
 
-<!-- Modal for Adding New Provider -->
+<!-- Modal -->
 <div class="modal fade" id="newProviderModal" tabindex="-1" aria-labelledby="newProviderModalLabel" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
       <form id="addProviderForm">
         <div class="modal-header">
           <h5 class="modal-title" id="newProviderModalLabel">Add New Provider</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body">
           <input type="hidden" name="funder_id" value="{{ selected_funder }}">
@@ -124,8 +142,8 @@
             <label for="providerName" class="form-label">Provider Name</label>
             <input type="text" class="form-control" id="providerName" name="provider_name" required>
           </div>
-          <div id="addProviderSuccess" class="alert alert-success d-none" role="alert"></div>
-          <div id="addProviderError" class="alert alert-danger d-none" role="alert"></div>
+          <div id="addProviderSuccess" class="alert alert-success d-none"></div>
+          <div id="addProviderError" class="alert alert-danger d-none"></div>
         </div>
         <div class="modal-footer">
           <button type="submit" class="btn btn-primary">Add Provider</button>
@@ -135,76 +153,249 @@
   </div>
 </div>
 
-<!-- JavaScript -->
-<script>
-document.querySelectorAll(".provider-select").forEach(select => {
-  select.addEventListener("change", async function () {
-    const moe = this.dataset.moe;
-    const term = this.dataset.term;
-    const year = this.dataset.year;
-    const provider_id = this.value || null;
+<div class="modal fade" id="addStaffModal" tabindex="-1" aria-labelledby="addStaffLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST" action="{{ url_for('staff_bp.add_staff') }}">
+        <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
+        <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title" id="addStaffLabel">Add New Staff</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="first_name" class="form-label">First Name</label>
+            <input type="text" class="form-control" name="first_name" required>
+          </div>
+          <div class="mb-3">
+            <label for="last_name" class="form-label">Last Name</label>
+            <input type="text" class="form-control" name="last_name" required>
+          </div>
+          <div class="mb-3">
+            <label for="email" class="form-label">Email</label>
+            <input type="email" class="form-control" name="email" required>
+          </div>
+          <div class="mb-3">
+            <label for="account_status" class="form-label">Account Status</label>
+            <select class="form-select" name="account_status" id="account_status" required>
+              <option value="enable">Enable (send welcome email)</option>
+              <option value="disable">Disable</option>
+            </select>
+          </div>
+          <div class="form-check mb-3" id="admin_checkbox_group">
+            <input class="form-check-input" type="checkbox" name="admin" value="1" id="admin_checkbox">
+            <label class="form-check-label" for="admin_checkbox">
+              Grant Administrator Privileges
+            </label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">Add Staff</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 
-    const res = await fetch("{{ url_for('admin_bp.assign_provider') }}", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-CSRFToken": "{{ csrf_token() if csrf_token else '' }}"
-      },
-      body: JSON.stringify({
-        moe_number: moe,
-        term: term,
-        year: year,
-        provider_id: provider_id
-      })
+<!-- JavaScript Fix -->
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    // Just show/hide the staff dropdown, do NOT trigger assignment/deletion
+    const populateStaffDropdown = async (select) => {
+      const selectedText = select.options[select.selectedIndex]?.textContent?.toLowerCase();
+      const row = select.closest("td");
+      const staffWrapper = row.querySelector(".staff-dropdown-wrapper");
+      const staffSelect = row.querySelector(".funder-staff-select");
+      const moe = select.dataset.moe;
+      const term = select.dataset.term;
+      const year = select.dataset.year;
+      const funderId = select.dataset.funder;
+      const presetEmail = staffSelect?.getAttribute("data-selected");
+
+      if (selectedText?.includes("kaiako")) {
+        staffWrapper.classList.remove("d-none");
+
+        if (staffSelect.options.length <= 1) {
+          try {
+            const response = await fetch(`/get_funder_staff/${funderId}`);
+            const staffList = await response.json();
+
+            staffSelect.innerHTML = '<option value="">Not Assigned</option>';
+            let matched = false;
+
+            staffList.forEach(staff => {
+              const opt = document.createElement("option");
+              opt.value = staff.Email || staff.ID || staff.StaffID;
+              opt.textContent = staff.Name || `${staff.FirstName} ${staff.Surname}`;
+
+              if (presetEmail && presetEmail.toLowerCase() === opt.value.toLowerCase()) {
+                opt.selected = true;
+                matched = true;
+              }
+
+              staffSelect.appendChild(opt);
+            });
+
+            if (!matched && presetEmail) {
+              const fallbackOpt = document.createElement("option");
+              fallbackOpt.value = presetEmail;
+              fallbackOpt.textContent = presetEmail + " (Unknown Staff)";
+              fallbackOpt.selected = true;
+              staffSelect.appendChild(fallbackOpt);
+            }
+          } catch (err) {
+            console.error("❌ Error fetching funder staff:", err);
+          }
+        }
+      } else {
+        staffWrapper.classList.add("d-none");
+        staffSelect.innerHTML = '<option value="">Not Assigned</option>';
+      }
+    };
+
+    // For each provider select
+    document.querySelectorAll(".provider-select").forEach(select => {
+      // Track previous provider text (used to detect change from Kaiako)
+      let previousText = select.options[select.selectedIndex]?.textContent?.toLowerCase();
+
+      // Initial rendering (no API calls here anymore)
+      populateStaffDropdown(select);
+
+      // Change event for user action
+      select.addEventListener("change", async () => {
+        const selectedText = select.options[select.selectedIndex]?.textContent?.toLowerCase();
+        const moe = select.dataset.moe;
+        const term = select.dataset.term;
+        const year = select.dataset.year;
+
+        // ✅ Delete staff assignment only if user changed from Kaiako to non-Kaiako
+        if (previousText?.includes("kaiako") && !selectedText?.includes("kaiako")) {
+          try {
+            await fetch("/assign_kaiako_staff", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                MOENumber: moe,
+                Term: term,
+                Year: year,
+                Email: ""  // empty email means unassign
+              })
+            });
+            console.log(`🗑️ Deleted staff assignment for MOE ${moe}`);
+          } catch (err) {
+            console.error("❌ Error deleting staff assignment:", err);
+          }
+        }
+
+        previousText = selectedText;
+        await populateStaffDropdown(select); // safe now — just UI
+      });
     });
 
-    if (!res.ok) {
-      alert("❌ Error assigning provider.");
-    } else {
-      console.log("✅ Provider assigned.");
+    // Staff assignment change handler
+    document.querySelectorAll(".funder-staff-select").forEach(dropdown => {
+      dropdown.addEventListener("change", async () => {
+        const selectedEmail = dropdown.value;
+        const moe = dropdown.dataset.moe;
+        const term = dropdown.dataset.term;
+        const year = dropdown.dataset.year;
+
+        try {
+          const response = await fetch("/assign_kaiako_staff", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              MOENumber: moe,
+              Term: term,
+              Year: year,
+              Email: selectedEmail
+            })
+          });
+
+          const result = await response.json();
+          if (result.success) {
+            console.log("✅ Kaiako staff assigned successfully.");
+          } else {
+            console.error("⚠️ Failed to assign Kaiako staff:", result.message);
+          }
+        } catch (error) {
+          console.error("❌ Error posting to /assign_kaiako_staff:", error);
+        }
+      });
+    });
+  });
+  document.getElementById("addProviderForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const providerName = form.provider_name.value;
+    const funderId = form.funder_id.value;
+
+    const successAlert = document.getElementById("addProviderSuccess");
+    const errorAlert = document.getElementById("addProviderError");
+
+    successAlert.classList.add("d-none");
+    errorAlert.classList.add("d-none");
+
+    try {
+      const response = await fetch("/add_provider", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider_name: providerName, funder_id: funderId })
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        successAlert.textContent = "✅ Provider added successfully.";
+        successAlert.classList.remove("d-none");
+        form.reset();
+        setTimeout(() => location.reload(), 1000);
+      } else {
+        errorAlert.textContent = result.message || "❌ Failed to add provider.";
+        errorAlert.classList.remove("d-none");
+      }
+    } catch (err) {
+      console.error("❌ Error adding provider:", err);
+      errorAlert.textContent = "❌ Something went wrong.";
+      errorAlert.classList.remove("d-none");
     }
   });
-});
-
-// Handle Add Provider Form
-const addProviderForm = document.getElementById("addProviderForm");
-addProviderForm.addEventListener("submit", async function (e) {
-  e.preventDefault();
-  const formData = new FormData(addProviderForm);
-
-  const res = await fetch("{{ url_for('admin_bp.add_provider') }}", {
-    method: "POST",
-    body: formData
-  });
-
-  const result = await res.json();
-  const successAlert = document.getElementById("addProviderSuccess");
-  const errorAlert = document.getElementById("addProviderError");
-
-  if (result.success) {
-    const newOption = document.createElement("option");
-    newOption.value = result.new_id;
-    newOption.textContent = result.provider_name;
-
+  document.addEventListener("DOMContentLoaded", () => {
+    // ✅ Trigger assign_provider on dropdown change
     document.querySelectorAll(".provider-select").forEach(select => {
-      select.appendChild(newOption.cloneNode(true));
+      select.addEventListener("change", async () => {
+        const providerId = select.value;
+        const moe = select.dataset.moe;
+        const term = select.dataset.term;
+        const year = select.dataset.year;
+  
+        try {
+          const response = await fetch("/assign_provider", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              MOENumber: moe,
+              Term: term,
+              Year: year,
+              ProviderID: providerId || null
+            })
+          });
+  
+          const result = await response.json();
+          if (result.success) {
+            console.log("✅ Provider assigned successfully.");
+          } else {
+            console.error("⚠️ Failed to assign provider:", result.message);
+          }
+        } catch (err) {
+          console.error("❌ Error assigning provider:", err);
+        }
+      });
     });
-
-    successAlert.textContent = `✅ Provider '${result.provider_name}' added successfully for '${result.funder_name}'.`;
-    successAlert.classList.remove("d-none");
-    errorAlert.classList.add("d-none");
-    document.getElementById("providerName").value = "";
-  } else {
-    errorAlert.textContent = "❌ " + result.message;
-    errorAlert.classList.remove("d-none");
-    successAlert.classList.add("d-none");
-  }
-});
-
-// Clear alerts when modal opens again
-document.getElementById("newProviderModal").addEventListener("show.bs.modal", () => {
-  document.getElementById("addProviderSuccess").classList.add("d-none");
-  document.getElementById("addProviderError").classList.add("d-none");
-});
+  });
 </script>
 {% endblock %}

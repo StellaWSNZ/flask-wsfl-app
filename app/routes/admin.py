@@ -473,7 +473,11 @@ def provider_maintenance():
             )
             providers = [dict(row._mapping) for row in providers_result]
             print(f"🏢 Providers loaded: {len(providers)}")
-
+            staff_result = conn.execute(
+                text("EXEC FlaskHelperFunctionsSpecific @Request = 'FunderStaff', @FunderID = :fid"),
+                {"fid": selected_funder}
+            )
+            staff_list = [dict(row._mapping) for row in staff_result]
     try:
         print("✅ Rendering provider_maintenance.html")
         return render_template(
@@ -484,7 +488,8 @@ def provider_maintenance():
             selected_funder=int(selected_funder) if selected_funder else None,
             selected_term=int(selected_term),
             selected_year=int(selected_year),
-            user_role=user_role
+            user_role=user_role,
+            staff_list=staff_list
         )
     except Exception as e:
         print("❌ Error rendering provider_maintenance.html")
@@ -495,10 +500,11 @@ def provider_maintenance():
 @admin_bp.route("/assign_provider", methods=["POST"])
 def assign_provider():
     data = request.get_json()
-    moe_number = data.get("moe_number")
-    term = data.get("term")
-    year = data.get("year")
-    provider_id = data.get("provider_id")
+    print(data)
+    moe_number = data.get("MOENumber")
+    term = data.get("Term")
+    year = data.get("Year")
+    provider_id = data.get("ProviderID")
 
     try:
         if provider_id == "" or provider_id is None:
@@ -528,13 +534,13 @@ def assign_provider():
 @admin_bp.route("/add_provider", methods=["POST"])
 @login_required
 def add_provider():
-    provider_name = request.form.get("provider_name")
-    funder_id = request.form.get("funder_id")
+    data = request.get_json()
+    provider_name = data.get("provider_name")
+    funder_id = data.get("funder_id")
 
     if not provider_name or not funder_id:
         return jsonify({"success": False, "message": "Missing data"}), 400
-    #print(provider_name)
-    # print(funder_id)
+
     engine = get_db_engine()
     with engine.begin() as conn:
         try:
@@ -568,3 +574,60 @@ def add_provider():
                 return jsonify({"success": False, "message": "A provider with this name already exists for the selected funder."}), 400
 
             return jsonify({"success": False, "message": error_message}), 500
+
+
+
+@admin_bp.route("/get_funder_staff/<int:funder_id>")
+@login_required
+def get_funder_staff(funder_id):
+    engine = get_db_engine()
+    with engine.begin() as conn:
+        result = conn.execute(
+            text("EXEC FlaskHelperFunctionsSpecific @Request = 'FunderStaff', @FunderID = :fid"),
+            {"fid": funder_id}
+        )
+        staff = [dict(row._mapping) for row in result]
+        return jsonify(staff)
+
+
+@admin_bp.route("/assign_kaiako_staff", methods=["POST"])
+@login_required
+def assign_kaiako_staff():
+    data = request.get_json()
+    moe = data.get("MOENumber")
+    term = data.get("Term")
+    year = data.get("Year")
+    email = data.get("Email")
+
+    print(f"📥 Incoming assign_kaiako_staff request")
+    print(f"   ➤ MOE Number: {moe}")
+    print(f"   ➤ Term: {term}")
+    print(f"   ➤ Year: {year}")
+    print(f"   ➤ Staff Email: {email}")
+
+    if not all([moe, term, year]):
+        print("❌ Missing MOE, Term, or Year.")
+        return jsonify({"success": False, "message": "Missing required fields"}), 400
+
+    try:
+        engine = get_db_engine()
+        with engine.begin() as conn:
+            if email == "":
+                print("🗑️ Deleting staff assignment...")
+                conn.execute(
+                    text("EXEC FlaskDeleteEntityStaff @MOENumber = :moe, @Term = :term, @CalendarYear = :year"),
+                    {"moe": moe, "term": term, "year": year}
+                )
+                print("✅ Staff assignment deleted.")
+            else:
+                print("🔄 Assigning/Updating staff...")
+                conn.execute(
+                    text("EXEC FlaskAssignEntityStaff @MOENumber = :moe, @Term = :term, @CalendarYear = :year, @Email = :email"),
+                    {"moe": moe, "term": term, "year": year, "email": email}
+                )
+                print("✅ Staff assigned/updated in EntityStaff.")
+
+        return jsonify({"success": True})
+    except Exception as e:
+        print(f"❌ Error during DB execution: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500

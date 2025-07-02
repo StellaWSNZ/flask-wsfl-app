@@ -274,3 +274,4 @@ def get_entities():
 
     print(f"✅ Final entities being returned = {entities}\n")
     return jsonify(entities)
+
