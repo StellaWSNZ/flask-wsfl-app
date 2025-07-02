@@ -473,11 +473,14 @@ def provider_maintenance():
             )
             providers = [dict(row._mapping) for row in providers_result]
             print(f"🏢 Providers loaded: {len(providers)}")
-            staff_result = conn.execute(
-                text("EXEC FlaskHelperFunctionsSpecific @Request = 'FunderStaff', @FunderID = :fid"),
-                {"fid": selected_funder}
-            )
-            staff_list = [dict(row._mapping) for row in staff_result]
+            if(selected_funder is not null):
+                staff_result = conn.execute(
+                    text("EXEC FlaskHelperFunctionsSpecific @Request = 'FunderStaff', @FunderID = :fid"),
+                    {"fid": selected_funder}
+                )
+                staff_list = [dict(row._mapping) for row in staff_result]
+            else:
+                staff_list = []
     try:
         print("✅ Rendering provider_maintenance.html")
         return render_template(
