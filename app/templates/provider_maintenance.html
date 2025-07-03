@@ -3,6 +3,12 @@
 
 {% block content %}
 <h3 class="text-center my-4">Assign Providers to Schools</h3>
+{% if selected_funder %}
+<div class="text-center mb-4">
+  Providers with errors? <a href="{{ url_for('admin_bp.manage_providers', funder_id=selected_funder) }}"><strong>Click here to edit</strong></a>
+
+</div>
+{% endif %}
 
 <!-- Filter Form -->
 <form method="POST" class="row justify-content-center g-3 mb-4">

@@ -1,0 +1,399 @@
+{% extends "header.html" %} {% block title %}Manage Providers{% endblock %} {%
+block content %}
+<div class="container mt-4">
+  <h2 class="text-center text-primary mb-4">
+    Manage Providers for {{ funder_name }}
+  </h2>
+  <p class="text-center text-muted mb-4" style="font-size: 1.05rem">
+    Edit provider details, remove unused providers, or add new ones.
+  </p>
+  <div class="text-center mb-4">
+    <button
+      class="btn btn-primary"
+      data-bs-toggle="modal"
+      data-bs-target="#addProviderModal"
+    >
+      + Add Provider
+    </button>
+  </div>
+  <div class="row row-cols-1 row-cols-md-2 g-4">
+    {% for provider in providers %}
+    <div class="col">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body">
+          <h5 class="text-center text-primary mb-4">
+            {{ provider.ProviderDesc }}
+          </h5>
+          <p class="mb-1 text-center">
+            <strong>Address:</strong> {{ provider.Address or "—" }}
+          </p>
+          <p class="mb-1 text-center">
+            <strong>Lat:</strong> {{ provider.Latitude or "—" }},
+            <strong>Lon:</strong> {{ provider.Longitude or "—" }}
+          </p>
+          {% if provider.Latitude is not none and provider.Longitude is not none
+          %}
+          <div
+            id="staticMap{{ provider.ProviderID }}"
+            class="rounded mb-3"
+            style="height: 200px"
+          ></div>
+          {% endif %}
+
+          <div class="d-flex flex-wrap justify-content-center gap-2">
+            <button
+              class="btn btn-outline-primary btn-sm"
+              type="button"
+              data-bs-toggle="modal"
+              data-bs-target="#editModal{{ provider.ProviderID }}"
+            >
+              Edit
+            </button>
+
+            {% if provider.Deletable|int == 1 %}
+            <button
+              type="button"
+              class="btn btn-outline-danger btn-sm open-delete-modal"
+              data-provider-id="{{ provider.ProviderID }}"
+              data-provider-name="{{ provider.ProviderDesc }}"
+            >
+              Delete
+            </button>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div
+      class="modal fade"
+      id="editModal{{ provider.ProviderID }}"
+      tabindex="-1"
+      aria-labelledby="editLabel{{ provider.ProviderID }}"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+          <form
+            method="POST"
+            action="{{ url_for('admin_bp.update_provider') }}"
+          >
+            <input
+              type="hidden"
+              name="provider_id"
+              value="{{ provider.ProviderID }}"
+            />
+            <div class="modal-header bg-primary text-white">
+              <h5 class="modal-title" id="editLabel{{ provider.ProviderID }}">
+                Edit Provider
+              </h5>
+              <button
+                type="button"
+                class="btn-close"
+                data-bs-dismiss="modal"
+              ></button>
+            </div>
+            <div class="modal-body">
+              <div class="mb-3">
+                <label class="form-label">Provider Name</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  name="new_name"
+                  value="{{ provider.ProviderDesc }}"
+                  required
+                />
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Address</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  name="new_address"
+                  value="{{ provider.Address or ''}}"
+                />
+              </div>
+              <div class="row g-2">
+                <div class="col">
+                  <label class="form-label">Latitude</label>
+                  <input
+                    type="text"
+                    class="form-control lat-input"
+                    name="new_latitude"
+                    value="{{ provider.Latitude or '' }}"
+                    data-map-id="{{ provider.ProviderID }}"
+                  />
+                </div>
+                <div class="col">
+                  <label class="form-label">Longitude</label>
+                  <input
+                    type="text"
+                    class="form-control lon-input"
+                    name="new_longitude"
+                    value="{{ provider.Longitude or '' }}"
+                    data-map-id="{{ provider.ProviderID }}"
+                  />
+                </div>
+              </div>
+              <div
+                id="modalMap{{ provider.ProviderID }}"
+                class="rounded mt-3"
+                style="height: 300px"
+              ></div>
+              <div class="form-text mt-1">
+                Drag the marker to update lat/lon or click to add a marker
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button
+                type="button"
+                class="btn btn-secondary"
+                data-bs-dismiss="modal"
+              >
+                Cancel
+              </button>
+              <button type="submit" class="btn btn-success">
+                Save Changes
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  <div
+    class="modal fade"
+    id="addProviderModal"
+    tabindex="-1"
+    aria-labelledby="addProviderLabel"
+    aria-hidden="true"
+  >
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <form
+          method="POST"
+          action="{{ url_for('admin_bp.add_provider_details') }}"
+        >
+          <input type="hidden" name="funder_id" value="{{ funder_id }}" />
+          <div class="modal-header bg-success text-white">
+            <h5 class="modal-title" id="addProviderLabel">Add New Provider</h5>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-2">
+              <label class="form-label">Provider Name</label>
+              <input
+                type="text"
+                name="provider_name"
+                class="form-control"
+                required
+              />
+            </div>
+            <div class="mb-2">
+              <label class="form-label">Address</label>
+              <input type="text" name="address" class="form-control" />
+            </div>
+            <div class="row g-2">
+              <div class="col">
+                <label class="form-label">Latitude</label>
+                <input type="text" name="latitude" class="form-control" />
+              </div>
+              <div class="col">
+                <label class="form-label">Longitude</label>
+                <input type="text" name="longitude" class="form-control" />
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-bs-dismiss="modal"
+            >
+              Cancel
+            </button>
+            <button type="submit" class="btn btn-success">Add Provider</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div
+    class="modal fade"
+    id="confirmDeleteModal"
+    tabindex="-1"
+    aria-hidden="true"
+  >
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <form
+          method="POST"
+          action="{{ url_for('admin_bp.delete_provider') }}"
+          id="confirmDeleteForm"
+        >
+          <div class="modal-header bg-danger text-white">
+            <h5 class="modal-title">Confirm Delete</h5>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+            ></button>
+          </div>
+          <div class="modal-body">
+            Are you sure you want to delete <strong id="providerName"></strong>?
+            <input type="hidden" name="provider_id" id="providerIdInput" />
+          </div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-bs-dismiss="modal"
+            >
+              Cancel
+            </button>
+            <button type="submit" class="btn btn-danger">Yes, Delete</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+
+    const deleteButtons = document.querySelectorAll(".open-delete-modal");
+    const providerNameEl = document.getElementById("providerName");
+    const providerIdInput = document.getElementById("providerIdInput");
+
+    deleteButtons.forEach(button => {
+      button.addEventListener("click", function () {
+        const providerId = this.getAttribute("data-provider-id");
+        const providerName = this.getAttribute("data-provider-name");
+
+        providerNameEl.textContent = providerName;
+        providerIdInput.value = providerId;
+
+        const confirmModal = new bootstrap.Modal(document.getElementById("confirmDeleteModal"));
+        confirmModal.show();
+      });
+    });
+
+    const modalMaps = {};
+
+    {% for provider in providers %}
+    (function () {
+      const pid = "{{ provider.ProviderID }}";
+      const lat = parseFloat("{{ provider.Latitude or 'NaN' }}");
+      const lon = parseFloat("{{ provider.Longitude or 'NaN' }}");
+      const name = `{{ provider.ProviderDesc | escape | replace("`", "\\`") }}`;
+
+      // 🗺️ Static map
+      if (!isNaN(lat) && !isNaN(lon)) {
+        const staticMapEl = document.getElementById("staticMap" + pid);
+        if (staticMapEl) {
+          const staticMap = L.map(staticMapEl, {
+            zoomControl: false,
+            attributionControl: false,
+            dragging: false,
+            attributionControl: false
+          }).setView([lat, lon], 13);
+
+          L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            maxZoom: 18
+          }).addTo(staticMap);
+
+          L.marker([lat, lon]).addTo(staticMap).bindPopup(name);
+        }
+      }
+
+      const modalLat = isNaN(lat) ? -41.3 : lat;
+      const modalLon = isNaN(lon) ? 174.8 : lon;
+
+      const mapId = "modalMap" + pid;
+      const modalMap = L.map(mapId).setView([modalLat, modalLon], 13);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 18
+      }).addTo(modalMap);
+
+      let marker = null;
+      if (!isNaN(lat) && !isNaN(lon)) {
+        marker = L.marker([modalLat, modalLon], { draggable: true }).addTo(modalMap);
+      }
+
+      modalMaps[pid] = { map: modalMap, marker };
+
+      // 🖱️ Click to add marker if missing
+      modalMap.on("click", function (e) {
+        if (!modalMaps[pid].marker) {
+          marker = L.marker(e.latlng, { draggable: true }).addTo(modalMap);
+          modalMaps[pid].marker = marker;
+          updateInputs(e.latlng.lat, e.latlng.lng, pid);
+
+          marker.on("dragend", function (ev) {
+            const pos = ev.target.getLatLng();
+            updateInputs(pos.lat, pos.lng, pid);
+          });
+        }
+      });
+
+      if (marker) {
+        marker.on("dragend", function (e) {
+          const pos = e.target.getLatLng();
+          updateInputs(pos.lat, pos.lng, pid);
+        });
+      }
+
+    })();
+    {% endfor %}
+
+    function updateInputs(lat, lon, pid) {
+      document.querySelector(`.lat-input[data-map-id='${pid}']`).value = lat.toFixed(6);
+      document.querySelector(`.lon-input[data-map-id='${pid}']`).value = lon.toFixed(6);
+    }
+
+    // ⌨️ Update marker on input
+    document.querySelectorAll(".lat-input, .lon-input").forEach(input => {
+      input.addEventListener("input", e => {
+        const pid = e.target.dataset.mapId;
+        const lat = parseFloat(document.querySelector(`.lat-input[data-map-id='${pid}']`).value);
+        const lon = parseFloat(document.querySelector(`.lon-input[data-map-id='${pid}']`).value);
+        const mapObj = modalMaps[pid];
+
+        if (!isNaN(lat) && !isNaN(lon)) {
+          if (!mapObj.marker) {
+            mapObj.marker = L.marker([lat, lon], { draggable: true }).addTo(mapObj.map);
+            mapObj.marker.on("dragend", function (e) {
+              const pos = e.target.getLatLng();
+              updateInputs(pos.lat, pos.lng, pid);
+            });
+          } else {
+            mapObj.marker.setLatLng([lat, lon]);
+          }
+          mapObj.map.setView([lat, lon], 13);
+        }
+      });
+    });
+
+    // 🧼 Resize modal map when shown
+    document.querySelectorAll(".modal").forEach(modal => {
+      modal.addEventListener("shown.bs.modal", function () {
+        const pid = this.id.replace("editModal", "");
+        const mapObj = modalMaps[pid];
+        if (mapObj) {
+          setTimeout(() => mapObj.map.invalidateSize(), 250);
+        }
+      });
+    });
+  });
+</script>
+
+{% endblock %}

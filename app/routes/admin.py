@@ -481,8 +481,10 @@ def provider_maintenance():
                 staff_list = [dict(row._mapping) for row in staff_result]
             else:
                 staff_list = []
+        print(selected_funder)
     try:
         print("✅ Rendering provider_maintenance.html")
+        
         return render_template(
             "provider_maintenance.html",
             schools=schools,
@@ -578,6 +580,158 @@ def add_provider():
 
             return jsonify({"success": False, "message": error_message}), 500
 
+@admin_bp.route('/ManageProviders', methods=['GET', 'POST'])
+@login_required
+def manage_providers():
+    if not session.get("user_admin"):
+        abort(403)
+
+    funder_id = request.args.get("funder_id")
+    print(f"🔍 funder_id received: {funder_id}")
+
+    if not funder_id:
+        flash("No funder selected.", "warning")
+        return redirect(url_for("admin_bp.provider_maintenance"))
+
+    try:
+        engine = get_db_engine()
+        with engine.connect() as conn:
+            print("🛠️ Connected to DB")
+
+            # 🔹 Fetch providers
+            rows = conn.execute(text("""
+                EXEC FlaskGetManageableProvidersByFunder @FunderID = :fid
+            """), {"fid": funder_id}).mappings().all()
+
+            print(f"📦 Providers fetched: {len(rows)}")
+
+            providers = []
+            for row in rows:
+                provider = dict(row)
+                try:
+                    provider["Latitude"] = float(provider["Latitude"]) if provider["Latitude"] is not None else None
+                    provider["Longitude"] = float(provider["Longitude"]) if provider["Longitude"] is not None else None
+                except (ValueError, TypeError):
+                    provider["Latitude"] = None
+                    provider["Longitude"] = None
+
+                print(f"   📌 {provider['ProviderID']} - {provider['ProviderDesc']} - Deletable: {provider['Deletable']}")
+                providers.append(provider)
+
+            # 🔹 Fetch funder name
+            result = conn.execute(text("""
+                EXEC FlaskHelperFunctions @Request = 'FunderNameID', @Number = :fid
+            """), {"fid": funder_id}).fetchone()
+            funder_name = result[0] if result else "Unknown Funder"
+        
+        print("✅ Rendering manage_providers.html")
+        return render_template(
+            "manage_providers.html",
+            providers=providers,
+            funder_id=funder_id,
+            funder_name=funder_name
+        )
+
+    except Exception as e:
+        print("Error:", e)
+        flash("An error occurred while loading providers.", "danger")
+        return redirect(url_for("admin_bp.provider_maintenance"))
+
+@admin_bp.route('/UpdateProvider', methods=['POST'])
+@login_required
+def update_provider():
+    if not session.get("user_admin"):
+        abort(403)
+
+    pid = request.form.get("provider_id")
+    new_name = request.form.get("new_name")
+    new_address = request.form.get("new_address")
+    new_lat = request.form.get("new_latitude")
+    new_lon = request.form.get("new_longitude")
+
+    print(f"📝 Updating Provider {pid} — Name: {new_name}, Address: {new_address}, Lat: {new_lat}, Lon: {new_lon}")
+
+    try:
+        engine = get_db_engine()
+        with engine.begin() as conn:
+            conn.execute(text("""
+                EXEC FlaskUpdateProviderDetails 
+                    @ProviderID = :pid,
+                    @NewName = :new_name,
+                    @NewAddress = :new_address,
+                    @NewLatitude = :new_lat,
+                    @NewLongitude = :new_lon
+            """), {
+                "pid": pid,
+                "new_name": new_name,
+                "new_address": new_address,
+                "new_lat": new_lat or None,
+                "new_lon": new_lon or None
+            })
+
+        flash("Provider updated successfully.", "success")
+    except Exception as e:
+        flash(f"Failed to update provider: {e}", "danger")
+
+    return redirect(request.referrer or url_for("admin_bp.provider_maintenance"))
+@admin_bp.route('/DeleteProvider', methods=['POST'])
+@login_required
+def delete_provider():
+    if not session.get("user_admin"):
+        abort(403)
+
+    pid = request.form.get("provider_id")
+    print(f"🗑️ Deleting provider ID: {pid}")
+
+    engine = get_db_engine()
+    try:
+        with engine.begin() as conn:
+            conn.execute(text("EXEC FlaskDeleteProvider @ProviderID = :pid"), {"pid": pid})
+        flash("Provider deleted.", "success")
+    except Exception as e:
+        print("❌ Deletion failed:", e)
+        flash(f"Could not delete provider: {e}", "danger")
+
+    return redirect(request.referrer or url_for("admin_bp.provider_maintenance"))
+
+@admin_bp.route('/AddProviderDetails', methods=['POST'])
+@login_required
+def add_provider_details():
+    if not session.get("user_admin"):
+        abort(403)
+
+    funder_id = request.form.get("funder_id")
+    name = request.form.get("provider_name")
+    address = request.form.get("address") or ""
+    latitude = request.form.get("latitude") or None
+    longitude = request.form.get("longitude") or None
+
+    try:
+        latitude = float(latitude) if latitude else None
+        longitude = float(longitude) if longitude else None
+    except ValueError:
+        flash("Latitude and longitude must be numeric.", "danger")
+        return redirect(request.referrer)
+
+    try:
+        engine = get_db_engine()
+        with engine.begin() as conn:
+            conn.execute(
+                text("EXEC FlaskAddProviderWithDetails @FunderID = :fid, @Description = :desc, @Address = :addr, @Latitude = :lat, @Longitude = :lon"),
+                {
+                    "fid": funder_id,
+                    "desc": name.strip(),
+                    "addr": address.strip(),
+                    "lat": latitude,
+                    "lon": longitude
+                }
+            )
+        flash("Provider added successfully.", "success")
+    except Exception as e:
+        print("❌ Error adding provider:", e)
+        flash(str(e), "danger")
+
+    return redirect(request.referrer or url_for('admin_bp.provider_maintenance'))
 
 
 @admin_bp.route("/get_funder_staff/<int:funder_id>")
