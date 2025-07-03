@@ -72,7 +72,7 @@ block content %}
       aria-labelledby="editLabel{{ provider.ProviderID }}"
       aria-hidden="true"
     >
-      <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-dialog modal-lg m">
         <div class="modal-content">
           <form
             method="POST"
@@ -138,8 +138,9 @@ block content %}
               <div
                 id="modalMap{{ provider.ProviderID }}"
                 class="rounded mt-3"
-                style="height: 300px"
+                style="height: 200px; max-height: 40vh"
               ></div>
+
               <div class="form-text mt-1">
                 Drag the marker to update lat/lon or click to add a marker
               </div>

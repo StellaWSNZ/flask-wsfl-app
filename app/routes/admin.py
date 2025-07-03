@@ -592,7 +592,12 @@ def manage_providers():
     if not funder_id:
         flash("No funder selected.", "warning")
         return redirect(url_for("admin_bp.provider_maintenance"))
-
+    if session.get("user_role") == "ADM":
+        pass  # Allow
+    elif session.get("user_role") == "FUN" and str(session.get("user_id")) == funder_id:
+        pass  # Allow
+    else:
+        abort(403)
     try:
         engine = get_db_engine()
         with engine.connect() as conn:

@@ -252,7 +252,7 @@ def _load_survey_list(email):
 
 
 # 🔹 View a specific completed survey by respondent ID
-# 🔹 View a specific completed survey by respondent ID
+# TO DO: Fix this
 @survey_bp.route("/MyForms/<int:respondent_id>")
 @login_required
 def view_my_survey_response(respondent_id):
@@ -377,39 +377,6 @@ def guest_survey_by_id(survey_id):
         traceback.print_exc()
         return "Internal Server Error", 500
 
-@survey_bp.route("/Form/id/<int:survey_id>")
-def survey_by_id(survey_id):
-    engine = get_db_engine()
-    Label = namedtuple("Label", ["pos", "text"])
-    questions = []
-    seen_ids = {}
-
-    try:
-        with engine.connect() as conn:
-            rows = conn.execute(text("""
-                EXEC SVY_GetSurveyQuestions @SurveyID = :survey_id
-            """), {"survey_id": survey_id}).fetchall()
-
-        for qid, qtext, qcode, pos, label in rows:
-            if qid not in seen_ids:
-                question = {
-                    "id": qid,
-                    "text": qtext,
-                    "type": qcode,
-                    "labels": []
-                }
-                questions.append(question)
-                seen_ids[qid] = question
-
-            if qcode == "LIK" and label:
-                question["labels"].append(Label(pos, label))
-
-        return render_template(f"survey_form_{survey_id}.html", questions=questions, route_name=f"id/{survey_id}")
-
-    except Exception:
-        traceback.print_exc()
-        return "Internal Server Error: Failed to load survey", 500
-    
     
 from flask import request, redirect, url_for, flash
 from app.utils.custom_email import send_survey_invite_email

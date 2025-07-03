@@ -27,6 +27,23 @@ from collections import defaultdict
 @class_bp.route('/Class/<int:class_id>/<int:term>/<int:year>')
 @login_required
 def view_class(class_id, term, year):
+    engine = get_db_engine()
+    with engine.begin() as conn:
+        access_result = conn.execute(
+            text("EXEC FlaskAccessControl @Request = :request, @Role = :role, @UserID = :uid, @ClassID = :cid"),
+            {
+                "request":"CanAccessClass",
+                "role": session.get("user_role"),
+                "uid": session.get("user_id"),
+                "cid": class_id
+            }
+        ).fetchone()
+
+        if not access_result or access_result[0] != "Authorised":
+            print("🚫 Access denied for user")
+            flash("You are not authorised to view this class.", "danger")
+            return redirect(url_for("class_bp.funder_classes"))
+            
     try:
         filter_type = request.args.get("filter", "all")
         order_by = request.args.get("order_by", "last")
@@ -878,6 +895,22 @@ def moe_classes():
 @class_bp.route("/Class/print/<int:class_id>/<int:term>/<int:year>")
 @login_required
 def print_class_view(class_id, term, year):
+    engine = get_db_engine()
+    with engine.begin() as conn:
+        access_result = conn.execute(
+            text("EXEC FlaskAccessControl @Request = :request, @Role = :role, @UserID = :uid, @ClassID = :cid"),
+            {
+                "request":"CanAccessClass",
+                "role": session.get("user_role"),
+                "uid": session.get("user_id"),
+                "cid": class_id
+            }
+        ).fetchone()
+
+        if not access_result or access_result[0] != "Authorised":
+            print("🚫 Access denied for user")
+            flash("You are not authorised to view this class.", "danger")
+            return redirect(url_for("class_bp.funder_classes"))
     filter_type = request.args.get("filter") or session.get("last_filter_used", "all")
     order_by = request.args.get("order_by", "last")
     cache_key = f"{class_id}_{term}_{year}_{filter_type}"

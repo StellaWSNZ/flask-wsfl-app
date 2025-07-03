@@ -125,7 +125,7 @@ def funder_dashboard():
 
         entity_desc = session.get("desc")
         search_list = all_providers if entity_type == "Provider" else all_funders
-        print(search_list)
+        print(entity_desc)
         for item in search_list:
             if int(item["id"]) == int(selected_funder_id):
                 entity_desc = item["name"]
