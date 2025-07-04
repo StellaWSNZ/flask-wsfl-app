@@ -3,6 +3,7 @@ import base64
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+from base64 import b64decode
 
 from flask import Blueprint, render_template, request, session, flash, redirect, url_for, send_file
 from app.utils.database import get_db_engine
@@ -192,7 +193,10 @@ def reporting():
             last_pdf_bytes = pdf_buf.getvalue()
             last_pdf_filename = f"{report_type}_Report_Term{selected_term}_{selected_year}.pdf"
             plt.close(fig)
-
+            session["report_pdf_bytes"] = base64.b64encode(last_pdf_bytes).decode("utf-8")
+            session["report_pdf_filename"] = last_pdf_filename
+            session["report_png_bytes"] = base64.b64encode(last_png_bytes).decode("utf-8")
+            session["report_png_filename"] = last_png_filename
         return render_template("reporting.html",
             funders=funders,
             providers=providers,
@@ -217,15 +221,44 @@ def reporting():
 @report_bp.route('/Reporting/download_pdf')
 @login_required
 def download_pdf():
-    if not last_pdf_bytes:
-        flash("No PDF report has been generated yet.", "warning")
+    try:
+        pdf_data = session.get("report_pdf_bytes")
+        pdf_name = session.get("report_pdf_filename") or "report.pdf"
+        if not pdf_data:
+            flash("No PDF report has been generated yet.", "warning")
+            return redirect(url_for("report_bp.reporting"))
+
+        return send_file(
+            io.BytesIO(b64decode(pdf_data)),
+            download_name=pdf_name,
+            as_attachment=True,
+            mimetype='application/pdf'
+        )
+    except Exception as e:
+        print("❌ Error in /download_pdf:", e)
+        traceback.print_exc()
+        flash("An error occurred while downloading the PDF.", "danger")
         return redirect(url_for("report_bp.reporting"))
-    return send_file(io.BytesIO(last_pdf_bytes), download_name=last_pdf_filename, as_attachment=True, mimetype='application/pdf')
+
 
 @report_bp.route('/Reporting/download_png')
 @login_required
 def download_png():
-    if not last_png_bytes:
-        flash("No PNG report has been generated yet.", "warning")
+    try:
+        png_data = session.get("report_png_bytes")
+        png_name = session.get("report_png_filename") or "report.png"
+        if not png_data:
+            flash("No PNG report has been generated yet.", "warning")
+            return redirect(url_for("report_bp.reporting"))
+
+        return send_file(
+            io.BytesIO(b64decode(png_data)),
+            download_name=png_name,
+            as_attachment=True,
+            mimetype='image/png'
+        )
+    except Exception as e:
+        print("❌ Error in /download_png:", e)
+        traceback.print_exc()
+        flash("An error occurred while downloading the PNG.", "danger")
         return redirect(url_for("report_bp.reporting"))
-    return send_file(io.BytesIO(last_png_bytes), download_name=last_png_filename, as_attachment=True, mimetype='image/png')

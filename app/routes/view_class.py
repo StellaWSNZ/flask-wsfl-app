@@ -16,7 +16,7 @@ from app.utils.competencyplot import load_competency_rates, make_figure
 from app.utils.nationalplot import generate_national_report
 import traceback
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta,timezone
 
 class_bp = Blueprint("class_bp", __name__)
 
@@ -27,23 +27,6 @@ from collections import defaultdict
 @class_bp.route('/Class/<int:class_id>/<int:term>/<int:year>')
 @login_required
 def view_class(class_id, term, year):
-    engine = get_db_engine()
-    with engine.begin() as conn:
-        access_result = conn.execute(
-            text("EXEC FlaskAccessControl @Request = :request, @Role = :role, @UserID = :uid, @ClassID = :cid"),
-            {
-                "request":"CanAccessClass",
-                "role": session.get("user_role"),
-                "uid": session.get("user_id"),
-                "cid": class_id
-            }
-        ).fetchone()
-
-        if not access_result or access_result[0] != "Authorised":
-            print("🚫 Access denied for user")
-            flash("You are not authorised to view this class.", "danger")
-            return redirect(url_for("class_bp.funder_classes"))
-            
     try:
         filter_type = request.args.get("filter", "all")
         order_by = request.args.get("order_by", "last")
@@ -56,7 +39,7 @@ def view_class(class_id, term, year):
             if expires_str:
                 try:
                     expires_at = isoparse(expires_str)
-                    if datetime.utcnow() > expires_at:
+                    if datetime.now(timezone.utc) > expires_at:
                         print(f"🕒 Cache expired for {cache_key}")
                         session["class_cache"].pop(cache_key, None)
                         cached = None
@@ -68,6 +51,7 @@ def view_class(class_id, term, year):
         # ✅ Use cache if valid
         if cached and "student_competencies" in cached:
             try:
+                print("using cached")
                 df_combined = pd.DataFrame(cached["student_competencies"])
                 df_combined = df_combined.sort_values("PreferredName" if order_by == "first" else "LastName")
 
@@ -92,7 +76,7 @@ def view_class(class_id, term, year):
                     term=term,
                     year=year,
                     order_by=order_by,
-                filter_type = request.args.get("filter", "all")
+                    filter_type = request.args.get("filter", "all")
 
                 )
             except Exception:
@@ -136,8 +120,12 @@ def view_class(class_id, term, year):
             comp_result = conn.execute(text("EXEC GetRelevantCompetencies :CalendarYear, :Term"),
                                        {"CalendarYear": year, "Term": term})
             comp_df = pd.DataFrame(comp_result.fetchall(), columns=comp_result.keys())
+            print(f"📘 Loaded {len(comp_df)} competencies before filtering")
+
+            
             if filter_type == "water":
                 comp_df = comp_df[comp_df["WaterBased"] == 1]
+                print(f"💧 Filtered water-based competencies: {len(comp_df)}")
 
             comp_df["label"] = comp_df["CompetencyDesc"] + " <br>(" + comp_df["YearGroupDesc"] + ")"
             comp_df["col_order"] = comp_df["YearGroupID"].astype(str).str.zfill(2) + "-" + comp_df["CompetencyID"].astype(str).str.zfill(4)
@@ -145,8 +133,11 @@ def view_class(class_id, term, year):
             labels = comp_df["label"].tolist()
 
             all_records = []
+            print("📊 Beginning per-student competency + scenario merge")
+
             for _, student in students.iterrows():
                 nsn = student["NSN"]
+                print(f"🔍 Processing NSN: {nsn}")
 
                 comp_data = pd.read_sql(
                     text("""EXEC FlaskGetStudentCompetencyStatus 
@@ -157,6 +148,8 @@ def view_class(class_id, term, year):
                     conn,
                     params={"NSN": nsn, "Term": term, "CalendarYear": year, "Email": session.get("user_email")}
                 )
+                print(f"📘 Competencies for NSN {nsn}: {len(comp_data)} records")
+                
                 if not comp_data.empty:
                     comp_data = comp_data.merge(comp_df[["CompetencyID", "YearGroupID", "label"]],
                                                 on=["CompetencyID", "YearGroupID"], how="inner")
@@ -200,14 +193,14 @@ def view_class(class_id, term, year):
             for row in auto_result:
                 header_map[row.HeaderPre].append(row.HeaderPost)
 
-            expiry_time = datetime.utcnow() + timedelta(minutes=15)
+            expiry_time = datetime.now(timezone.utc) + timedelta(minutes=15)
             session.setdefault("class_cache", {})[cache_key] = {
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "expires": expiry_time.isoformat(),
                 "students": students.to_dict(),
                 "competencies": comp_df.to_dict(),
                 "filter": filter_type,
-                "student_competencies": df_combined.to_dict(),
+"student_competencies": df_combined.to_dict(orient="records"),
                 "class_name": class_name,
                 "teacher_name": teacher_name,
                 "school_name": school_name,
@@ -371,7 +364,7 @@ def funder_classes():
     if session.get("user_role") not in ["FUN", "ADM", "GRP"]:
         flash("Unauthorized access", "danger")
         return redirect(url_for("home_bp.home"))
-
+    session.pop("class_cache", None) 
     engine = get_db_engine()
     classes, students, suggestions, schools = [], [], [], []
     selected_class_id = None
@@ -467,7 +460,6 @@ def funder_classes():
         YEAR=default_year,
         user_role=user_role
     )
-
 @class_bp.route('/update_competency', methods=['POST'])
 @login_required
 def update_competency():
@@ -483,7 +475,6 @@ def update_competency():
     print("📥 Incoming update_competency call")
     print(f"➡️ NSN: {nsn}, Header: {header_name}, Status: {status}, Class ID: {class_id}, Term: {term}, Year: {year}")
 
-    # ✅ Validate inputs
     if None in (nsn, header_name, status, class_id, term, year):
         print("❌ Missing one or more required fields")
         return jsonify({"success": False, "message": "Missing data"}), 400
@@ -492,7 +483,7 @@ def update_competency():
         engine = get_db_engine()
         with engine.begin() as conn:
             print("🔄 Running stored procedure FlaskUpdateAchievement...")
-            result = conn.execute(
+            conn.execute(
                 text("EXEC FlaskUpdateAchievement @NSN = :nsn, @Header = :header, @Value = :value, @Email = :email, @Debug = :debug"),
                 {
                     "nsn": nsn,
@@ -504,15 +495,22 @@ def update_competency():
             )
             print("✅ Stored procedure executed")
 
-        # 🧹 Invalidate session cache for this class
         class_cache = session.get("class_cache", {})
-        matching_keys = [key for key in class_cache if key.startswith(f"{class_id}_{term}_{year}_")]
-        print(f"🧹 Found {len(matching_keys)} cache keys to invalidate: {matching_keys}")
-        for key in matching_keys:
-            print(f"🗑️ Removing cache key: {key}")
-            class_cache.pop(key, None)
+        updated_keys = 0
+        updated_students = 0
 
-        session["class_cache"] = class_cache  # Make sure to reassign if modified
+        for key, cache in class_cache.items():
+            if key.startswith(f"{class_id}_{term}_{year}_"):
+                students = cache.get("student_competencies", [])
+                for student in students:
+                    if str(student.get("NSN")) == str(nsn):
+                        print(f"✏️ Updating cache for NSN {nsn}, header {header_name}")
+                        student[header_name] = status
+                        updated_students += 1
+                updated_keys += 1
+
+        session["class_cache"] = class_cache
+        print(f"✅ Cache edited for {updated_keys} key(s), {updated_students} student(s)")
 
         return jsonify({"success": True})
     except Exception as e:
@@ -520,6 +518,8 @@ def update_competency():
         import traceback
         traceback.print_exc()
         return jsonify({"success": False, "error": str(e)}), 500
+
+
 @class_bp.route("/update_scenario", methods=["POST"])
 @login_required
 def update_scenario():
@@ -532,7 +532,8 @@ def update_scenario():
     year = data.get("year")
     debug = 0
 
-    print(f"📥 Incoming update request: NSN={nsn}, Header='{header}', Status={value}")
+    print(f"📥 Incoming update_scenario call")
+    print(f"➡️ NSN: {nsn}, Header: {header}, Value: {value}, Class ID: {class_id}, Term: {term}, Year: {year}")
 
     if None in (nsn, header, value, class_id, term, year):
         return jsonify(success=False, error="Missing parameters"), 400
@@ -540,21 +541,44 @@ def update_scenario():
     try:
         engine = get_db_engine()
         with engine.begin() as conn:
+            print("🔄 Running stored procedure FlaskUpdateAchievement...")
             conn.execute(
                 text("EXEC FlaskUpdateAchievement @NSN = :nsn, @Header = :header, @Value = :value, @Email = :email, @Debug = :debug"),
-                {"nsn": nsn, "header": header, "value": value, "email": session.get("user_email"), "debug": debug}
+                {
+                    "nsn": nsn,
+                    "header": header,
+                    "value": value,
+                    "email": session.get("user_email"),
+                    "debug": debug
+                }
             )
+            print("✅ Stored procedure executed")
 
-        # 🧹 Invalidate cache for this class
+        # ✏️ Inline update of session cache
         class_cache = session.get("class_cache", {})
-        matching_keys = [key for key in class_cache if key.startswith(f"{class_id}_{term}_{year}_")]
-        for key in matching_keys:
-            class_cache.pop(key, None)
-        print(f"🧹 Cache cleared for keys: {matching_keys}")
+        prefix = f"{class_id}_{term}_{year}_"
+        updates = 0
+
+        for key in list(class_cache):
+            if key.startswith(prefix):
+                entry = class_cache[key]
+                students = entry.get("student_competencies", [])
+                for student in students:
+                    if isinstance(student, dict) and str(student.get("NSN")) == str(nsn):
+                        print(f"✏️ Updating scenario cache for NSN {nsn}, header {header} in key {key}")
+                        student[header] = str(value)
+                        updates += 1
+                class_cache[key] = entry  # save updated version
+
+        session["class_cache"] = class_cache
+        print(f"✅ Scenario cache updated in {updates} cache keys")
 
         return jsonify(success=True)
+
     except Exception as e:
         print("❌ Scenario update failed:", e)
+        import traceback
+        traceback.print_exc()
         return jsonify(success=False, error=str(e)), 500
 
 
@@ -895,22 +919,6 @@ def moe_classes():
 @class_bp.route("/Class/print/<int:class_id>/<int:term>/<int:year>")
 @login_required
 def print_class_view(class_id, term, year):
-    engine = get_db_engine()
-    with engine.begin() as conn:
-        access_result = conn.execute(
-            text("EXEC FlaskAccessControl @Request = :request, @Role = :role, @UserID = :uid, @ClassID = :cid"),
-            {
-                "request":"CanAccessClass",
-                "role": session.get("user_role"),
-                "uid": session.get("user_id"),
-                "cid": class_id
-            }
-        ).fetchone()
-
-        if not access_result or access_result[0] != "Authorised":
-            print("🚫 Access denied for user")
-            flash("You are not authorised to view this class.", "danger")
-            return redirect(url_for("class_bp.funder_classes"))
     filter_type = request.args.get("filter") or session.get("last_filter_used", "all")
     order_by = request.args.get("order_by", "last")
     cache_key = f"{class_id}_{term}_{year}_{filter_type}"
