@@ -3,7 +3,7 @@ import io
 import json
 import threading
 import pandas as pd
-from flask import Blueprint, render_template, request, session, flash, redirect, url_for, send_file, jsonify
+from flask import Blueprint, render_template, request, session, flash, redirect, url_for, send_file, jsonify, abort
 from app.utils.database import get_db_engine
 from werkzeug.utils import secure_filename
 from app.routes.auth import login_required
@@ -62,8 +62,9 @@ def normalize_date_string(s):
 def classlistupload():
     try:
         validated=False
-        if session.get("user_role") not in ["ADM","FUN","MOE"]:
-            abort(403)
+        if session.get("user_role") not in ["ADM", "FUN", "MOE","PRO"]:
+            flash("You don’t have permission to access the class upload page.", "danger")
+            return redirect(url_for("home_bp.home"))  # or whatever landing page is suitable
         engine = get_db_engine()
         preview_data = None
         original_columns = [] 
@@ -74,6 +75,12 @@ def classlistupload():
         with engine.connect() as conn:
             if session.get("user_role") == "FUN":
                 funders = [{"Description": session.get("desc"), "FunderID": session.get("user_id")}]
+            elif session.get("user_role") == "PRO":
+                result = conn.execute(
+                    text("EXEC FlaskHelperFunctions :Request, @Number=:Number"),
+                    {"Request": "GetFunderByProvider", "Number": session.get("user_id")}
+                )
+                funders = [dict(row._mapping) for row in result]
             else:
                 result = conn.execute(text("EXEC FlaskHelperFunctions :Request"), {"Request": "FunderDropdown"})
                 funders = [dict(row._mapping) for row in result]
@@ -558,31 +565,57 @@ def submitclass():
                 
 
         #print(input_json)
-                
         with engine.begin() as conn:
-            conn.execute(
-                text("""
-                    EXEC FlaskInsertClassList
-                        @FunderID = :FunderID,
-                        @MOENumber = :MOENumber,
-                        @Term = :Term,
-                        @CalendarYear = :CalendarYear,
-                        @TeacherName = :TeacherName,
-                        @ClassName = :ClassName,
-                        @InputJSON = :InputJSON,
-                         @Email = :email
-                """),
-                {
-                    "FunderID": funder_id,
-                    "MOENumber": moe_number,
-                    "Term": term,
-                    "CalendarYear": year,
-                    "TeacherName": teacher,
-                    "ClassName": classname,
-                    "InputJSON": input_json,
-                    "email": session["user_email"]
-                }
-            )
+            if session.get("user_role") == "PRO":
+                conn.execute(
+                    text("""
+                        EXEC FlaskInsertClassList
+                            @FunderID = :FunderID,
+                            @MOENumber = :MOENumber,
+                            @Term = :Term,
+                            @CalendarYear = :CalendarYear,
+                            @TeacherName = :TeacherName,
+                            @ClassName = :ClassName,
+                            @InputJSON = :InputJSON,
+                            @Email = :email,
+                            @ProviderID = :ProviderID
+                    """),
+                    {
+                        "FunderID": funder_id,
+                        "MOENumber": moe_number,
+                        "Term": term,
+                        "CalendarYear": year,
+                        "TeacherName": teacher,
+                        "ClassName": classname,
+                        "InputJSON": input_json,
+                        "email": session["user_email"],
+                        "ProviderID": session.get("user_id")  # or however ProviderID is stored
+                    }
+                )
+            else:
+                conn.execute(
+                    text("""
+                        EXEC FlaskInsertClassList
+                            @FunderID = :FunderID,
+                            @MOENumber = :MOENumber,
+                            @Term = :Term,
+                            @CalendarYear = :CalendarYear,
+                            @TeacherName = :TeacherName,
+                            @ClassName = :ClassName,
+                            @InputJSON = :InputJSON,
+                            @Email = :email
+                    """),
+                    {
+                        "FunderID": funder_id,
+                        "MOENumber": moe_number,
+                        "Term": term,
+                        "CalendarYear": year,
+                        "TeacherName": teacher,
+                        "ClassName": classname,
+                        "InputJSON": input_json,
+                        "email": session["user_email"]
+                    }
+                )
         flash("✅ Class submitted successfully!", "success")
 
     except Exception as e:

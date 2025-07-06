@@ -205,7 +205,7 @@ def send_feedback_email(mail, user_email, issue_text, display_name, role, is_adm
 
     msg = Message(
         subject="WSFL Feedback Submitted",
-        recipients=["stella@watersafety.org.nz"],
+        recipients=["stella@watersafety.org.nz","dbadmin@watersafety.org.nz"],
         sender=(f"{display_name} via WSFL", current_app.config["MAIL_DEFAULT_SENDER"])
     )
 
