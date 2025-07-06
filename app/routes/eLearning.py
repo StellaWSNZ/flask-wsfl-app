@@ -49,12 +49,10 @@ def admin_eLearning_upload():
 
         return redirect(request.url)
 
-    return render_template("eLearning_upload.html")
 
-@eLearning_bp.route("/my-ip")
-def get_my_ip():
-    import requests
-    return requests.get("https://api.ipify.org").text
+
+    return render_template("elearning_upload.html")
+
 
 @eLearning_bp.route("/eLearning-guide")
 @login_required
@@ -79,3 +77,8 @@ def eLearning_guide():
         print("❌ Error in /eLearning-guide:", e)
         traceback.print_exc()
         return "An error occurred", 500
+    
+@eLearning_bp.route("/my-ip")
+def get_my_ip():
+    import requests
+    return requests.get("https://api.ipify.org").text
