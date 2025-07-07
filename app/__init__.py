@@ -80,6 +80,6 @@ def create_app():
     
     @app.context_processor
     def inject_user_email():
-        return {"user_admin": session.get("user_email")}
+        return {"user_email": session.get("user_email")}
 
     return app
