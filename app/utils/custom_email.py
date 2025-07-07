@@ -29,7 +29,7 @@ def send_reset_email(mail, email, token):
 def generate_reset_token(secret_key, email):
     serializer = URLSafeTimedSerializer(secret_key)
     return serializer.dumps(email, salt='reset-password')
-def verify_reset_token(token, max_age=3600):
+def verify_reset_token(token, max_age=86400):
     serializer = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
     try:
         return serializer.loads(token, salt='password-reset-salt', max_age=max_age)

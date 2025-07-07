@@ -312,7 +312,7 @@ def view_my_survey_response(respondent_id):
 def survey_invite_token(token):
     try:
         s = URLSafeTimedSerializer(current_app.secret_key)
-        data = s.loads(token, max_age=86400)  # 1 day
+        data = s.loads(token, max_age=259200)  # 1 day
         session.clear( )
         session["logged_in"] = False 
         session["guest_user"] = True
