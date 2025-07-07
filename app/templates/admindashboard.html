@@ -1,0 +1,131 @@
+{% extends "header.html" %}
+{% block title %}Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <h2 class="mb-4 text-center">Admin Dashboard - School Summary by Funder</h2>
+
+  <!-- Filter Form -->
+  <form method="get" class="row g-3 align-items-end mb-4">
+    <div class="col-md-3">
+      <label for="term" class="form-label">Term</label>
+      <select class="form-select" name="term" id="term">
+        {% for t in range(1, 5) %}
+        <option value="{{ t }}" {% if term == t %}selected{% endif %}>Term {{ t }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label for="year" class="form-label">Year</label>
+      <select class="form-select" name="year" id="year">
+        {% for y in range(2023, 2026) %}
+        <option value="{{ y }}" {% if year == y %}selected{% endif %}>{{ y }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-4">
+<label for="threshold" class="form-label">
+  Edited Class Threshold (≥)
+  <i class="bi bi-info-circle-fill text-secondary"
+     data-bs-toggle="tooltip"
+     data-bs-placement="right"
+     title="The rate of students that must be edited for a class to be considered edited."></i>
+</label>  
+<div class="d-flex align-items-center">
+    <!-- Slider -->
+    <input type="range"
+           class="form-range me-2"
+           name="threshold"
+           id="threshold"
+           min="0" max="1" step="0.01"
+           value="{{ '%.2f'|format(threshold) }}"
+           style="flex: 1 1 auto;">
+
+    <!-- Number Input -->
+    <input type="number"
+           name="threshold_input"
+           id="threshold_input"
+           min="0" max="1" step="0.01"
+           value="{{ '%.2f'|format(threshold) }}"
+           class="form-control form-control-sm"
+           style="width: 70px;">
+  </div>
+</div>
+
+    <div class="col-md-2">
+      <button type="submit" class="btn btn-primary w-100">Update</button>
+    </div>
+  </form>
+
+  <!-- Accordion of Funder Tables -->
+  <div class="accordion" id="funderAccordion">
+    {% for funder in funder_data %}
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="heading{{ loop.index }}">
+        <button
+          class="accordion-button collapsed"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#collapse{{ loop.index }}"
+          aria-expanded="false"
+          aria-controls="collapse{{ loop.index }}"
+        >
+          {{ funder.name }}
+        </button>
+      </h2>
+      <div
+        id="collapse{{ loop.index }}"
+        class="accordion-collapse collapse"
+        aria-labelledby="heading{{ loop.index }}"
+        data-bs-parent="#funderAccordion"
+      >
+        <div class="accordion-body">
+          {% if funder.schools %}
+          <table class="table table-bordered table-sm">
+            <thead>
+              <tr>
+                {% for col in funder.schools[0].keys() %}
+                <th>{{ col }}</th>
+                {% endfor %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for school in funder.schools %}
+              <tr>
+                {% for key, val in school.items() %}
+                <td>
+                  {% if key == 'PL' and val is number %}
+                    <strong>{{ "%.2f"|format(val) }}</strong>
+                  {% else %}
+                    {{ val }}
+                  {% endif %}
+                </td>
+                {% endfor %}
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          {% else %}
+          <p class="text-muted">No schools found for this funder.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+<script>
+  const slider = document.getElementById("threshold");
+  const input = document.getElementById("threshold_input");
+
+  slider.addEventListener("input", () => {
+    input.value = slider.value;
+  });
+
+  input.addEventListener("input", () => {
+    if (parseFloat(input.value) >= 0 && parseFloat(input.value) <= 1) {
+      slider.value = input.value;
+    }
+  });
+</script>
+{% endblock %}

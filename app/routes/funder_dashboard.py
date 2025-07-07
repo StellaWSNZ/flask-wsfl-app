@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, session, redirect, jsonify, abort
+from flask import Blueprint, render_template, request, session, redirect, jsonify, abort, url_for
 from sqlalchemy import text
 from app.routes.auth import login_required
 from app.utils.database import get_db_engine
@@ -275,3 +275,75 @@ def get_entities():
     print(f"✅ Final entities being returned = {entities}\n")
     return jsonify(entities)
 
+
+
+@funder_bp.route('/AdminDashboard', methods=['GET', 'POST'])
+@login_required
+def admin_dashboard():
+    if session.get("user_role") != "ADM":
+        return redirect(url_for("home_bp.home"))
+
+    # Get filter inputs
+    term = int(request.args.get("term", 2))
+    year = int(request.args.get("year", 2025))
+    threshold_raw = request.args.get("threshold", "0.5")
+
+    try:
+        threshold = float(threshold_raw)
+    except ValueError:
+        threshold = 0.5
+
+    engine = get_db_engine()
+    funder_data = []
+
+    with engine.begin() as conn:
+        # Get all funders
+        result = conn.execute(text("EXEC FlaskHelperFunctions @Request = 'FunderDropdown'"))
+        funders = [dict(row._mapping) for row in result]
+
+        for funder in funders:
+            funder_id = funder["FunderID"]
+            funder_name = funder["Description"]
+
+            school_result = conn.execute(text("""
+                EXEC FlaskGetSchoolSummaryByFunder 
+                @FunderID = :fid, 
+                @CalendarYear = :year, 
+                @Term = :term, 
+                @Email = :email
+            """), {
+                "fid": funder_id,
+                "year": year,
+                "term": term,
+                "email": session.get("user_email")
+            })
+
+            # Convert result and drop unwanted columns
+            schools = [
+                {k: v for k, v in dict(row._mapping).items() if k not in ["CalendarYear", "Term"]}
+                for row in school_result
+            ]
+
+            # Apply PL filtering
+            filtered_schools = []
+            for row in schools:
+                if "PL" in row and isinstance(row["PL"], (int, float)):
+                    if row["PL"] >= threshold:
+                        filtered_schools.append(row)
+                else:
+                    filtered_schools.append(row)  # include if PL missing
+
+            funder_data.append({
+                "id": funder_id,
+                "name": funder_name,
+                "schools": filtered_schools
+            })
+
+    return render_template(
+        "admindashboard.html",
+        funder_data=funder_data,
+        user=session.get("email"),
+        term=term,
+        year=year,
+        threshold=threshold
+    )
