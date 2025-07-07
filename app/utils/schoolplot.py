@@ -5,7 +5,8 @@ import pandas as pd
 import os
 import textwrap
 from sqlalchemy import create_engine, text
-
+from datetime import datetime
+import pytz
 # ===================
 # CONFIGURATION
 # ===================
@@ -48,6 +49,13 @@ def load_national_results(con, calendaryear, term, moenumber, from_db=True):
 # ===================
 # VISUALIZATION FUNCTIONS
 # ===================
+
+def get_nz_datetime_string():
+    nz = pytz.timezone("Pacific/Auckland")
+    now_nz = datetime.now(nz)
+    return now_nz.strftime("Generated on %d/%m/%Y at %I:%M %p")
+
+
 def draw_key(ax, x, y):
     labels = ['National Rate (LY)', 'School Rate (YTD)']
     colors = ['#2EBDC2', '#BBE6E9']
@@ -133,6 +141,15 @@ def make_figure(df, DEBUG, TITLE, PAGE_SIZE, TITLE_SPACE, subtitle_space, row_he
             print(f"Missing row height for YearGroupDesc {group}")
     for spine in ax.spines.values():
         spine.set_visible(False)
+    ax.text(
+        0.01, 0.01,  # near bottom-left in data coordinates
+        get_nz_datetime_string(),
+        transform=ax.transAxes,
+        fontsize=7,
+        ha='left',
+        va='bottom',
+        color='gray'
+    )
     return fig
 
 def save_and_open_pdf(fig, filename):

@@ -42,27 +42,34 @@
               </select>
             </div>
             {% endif %}
-{% if user_role in ["FUN", "ADM","GRP"] %}
-<div class="col-12" id="provider_section">
-  <label for="provider" class="form-label">Provider</label>
-  <select name="provider" id="provider" class="form-select">
-    {% for name in providers %}
-      <option value="{{ name }}" {% if name == selected_funder %}selected{% endif %}>{{ name }}</option>
-    {% endfor %}
+            <div class="col-12" id="funder_variable_section" style="display: none;">
+  <label for="funder_variables" class="form-label">Select Variables</label>
+  <select name="funder_variables" id="funder_variables" class="form-select">
+    <option value="YTD">National Rate (YTD), Funder Rate (YTD), Target</option>
+    <option value="LY" selected>National Rate (LY), Funder Rate (YTD), Target</option>
   </select>
 </div>
-{% endif %}
-{% if user_role in ["PRO", "FUN", "ADM","GRP"] %}
+            {% if user_role in ["FUN", "ADM","GRP"] %}
+            <div class="col-12" id="provider_section">
+              <label for="provider" class="form-label">Provider</label>
+              <select name="provider" id="provider" class="form-select">
+                {% for name in providers %}
+                  <option value="{{ name }}" {% if name == selected_funder %}selected{% endif %}>{{ name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            {% endif %}
+            {% if user_role in ["PRO", "FUN", "ADM","GRP"] %}
 
-<div class="col-12" id="school_section">
-  <label for="school" class="form-label">School</label>
-  <select name="school" id="school" class="form-select">
-    {% for name in schools %}
-      <option value="{{ name }}" {% if name == selected_funder %}selected{% endif %}>{{ name }}</option>
-    {% endfor %}
-  </select>
-</div>
-{% endif %}
+            <div class="col-12" id="school_section">
+              <label for="school" class="form-label">School</label>
+              <select name="school" id="school" class="form-select">
+                {% for name in schools %}
+                  <option value="{{ name }}" {% if name == selected_funder %}selected{% endif %}>{{ name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            {% endif %}
 
             <div class="col-6">
               <label for="term_year" class="form-label">Reporting Term</label>
@@ -125,7 +132,10 @@
 <script>
   function toggleReportFields() {
     const type = document.getElementById('report_type').value;
-
+    const funderVariableSection = document.getElementById('funder_variable_section');
+    if (funderVariableSection) {
+      funderVariableSection.style.display = type === 'Funder' ? 'block' : 'none';
+    }
     // Toggle competency section
     const competencySection = document.getElementById('competency_section');
     if (competencySection) {

@@ -5,8 +5,8 @@ import pandas as pd
 import os
 from sqlalchemy import create_engine, text
 import textwrap
-from datetime import date
-
+from datetime import date, datetime
+import pytz
 # ===================
 # CONFIGURATION
 # ===================
@@ -69,8 +69,18 @@ def load_funder_results(con, calendaryear, term, FunderID):
         #print(pd.DataFrame(data, columns=columns).head())
     return pd.DataFrame(data, columns=columns)
 
+def get_nz_datetime_string():
+    nz = pytz.timezone("Pacific/Auckland")
+    now_nz = datetime.now(nz)
+    return now_nz.strftime("Generated on %d/%m/%Y at %I:%M %p")
+
 # graphing.py
-def create_competency_report(term, year, funder_id, funder_name=None):
+def create_competency_report(term, year, funder_id, funder_name=None, comparison_type="LY"):
+    
+    if comparison_type == "YTD":
+        national_rate_label = "National Rate (YTD)"
+    else:
+        national_rate_label = "National Rate (LY)"
     con = get_db_engine()
     competencies_df = load_competencies(con, year, term)
     competencies_df = competencies_df[competencies_df['WaterBased'] == 1]
@@ -80,27 +90,51 @@ def create_competency_report(term, year, funder_id, funder_name=None):
         funder_name = load_funder_name(con, funder_id)
 
     fig, ax = plt.subplots(figsize=PAGE_SIZE)
-    make_grid(ax, N_COLS, N_ROWS, ROW_HEIGHTS, TITLE_SPACE, SUBTITLE_SPACE, competencies_df, fundersresults, DEBUG)
+    make_grid(
+        ax, N_COLS, N_ROWS, ROW_HEIGHTS,
+        TITLE_SPACE, SUBTITLE_SPACE,
+        competencies_df, fundersresults,
+        DEBUG, national_rate_label
+    )
 
     ax.text(
         N_COLS / 2,
         N_ROWS + (TITLE_SPACE / 2),
         "Competency Report for " + funder_name,
         ha='center', va='center',
-        fontsize=14, weight='demibold'
+        fontsize=14, weight='bold'
+    )
+    
+    # Subtitle (below title)
+    ax.text(
+        N_COLS / 2,
+        N_ROWS + (TITLE_SPACE / 2) - 0.04,
+        f"Term {term}, {year}",
+        ha='center', va='top',
+        fontsize=10, weight='demibold' 
+    )
+
+    ax.text(
+        0.01, 0.01,  # near bottom-left in data coordinates
+        get_nz_datetime_string(),
+        transform=ax.transAxes,
+        fontsize=7,
+        ha='left',
+        va='bottom',
+        color='gray'
     )
     return fig
 
 
-def get_colour(var):
+def get_colour(var, national_rate_label):
     colours = {
-        'National Rate (LY)': "#2EBDC2",    # Blue
-        'Funder Rate (YTD)': "#356FB6",   # Teal
-        'Funder Target': "#BBE6E9"        # Light Blue
+        national_rate_label: "#2EBDC2",    # Dynamic Blue label
+        'Funder Rate (YTD)': "#356FB6",    # Teal
+        'Funder Target': "#BBE6E9"         # Light Blue
     }
     return colours.get(var, "#CCCCCC")  # default grey if not found
 
-def make_grid(ax, n_cols, n_rows, row_heights, title_space, subtitle_space, df, df_results, debug=False):
+def make_grid(ax, n_cols, n_rows, row_heights, title_space, subtitle_space, df, df_results, debug, national_rate_label):
     total_height = sum(row_heights)
     subtitles = sorted(df['YearGroupDesc'].unique())
 
@@ -122,13 +156,13 @@ def make_grid(ax, n_cols, n_rows, row_heights, title_space, subtitle_space, df, 
                 make_yeargroup_plot(
                     ax, col, row_start_y[row], row_heights[row],
                     subtitles[idx], df, df_results,
-                    subtitle_space, debug
+                    subtitle_space, debug, national_rate_label
                 )
                 idx += 1
     for spine in ax.spines.values():
         spine.set_visible(False)
-def draw_key(ax, x, y):
-    labels = ['National Rate (LY)', 'Funder Rate (YTD)', 'Funder Target']
+def draw_key(ax, x, y, national_rate_label):
+    labels = [national_rate_label, 'Funder Rate (YTD)', 'Funder Target']
     colors = ['#2EBDC2', '#356FB6', '#BBE6E9']
     box_size = 0.03
     padding = 0.01
@@ -151,7 +185,7 @@ def draw_key(ax, x, y):
 
 
 
-def make_yeargroup_plot(ax, x, y_top, cell_height, title, df_relcomp, df_results, subtitle_space, debug=False):
+def make_yeargroup_plot(ax, x, y_top, cell_height, title, df_relcomp, df_results, subtitle_space, debug, national_rate_label):
     # Title at top-center
     ax.text(
         x + 0.5,
@@ -186,7 +220,7 @@ def make_yeargroup_plot(ax, x, y_top, cell_height, title, df_relcomp, df_results
         on=['YearGroupID', 'CompetencyID', 'CompetencyDesc','YearGroupDesc'],
         how='inner'
     )
-    vars = ['National Rate (LY)', 'Funder Rate (YTD)', 'Funder Target']
+    vars = [national_rate_label, 'Funder Rate (YTD)', 'Funder Target']
     df = df[df['ResultType'].isin(vars)]
     df = df.sort_values(by=['YearGroupID', 'CompetencyID'])
     cell_left = x       # start of this grid cell
@@ -238,6 +272,7 @@ def make_yeargroup_plot(ax, x, y_top, cell_height, title, df_relcomp, df_results
         )
 
         for var_value in vars:
+            print(var_value)
             rate_row = comp_rows[comp_rows['ResultType'] == var_value]
             if not rate_row.empty:
                 value = rate_row['Rate'].iloc[0]
@@ -264,14 +299,15 @@ def make_yeargroup_plot(ax, x, y_top, cell_height, title, df_relcomp, df_results
                     (bar_start_x, y_current - 0.02 - bar_spacing),
                     value * bar_max_width,
                     bar_height,
-                    facecolor=get_colour(var_value),
+                    facecolor=get_colour(var_value, national_rate_label),
                     edgecolor='none'
                 ))
 
                 y_current -= rate_spacing
 
         y_current -= competency_spacing
-    draw_key(ax, cell_center, y_current-0.05)
+    draw_key(ax, cell_center, y_current-0.05, national_rate_label)
+
 
 def load_all_funders(con):
     with con.connect() as connection:

@@ -4,7 +4,8 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from base64 import b64decode
-
+from datetime import date, datetime
+import pytz
 from flask import Blueprint, render_template, request, session, flash, redirect, url_for, send_file
 from app.utils.database import get_db_engine
 from app.utils.fundernationalplot import create_competency_report as create_funder_report
@@ -134,7 +135,9 @@ def reporting():
                         flash("Funder not found.", "danger")
                         return redirect(url_for("report_bp.reporting"))
                     funder_id = int(row.FunderID)
-                    fig = create_funder_report(selected_term, selected_year, funder_id, funder_name)
+                    funder_variables = request.form.get("funder_variables", "ly") 
+                    fig = create_funder_report(selected_term, selected_year, funder_id, funder_name, funder_variables)
+
 
             elif report_type == "Provider":
                 with engine.connect() as conn:

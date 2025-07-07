@@ -5,8 +5,8 @@ import pandas as pd
 import os
 from sqlalchemy import create_engine, text
 import textwrap
-from datetime import date
-
+from datetime import date, datetime
+import pytz
 # ===================
 # CONFIGURATION
 # ===================
@@ -95,6 +95,11 @@ def draw_key(ax, x, y):
             box_x + box_size + padding, y + box_size * (11.69/8.27) / 2,
             label, va='center', ha='left', fontsize=7
         )
+
+def get_nz_datetime_string():
+    nz = pytz.timezone("Pacific/Auckland")
+    now_nz = datetime.now(nz)
+    return now_nz.strftime("Generated on %d/%m/%Y at %I:%M %p")
 
 def make_yeargroup_plot(ax, x, y_top, cell_height, title, df_relcomp, df_results, subtitle_space, debug=False):
     ax.text(
@@ -220,11 +225,28 @@ def create_competency_report(term, year, provider_id, provider_name=None):
     ax.text(
         N_COLS / 2,
         N_ROWS + (TITLE_SPACE / 2),
-        f"Competency Report for {provider_name}",
+        "Competency Report for " + provider_name,
         ha='center', va='center',
-        fontsize=14, weight='demibold'
+        fontsize=14, weight='bold'
     )
-
+    
+    # Subtitle (below title)
+    ax.text(
+        N_COLS / 2,
+        N_ROWS + (TITLE_SPACE / 2) - 0.04,
+        f"Term {term}, {year}",
+        ha='center', va='top',
+        fontsize=10, weight='demibold' 
+    )
+    ax.text(
+        0.01, 0.01,  # near bottom-left in data coordinates
+        get_nz_datetime_string(),
+        transform=ax.transAxes,
+        fontsize=7,
+        ha='left',
+        va='bottom',
+        color='gray'
+    )
     return fig
 
 
