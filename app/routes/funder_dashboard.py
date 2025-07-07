@@ -287,6 +287,7 @@ def admin_dashboard():
     term = int(request.args.get("term", 2))
     year = int(request.args.get("year", 2025))
     threshold_raw = request.args.get("threshold", "0.5")
+    form_submitted = "term" in request.args or "year" in request.args or "threshold" in request.args
 
     try:
         threshold = float(threshold_raw)
@@ -406,8 +407,10 @@ def admin_dashboard():
             user=session.get("email"),
             term=term,
             year=year,
-            threshold=threshold
+            threshold=threshold,
+            form_submitted=form_submitted
         )
+
     except Exception as e:
         print("❌ Error rendering template:", e)
         import traceback

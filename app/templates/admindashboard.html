@@ -41,10 +41,16 @@
       </div>
     </div>
     <div class="col-md-2">
+        {% if form_submitted %}
       <button type="submit" class="btn btn-primary w-100">Update</button>
+      {% else %}
+            <button type="submit" class="btn btn-primary w-100">Load</button>
+
+      {% endif %}
     </div>
   </form>
 
+  {% if form_submitted %}
   <!-- Accordion -->
   <div class="accordion" id="funderAccordion">
     {% for funder in funder_data %}
@@ -118,11 +124,11 @@
                         {% elif status == 'Passed' %}bg-success
                         {% elif status == 'Cancelled' %}bg-danger
                         {% endif %}{% endif %}"
-      data-bs-toggle="tooltip"
-      data-bs-placement="top"
-      title="{{ staff[status ~ '_Courses'] | join('&#10;') | safe if staff[status ~ '_Courses'] else '' }}">
-  {{ status }}: {{ staff[status] }}
-</span>
+                        data-bs-toggle="tooltip"
+                        data-bs-placement="top"
+                        title="{{ staff[status ~ '_Courses'] | join('&#10;') | safe if staff[status ~ '_Courses'] else '' }}">
+                        {{ status }}: {{ staff[status] }}
+                      </span>
                     </td>
                     {% endfor %}
                   </tr>
@@ -139,6 +145,11 @@
     </div>
     {% endfor %}
   </div>
+  {% else %}
+  <div class="alert alert-info text-center mt-4">
+    Please use the filter form above and press <strong>Load</strong> to load the dashboard.
+  </div>
+  {% endif %}
 </div>
 
 <style>
@@ -153,7 +164,6 @@
   white-space: pre-wrap;
   text-align: left;
 }
-
 </style>
 
 <script>
@@ -165,15 +175,16 @@
   });
 
   input.addEventListener("input", () => {
-    if (parseFloat(input.value) >= 0 && parseFloat(input.value) <= 1) {
-      slider.value = input.value;
+    const val = parseFloat(input.value);
+    if (!isNaN(val) && val >= 0 && val <= 1) {
+      slider.value = val;
     }
   });
 
-    document.addEventListener("DOMContentLoaded", function () {
+  document.addEventListener("DOMContentLoaded", function () {
     const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    tooltipTriggerList.forEach(function (tooltipTriggerEl) {
-      new bootstrap.Tooltip(tooltipTriggerEl);
+    tooltipTriggerList.forEach(function (el) {
+      new bootstrap.Tooltip(el);
     });
   });
 </script>
