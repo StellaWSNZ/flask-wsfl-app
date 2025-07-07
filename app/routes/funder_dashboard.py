@@ -4,6 +4,7 @@ from app.routes.auth import login_required
 from app.utils.database import get_db_engine
 import pandas as pd
 import traceback
+from collections import defaultdict
 
 funder_bp = Blueprint("funder_bp", __name__)
 
@@ -275,15 +276,14 @@ def get_entities():
     print(f"✅ Final entities being returned = {entities}\n")
     return jsonify(entities)
 
-
-
 @funder_bp.route('/AdminDashboard', methods=['GET', 'POST'])
 @login_required
 def admin_dashboard():
     if session.get("user_role") != "ADM":
+        print("❌ Access denied: user is not ADM")
         return redirect(url_for("home_bp.home"))
 
-    # Get filter inputs
+    print("✅ Access granted: ADM user")
     term = int(request.args.get("term", 2))
     year = int(request.args.get("year", 2025))
     threshold_raw = request.args.get("threshold", "0.5")
@@ -292,58 +292,124 @@ def admin_dashboard():
         threshold = float(threshold_raw)
     except ValueError:
         threshold = 0.5
+        print(f"⚠️ Invalid threshold '{threshold_raw}' provided, defaulting to {threshold}")
+
+    print(f"🔍 Filters: Term={term}, Year={year}, Threshold={threshold}")
 
     engine = get_db_engine()
     funder_data = []
 
     with engine.begin() as conn:
-        # Get all funders
         result = conn.execute(text("EXEC FlaskHelperFunctions @Request = 'FunderDropdown'"))
         funders = [dict(row._mapping) for row in result]
+        print(f"🧾 Found {len(funders)} funders")
 
         for funder in funders:
             funder_id = funder["FunderID"]
             funder_name = funder["Description"]
+            print(f"\n➡️ Processing funder: {funder_name} (ID: {funder_id})")
 
+            # Get school summary
             school_result = conn.execute(text("""
                 EXEC FlaskGetSchoolSummaryByFunder 
                 @FunderID = :fid, 
                 @CalendarYear = :year, 
                 @Term = :term, 
-                @Email = :email
+                @Email = :email,
+                @Threshold = :threshold
             """), {
                 "fid": funder_id,
                 "year": year,
                 "term": term,
-                "email": session.get("user_email")
+                "email": session.get("user_email"),
+                "threshold": threshold
             })
 
-            # Convert result and drop unwanted columns
-            schools = [
-                {k: v for k, v in dict(row._mapping).items() if k not in ["CalendarYear", "Term"]}
-                for row in school_result
-            ]
+            raw_schools = [dict(row._mapping) for row in school_result]
+            print(f"🏫 Raw schools returned: {len(raw_schools)}")
 
-            # Apply PL filtering
-            filtered_schools = []
-            for row in schools:
-                if "PL" in row and isinstance(row["PL"], (int, float)):
-                    if row["PL"] >= threshold:
-                        filtered_schools.append(row)
-                else:
-                    filtered_schools.append(row)  # include if PL missing
+            filtered_schools = [
+                {k: v for k, v in row.items() if k not in ["CalendarYear", "Term"]}
+                for row in raw_schools
+            ]
+            print(f"✅ Filtered schools retained: {len(filtered_schools)}")
+
+            try:
+                elearning_result = conn.execute(text("""
+                    EXEC flaskgetstaffelearning 
+                    @RoleType = 'FUN', 
+                    @ID = :fid, 
+                    @Email = :email
+                """), {
+                    "fid": funder_id,
+                    "email": session.get("user_email")
+                })
+
+                row_count = 0
+                elearning_summary = defaultdict(lambda: {
+                    "FirstName": "",
+                    "Surname": "",
+                    "Not Started": 0,
+                    "In Progress": 0,
+                    "Passed": 0,
+                    "Completed": 0,
+                    "Cancelled": 0
+                })
+
+                for row in elearning_result:
+                    r = dict(row._mapping)
+                    if r.get("Active", 0) != 1:
+                        continue 
+                    row_count += 1
+                    email = r["Email"]
+                    status = r["Status"]
+                    course_name = r.get("CourseName", "Unnamed Course")  # ensure this column exists
+
+                    elearning_summary[email]["FirstName"] = r["FirstName"]
+                    elearning_summary[email]["Surname"] = r["Surname"]
+
+                    # increment status count
+                    if status in elearning_summary[email]:
+                        elearning_summary[email][status] += 1
+                    else:
+                        elearning_summary[email][status] = 1
+
+                    # append course name to *_Courses list
+                    course_key = f"{status}_Courses"
+                    if course_key not in elearning_summary[email]:
+                        elearning_summary[email][course_key] = []
+                    elearning_summary[email][course_key].append(course_name)
+
+
+                print(f"👩‍🏫 eLearning records processed: {row_count}")
+            except Exception as e:
+                print(f"❌ Error fetching eLearning data for funder {funder_name}: {e}")
+                import traceback
+                traceback.print_exc()
+                elearning_summary = {}
+
+            print(f"👩‍🏫 eLearning records processed: {row_count}")
+            print(f"🧑‍💻 Unique staff found: {len(elearning_summary)}")
 
             funder_data.append({
                 "id": funder_id,
                 "name": funder_name,
-                "schools": filtered_schools
+                "schools": filtered_schools,
+                "elearning_summary": elearning_summary
             })
 
-    return render_template(
-        "admindashboard.html",
-        funder_data=funder_data,
-        user=session.get("email"),
-        term=term,
-        year=year,
-        threshold=threshold
-    )
+    print("✅ Finished processing all funders")
+    try:
+        return render_template(
+            "admindashboard.html",
+            funder_data=funder_data,
+            user=session.get("email"),
+            term=term,
+            year=year,
+            threshold=threshold
+        )
+    except Exception as e:
+        print("❌ Error rendering template:", e)
+        import traceback
+        traceback.print_exc()
+        return "Template rendering error", 500

@@ -2,7 +2,7 @@
 {% block title %}Admin Dashboard{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
+<div class="container-fluid mt-4">
   <h2 class="mb-4 text-center">Admin Dashboard - School Summary by Funder</h2>
 
   <!-- Filter Form -->
@@ -24,96 +24,138 @@
       </select>
     </div>
     <div class="col-md-4">
-<label for="threshold" class="form-label">
-  Edited Class Threshold (≥)
-  <i class="bi bi-info-circle-fill text-secondary"
-     data-bs-toggle="tooltip"
-     data-bs-placement="right"
-     title="The rate of students that must be edited for a class to be considered edited."></i>
-</label>  
-<div class="d-flex align-items-center">
-    <!-- Slider -->
-    <input type="range"
-           class="form-range me-2"
-           name="threshold"
-           id="threshold"
-           min="0" max="1" step="0.01"
-           value="{{ '%.2f'|format(threshold) }}"
-           style="flex: 1 1 auto;">
-
-    <!-- Number Input -->
-    <input type="number"
-           name="threshold_input"
-           id="threshold_input"
-           min="0" max="1" step="0.01"
-           value="{{ '%.2f'|format(threshold) }}"
-           class="form-control form-control-sm"
-           style="width: 70px;">
-  </div>
-</div>
-
+      <label for="threshold" class="form-label">
+        Edited Class Threshold (≥)
+        <i class="bi bi-info-circle-fill text-secondary"
+           data-bs-toggle="tooltip"
+           data-bs-placement="right"
+           title="The rate of students that must be edited for a class to be considered edited."></i>
+      </label>
+      <div class="d-flex align-items-center">
+        <input type="range" class="form-range me-2" name="threshold" id="threshold"
+               min="0" max="1" step="0.01" value="{{ '%.2f'|format(threshold) }}"
+               style="flex: 1 1 auto;">
+        <input type="number" name="threshold_input" id="threshold_input"
+               min="0" max="1" step="0.01" value="{{ '%.2f'|format(threshold) }}"
+               class="form-control form-control-sm" style="width: 70px;">
+      </div>
+    </div>
     <div class="col-md-2">
       <button type="submit" class="btn btn-primary w-100">Update</button>
     </div>
   </form>
 
-  <!-- Accordion of Funder Tables -->
+  <!-- Accordion -->
   <div class="accordion" id="funderAccordion">
     {% for funder in funder_data %}
     <div class="accordion-item">
       <h2 class="accordion-header" id="heading{{ loop.index }}">
-        <button
-          class="accordion-button collapsed"
-          type="button"
-          data-bs-toggle="collapse"
-          data-bs-target="#collapse{{ loop.index }}"
-          aria-expanded="false"
-          aria-controls="collapse{{ loop.index }}"
-        >
+        <button class="accordion-button collapsed" type="button"
+                data-bs-toggle="collapse" data-bs-target="#collapse{{ loop.index }}"
+                aria-expanded="false" aria-controls="collapse{{ loop.index }}">
           {{ funder.name }}
         </button>
       </h2>
-      <div
-        id="collapse{{ loop.index }}"
-        class="accordion-collapse collapse"
-        aria-labelledby="heading{{ loop.index }}"
-        data-bs-parent="#funderAccordion"
-      >
+      <div id="collapse{{ loop.index }}" class="accordion-collapse collapse"
+           aria-labelledby="heading{{ loop.index }}" data-bs-parent="#funderAccordion">
         <div class="accordion-body">
-          {% if funder.schools %}
-          <table class="table table-bordered table-sm">
-            <thead>
-              <tr>
-                {% for col in funder.schools[0].keys() %}
-                <th>{{ col }}</th>
-                {% endfor %}
-              </tr>
-            </thead>
-            <tbody>
-              {% for school in funder.schools %}
-              <tr>
-                {% for key, val in school.items() %}
-                <td>
-                  {% if key == 'PL' and val is number %}
-                    <strong>{{ "%.2f"|format(val) }}</strong>
-                  {% else %}
-                    {{ val }}
-                  {% endif %}
-                </td>
-                {% endfor %}
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-          {% else %}
-          <p class="text-muted">No schools found for this funder.</p>
-          {% endif %}
+          <div class="row">
+            <!-- School Summary -->
+            <div class="col-md-6">
+              <h5>School Summary</h5>
+              {% if funder.schools and funder.schools|length > 0 %}
+              <table class="table table-bordered table-sm">
+                <thead>
+                  <tr>
+                    {% for col in funder.schools[0].keys() %}
+                    <th>{{ col }}</th>
+                    {% endfor %}
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for school in funder.schools %}
+                  <tr>
+                    {% for key, val in school.items() %}
+                    <td>
+                      {% if key == 'PL' and val is number %}
+                      <strong>{{ "%.2f"|format(val) }}</strong>
+                      {% else %}
+                      {{ val }}
+                      {% endif %}
+                    </td>
+                    {% endfor %}
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+              {% else %}
+              <p class="text-muted">No schools found for this funder.</p>
+              {% endif %}
+            </div>
+
+            <!-- Staff eLearning Summary -->
+            <div class="col-md-6">
+              <h5>Staff E-Learning Summary</h5>
+              {% if funder.elearning_summary %}
+              <table class="table table-bordered table-sm align-middle">
+                <thead>
+                  <tr>
+                    <th>First Name</th>
+                    <th>Surname</th>
+                    <th colspan="4">Status Counts</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for email, staff in funder.elearning_summary.items() %}
+                  <tr>
+                    <td>{{ staff.FirstName }}</td>
+                    <td>{{ staff.Surname }}</td>
+                    {% for status in ["Not Started", "In Progress", "Passed", "Cancelled"] %}
+                    <td>
+                      <span class="badge {% if staff[status] == 0 %}faded-badge{% else %}
+                        {% if status == 'Not Started' %}bg-secondary
+                        {% elif status == 'In Progress' %}bg-warning text-dark
+                        {% elif status == 'Passed' %}bg-success
+                        {% elif status == 'Cancelled' %}bg-danger
+                        {% endif %}{% endif %}"
+      data-bs-toggle="tooltip"
+      data-bs-placement="top"
+      title="{{ staff[status ~ '_Courses'] | join('&#10;') | safe if staff[status ~ '_Courses'] else '' }}">
+  {{ status }}: {{ staff[status] }}
+</span>
+                    </td>
+                    {% endfor %}
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+              {% else %}
+              <p class="text-muted">No eLearning records found for this funder.</p>
+              {% endif %}
+            </div>
+          </div>
         </div>
       </div>
     </div>
     {% endfor %}
   </div>
 </div>
+
+<style>
+.faded-badge {
+  background-color: #adb5bd !important;
+  color: white !important;
+  opacity: 0.4;
+}
+
+.tooltip-inner {
+  max-width: 300px;
+  white-space: pre-wrap;
+  text-align: left;
+}
+
+</style>
+
 <script>
   const slider = document.getElementById("threshold");
   const input = document.getElementById("threshold_input");
@@ -126,6 +168,13 @@
     if (parseFloat(input.value) >= 0 && parseFloat(input.value) <= 1) {
       slider.value = input.value;
     }
+  });
+
+    document.addEventListener("DOMContentLoaded", function () {
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.forEach(function (tooltipTriggerEl) {
+      new bootstrap.Tooltip(tooltipTriggerEl);
+    });
   });
 </script>
 {% endblock %}
