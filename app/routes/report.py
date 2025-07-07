@@ -9,7 +9,7 @@ from flask import Blueprint, render_template, request, session, flash, redirect,
 from app.utils.database import get_db_engine
 from app.utils.fundernationalplot import create_competency_report as create_funder_report
 from app.utils.providerplot import create_competency_report as create_provider_report
-from app.utils.competencyplot import load_competency_rates, make_figure as make_comp_figure
+from app.utils.competencyplot import load_competency_rates, make_figure as create_comp_figure
 from app.utils.schoolplot import create_school_report
 
 from sqlalchemy import text

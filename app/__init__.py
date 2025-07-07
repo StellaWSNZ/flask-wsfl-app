@@ -77,5 +77,9 @@ def create_app():
     @app.context_processor
     def inject_user_admin():
         return {"user_admin": session.get("user_admin")}
+    
+    @app.context_processor
+    def inject_user_email():
+        return {"user_admin": session.get("user_email")}
 
     return app
