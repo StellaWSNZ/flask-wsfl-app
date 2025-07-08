@@ -3,11 +3,18 @@
 
 {% block content %}
 <div class="container-fluid mt-4">
-  <h2 class="mb-4 text-center">Admin Dashboard - School Summary by Funder</h2>
+  <h2 class="text-center text-primary mb-4">WSNZ Administrator Overview</h2>
 
   <!-- Filter Form -->
   <form method="get" class="row g-3 align-items-end mb-4">
-    <div class="col-md-3">
+    <div class="col-md-2">
+  <label for="entity_type" class="form-label">View By</label>
+  <select class="form-select" name="entity_type" id="entity_type">
+    <option value="Funder" {% if entity_type == 'Funder' %}selected{% endif %}>Funder</option>
+    <option value="Provider" {% if entity_type == 'Provider' %}selected{% endif %}>Provider</option>
+  </select>
+</div>
+    <div class="col-md-2">
       <label for="term" class="form-label">Term</label>
       <select class="form-select" name="term" id="term">
         {% for t in range(1, 5) %}
@@ -15,7 +22,7 @@
         {% endfor %}
       </select>
     </div>
-    <div class="col-md-3">
+    <div class="col-md-2">
       <label for="year" class="form-label">Year</label>
       <select class="form-select" name="year" id="year">
         {% for y in range(2023, 2026) %}
@@ -33,11 +40,14 @@
       </label>
       <div class="d-flex align-items-center">
         <input type="range" class="form-range me-2" name="threshold" id="threshold"
-               min="0" max="1" step="0.01" value="{{ '%.2f'|format(threshold) }}"
+               min="0" max="100" step="0.01"  value="{{ (threshold * 100)|round(0) }}"
                style="flex: 1 1 auto;">
-        <input type="number" name="threshold_input" id="threshold_input"
-               min="0" max="1" step="0.01" value="{{ '%.2f'|format(threshold) }}"
-               class="form-control form-control-sm" style="width: 70px;">
+        <div class="input-group input-group-sm" style="width: 130px;">
+  <input type="number" id="threshold_input"
+         min="0" max="100" step="0.01" value="{{ (threshold * 100)|round(0) }}"
+         class="form-control form-control-sm">
+  <span class="input-group-text">%</span>
+</div>
       </div>
     </div>
     <div class="col-md-2">
@@ -108,7 +118,9 @@
                   <tr>
                     <th>First Name</th>
                     <th>Surname</th>
-                    <th colspan="4">Status Counts</th>
+                    <th>Self Review</th>
+
+                    <th colspan="4">ELearning Status</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -116,10 +128,21 @@
                   <tr>
                     <td>{{ staff.FirstName }}</td>
                     <td>{{ staff.Surname }}</td>
+                    <td>
+  {% if staff.SelfReviewSubmitted %}
+    <span class="badge bg-dark">
+      {{ staff.SelfReviewSubmitted.strftime('%d %b %Y') }}
+    </span>
+  {% else %}
+    <span class="badge bg-light text-dark">Not Submitted</span>
+  {% endif %}
+</td>
+
+
                     {% for status in ["Not Started", "In Progress", "Passed", "Cancelled"] %}
                     <td>
                       <span class="badge {% if staff[status] == 0 %}faded-badge{% else %}
-                        {% if status == 'Not Started' %}bg-secondary
+                        {% if status == 'Not Started'%}bg-secondary
                         {% elif status == 'In Progress' %}bg-warning text-dark
                         {% elif status == 'Passed' %}bg-success
                         {% elif status == 'Cancelled' %}bg-danger
@@ -146,9 +169,13 @@
     {% endfor %}
   </div>
   {% else %}
-  <div class="alert alert-info text-center mt-4">
-    Please use the filter form above and press <strong>Load</strong> to load the dashboard.
+  <div class="row">
+  <div class="col-md-6 mx-auto">
+    <div class="alert alert-info text-center mt-4">
+      Please use the filter form above and press <strong>Load</strong> to load the dashboard.
+    </div>
   </div>
+</div>
   {% endif %}
 </div>
 

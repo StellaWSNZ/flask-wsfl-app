@@ -1,3 +1,4 @@
+import sys
 from flask import Blueprint, render_template, request, session, redirect, jsonify, abort, url_for
 from sqlalchemy import text
 from app.routes.auth import login_required
@@ -5,7 +6,11 @@ from app.utils.database import get_db_engine
 import pandas as pd
 import traceback
 from collections import defaultdict
-
+from datetime import datetime
+import traceback
+import sys
+from collections import defaultdict
+from datetime import datetime
 funder_bp = Blueprint("funder_bp", __name__)
 
 
@@ -276,143 +281,195 @@ def get_entities():
     print(f"✅ Final entities being returned = {entities}\n")
     return jsonify(entities)
 
-@funder_bp.route('/AdminDashboard', methods=['GET', 'POST'])
+    
+@funder_bp.route('/FullOverview', methods=['GET', 'POST'])
 @login_required
 def admin_dashboard():
     if session.get("user_role") != "ADM":
-        print("❌ Access denied: user is not ADM")
         return redirect(url_for("home_bp.home"))
 
-    print("✅ Access granted: ADM user")
-    term = int(request.args.get("term", 2))
-    year = int(request.args.get("year", 2025))
-    threshold_raw = request.args.get("threshold", "0.5")
-    form_submitted = "term" in request.args or "year" in request.args or "threshold" in request.args
+ 
 
     try:
-        threshold = float(threshold_raw)
-    except ValueError:
-        threshold = 0.5
-        print(f"⚠️ Invalid threshold '{threshold_raw}' provided, defaulting to {threshold}")
+        print("📌 Admin Dashboard route hit")
+        term = int(request.args.get("term", 2))
+        year = int(request.args.get("year", 2025))
+        threshold_raw = request.args.get("threshold", "50")
+        entity_type = request.args.get("entity_type", None)  # "Funder" or "Provider"
+        form_submitted = entity_type is not None
 
-    print(f"🔍 Filters: Term={term}, Year={year}, Threshold={threshold}")
+        try:
+            threshold = float(threshold_raw) / 100  # Convert % to decimal
+        except ValueError:
+            threshold = 0.85
+        engine = get_db_engine()
+        funder_data = []
 
-    engine = get_db_engine()
-    funder_data = []
+        with engine.begin() as conn:
+            if entity_type == "Funder":
+                result = conn.execute(text("EXEC FlaskHelperFunctions @Request = 'FunderDropdown'"))
+            else:
+                result = conn.execute(text("EXEC FlaskHelperFunctions @Request = 'ProviderDropdown'"))
+            entity_options = [dict(row._mapping) for row in result]
 
-    with engine.begin() as conn:
-        result = conn.execute(text("EXEC FlaskHelperFunctions @Request = 'FunderDropdown'"))
-        funders = [dict(row._mapping) for row in result]
-        print(f"🧾 Found {len(funders)} funders")
+            if not form_submitted:
+                return render_template(
+                    "admindashboard.html",
+                    funder_data=[],
+                    entity_options=entity_options,
+                    entity_type=entity_type,
+                    term=term,
+                    year=year,
+                    threshold=threshold,
+                    form_submitted=False
+                )
 
-        for funder in funders:
-            funder_id = funder["FunderID"]
-            funder_name = funder["Description"]
-            print(f"\n➡️ Processing funder: {funder_name} (ID: {funder_id})")
-
-            # Get school summary
-            school_result = conn.execute(text("""
-                EXEC FlaskGetSchoolSummaryByFunder 
-                @FunderID = :fid, 
-                @CalendarYear = :year, 
-                @Term = :term, 
-                @Email = :email,
-                @Threshold = :threshold
-            """), {
-                "fid": funder_id,
-                "year": year,
-                "term": term,
-                "email": session.get("user_email"),
-                "threshold": threshold
-            })
-
-            raw_schools = [dict(row._mapping) for row in school_result]
-            print(f"🏫 Raw schools returned: {len(raw_schools)}")
-
-            filtered_schools = [
-                {k: v for k, v in row.items() if k not in ["CalendarYear", "Term"]}
-                for row in raw_schools
-            ]
-            print(f"✅ Filtered schools retained: {len(filtered_schools)}")
-
-            try:
-                elearning_result = conn.execute(text("""
-                    EXEC flaskgetstaffelearning 
-                    @RoleType = 'FUN', 
-                    @ID = :fid, 
-                    @Email = :email
+            if entity_type == "Funder":
+                school_result = conn.execute(text("""
+                    EXEC FlaskGetSchoolSummaryAllFunders 
+                    @CalendarYear = :year, 
+                    @Term = :term, 
+                    @Email = :email,
+                    @Threshold = :threshold
                 """), {
-                    "fid": funder_id,
+                    "year": year,
+                    "term": term,
+                    "email": session.get("user_email"),
+                    "threshold": threshold
+                })
+                schools = [dict(row._mapping) for row in school_result]
+
+                elearning_result = conn.execute(text("""
+                    EXEC FlaskGetStaffELearningAll 
+                    @RoleType = 'FUN', 
+                    @Email = :email, 
+                    @SelfReview = 1
+                """), {
                     "email": session.get("user_email")
                 })
+                elearning_rows = [dict(row._mapping) for row in elearning_result]
 
-                row_count = 0
-                elearning_summary = defaultdict(lambda: {
-                    "FirstName": "",
-                    "Surname": "",
-                    "Not Started": 0,
-                    "In Progress": 0,
-                    "Passed": 0,
-                    "Completed": 0,
+                elearning_grouped = defaultdict(lambda: defaultdict(lambda: {
+                    "FirstName": "", "Surname": "",
+                    "Not Started": 0, "In Progress": 0,
+                    "Passed": 0, "Completed": 0,
                     "Cancelled": 0
-                })
-
-                for row in elearning_result:
-                    r = dict(row._mapping)
-                    if r.get("Active", 0) != 1:
-                        continue 
-                    row_count += 1
+                }))
+                for r in elearning_rows:
+                    if not r.get("Active"):  # Skip if course is not active (0 or None)
+                        continue
+                    fid = r["EntityID"]
                     email = r["Email"]
+                    summary = elearning_grouped[fid][email]
+                    summary["FirstName"] = r["FirstName"]
+                    summary["Surname"] = r["Surname"]
                     status = r["Status"]
-                    course_name = r.get("CourseName", "Unnamed Course")  # ensure this column exists
+                    if status == "Enrolled":
+                        status = "Not Started"
 
-                    elearning_summary[email]["FirstName"] = r["FirstName"]
-                    elearning_summary[email]["Surname"] = r["Surname"]
+                    summary[status] += 1
+                    summary.setdefault(f"{status}_Courses", []).append(r["CourseName"])
+                    if r.get("SelfReviewSubmitted"):
+                        summary["SelfReviewSubmitted"] = r["SelfReviewSubmitted"]
 
-                    # increment status count
-                    if status in elearning_summary[email]:
-                        elearning_summary[email][status] += 1
-                    else:
-                        elearning_summary[email][status] = 1
+                schools_grouped = defaultdict(list)
+                names = {}
+                for row in schools:
+                    fid = row["FunderID"]
+                    names[fid] = row["FunderName"]
+                    row["School Name"] = row.pop("SchoolName", None)
+                    row["No. Classes"] = row.pop("NumClasses", None)
+                    row["Edited Classes"] = row.pop("EditedClasses", None)
+                    row["Total Students"] = row.pop("TotalStudents", None)
+                    schools_grouped[fid].append({k: v for k, v in row.items() if k not in ["CalendarYear", "Term", "FunderID", "FunderName"]})
 
-                    # append course name to *_Courses list
-                    course_key = f"{status}_Courses"
-                    if course_key not in elearning_summary[email]:
-                        elearning_summary[email][course_key] = []
-                    elearning_summary[email][course_key].append(course_name)
+                for fid, schools in schools_grouped.items():
+                    funder_data.append({
+                        "id": fid,
+                        "name": names.get(fid),
+                        "schools": schools,
+                        "elearning_summary": elearning_grouped.get(fid, {})
+                    })
 
+            elif entity_type == "Provider":
+                school_result = conn.execute(text("""
+                    EXEC FlaskGetSchoolSummaryAllProviders 
+                    @CalendarYear = :year, 
+                    @Term = :term, 
+                    @Email = :email,
+                    @Threshold = :threshold
+                """), {
+                    "year": year,
+                    "term": term,
+                    "email": session.get("user_email"),
+                    "threshold": threshold
+                })
+                schools = [dict(row._mapping) for row in school_result]
 
-                print(f"👩‍🏫 eLearning records processed: {row_count}")
-            except Exception as e:
-                print(f"❌ Error fetching eLearning data for funder {funder_name}: {e}")
-                import traceback
-                traceback.print_exc()
-                elearning_summary = {}
+                elearning_result = conn.execute(text("""
+                    EXEC FlaskGetStaffELearningAll 
+                    @RoleType = 'PRO', 
+                    @Email = :email, 
+                    @SelfReview = 1
+                """), {
+                    "email": session.get("user_email")
+                })
+                elearning_rows = [dict(row._mapping) for row in elearning_result]
 
-            print(f"👩‍🏫 eLearning records processed: {row_count}")
-            print(f"🧑‍💻 Unique staff found: {len(elearning_summary)}")
+                elearning_grouped = defaultdict(lambda: defaultdict(lambda: {
+                    "FirstName": "", "Surname": "",
+                    "Not Started": 0, "In Progress": 0,
+                    "Passed": 0, "Completed": 0,
+                    "Cancelled": 0
+                }))
+                for r in elearning_rows:
+                    if not r.get("Active"):  # Skip if course is not active (0 or None)
+                        continue
+                    pid = r["EntityID"]
+                    email = r["Email"]
+                    summary = elearning_grouped[pid][email]
+                    summary["FirstName"] = r["FirstName"]
+                    summary["Surname"] = r["Surname"]
+                    status = r["Status"]
+                    if status == "Enrolled":
+                        status = "Not Started"
 
-            funder_data.append({
-                "id": funder_id,
-                "name": funder_name,
-                "schools": filtered_schools,
-                "elearning_summary": elearning_summary
-            })
+                    summary[status] += 1
+                    summary.setdefault(f"{status}_Courses", []).append(r["CourseName"])
+                    if r.get("SelfReviewSubmitted"):
+                        summary["SelfReviewSubmitted"] = r["SelfReviewSubmitted"]
 
-    print("✅ Finished processing all funders")
-    try:
+                schools_grouped = defaultdict(list)
+                names = {}
+                for row in schools:
+                    pid = row["ProviderID"]
+                    names[pid] = row["ProviderName"]
+                    row["School Name"] = row.pop("SchoolName", None)
+                    row["No. Classes"] = row.pop("NumClasses", None)
+                    row["Edited Classes"] = row.pop("EditedClasses", None)
+                    row["Total Students"] = row.pop("TotalStudents", None)
+                    schools_grouped[pid].append({k: v for k, v in row.items() if k not in ["CalendarYear", "Term", "ProviderID", "ProviderName"]})
+
+                for pid, schools in schools_grouped.items():
+                    funder_data.append({
+                        "id": pid,
+                        "name": names.get(pid),
+                        "schools": schools,
+                        "elearning_summary": elearning_grouped.get(pid, {})
+                    })
+
         return render_template(
             "admindashboard.html",
             funder_data=funder_data,
-            user=session.get("email"),
+            entity_options=entity_options,
+            entity_type=entity_type,
             term=term,
             year=year,
             threshold=threshold,
-            form_submitted=form_submitted
+            form_submitted=True
         )
 
-    except Exception as e:
-        print("❌ Error rendering template:", e)
-        import traceback
-        traceback.print_exc()
-        return "Template rendering error", 500
+    except Exception:
+        traceback.print_exc(file=sys.stdout)
+        print("🔴 AdminDashboard failed", flush=True)
+        return "Internal Server Error", 500
