@@ -130,9 +130,17 @@
                     <td>{{ staff.Surname }}</td>
                     <td>
   {% if staff.SelfReviewSubmitted %}
-    <span class="badge bg-dark">
-      {{ staff.SelfReviewSubmitted.strftime('%d %b %Y') }}
-    </span>
+    {% if staff.RespondentID %}
+<a href="{{ url_for('survey_bp.view_my_survey_response', respondent_id=staff.RespondentID) }}"
+   class="badge bg-dark text-decoration-none"
+   target="_blank">
+  {{ staff.SelfReviewSubmitted.strftime('%d %b %Y') }}
+</a>
+    {% else %}
+      <span class="badge bg-dark">
+        {{ staff.SelfReviewSubmitted.strftime('%d %b %Y') }}
+      </span>
+    {% endif %}
   {% else %}
     <span class="badge bg-light text-dark">Not Submitted</span>
   {% endif %}
@@ -142,7 +150,7 @@
                     {% for status in ["Not Started", "In Progress", "Passed", "Cancelled"] %}
                     <td>
                       <span class="badge {% if staff[status] == 0 %}faded-badge{% else %}
-                        {% if status == 'Not Started'%}bg-secondary
+                        {% if status == 'Not Started' %}bg-secondary
                         {% elif status == 'In Progress' %}bg-warning text-dark
                         {% elif status == 'Passed' %}bg-success
                         {% elif status == 'Cancelled' %}bg-danger
