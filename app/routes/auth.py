@@ -61,6 +61,7 @@ def login():
                     "user_id": user_info.ID,
                     "user_admin": user_info.Admin,
                     "user_email": email,
+                    "user_email_alt": user_info.AlternateEmail,
                     "display_name": user_info.FirstName,
                     "user_firstname": user_info.FirstName,
                     "user_surname": user_info.Surname,

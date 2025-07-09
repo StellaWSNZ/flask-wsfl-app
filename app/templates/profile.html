@@ -32,8 +32,26 @@
   <input type="email" class="form-control" id="email_input" name="email" value="{{ user.email }}" readonly />
 </div>
 <div class="mb-3">
+  <label for="alt_email_input" class="form-label">
+    Alternate Email (if applicable)
+   <i class="bi bi-info-circle" 
+   data-bs-toggle="tooltip" 
+   data-bs-placement="right" 
+   title="Alternate email is applicable if the email you used for e-learning is not the one you registered with. Your main email will still be used to log in but this will be used to check for e-learning.">
+</i>
+  </label>
+  <input type="email" class="form-control" id="alt_email_input" name="alt_email" value="{{ user.email_alt or ''}}" readonly />
+</div>
+<div class="mb-3">
   <label class="form-label">Role</label>
-  <input type="text" class="form-control" value="{{ user.role }}{% if user.admin == 1 %} (Admin){% endif %}" readonly disabled />
+  <input type="text" class="form-control" 
+         value="{% if user.role == 'FUN' %}Funder staff{% 
+                 elif user.role == 'PRO' %}Provider staff{% 
+                 elif user.role == 'ADM' %}Admin staff{% 
+                 elif user.role == 'GRP' %}Admin staff{% 
+                 elif user.role == 'MOE' %}School staff{% 
+                 else %}{{ user.role }}{% endif %}{% if user.admin == 1 %} (with administrator privileges){% endif %}" 
+         readonly disabled />
 </div>
 {% if user.role == "FUN" %}
 <div class="mb-3">
@@ -268,7 +286,7 @@ document.addEventListener('DOMContentLoaded', function () {
 let schoolMap, schoolMarker, funderMap, funderMarker, providerMap, providerMarker;
 
 function toggleUserEdit(editing) {
-  ["firstname_input", "surname_input", "email_input"].forEach(id => {
+  ["firstname_input", "surname_input", "email_input", "alt_email_input"].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.readOnly = !editing;
   });

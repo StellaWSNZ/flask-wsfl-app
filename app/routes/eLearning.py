@@ -59,13 +59,15 @@ def admin_eLearning_upload():
 def eLearning_guide():
     try:
         user_email = session.get("user_email")
-        print("📧 user_email:", user_email)
+        user_email_alt = session.get("user_email_alt")
+
+        print("📧 user_email:", user_email," w alt ",user_email_alt, " used for elearning")
 
         engine = get_db_engine()
         with engine.begin() as conn:
             result = conn.execute(
-                text("EXEC GetUserElearningResults :Email"),
-                {"Email": user_email}
+                text("EXEC GetUserElearningResults :Email, :AltEmail"),
+                {"Email": user_email, "AltEmail":user_email_alt}
             )
             courses = [dict(row._mapping) for row in result.fetchall()]  # 💡 use _mapping here
             print("✅ Courses:", courses)

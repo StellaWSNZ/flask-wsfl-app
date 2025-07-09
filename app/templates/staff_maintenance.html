@@ -242,7 +242,7 @@
                     <input
                       type="hidden"
                       name="requested_by"
-                      value="{{ session['user_name'] if row.Active != 1 else session['user_firstname'] ~ ' ' ~ session['user_lastname'] }}"
+                      value="{{ session['user_firstname'] ~ ' ' ~ session['user_surname'] }}"
                     />
                     <input
                       type="hidden"

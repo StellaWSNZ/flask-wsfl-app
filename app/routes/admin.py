@@ -249,6 +249,7 @@ def profile():
         "email": session.get("user_email"),
         "role": session.get("user_role"),
         "admin": session.get("user_admin"),
+        "email_alt":session.get("user_email_alt"),
         "firstname": session.get("user_firstname"),
         "surname": session.get("user_surname"),
         "desc": session.get("desc"),
@@ -273,11 +274,11 @@ def profile():
     with engine.connect() as conn:
         result = conn.execute(text("EXEC FlaskHelperFunctions 'SchoolTypeDropdown'"))
         school_type_options = [dict(row._mapping) for row in result]
-        result = conn.execute(text("EXEC GetElearningStatus :Email"), {"Email": user_info["email"]})
+        result = conn.execute(text("EXEC GetElearningStatus :Email"), {"Email": user_info["email_alt"] or user_info["email"]})
         eLearning_status = [dict(row._mapping) for row in result]
 
         # optionally pass a static last_updated date for now 
-        last_self_review_row = conn.execute(text("EXEC SVY_LatestSelfReveiw :Email"), {"Email": user_info["email"]}).fetchone()
+        last_self_review_row = conn.execute(text("EXEC SVY_LatestSelfReveiw :Email, :AltEmail"), {"Email": user_info["email"],"AltEmail": user_info["email_alt"]}).fetchone()
         user_info["last_self_review"] = (
             last_self_review_row[0].strftime('%A, %d %B %Y')
             if last_self_review_row and last_self_review_row[0]
@@ -304,6 +305,8 @@ def update_profile():
     new_firstname = request.form.get("firstname", "").strip()
     new_surname = request.form.get("surname", "").strip()
     new_email = request.form.get("email", "").strip()
+    new_email_alt = request.form.get("alt_email", "").strip()
+    print(new_email_alt)
     funder_address = request.form.get("funder_address", "").strip()
     funder_lat = request.form.get("funder_lat", "").strip()
     funder_lon = request.form.get("funder_lon", "").strip()
@@ -319,13 +322,15 @@ def update_profile():
                 @FirstName = :fname,
                 @Surname = :sname,
                 @NewEmail = :new_email,
-                @OriginalEmail = :original_email
+                @OriginalEmail = :original_email,
+                @EmailAlt = :new_email_alt
         """), {
             "request": "UpdateUserInfo",
             "fname": new_firstname,
             "sname": new_surname,
             "new_email": new_email,
-            "original_email": original_email
+            "original_email": original_email,
+            "new_email_alt": new_email_alt
         })
 
 
@@ -393,6 +398,9 @@ def update_profile():
         session["funder_lon"] = getattr(updated_info, "Funder_Longitude", None)
         session["nearest_term"] = getattr(updated_info,"CurrentTerm", None)
         session["nearest_year"] = getattr(updated_info, "CurrentCalendarYear", None)
+        session["user_email_alt"] = getattr(updated_info, "AlternateEmail", None)
+
+            
 
     flash("Profile updated successfully!", "success")
     return redirect(url_for("admin_bp.profile"))
