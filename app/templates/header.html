@@ -412,7 +412,15 @@
                 <i class="bi bi-person-plus me-1"></i> Create User
               </a>
             </li>
-            {% endif %} {% if user_email in ["emma@dgss.co.nz",
+            <li class="nav-item mt-2 mt-lg-0 me-2">
+              <a
+                class="nav-link"
+                href="{{ url_for('upload_bp.classlistupload') }}"
+                >Upload Class List</a
+              >
+            </li>
+            {% endif %}
+            <!--{% if user_email in ["emma@dgss.co.nz",
             "kin@clmnz.co.nz","leanne.stocks@ccc.govt.nz","fun_admin@example.com","pro_admin_1@example.com","clair.muirhead@qldc.govt.nz"]
             %}
             <li class="nav-item mt-2 mt-lg-0 me-2">
@@ -422,7 +430,7 @@
                 >Upload Class List</a
               >
             </li>
-            {% endif %}
+            {% endif %}-->
             <li class="nav-item mt-2 mt-lg-0 me-2">
               <a
                 href="{{ url_for('admin_bp.profile') }}"
