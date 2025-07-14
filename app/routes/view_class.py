@@ -24,6 +24,7 @@ from datetime import datetime, timedelta
 from dateutil.parser import isoparse
 from collections import defaultdict
 
+
 @class_bp.route('/Class/<int:class_id>/<int:term>/<int:year>')
 @login_required
 def view_class(class_id, term, year):
@@ -63,7 +64,7 @@ def view_class(class_id, term, year):
                 return render_template(
                     "student_achievement.html",
                     students=df_combined.to_dict(orient="records"),
-                    columns=[col for col in df_combined.columns if col not in ["DateOfBirth", "Ethnicity", "FirstName", "NSN"]],
+columns=[col for col in df_combined.columns if col not in ["DateOfBirth", "Ethnicity", "FirstName", "NSN"]],
                     competency_id_map=competency_id_map,
                     scenarios=cached.get("scenarios", []),
                     class_id=class_id,
@@ -89,105 +90,76 @@ def view_class(class_id, term, year):
             scenario_result = conn.execute(text("EXEC FlaskHelperFunctions @Request = :request"), {"request": "Scenario"})
             scenarios = [dict(row._mapping) for row in scenario_result]
 
-            class_info = conn.execute(
-                text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :class_id"),
-                {"Request": "ClassInfoByID", "class_id": class_id}
-            ).fetchone()
-
-            school_result = conn.execute(
-                text("EXEC FlaskHelperFunctionsSpecific @Request = :Request, @MOENumber = :moe"),
-                {"Request": "SchoolNameByMOE", "moe": class_info.MOENumber}
-            ).fetchone()
-
-            class_name = class_info.ClassName
-            teacher_name = class_info.TeacherName
-            school_name = school_result.SchoolName if school_result else "(Unknown)"
-            title_string = f"Class Name: {class_name} | Teacher Name: {teacher_name} | School Name: {school_name}"
-
-            student_result = conn.execute(
-                text("""EXEC FlaskHelperFunctionsSpecific
-                        @Request = :Request,
-                        @ClassID = :class_id,
-                        @Term = :term,
-                        @Year = :year"""),
-                {"Request": "StudentsByClassTermYear", "class_id": class_id, "term": term, "year": year}
-            )
-            students = pd.DataFrame(student_result.fetchall(), columns=student_result.keys())
-            if students.empty:
-                flash("No students found.", "warning")
-                return redirect(url_for("class_bp.funder_classes"))
-
-            comp_result = conn.execute(text("EXEC GetRelevantCompetencies :CalendarYear, :Term"),
-                                       {"CalendarYear": year, "Term": term})
-            comp_df = pd.DataFrame(comp_result.fetchall(), columns=comp_result.keys())
-            print(f"📘 Loaded {len(comp_df)} competencies before filtering")
-
             
-            if filter_type == "water":
-                comp_df = comp_df[comp_df["WaterBased"] == 1]
-                print(f"💧 Filtered water-based competencies: {len(comp_df)}")
-
-            comp_df["label"] = comp_df["CompetencyDesc"] + " <br>(" + comp_df["YearGroupDesc"] + ")"
-            comp_df["col_order"] = comp_df["YearGroupID"].astype(str).str.zfill(2) + "-" + comp_df["CompetencyID"].astype(str).str.zfill(4)
-            comp_df = comp_df.sort_values("col_order")
-            labels = comp_df["label"].tolist()
-
-            all_records = []
-            print("📊 Beginning per-student competency + scenario merge")
-
-            for _, student in students.iterrows():
-                nsn = student["NSN"]
-                print(f"🔍 Processing NSN: {nsn}")
-
-                comp_data = pd.read_sql(
-                    text("""EXEC FlaskGetStudentCompetencyStatus 
-                            @NSN = :NSN, 
-                            @Term = :Term, 
-                            @CalendarYear = :CalendarYear,
-                            @Email = :Email"""),
-                    conn,
-                    params={"NSN": nsn, "Term": term, "CalendarYear": year, "Email": session.get("user_email")}
-                )
-                print(f"📘 Competencies for NSN {nsn}: {len(comp_data)} records")
-                
-                if not comp_data.empty:
-                    comp_data = comp_data.merge(comp_df[["CompetencyID", "YearGroupID", "label"]],
-                                                on=["CompetencyID", "YearGroupID"], how="inner")
-                    comp_row = comp_data.set_index("label")["CompetencyStatusID"].reindex(labels).fillna(0).astype(int).map({1: 'Y', 0: ''}).to_dict()
-                else:
-                    comp_row = {label: '' for label in labels}
-
-                scenario_df = pd.read_sql(
-                    text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :Number"),
-                    conn,
-                    params={"Request": "StudentScenario", "Number": nsn}
-                )
-                scenario1 = scenario_df.set_index("ScenarioIndex")["ScenarioID"].get(1, "") if not scenario_df.empty else ""
-                scenario2 = scenario_df.set_index("ScenarioIndex")["ScenarioID"].get(2, "") if not scenario_df.empty else ""
-
-                merged_row = {
-                    "NSN": nsn,
-                    "FirstName": student["FirstName"],
-                    "LastName": student["LastName"],
-                    "PreferredName": student["PreferredName"],
-                    "DateOfBirth": student["DateOfBirth"],
-                    "Ethnicity": student["Ethnicity"],
-                    "YearLevelID": student["YearLevelID"],
-                    **comp_row,
-                    "Scenario One - Selected <br> (7-8)": str(scenario1),
-                    "Scenario Two - Selected <br> (7-8)": str(scenario2)
+            result = conn.execute(
+                text("""
+                    EXEC FlaskGetClassStudentAchievement 
+                        @ClassID = :class_id, 
+                        @Term = :term, 
+                        @CalendarYear = :year, 
+                        @Email = :email, 
+                        @FilterType = :filter
+                """),
+                {
+                    "class_id": class_id,
+                    "term": term,
+                    "year": year,
+                    "email": session.get("user_email"),
+                    "filter": filter_type
                 }
-                all_records.append(merged_row)
+            )
+            df = pd.DataFrame(result.fetchall(), columns=result.keys())
+            comp_df = (
+                df[["CompetencyLabel", "CompetencyID", "YearGroupID"]]
+                .drop_duplicates()
+                .rename(columns={"CompetencyLabel": "label"})
+            )
+            class_name = df["ClassName"].dropna().unique()[0] if "ClassName" in df.columns else "(Unknown)"
+            teacher_name = df["TeacherName"].dropna().unique()[0] if "TeacherName" in df.columns else "(Unknown)"
+            school_name = df["SchoolName"].dropna().unique()[0] if "SchoolName" in df.columns else "(Unknown)"
+            title_string = f"Class Name: {class_name} | Teacher Name: {teacher_name} | School Name: {school_name}"
+            df = df.drop(columns=["ClassName", "TeacherName", "SchoolName","CompetencyID","YearGroupID"])
+            
+            meta_cols = [
+                "NSN",
+                "FirstName",
+                "LastName",
+                "PreferredName",
+                "DateOfBirth",
+                "Ethnicity",
+                "YearLevelID",
+                "Scenario1",
+                "Scenario2"
+            ]
+            pivot_df = df.pivot_table(
+                index=meta_cols,
+                columns="CompetencyLabel",
+                values="CompetencyStatus",
+                aggfunc="first"  # In case of duplicates
+            ).reset_index()
+            comp_df_sorted = comp_df.sort_values(["YearGroupID", "CompetencyID"])
+            competency_cols = comp_df_sorted["label"].tolist()
 
-            df_combined = pd.DataFrame(all_records)
-            df_combined = df_combined.sort_values("PreferredName" if order_by == "first" else "LastName")
+            pivot_df = pivot_df.sort_values("PreferredName" if order_by == "first" else "LastName")
+            # Rename scenario columns
+            pivot_df = pivot_df.rename(columns={
+                "Scenario1": "Scenario One - Selected <br>(7-8)",
+                "Scenario2": "Scenario Two - Selected <br>(7-8)"
+            })
 
-            if "Scenario One - Selected <br> (7-8)" in df_combined.columns and "Scenario Two - Selected <br> (7-8)" in df_combined.columns:
-                cols = df_combined.columns.tolist()
-                cols.insert(-3, cols.pop(cols.index("Scenario One - Selected <br> (7-8)")))
-                cols.insert(-1, cols.pop(cols.index("Scenario Two - Selected <br> (7-8)")))
-                df_combined = df_combined[cols]
+            fixed_cols = ["LastName", "PreferredName", "YearLevelID"]
+            scenario_cols = [
+                "Scenario One - Selected <br>(7-8)",
+                "Scenario One - Completed <br>(7-8)",
+                "Scenario Two - Selected <br>(7-8)",
+                "Scenario Two - Completed <br>(7-8)"
+            ]
+            # Filter out any labels that aren't actually in pivot_df.columns (to avoid key errors)
+            competency_cols = [col for col in competency_cols if col in pivot_df.columns]
 
+            # Final column order
+            ordered_cols = fixed_cols + competency_cols + scenario_cols
+            pivot_df = pivot_df[ordered_cols]
             auto_result = conn.execute(text("EXEC FlaskHelperFunctions @Request = :request"), {"request": "AutoMappedCompetencies"})
             header_map = defaultdict(list)
             for row in auto_result:
@@ -197,10 +169,10 @@ def view_class(class_id, term, year):
             session.setdefault("class_cache", {})[cache_key] = {
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 "expires": expiry_time.isoformat(),
-                "students": students.to_dict(),
+                "students": pivot_df.to_dict(),
                 "competencies": comp_df.to_dict(),
                 "filter": filter_type,
-"student_competencies": df_combined.to_dict(orient="records"),
+                "student_competencies": pivot_df.to_dict(orient="records"),
                 "class_name": class_name,
                 "teacher_name": teacher_name,
                 "school_name": school_name,
@@ -211,8 +183,8 @@ def view_class(class_id, term, year):
 )
             return render_template(
                 "student_achievement.html",
-                students=df_combined.to_dict(orient="records"),
-                columns=[col for col in df_combined.columns if col not in ["DateOfBirth", "Ethnicity", "FirstName", "NSN"]],
+                students=pivot_df.to_dict(orient="records"),
+                columns=[col for col in pivot_df.columns if col not in ["DateOfBirth", "Ethnicity", "FirstName", "NSN"]],
                 competency_id_map=comp_df.set_index("label")["CompetencyID"].to_dict(),
                 scenarios=scenarios,
                 class_id=class_id,
@@ -226,7 +198,6 @@ def view_class(class_id, term, year):
                 year=year,
                 order_by=order_by,
                 filter_type = request.args.get("filter", "all")
-
             )
 
     except Exception as e:
@@ -947,6 +918,7 @@ def print_class_view(class_id, term, year):
             with engine.begin() as conn:
                 comp_df["label"] = comp_df["CompetencyDesc"] + " <br>(" + comp_df["YearGroupDesc"] + ")"
                 comp_df["col_order"] = comp_df["YearGroupID"].astype(str).str.zfill(2) + "-" + comp_df["CompetencyID"].astype(str).str.zfill(4)
+                
                 comp_df = comp_df.sort_values("col_order")
                 labels = comp_df["label"].tolist()
 

@@ -33,22 +33,58 @@ def remove_macrons(s):
     return ''.join(c for c in normalized if unicodedata.category(c) != 'Mn')
 
 def autodetect_date_column(series):
-    try:
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", UserWarning)
+   
 
-            parsed_dayfirst = pd.to_datetime(series, dayfirst=True, errors='coerce')
-            parsed_monthfirst = pd.to_datetime(series, dayfirst=False, errors='coerce')
+    formats = [
+        "%Y-%m-%d",
+        "%d-%m-%Y",
+        "%m-%d-%Y"
+    ]
 
-        count_dayfirst = parsed_dayfirst.notna().sum()
-        count_monthfirst = parsed_monthfirst.notna().sum()
+    best_parse = None
+    max_valid = -1
 
-        if count_dayfirst >= count_monthfirst:
-            return parsed_dayfirst.dt.strftime("%Y-%m-%d")
-        else:
-            return parsed_monthfirst.dt.strftime("%Y-%m-%d")
-    except Exception:
-        return series
+    # print("📥 Raw input values:")
+    # print(series.head(10).to_string(index=False))
+
+    # Step 1: Clean up timestamp and spaces
+    series = series.astype(str).str.replace(r"[ T]?00:00:00(?:\.0+)?", "", regex=True).str.strip()
+
+    # Step 2: Replace punctuation with dash
+    series = series.str.replace(r"[^\d\s]", "-", regex=True)
+
+    # print("\n🧹 Cleaned birthdates (pre-parse):")
+    # print(series.head(10).to_string(index=False))
+
+    # Step 3: Try specific formats
+    for fmt in formats:
+        try:
+            parsed = pd.to_datetime(series, format=fmt, errors='coerce')
+            valid_count = parsed.notna().sum()
+            # print(f"\n🧪 Tried format '{fmt}' — valid parsed count: {valid_count}")
+            if valid_count > max_valid:
+                best_parse = parsed
+                max_valid = valid_count
+        except Exception as e:
+            print(f"❌ Error trying format {fmt}: {e}")
+            continue
+
+    # Step 4: Fallback
+    if best_parse is None or max_valid == 0:
+        # print("\n⚠️ Falling back to automatic date parsing...")
+        best_parse = pd.to_datetime(series, errors='coerce')
+
+    # Step 5: Final result
+    final_result = best_parse.dt.strftime("%Y-%m-%d")
+   # print("\n🧼 Final normalized birthdates:")
+   # print(final_result.head(10).to_string(index=False))
+
+    # Check for any parsing failures
+    if final_result.isna().any():
+        print("\n❌ Unparsed values found at indices:")
+        print(final_result[final_result.isna()].index.tolist())
+
+    return final_result
 def is_iso_format(series):
     iso_regex = r"^\d{4}-\d{2}-\d{2}$"
     return series.astype(str).str.match(iso_regex).all()
@@ -103,7 +139,7 @@ def classlistupload():
 
             selected_school_str = request.form.get("school") or str(session.get("user_desc")) + "("+str(session.get("user_id"))+ ")"
             selected_school = selected_school_str 
-            print(selected_school_str)
+            #print(selected_school_str)
             moe_number = (
                 int(selected_school_str)
                 if selected_school_str.isdigit()
@@ -131,8 +167,8 @@ def classlistupload():
                     schools = [row.School for row in result]
             else:
                 schools = selected_school
-            print(selected_funder)
-            print(schools)
+            #print(selected_funder)
+            #print(schools)
             if action == "preview" and file and file.filename:
                 
                 filename = file.filename.lower()
@@ -170,49 +206,23 @@ def classlistupload():
                     print("\n📅 Starting Birthdate normalization...")
 
                     try:
-                        print("👀 Raw Birthdate column before normalization:")
-                        print(df["Birthdate"].head(5).to_string(index=False))
+                        # print("👀 Raw Birthdate column before normalization:")
+                        # print(df["Birthdate"].head(5).to_string(index=False))
 
-                        # Normalize all date strings
-                        birth_col = pd.to_datetime(df["Birthdate"], errors='coerce', dayfirst=True)
-                        birth_col = birth_col.dt.strftime('%Y-%m-%d')
+                        # Use autodetect_date_column to handle format
+                        df["Birthdate"] = autodetect_date_column(df["Birthdate"])
 
-                        print("🧼 Cleaned Birthdate strings:")
-                        print(birth_col.head(5).to_string(index=False))
+                        # print("🧼 Normalized Birthdate values:")
+                        # print(df["Birthdate"].head(5).to_string(index=False))
 
-                        # Check if already ISO format
-                        if not is_iso_format(birth_col):
-                            print("🔍 Birthdate not in ISO format. Attempting parsing with dayfirst=True and False...")
-
-                            parsed_dayfirst = pd.to_datetime(birth_col, dayfirst=True, errors="coerce")
-                            parsed_monthfirst = pd.to_datetime(birth_col, dayfirst=False, errors="coerce")
-
-                            print(f"📊 Parsed (dayfirst=True):   {parsed_dayfirst.notna().sum()} valid")
-                            print(f"📊 Parsed (dayfirst=False): {parsed_monthfirst.notna().sum()} valid")
-
-                            if parsed_dayfirst.notna().sum() >= parsed_monthfirst.notna().sum():
-                                df["Birthdate"] = parsed_dayfirst.dt.strftime("%Y-%m-%d")
-                                print("✅ Using dayfirst=True")
-                                session["birthdate_format"] = "dayfirst"
-
-                            else:
-                                df["Birthdate"] = parsed_monthfirst.dt.strftime("%Y-%m-%d")
-                                print("✅ Using dayfirst=False")
-                                session["birthdate_format"] = "monthfirst"
-
-
-                        else:
-                            df["Birthdate"] = birth_col
-                            print("✅ Birthdate already in ISO format")
-
-                        print("✅ Final Birthdate values:")
-                        print(df["Birthdate"].head(5).to_string(index=False))
+                        session["birthdate_format"] = "autodetected"
 
                     except Exception as e:
                         print("❌ Error during Birthdate normalization:", str(e))
                         raise
                 else:
                     print("⚠️ 'Birthdate' column not found in uploaded file.")
+
 
 
 
@@ -232,6 +242,12 @@ def classlistupload():
 
                 # Save top 10 rows preview to session
                 preview_data = df_cleaned.head(10).to_dict(orient="records")
+                for row in preview_data:
+                    yl = row.get("YearLevel")
+                    if isinstance(yl, (int, float)) and not pd.isnull(yl):
+                        row["YearLevel"] = str(int(yl))
+                    elif yl is None or pd.isnull(yl):
+                        row["YearLevel"] = ""
                 session["preview_data"] = preview_data
 
 
@@ -272,32 +288,26 @@ def classlistupload():
                         if "BirthDate" in df.columns:
                             df.rename(columns={"BirthDate": "BirthDate"}, inplace=True)
                         if "YearLevel" in df.columns:
-                            # Remove all spaces and non-digit characters
-                            df["YearLevel"] = df["YearLevel"].astype(str).str.replace(r"\D", "", regex=True)
-                            
-                            # Convert to integer (nullable Int64)
-                            df["YearLevel"] = pd.to_numeric(df["YearLevel"], errors="coerce").astype("Int64")
-                            df["YearLevel"] = df["YearLevel"].where(pd.notnull(df["YearLevel"]), None)
+                            df["YearLevel"] = df["YearLevel"].astype(str).str.extract(r"(\d+)")[0]
+                            df["YearLevel"] = pd.to_numeric(df["YearLevel"], errors='coerce').astype("Int64")
                         if "NSN" in df.columns:
                             df["NSN"] = pd.to_numeric(df["NSN"], errors="coerce").astype("Int64")
                         df.rename(columns={"BirthDate": "Birthdate"}, inplace=True)
                         if "Birthdate" in df.columns:
                             birthdate_format = session.get("birthdate_format", "dayfirst")  # fallback to dayfirst
                             use_dayfirst = birthdate_format == "dayfirst"
-                            df["Birthdate"] = pd.to_datetime(df["Birthdate"], dayfirst=use_dayfirst, errors="coerce")
-                            df["Birthdate"] = df["Birthdate"].dt.strftime('%Y-%m-%d')
-                            df["Birthdate"] = df["Birthdate"].where(pd.notnull(df["Birthdate"]), None)
+                            df["Birthdate"] = autodetect_date_column(df["Birthdate"])
 
 
                         df_json = df.to_json(orient="records")
-                        print("*")
+                        #print("*")
                         try:
                             parsed_json = json.loads(df_json)
                             for i, row in enumerate(parsed_json[:5]):
                                 print(f"📦 Row {i+1}: {row}")
                         except Exception as e:
                             print("❌ JSON error:", e)
-                        print("*")
+                        #print("*")
                         try:
                             with engine.begin() as conn:
                                 result = conn.execute(
@@ -316,13 +326,14 @@ def classlistupload():
                             print("❌ SQL execution error:", e)
                             traceback.print_exc()
                             
-                        print("🔍 Inspecting Birthdate values in preview_data:")
+                        #print("🔍 Inspecting Birthdate values in preview_data:")
                         for i, row in enumerate(preview_data[:5]):
                             print(f"Row {i+1} Birthdate:", row.get("Birthdate"), "Type:", type(row.get("Birthdate")))
-                            print(row)
+                            #print(row)
                         for row in preview_data:
                             if isinstance(row.get("Birthdate"), (datetime.date, datetime.datetime)):
                                 row["Birthdate"] = row["Birthdate"].strftime("%Y-%m-%d")
+                            
                         print("🔍 Inspecting Birthdate values in preview_data:")
                         for i, row in enumerate(preview_data[:5]):
                             print(f"Row {i+1} Birthdate:", row.get("Birthdate"), "Type:", type(row.get("Birthdate")))
@@ -334,7 +345,7 @@ def classlistupload():
             elif action == "preview":
                 flash("Please upload a valid CSV file.", "danger")
                 return redirect(url_for("upload_bp.classlistupload"))
-        print(selected_school)
+        #print(selected_school)
         return render_template(
             "classlistupload.html",
             funders=funders,
@@ -377,7 +388,8 @@ def classlistdownload():
 
     # Reconstruct DataFrame
     df = pd.DataFrame(session["preview_data"])
-    df["Birthdate"] = pd.to_datetime(df["Birthdate"], errors="coerce").dt.date
+    df["Birthdate"] = autodetect_date_column(df["Birthdate"])
+
 
     df = df.fillna("")
 
@@ -452,13 +464,14 @@ def classlistdownload():
 
                 if col_name == "Birthdate":
                     try:
-                        dt = pd.to_datetime(value)
-                        if pd.notnull(dt):
-                            # Choose correct background + date format
+                        # Expecting YYYY-MM-DD format from autodetect_date_column
+                        if isinstance(value, str) and re.match(r"^\d{4}-\d{2}-\d{2}$", value):
+                            dt = datetime.datetime.strptime(value, "%Y-%m-%d")
                             if is_error_col:
-                                worksheet.write_datetime(row, col, dt, orange_date_format if is_match else red_date_format)
+                                fmt = orange_date_format if is_match else red_date_format
                             else:
-                                worksheet.write_datetime(row, col, dt, date_format)
+                                fmt = date_format
+                            worksheet.write_datetime(row, col, dt, fmt)
                         else:
                             worksheet.write(row, col, "", fmt)
                     except Exception:
@@ -669,7 +682,7 @@ def download_excel():
 @login_required
 def get_schools_for_funder():
     funder_id = request.args.get("funder_id", type=int)
-    print(funder_id)
+    #print(funder_id)
     if not funder_id:
         return jsonify([])
 
@@ -680,5 +693,5 @@ def get_schools_for_funder():
             {"Request": "FilterSchoolID", "Number": funder_id}
         )
         schools = [row.School for row in result]
-        print(schools)
+        #print(schools)
     return jsonify(schools)

@@ -207,7 +207,7 @@ select option {
           {% set val = student[col]|default('')|string|trim %}
           {% set unescaped_col = col|replace('&lt;br&gt;', '<br>') %}
           <td>
-            {% if col in ["Scenario One - Selected <br> (7-8)", "Scenario Two - Selected <br> (7-8)"] %}
+            {% if col in ["Scenario One - Selected <br>(7-8)", "Scenario Two - Selected <br>(7-8)"] %}
               <select class="form-control"
                       data-nsn="{{ student.NSN }}"
                       data-header="{{ col }}"
