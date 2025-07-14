@@ -3,24 +3,42 @@
 
 {% block content %}
 <style>
-body,
-.container-fluid,
-main,
-.container-fluid > *,
-.scroll-table-inner,
-#studentsTable {
-  margin-bottom: 0 !important;
-  padding-bottom: 0 !important;
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden; /* prevent double scrolling */
+}
+
+.page-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: auto;
+}
+
+#non-table-content {
+  flex-shrink: 0;
 }
 .scroll-table-wrapper {
-  overflow-x: auto;
-  width: 100%;
-  padding-bottom: 0 !important;
-  margin-bottom: 0 !important;
+  flex-grow: 1;
+  overflow: auto;
+  min-height: 0; /* 💥 This is essential for flex scroll containment */
+}
+.scroll-table-inner:not(.fullscreen) {
+  max-height: calc(100vh - 250px); /* tweak based on header height */
+}
+body.fullscreen-mode nav.navbar,
+body.fullscreen-mode #non-table-content {
+  display: none !important;
+}
+
+.scroll-table-inner.fullscreen {
+  max-height: 95vh !important;
 }
 .scroll-table-inner {
-  max-height: 70vh;
-  overflow-y: auto;
+  max-height: 100%;
+  overflow: auto;
 }
 #studentsTable {
   border-collapse: collapse;
@@ -30,7 +48,7 @@ main,
 }
 #studentsTable th,
 #studentsTable td {
-  padding: 4px;
+  padding: 2px;
   text-align: center;
   vertical-align: top;
   background-color: white;
@@ -54,7 +72,7 @@ thead th {
   min-height: 100px;
 }
 .header-label {
-  margin-bottom: 8px;
+  margin-bottom: 2px;
 }
 #studentsTable th.col-0,
 #studentsTable td.col-0,
@@ -71,17 +89,17 @@ thead th {
 #studentsTable th.col-0,
 #studentsTable td.col-0 {
   left: 0;
-  width: 200px;
+  width: 180px;
 }
 #studentsTable th.col-1,
 #studentsTable td.col-1 {
-  left: 200px;
-  width: 200px;
+  left: 180px;
+  width: 180px;
 }
 #studentsTable th.col-2,
 #studentsTable td.col-2 {
-  left: 400px;
-  width: 120px;
+  left: 360px;
+  width: 80px;
 }
 #studentsTable th.col-0,
 #studentsTable th.col-1,
@@ -110,116 +128,113 @@ select option {
 .list-group-item {
   border: none;
 }
+.sticky-horizontal-scroll {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  overflow-x: auto;
+  background: white;
+  border-top: 1px solid #dee2e6;
+}
+
+.scroll-inner-x {
+  width: max-content;
+}
+
 </style>
 
-<!-- CLASS INFO HEADER -->
-<div class="container text-center mb-4" style="position: relative;">
-  <!-- ✅ SUCCESS MESSAGE -->
-  <div id="update-success" class="alert alert-success d-none mx-auto mb-3" style="max-width: 600px;" role="alert">
-    ✅ Class info updated successfully.
+<div class="page-wrapper d-flex flex-column">
+
+  <!-- Non-table content (header, buttons) -->
+  <div id="non-table-content">
+    <div class="container text-center mb-4" style="position: relative;">
+      <div id="update-success" class="alert alert-success d-none mx-auto mb-3" style="max-width: 600px;" role="alert">
+        ✅ Class info updated successfully.
+      </div>
+
+      <!-- View Mode -->
+      <div class="alert alert-secondary d-inline-block px-4 py-3" id="class-info-display">
+        <strong>Class Name:</strong> <span id="class-name-text">{{ class_name }}</span> |
+        <strong>Teacher:</strong> <span id="teacher-name-text">{{ teacher_name }}</span> |
+        <strong>School:</strong> {{ school_name }}
+        {% if edit == 1 %}
+        <button type="button" class="btn btn-sm btn-outline-primary ms-2" onclick="toggleEditMode(true)">Edit</button>
+        {% endif %}
+        
+      </div>
+
+      <!-- Edit Mode -->
+      <div class="alert alert-secondary d-none px-4 py-3" id="class-info-edit">
+        <strong>Class Name:</strong>
+        <input id="edit-class-name" type="text" value="{{ class_name }}"
+               class="form-control form-control-sm d-inline-block" style="width: 200px;" />
+        <strong>Teacher:</strong>
+        <input id="edit-teacher-name" type="text" value="{{ teacher_name }}"
+               class="form-control form-control-sm d-inline-block" style="width: 200px;" />
+        <strong>School:</strong> {{ school_name }}
+        <button class="btn btn-sm btn-success ms-2" onclick="submitClassInfo({{ class_id }})">Save</button>
+        <button class="btn btn-sm btn-secondary" onclick="toggleEditMode(false)">Cancel</button>
+      </div>
+
+      <!-- Sorting Buttons -->
+      <div class="text-center mb-3">
+        <a href="{{ url_for('class_bp.view_class', class_id=class_id, term=term, year=year, filter=filter_type, order_by='first') }}"
+           class="btn btn-sm btn-outline-secondary {% if order_by == 'first' %}active{% endif %}">Sort by First Name</a>
+        <a href="{{ url_for('class_bp.view_class', class_id=class_id, term=term, year=year, filter=filter_type, order_by='last') }}"
+           class="btn btn-sm btn-outline-secondary {% if order_by == 'last' %}active{% endif %}">Sort by Last Name</a>
+        <button id="fullscreen-btn" class="btn btn-sm btn-outline-secondary" onclick="toggleFullScreen()">🖥️ Full Screen</button>
+        <a class="btn btn-sm btn-outline-secondary"
+           href="{{ url_for('class_bp.print_class_view', class_id=class_id, term=term, year=year, filter=filter_type, order_by=order_by) }}"
+           target="_blank">🖨️ Print</a>
+      </div>
+    </div>
   </div>
 
-  <!-- ✅ VIEW MODE -->
-  <div class="alert alert-secondary d-inline-block px-4 py-3"
-       role="alert"
-       id="class-info-display"
-       style="position: relative; top: 0; z-index: 1;">
-    <strong>Class Name:</strong> <span id="class-name-text">{{ class_name }}</span> |
-    <strong>Teacher:</strong> <span id="teacher-name-text">{{ teacher_name }}</span> |
-    <strong>School:</strong> {{ school_name }}
-    {% if edit == 1 %}
-    <button type="button" class="btn btn-sm btn-outline-primary ms-2" onclick="toggleEditMode(true)">Edit</button>
-    {% endif %}
-    <a class="btn btn-sm btn-outline-secondary ms-2"
-    href="{{ url_for('class_bp.print_class_view', class_id=class_id, term=term, year=year, filter=filter_type, order_by=order_by) }}" target="_blank">
-   🖨️ Print
- </a>
-  </div>
-
-  <!-- ✅ EDIT MODE -->
-  <div class="alert alert-secondary d-none px-4 py-3"
-       id="class-info-edit"
-       style="position: relative; top: 0; z-index: 1;">
-    <strong>Class Name:</strong>
-    <input id="edit-class-name"
-           type="text"
-           value="{{ class_name }}"
-           class="form-control form-control-sm d-inline-block"
-           style="width: 200px;" />
-    
-    <strong>Teacher:</strong>
-    <input id="edit-teacher-name"
-           type="text"
-           value="{{ teacher_name }}"
-           class="form-control form-control-sm d-inline-block"
-           style="width: 200px;" />
-            <strong>School:</strong> {{ school_name }}
-    <button class="btn btn-sm btn-success ms-2"
-            onclick="submitClassInfo({{ class_id }})">Save</button>
-    <button class="btn btn-sm btn-secondary"
-            onclick="toggleEditMode(false)">Cancel</button>
-  </div>
-</div>
-<div class="text-center mb-3">
-  <a href="{{ url_for('class_bp.view_class', class_id=class_id, term=term, year=year, filter=filter_type, order_by='first') }}"
-     class="btn btn-sm btn-outline-secondary {% if order_by == 'first' %}active{% endif %}">
-    Sort by First Name
-  </a>
-  <a href="{{ url_for('class_bp.view_class', class_id=class_id, term=term, year=year, filter=filter_type, order_by='last') }}"
-     class="btn btn-sm btn-outline-secondary {% if order_by == 'last' %}active{% endif %}">
-    Sort by Last Name
-  </a>
-</div>
-
-
-<!-- TABLE WRAPPER -->
+<!-- Scrollable Table -->
 <div class="scroll-table-wrapper">
   <div class="scroll-table-inner">
     <table id="studentsTable" class="table table-sm">
-      <thead>
-        <tr>
-          <th class="col-0">Last Name</th>
-          <th class="col-1">Preferred Name</th>
-          <th class="col-2">Year Level</th>
-          {% for col in columns[3:] %}
-          <th>
-            <div class="mark-all-wrapper">
-              <div class="header-label text-center">{{ col|safe }}
-                {% if "Scenario" in col and "Selected" in col %}
-                <br>
-                <a href="#" class="small" data-bs-toggle="modal" data-bs-target="#scenarioModal">
-                  View full descriptions
-                </a>
-                {% endif %}
+          <thead>
+          <tr>
+            <th class="col-0">Last Name</th>
+            <th class="col-1">Preferred Name</th>
+            <th class="col-2">Year Level</th>
+            {% for col in columns[3:] %}
+            <th>
+              <div class="mark-all-wrapper">
+                <div class="header-label text-center">{{ col|safe }}
+                  {% if "Scenario" in col and "Selected" in col %}
+                  <br>
+                  <a href="#" class="small" data-bs-toggle="modal" data-bs-target="#scenarioModal">View full descriptions</a>
+                  {% endif %}
+                </div>
               </div>
-            </div>
-          </th>
-          {% endfor %}
-        </tr>
-      </thead>
-      <tbody>
-        {% for student in students %}
-        <tr>
-          <td class="col-0">{{ student.LastName }}</td>
-          <td class="col-1">{{ student.PreferredName }}</td>
-          <td class="col-2">{{ student.YearLevelID }}</td>
-          {% for col in columns[3:] %}
-          {% set val = student[col]|default('')|string|trim %}
-          {% set unescaped_col = col|replace('&lt;br&gt;', '<br>') %}
-          <td>
-            {% if col in ["Scenario One - Selected <br>(7-8)", "Scenario Two - Selected <br>(7-8)"] %}
+            </th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for student in students %}
+          <tr>
+            <td class="col-0">{{ student.LastName }}</td>
+            <td class="col-1">{{ student.PreferredName }}</td>
+            <td class="col-2">{{ student.YearLevelID }}</td>
+            {% for col in columns[3:] %}
+            {% set val = student[col]|default('')|string|trim %}
+            {% set unescaped_col = col|replace('&lt;br&gt;', '<br>') %}
+            <td>
+              {% if col in ["Scenario One - Selected <br>(7-8)", "Scenario Two - Selected <br>(7-8)"] %}
               <select class="form-control"
                       data-nsn="{{ student.NSN }}"
                       data-header="{{ col }}"
                       data-scenario-index="{{ 1 if 'Scenario One' in col else 2 }}">
                 {% for scenario in scenarios %}
-                {% set scenario_id_str = scenario.ScenarioID|string %}
-                <option value="{{ scenario_id_str }}" {% if val == scenario_id_str %}selected{% endif %}>
+                <option value="{{ scenario.ScenarioID }}" {% if val == scenario.ScenarioID|string %}selected{% endif %}>
                   {{ scenario.HTMLScenario | safe }}
                 </option>
                 {% endfor %}
               </select>
-            {% else %}
+              {% else %}
               <input type="checkbox"
                      name="competency"
                      data-nsn="{{ student.NSN }}"
@@ -227,158 +242,217 @@ select option {
                      data-competencyid="{{ competency_id_map[unescaped_col]['CompetencyID'] if unescaped_col in competency_id_map else '' }}"
                      data-yeargroupid="{{ competency_id_map[unescaped_col]['YearGroupID'] if unescaped_col in competency_id_map else '' }}"
                      {% if val == "Y" %}checked{% endif %} />
-            {% endif %}
-          </td>
+              {% endif %}
+            </td>
+            {% endfor %}
+          </tr>
           {% endfor %}
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+        </tbody>
+      </table>
+    </div>
   </div>
-</div>
 
-<!-- MODAL -->
-<div class="modal fade" id="scenarioModal" tabindex="-1" aria-labelledby="scenarioModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-scrollable">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="scenarioModalLabel">Scenario Descriptions</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <ul class="list-group">
-          {% for s in scenarios %}
-          <li class="list-group-item">
-            <strong>Scenario {{ s.ScenarioID }}: {{ s.HTMLScenario | safe }}</strong>
-            <p class="mb-0">{{ s.Description }}</p>
-          </li>
-          {% endfor %}
-        </ul>
+  <!-- Modal -->
+  <div class="modal fade" id="scenarioModal" tabindex="-1" aria-labelledby="scenarioModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="scenarioModalLabel">Scenario Descriptions</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <ul class="list-group">
+            {% for s in scenarios %}
+            <li class="list-group-item">
+              <strong>Scenario {{ s.ScenarioID }}: {{ s.HTMLScenario | safe }}</strong>
+              <p class="mb-0">{{ s.Description }}</p>
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
       </div>
     </div>
   </div>
+  <div class="modal fade" id="fullscreenModal" tabindex="-1" aria-labelledby="fullscreenModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content text-center">
+      <div class="modal-header">
+        <h5 class="modal-title" id="fullscreenModalLabel">Full Screen Mode</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+  You have entered full screen mode.<br>
+  Press <strong>Esc</strong> or click below to exit full screen.<br><br>
+
+  <div class="d-flex justify-content-center gap-3">
+    <button class="btn btn-outline-secondary btn-sm" onclick="exitFullScreenViaModal()">Exit Full Screen</button>
+    <button class="btn btn-primary btn-sm" data-bs-dismiss="modal">Continue</button>
+  </div>
 </div>
+    </div>
+  </div>
+</div>
+<!-- Sticky horizontal scrollbar pinned to bottom -->
+<div id="horizontal-scrollbar" class="sticky-horizontal-scroll">
+  <div class="scroll-inner-x">
+    <!-- Fake wide content just to create scroll -->
+<div id="scroll-sync-bar" style="height: 1px;"></div>
+  </div>
+</div>
+</div> <!-- END .page-wrapper -->
 
 <script>
-  const autofillMap = {{ autofill_map | tojson }};
-  const classId = {{ class_id | tojson }};
-  const term = {{ term | tojson }};
-  const year = {{ year | tojson }};
+const autofillMap = {{ autofill_map | tojson }};
+const classId = {{ class_id | tojson }};
+const term = {{ term | tojson }};
+const year = {{ year | tojson }};
 
-  function toggleEditMode(editing) {
-    const displayBox = document.getElementById("class-info-display");
-    const editBox = document.getElementById("class-info-edit");
-    const successBox = document.getElementById("update-success");
+function toggleEditMode(editing) {
+  const displayBox = document.getElementById("class-info-display");
+  const editBox = document.getElementById("class-info-edit");
+  const successBox = document.getElementById("update-success");
+  if (!displayBox || !editBox) return;
+  displayBox.classList.toggle("d-none", editing);
+  editBox.classList.toggle("d-none", !editing);
+  if (editing && successBox) successBox.classList.add("d-none");
+}
 
-    if (!displayBox || !editBox) return;
+function exitFullScreenViaModal() {
+  document.body.classList.remove("fullscreen-mode");
+  document.querySelector(".scroll-table-inner")?.classList.remove("fullscreen");
+  document.getElementById("fullscreen-btn").textContent = "🖥️ Full Screen";
+  const modal = bootstrap.Modal.getInstance(document.getElementById('fullscreenModal'));
+  modal?.hide();
+}
 
-    displayBox.classList.toggle("d-none", editing);
-    editBox.classList.toggle("d-none", !editing);
 
-    if (editing && successBox) {
-      successBox.classList.add("d-none");
-    }
-  }
-
-  function submitClassInfo(classId) {
-    const className = document.getElementById("edit-class-name").value.trim();
-    const teacherName = document.getElementById("edit-teacher-name").value.trim();
-
-    fetch("/update_class_info", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ class_id: classId, class_name: className, teacher_name: teacherName })
-    })
-    .then(res => res.json())
-    .then(data => {
-      if (data.success) {
-        document.getElementById("class-name-text").textContent = className;
-        document.getElementById("teacher-name-text").textContent = teacherName;
-        toggleEditMode(false);
-        const successBox = document.getElementById("update-success");
-        if (successBox) {
-          successBox.classList.remove("d-none");
-          setTimeout(() => successBox.classList.add("d-none"), 3000);
-        }
-      } else {
-        alert("❌ Failed to update class info");
+function submitClassInfo(classId) {
+  const className = document.getElementById("edit-class-name").value.trim();
+  const teacherName = document.getElementById("edit-teacher-name").value.trim();
+  fetch("/update_class_info", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ class_id: classId, class_name: className, teacher_name: teacherName })
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.success) {
+      document.getElementById("class-name-text").textContent = className;
+      document.getElementById("teacher-name-text").textContent = teacherName;
+      toggleEditMode(false);
+      const successBox = document.getElementById("update-success");
+      if (successBox) {
+        successBox.classList.remove("d-none");
+        setTimeout(() => successBox.classList.add("d-none"), 3000);
       }
-    })
-    .catch(err => {
-      console.error("Update failed:", err);
-      alert("❌ An error occurred.");
-    });
-  }
+    } else {
+      alert("❌ Failed to update class info");
+    }
+  })
+  .catch(err => {
+    console.error("Update failed:", err);
+    alert("❌ An error occurred.");
+  });
+}
 
-  document.addEventListener("DOMContentLoaded", function () {
-    // Handle competency checkbox updates
-    document.querySelectorAll('input[type="checkbox"][name="competency"]').forEach(cb => {
-      cb.addEventListener("change", function () {
-        const nsn = this.dataset.nsn;
-        const headerName = this.dataset.competency;
-        const status = this.checked ? 1 : 0;
-
-        fetch('/update_competency', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            nsn,
-            header_name: headerName,
-            status,
-            class_id: classId,
-            term: term,
-            year: year
-          })
-        })
-        .then(response => response.json())
-        .then(data => {
-          if (data.success && status === 1 && autofillMap[headerName]) {
-            autofillMap[headerName].forEach(postHeader => {
-              const target = document.querySelector(
-                `input[type="checkbox"][name="competency"][data-nsn="${nsn}"][data-competency="${postHeader}"]`
-              );
-              if (target && !target.checked) {
-                target.checked = true;
-                target.dispatchEvent(new Event("change"));
-              }
-            });
-          } else if (!data.success) {
-            alert("❌ Failed to update competency.");
-          }
-        })
-        .catch(err => console.error("Competency update error:", err));
-      });
-    });
-
-    // Handle scenario dropdown updates
-    document.querySelectorAll('select[data-scenario-index]').forEach(select => {
-      select.addEventListener("change", function () {
-        const nsn = this.dataset.nsn;
-        const headerName = this.dataset.header;
-        const value = parseInt(this.value);
-
-        fetch('/update_scenario', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            nsn,
-            header: headerName,
-            value,
-            class_id: classId,
-            term: term,
-            year: year
-          })
-        })
-        .then(response => response.json())
-        .then(data => {
-          if (!data.success) {
-            alert("❌ Failed to update scenario.");
-          }
-        })
-        .catch(err => console.error("Scenario update error:", err));
-      });
+document.addEventListener("DOMContentLoaded", function () {
+  document.querySelectorAll('input[type="checkbox"][name="competency"]').forEach(cb => {
+    cb.addEventListener("change", function () {
+      const nsn = this.dataset.nsn;
+      const headerName = this.dataset.competency;
+      const status = this.checked ? 1 : 0;
+      fetch('/update_competency', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nsn, header_name: headerName, status, class_id: classId, term: term, year: year })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success && status === 1 && autofillMap[headerName]) {
+          autofillMap[headerName].forEach(postHeader => {
+            const target = document.querySelector(
+              `input[type="checkbox"][name="competency"][data-nsn="${nsn}"][data-competency="${postHeader}"]`
+            );
+            if (target && !target.checked) {
+              target.checked = true;
+              target.dispatchEvent(new Event("change"));
+            }
+          });
+        } else if (!data.success) {
+          alert("❌ Failed to update competency.");
+        }
+      })
+      .catch(err => console.error("Competency update error:", err));
     });
   });
+
+  document.querySelectorAll('select[data-scenario-index]').forEach(select => {
+    select.addEventListener("change", function () {
+      const nsn = this.dataset.nsn;
+      const headerName = this.dataset.header;
+      const value = parseInt(this.value);
+      fetch('/update_scenario', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nsn, header: headerName, value, class_id: classId, term: term, year: year })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (!data.success) alert("❌ Failed to update scenario.");
+      })
+      .catch(err => console.error("Scenario update error:", err));
+    });
+  });
+});
+
+function toggleFullScreen() {
+  const scrollInner = document.querySelector(".scroll-table-inner");
+  const btn = document.getElementById("fullscreen-btn");
+
+  const isNowFull = !document.body.classList.contains("fullscreen-mode");
+
+  document.body.classList.toggle("fullscreen-mode", isNowFull);
+  scrollInner.classList.toggle("fullscreen", isNowFull);
+
+  btn.textContent = isNowFull ? "↩️ Exit Full Screen" : "🖥️ Full Screen";
+
+  if (isNowFull) {
+    const modal = new bootstrap.Modal(document.getElementById('fullscreenModal'));
+    modal.show();
+  }
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+  const tableScroll = document.querySelector(".scroll-table-wrapper");
+  const pinnedScroll = document.getElementById("horizontal-scrollbar");
+
+  if (pinnedScroll && tableScroll) {
+    const inner = pinnedScroll.querySelector(".scroll-inner-x");
+
+    inner.addEventListener("scroll", () => {
+      tableScroll.scrollLeft = inner.scrollLeft;
+    });
+
+    tableScroll.addEventListener("scroll", () => {
+      inner.scrollLeft = tableScroll.scrollLeft;
+    });
+  }
+});
+document.addEventListener("DOMContentLoaded", function () {
+  const studentsTable = document.getElementById("studentsTable");
+  const scrollSyncBar = document.getElementById("scroll-sync-bar");
+  if (studentsTable && scrollSyncBar) {
+    scrollSyncBar.style.width = studentsTable.scrollWidth + "px";
+  }
+});
+document.addEventListener("keydown", function (e) {
+  if (e.key === "Escape" && document.body.classList.contains("fullscreen-mode")) {
+    document.body.classList.remove("fullscreen-mode");
+    document.querySelector(".scroll-table-inner")?.classList.remove("fullscreen");
+    document.getElementById("fullscreen-btn").textContent = "🖥️ Full Screen";
+  }
+});
+
 </script>
 
 {% endblock %}

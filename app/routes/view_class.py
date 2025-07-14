@@ -156,7 +156,7 @@ columns=[col for col in df_combined.columns if col not in ["DateOfBirth", "Ethni
             ]
             # Filter out any labels that aren't actually in pivot_df.columns (to avoid key errors)
             competency_cols = [col for col in competency_cols if col in pivot_df.columns]
-
+            competency_cols = [col for col in competency_cols if col not in set(scenario_cols)]
             # Final column order
             ordered_cols = fixed_cols + competency_cols + scenario_cols
             pivot_df = pivot_df[ordered_cols]
