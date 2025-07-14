@@ -2,32 +2,32 @@
 {% block title %}Classes{% endblock %}
 
 {% block content %}
-<h3  class="text-primary mb-4 text-center">Filter Classes</h3>
+<h3 class="text-primary mb-4 text-center">Filter Classes</h3>
 
 <form method="POST">
   <div class="container">
     <div class="row justify-content-center align-items-end g-3">
+
       <!-- Term -->
       <div class="col-md-2">
         <label for="term" class="form-label">Term</label>
-         <select name="term" id="term" class="form-select" required>
-            <option value="" disabled {% if not request.form.get('term') %}selected{% endif %}>Select term</option>
-            {% for t in [1, 2, 3, 4] %}
-              <option value="{{ t }}" {% if request.form.get('term', '2') == t|string %}selected{% endif %}>{{ t }}</option>
-            {% endfor %}
-          </select>
+        <select name="term" id="term" class="form-select" required>
+          <option value="" disabled {% if not request.form.get('term', TERM|string) %}selected{% endif %}>Select term</option>
+          {% for t in [1, 2, 3, 4] %}
+            <option value="{{ t }}" {% if request.form.get('term', TERM|string) == t|string %}selected{% endif %}>{{ t }}</option>
+          {% endfor %}
+        </select>
       </div>
 
       <!-- Year -->
       <div class="col-md-2">
         <label for="calendaryear" class="form-label">Year</label>
-          <select name="calendaryear" id="calendaryear" class="form-select" required>
-    <option value="" disabled {% if not request.form.calendaryear and not YEAR %}selected{% endif %}>Select year</option>
-    {% for y in [2023, 2024, 2025] %}
-      {% set selected_year = request.form.calendaryear if request.form.calendaryear else YEAR %}
-      <option value="{{ y }}" {% if selected_year|string == y|string %}selected{% endif %}>{{ y }}</option>
-    {% endfor %}
-  </select>
+        <select name="calendaryear" id="calendaryear" class="form-select" required>
+          <option value="" disabled {% if not request.form.get('calendaryear', YEAR|string) %}selected{% endif %}>Select year</option>
+          {% for y in [2023, 2024, 2025] %}
+            <option value="{{ y }}" {% if request.form.get('calendaryear', YEAR|string) == y|string %}selected{% endif %}>{{ y }}</option>
+          {% endfor %}
+        </select>
       </div>
 
       <!-- School -->
@@ -36,7 +36,7 @@
         <select name="moe_number" id="moe_number" class="form-select" required>
           <option value="">Select School</option>
           {% for school in schools %}
-            <option value="{{ school.MOENumber }}" {% if request.form.moe_number == school.MOENumber|string %}selected{% endif %}>
+            <option value="{{ school.MOENumber }}" {% if request.form.get('moe_number') == school.MOENumber|string %}selected{% endif %}>
               {{ school.School }}
             </option>
           {% endfor %}
@@ -57,48 +57,41 @@
   <h4 class="text-center mb-3">Select a Class</h4>
   <div class="row justify-content-center">
     <div class="col-md-10">
-<table class="table table-sm table-borderless">
-        
+      <table class="table table-sm table-borderless">
         <tbody>
-  {% for cls in classes %}
-              <!-- {{ cls }}-->
-
-  <tr class="align-middle">
-    <td class="align-middle"><strong>Class Name:</strong> {{ cls.ClassName }}</td>
-    <td class="align-middle"><strong>Teacher Name:</strong> {{ cls.TeacherName }}</td>
-    <td class="align-middle"><strong>Year Levels:</strong> {{ cls.YearLevels }}</td>
-
-    <td class="align-middle">
-      <a class="btn btn-sm btn-outline-primary"
-         href="{{ url_for('class_bp.view_class', class_id=cls.ClassID, term=request.form['term'], year=request.form['calendaryear'], filter='all') }}">
-        View All Competencies
-      </a>
-    </td>
-    <td class="align-middle">
-      <a class="btn btn-sm btn-outline-secondary"
-         href="{{ url_for('class_bp.view_class', class_id=cls.ClassID, term=request.form['term'], year=request.form['calendaryear'], filter='water') }}">
-        View Water-Based Competencies
-      </a>
-    </td>
-  </tr>
-  {% endfor %}
-</tbody>
-
+        {% for cls in classes %}
+          <tr class="align-middle">
+            <td><strong>Class Name:</strong> {{ cls.ClassName }}</td>
+            <td><strong>Teacher Name:</strong> {{ cls.TeacherName }}</td>
+            <td><strong>Year Levels:</strong> {{ cls.YearLevels }}</td>
+            <td>
+              <a class="btn btn-sm btn-outline-primary"
+                 href="{{ url_for('class_bp.view_class', class_id=cls.ClassID, term=request.form['term'], year=request.form['calendaryear'], filter='all') }}">
+                View All Competencies
+              </a>
+            </td>
+            <td>
+              <a class="btn btn-sm btn-outline-secondary"
+                 href="{{ url_for('class_bp.view_class', class_id=cls.ClassID, term=request.form['term'], year=request.form['calendaryear'], filter='water') }}">
+                View Water-Based Competencies
+              </a>
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
       </table>
     </div>
   </div>
 </div>
 {% endif %}
 
-<!-- Suggestions if no classes -->
-
+<!-- Suggestions -->
 {% if suggestions and not classes %}
 <div class="container mt-4">
   <div class="row justify-content-center">
     <div class="col-md-6">
       <div class="alert alert-warning text-center">
         <strong>No classes with students and year levels found for this term.</strong><br />
-
       </div>
     </div>
   </div>
@@ -109,6 +102,8 @@
 {% block scripts %}
 <script>
   const userRole = "{{ user_role }}";
+  const defaultTerm = "{{ TERM }}";
+  const defaultYear = "{{ YEAR }}";
 
   function fetchSchools() {
     const term = document.getElementById("term").value;
@@ -150,14 +145,18 @@
   document.getElementById("calendaryear").addEventListener("change", fetchSchools);
 
   window.addEventListener("DOMContentLoaded", () => {
-    const term = document.getElementById("term").value;
-    const year = document.getElementById("calendaryear").value;
-    if (term && year && document.getElementById("moe_number").options.length <= 1) {
+    const termEl = document.getElementById("term");
+    const yearEl = document.getElementById("calendaryear");
+
+    // Ensure values are selected from default if not already set
+    if (!termEl.value && defaultTerm) termEl.value = defaultTerm;
+    if (!yearEl.value && defaultYear) yearEl.value = defaultYear;
+
+    // Trigger fetch if school list is missing or minimal
+    const schoolSelect = document.getElementById("moe_number");
+    if (schoolSelect && schoolSelect.options.length <= 1 && termEl.value && yearEl.value) {
       fetchSchools();
     }
   });
-
-  
 </script>
-
 {% endblock %}
