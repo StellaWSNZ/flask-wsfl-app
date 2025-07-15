@@ -64,7 +64,7 @@ def view_class(class_id, term, year):
                 return render_template(
                     "student_achievement.html",
                     students=df_combined.to_dict(orient="records"),
-columns=[col for col in df_combined.columns if col not in ["DateOfBirth", "Ethnicity", "FirstName", "NSN"]],
+columns=[col for col in df_combined.columns if col not in ["DateOfBirth", "Ethnicity", "FirstName"]],
                     competency_id_map=competency_id_map,
                     scenarios=cached.get("scenarios", []),
                     class_id=class_id,
@@ -147,7 +147,7 @@ columns=[col for col in df_combined.columns if col not in ["DateOfBirth", "Ethni
                 "Scenario2": "Scenario Two - Selected <br>(7-8)"
             })
 
-            fixed_cols = ["LastName", "PreferredName", "YearLevelID"]
+            fixed_cols = ["NSN","LastName", "PreferredName", "YearLevelID"]
             scenario_cols = [
                 "Scenario One - Selected <br>(7-8)",
                 "Scenario One - Completed <br>(7-8)",
