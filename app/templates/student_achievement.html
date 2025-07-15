@@ -101,6 +101,12 @@ thead th {
   left: 360px;
   width: 80px;
 }
+.btn-xs {
+  padding: 0.15rem 0.3rem;
+  font-size: 0.7rem;
+  line-height: 1;
+  border-radius: 0.15rem;
+}
 #studentsTable th.col-0,
 #studentsTable th.col-1,
 #studentsTable th.col-2 {
@@ -203,18 +209,30 @@ select option {
             <th class="col-0">Last Name</th>
             <th class="col-1">Preferred Name</th>
             <th class="col-2">Year Level</th>
-            {% for col in columns[3:] %}
-            <th>
-              <div class="mark-all-wrapper">
-                <div class="header-label text-center">{{ col|safe }}
-                  {% if "Scenario" in col and "Selected" in col %}
-                  <br>
-                  <a href="#" class="small" data-bs-toggle="modal" data-bs-target="#scenarioModal">View full descriptions</a>
-                  {% endif %}
-                </div>
-              </div>
-            </th>
-            {% endfor %}
+{% for col in columns[3:] %}
+  {% set normalized_col = col|replace('&lt;br&gt;', '<br>') %}
+  <th>
+    <div class="mark-all-wrapper">
+      <div class="header-label text-center">
+        {{ col|safe }}
+        {% if "Scenario" not in col %}
+        <br>
+        <button type="button"
+                class="btn btn-xs btn-outline-success mt-1 mark-all-btn"
+data-colraw="{{ col }}"
+                data-competencyid="{{ competency_id_map[normalized_col] if normalized_col in competency_id_map else '' }}">
+          Mark All
+        </button>
+        {% elif "Scenario" in col and "Selected" in col %}
+        <br>
+        <a href="#" class="small" data-bs-toggle="modal" data-bs-target="#scenarioModal">View full descriptions</a>
+        {% endif %}
+      </div>
+    </div>
+  </th>
+{% endfor %}
+
+
           </tr>
         </thead>
         <tbody>
@@ -261,6 +279,27 @@ select option {
   </div>
 
   <!-- Modal -->
+   <!-- Confirm Mark All Modal -->
+<div class="modal fade" id="markAllConfirmModal" tabindex="-1" aria-labelledby="markAllConfirmLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content text-center">
+      <div class="modal-header">
+        <h5 class="modal-title" id="markAllConfirmLabel">Confirm Mark All</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+  This will mark all checkboxes in the <strong><span id="mark-all-column-name">selected column</span></strong> as achieved.<br>
+  <div id="autofill-affected" class="mt-2 text-start"></div>
+  Are you sure you want to continue?
+</div>
+      <div class="modal-footer justify-content-center">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+        <button id="confirm-mark-all-btn" type="button" class="btn btn-success btn-sm">Yes, mark all</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal fade" id="helpModal" tabindex="-1" aria-labelledby="helpModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
@@ -340,6 +379,7 @@ const autofillMap = {{ autofill_map | tojson }};
 const classId = {{ class_id | tojson }};
 const term = {{ term | tojson }};
 const year = {{ year | tojson }};
+let pendingMarkAllCompetency = null;
 
 function toggleEditMode(editing) {
   const displayBox = document.getElementById("class-info-display");
@@ -478,6 +518,72 @@ document.addEventListener("DOMContentLoaded", function () {
   if (studentsTable && scrollSyncBar) {
     scrollSyncBar.style.width = studentsTable.scrollWidth + "px";
   }
+
+document.querySelectorAll(".mark-all-btn").forEach(btn => {
+  btn.addEventListener("click", function () {
+    const headerLabel = this.closest("th").querySelector(".header-label");
+    const colRaw = this.dataset.colraw;
+
+    // Clean column name for modal by cloning and stripping button + <br>
+    const tempClone = headerLabel.cloneNode(true);
+    tempClone.querySelectorAll("br")?.forEach(el => el.remove());
+    tempClone.querySelector("button")?.remove();
+    const cleanedColName = tempClone.textContent.trim();
+
+    // Show clean name in modal
+    document.getElementById("mark-all-column-name").textContent = cleanedColName;
+
+    const dependent = autofillMap[colRaw] || [];
+
+    // Save to global
+    pendingMarkAllCompetency = {
+      displayName: cleanedColName,
+      colRaw: colRaw,
+      dependent: dependent
+    };
+
+    // Inject dependent info into modal
+    const autofillDiv = document.getElementById("autofill-affected");
+    if (dependent.length > 0) {
+const list = dependent
+  .map(dep => `<li>${dep.replace(/<br\s*\/?>/gi, " ")}</li>`)
+  .join("");      autofillDiv.innerHTML = `
+        <div class="alert alert-warning p-2 mt-2">
+          <strong>Note:</strong> This will also mark the following competencies as achieved:
+          <ul class="mb-0">${list}</ul>
+        </div>`;
+    } else {
+      autofillDiv.innerHTML = "";
+    }
+
+    // Show the modal
+    const modal = new bootstrap.Modal(document.getElementById('markAllConfirmModal'));
+    modal.show();
+  });
+});
+
+
+
+document.getElementById("confirm-mark-all-btn").addEventListener("click", function () {
+  if (!pendingMarkAllCompetency) return;
+
+const competency = pendingMarkAllCompetency.colRaw;
+const checkboxes = document.querySelectorAll(`input[type="checkbox"][name="competency"]`);
+checkboxes.forEach(cb => {
+  if (cb.dataset.competency?.trim() === competency && !cb.checked) {
+    cb.checked = true;
+    cb.dispatchEvent(new Event("change"));
+  }
+});
+
+  // Clear and hide modal
+  pendingMarkAllCompetency = null;
+  const modalEl = document.getElementById('markAllConfirmModal');
+  const modal = bootstrap.Modal.getInstance(modalEl);
+  modal.hide();
+
+   
+  });
 });
 document.addEventListener("keydown", function (e) {
   if (e.key === "Escape" && document.body.classList.contains("fullscreen-mode")) {

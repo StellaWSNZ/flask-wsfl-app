@@ -60,7 +60,7 @@ def view_class(class_id, term, year):
                 competency_id_map = {}
                 if not comp_df.empty and "label" in comp_df.columns:
                     competency_id_map = comp_df.set_index("label")["CompetencyID"].to_dict()
-
+                print(cached.get("autofill_map", {}))
                 return render_template(
                     "student_achievement.html",
                     students=df_combined.to_dict(orient="records"),
@@ -164,7 +164,7 @@ columns=[col for col in df_combined.columns if col not in ["DateOfBirth", "Ethni
             header_map = defaultdict(list)
             for row in auto_result:
                 header_map[row.HeaderPre].append(row.HeaderPost)
-
+            print(header_map)
             expiry_time = datetime.now(timezone.utc) + timedelta(minutes=15)
             session.setdefault("class_cache", {})[cache_key] = {
                 "timestamp": datetime.now(timezone.utc).isoformat(),
