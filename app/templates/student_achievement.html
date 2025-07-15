@@ -177,16 +177,20 @@ select option {
       </div>
 
       <!-- Sorting Buttons -->
-      <div class="text-center mb-3">
-        <a href="{{ url_for('class_bp.view_class', class_id=class_id, term=term, year=year, filter=filter_type, order_by='first') }}"
-           class="btn btn-sm btn-outline-secondary {% if order_by == 'first' %}active{% endif %}">Sort by First Name</a>
-        <a href="{{ url_for('class_bp.view_class', class_id=class_id, term=term, year=year, filter=filter_type, order_by='last') }}"
-           class="btn btn-sm btn-outline-secondary {% if order_by == 'last' %}active{% endif %}">Sort by Last Name</a>
-        <button id="fullscreen-btn" class="btn btn-sm btn-outline-secondary" onclick="toggleFullScreen()">🖥️ Full Screen</button>
-        <a class="btn btn-sm btn-outline-secondary"
-           href="{{ url_for('class_bp.print_class_view', class_id=class_id, term=term, year=year, filter=filter_type, order_by=order_by) }}"
-           target="_blank">🖨️ Print</a>
-      </div>
+      <div class="d-flex justify-content-center flex-wrap gap-2 mb-3">
+  <a href="{{ url_for('class_bp.view_class', class_id=class_id, term=term, year=year, filter=filter_type, order_by='first') }}"
+     class="btn btn-sm btn-outline-secondary {% if order_by == 'first' %}active{% endif %}">Sort by First Name</a>
+  <a href="{{ url_for('class_bp.view_class', class_id=class_id, term=term, year=year, filter=filter_type, order_by='last') }}"
+     class="btn btn-sm btn-outline-secondary {% if order_by == 'last' %}active{% endif %}">Sort by Last Name</a>
+  <button id="fullscreen-btn" class="btn btn-sm btn-outline-secondary" onclick="toggleFullScreen()">🖥️ Full Screen</button>
+  <a class="btn btn-sm btn-outline-secondary"
+     href="{{ url_for('class_bp.print_class_view', class_id=class_id, term=term, year=year, filter=filter_type, order_by=order_by) }}"
+     target="_blank">🖨️ Print</a>
+  <button class="btn btn-sm btn-secondary fw-bold d-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#helpModal">
+    <span class="text-white">?</span>
+    Help
+  </button>
+</div>
     </div>
   </div>
 
@@ -215,6 +219,7 @@ select option {
         </thead>
         <tbody>
           {% for student in students %}
+          {% set row_index = loop.index0 %}
           <tr>
             <td class="col-0">{{ student.LastName }}</td>
             <td class="col-1">{{ student.PreferredName }}</td>
@@ -236,6 +241,9 @@ select option {
               </select>
               {% else %}
               <input type="checkbox"
+                      tabindex="0"
+                       data-row="{{ row_index }}" 
+      data-col="{{ loop.index0 }}"
                      name="competency"
                      data-nsn="{{ student.NSN }}"
                      data-competency="{{ col }}"
@@ -253,6 +261,32 @@ select option {
   </div>
 
   <!-- Modal -->
+<div class="modal fade" id="helpModal" tabindex="-1" aria-labelledby="helpModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="helpModalLabel">Help & Keyboard Shortcuts</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body small">
+        <h6 class="fw-bold">Keyboard Navigation</h6>
+        <ul>
+          <li><strong>Tab</strong>/<strong>Shift+Tab</strong> – move sideways between checkboxes</li>
+          <li><strong>Enter</strong>/<strong>Shift+Enter</strong> – move down/up between rows</li>
+          <li><strong>Space</strong> – toggle a checkbox</li>
+          <li>You can also <strong>click checkboxes</strong> to toggle them manually</li>
+        </ul>
+
+        <h6 class="fw-bold mt-3">Other Features</h6>
+        <ul>
+          <li><strong>🖨️ Print</strong> – generates a printable version of the table</li>
+          <li><strong>🖥️ Full Screen</strong> – expands the table to fill the screen for easier data entry</li>
+          <li><strong>Sort by First/Last Name</strong> – reorders students alphabetically</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
   <div class="modal fade" id="scenarioModal" tabindex="-1" aria-labelledby="scenarioModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
       <div class="modal-content">
@@ -452,6 +486,98 @@ document.addEventListener("keydown", function (e) {
     document.getElementById("fullscreen-btn").textContent = "🖥️ Full Screen";
   }
 });
+document.addEventListener("keydown", function (e) {
+  const active = document.activeElement;
+  console.log("🔑 Key pressed:", e.key);
+
+  if (!active) {
+    console.log("❌ No active element.");
+    return;
+  }
+
+  if (active.tagName !== "INPUT" || active.type !== "checkbox") {
+    console.log("⛔ Not a checkbox input:", active.tagName, active.type);
+    return;
+  }
+
+  const row = parseInt(active.dataset.row);
+  const col = parseInt(active.dataset.col);
+  if (isNaN(row) || isNaN(col)) {
+    console.log("❌ Missing or invalid data-row / data-col", active.dataset);
+    return;
+  }
+
+  const scrollY = window.scrollY;
+  let next = null;
+
+  const allCheckboxes = document.querySelectorAll('input[type="checkbox"][data-row]');
+  const maxRow = Math.max(...Array.from(allCheckboxes).map(cb => parseInt(cb.dataset.row)));
+
+  // ↔ TAB / SHIFT+TAB
+  if (e.key === "Tab") {
+    console.log("➡️ Tab key");
+    e.preventDefault();
+    const offset = e.shiftKey ? -1 : 1;
+    next = document.querySelector(`input[data-row="${row}"][data-col="${col + offset}"]`);
+    if (next) {
+      console.log(`✅ Moving ${offset === 1 ? "right" : "left"} to col ${col + offset}`);
+    } else {
+      console.log("❌ No checkbox found for tab movement");
+    }
+  }
+
+  // ↕ ENTER / SHIFT+ENTER
+  else if (e.key === "Enter") {
+    console.log("⏎ Enter key");
+    e.preventDefault();
+    const offset = e.shiftKey ? -1 : 1;
+    let targetRow = row + offset;
+
+    while (targetRow >= 0 && targetRow <= maxRow) {
+      console.log(`🔍 Looking at row ${targetRow}, col ${col}`);
+      next = document.querySelector(`input[data-row="${targetRow}"][data-col="${col}"]`);
+      if (next) {
+        console.log("✅ Found next checkbox");
+        break;
+      }
+      targetRow += offset;
+    }
+
+    if (!next) {
+      console.log("❌ No checkbox found in that direction");
+    }
+  }
+
+  // ✅ SPACE — toggle
+  else if (e.key === " ") {
+    console.log("␣ Spacebar toggle");
+    e.preventDefault();
+    active.checked = !active.checked;
+    active.dispatchEvent(new Event("change"));
+    return;
+  }
+
+  // ✅ Y/N or 1/0 — toggle
+  else if (["y", "n", "1", "0"].includes(e.key.toLowerCase())) {
+    console.log("✅ Y/N or 1/0 toggle:", e.key);
+    e.preventDefault();
+    active.checked = ["y", "1"].includes(e.key.toLowerCase());
+    active.dispatchEvent(new Event("change"));
+    return;
+  }
+
+  if (next) {
+    console.log("🎯 Focusing next input");
+    next.focus();
+    window.scrollTo({ top: scrollY });
+  } else {
+    console.log("⛔ No next input to focus");
+  }
+});
+
+
+
+
 
 </script>
 
