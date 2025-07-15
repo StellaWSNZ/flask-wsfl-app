@@ -170,7 +170,8 @@ columns=[col for col in df_combined.columns if col not in ["DateOfBirth", "Ethni
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 "expires": expiry_time.isoformat(),
                 "students": pivot_df.to_dict(),
-                "competencies": comp_df.to_dict(),
+                "competencies": comp_df.to_dict(orient="records"),
+
                 "filter": filter_type,
                 "student_competencies": pivot_df.to_dict(orient="records"),
                 "class_name": class_name,
@@ -886,156 +887,155 @@ def moe_classes():
         TERM=session.get("nearest_term"),
         YEAR=session.get("nearest_year")
     )
-
 @class_bp.route("/Class/print/<int:class_id>/<int:term>/<int:year>")
 @login_required
 def print_class_view(class_id, term, year):
-    filter_type = request.args.get("filter") or session.get("last_filter_used", "all")
-    order_by = request.args.get("order_by", "last")
-    cache_key = f"{class_id}_{term}_{year}_{filter_type}"
-    print(f"🖨️ [print_class_view] Requested print for cache key: {cache_key}")
-    print(f"📦 Available cache keys: {list(session.get('class_cache', {}).keys())}")
+    try:
+        from datetime import datetime
+        filter_type = request.args.get("filter") or session.get("last_filter_used", "all")
+        order_by = request.args.get("order_by", "last")
+        cache_key = f"{class_id}_{term}_{year}_{filter_type}"
+        print(f"🖨️ [print_class_view] Requested print for cache key: {cache_key}")
+        print(f"📦 Available cache keys: {list(session.get('class_cache', {}).keys())}")
 
-    if request.args.get("refresh") == "1":
-        print("🔁 Refresh requested — clearing cache key if present")
-        session.get("class_cache", {}).pop(cache_key, None)
+        if request.args.get("refresh") == "1":
+            print("🔁 Refresh requested — clearing cache key if present")
+            session.get("class_cache", {}).pop(cache_key, None)
 
-    if "class_cache" in session and cache_key in session["class_cache"]:
-        print("✅ Cache hit — loading data from session cache")
-        cache = session["class_cache"][cache_key]
-        students = pd.DataFrame(cache["students"])
-        comp_df = pd.DataFrame(cache["competencies"])
-        df_combined = pd.DataFrame(cache.get("student_competencies", {}))
+        if "class_cache" in session and cache_key in session["class_cache"]:
+            print("✅ Cache hit — loading data from session cache")
+            cache = session["class_cache"][cache_key]
+            students = pd.DataFrame(cache["students"])
+            comp_df = pd.DataFrame(cache["competencies"])
+            df_combined = pd.DataFrame(cache.get("student_competencies", {}))
 
-        filter_type = cache.get("filter", "all")
-        print(f"🔍 Filter used from cache: {filter_type}")
-        print(f"📐 Number of students in cache: {len(students)}")
-        print(f"📊 Number of competencies in cache: {len(comp_df)}")
+            filter_type = cache.get("filter", "all")
+            print(f"🔍 Filter used from cache: {filter_type}")
+            print(f"📐 Number of students in cache: {len(students)}")
+            print(f"📊 Number of competencies in cache: {len(comp_df)}")
 
-        if df_combined.empty:
-            print("⚠️ Cache is incomplete — regenerating student competency data")
+            if df_combined.empty:
+                print("⚠️ Cache is incomplete — regenerating student competency data")
+                engine = get_db_engine()
+                with engine.begin() as conn:
+                    comp_df["label"] = comp_df["CompetencyDesc"] + " <br>(" + comp_df["YearGroupDesc"] + ")"
+                    comp_df["col_order"] = comp_df["YearGroupID"].astype(str).str.zfill(2) + "-" + comp_df["CompetencyID"].astype(str).str.zfill(4)
+                    comp_df = comp_df.sort_values("col_order")
+                    labels = comp_df["label"].tolist()
+
+                    all_records = []
+                    for _, student in students.iterrows():
+                        nsn = student["NSN"]
+                        print(f"🔄 Regenerating data for NSN {nsn}")
+                        comp_data = pd.read_sql(
+                            text("""EXEC FlaskGetStudentCompetencyStatus 
+                                    @NSN = :NSN, 
+                                    @Term = :Term, 
+                                    @CalendarYear = :CalendarYear,
+                                    @Email = :Email"""),
+                            conn,
+                            params={"NSN": nsn, "Term": term, "CalendarYear": year, "Email": session.get("user_email")}
+                        )
+                        if not comp_data.empty:
+                            comp_data = comp_data.merge(comp_df[["CompetencyID", "YearGroupID", "label"]],
+                                                        on=["CompetencyID", "YearGroupID"], how="inner")
+                            comp_row = comp_data.set_index("label")["CompetencyStatusID"].reindex(labels).fillna(0).astype(int).map({1: 'Y', 0: ''}).to_dict()
+                        else:
+                            comp_row = {label: '' for label in labels}
+
+                        merged_row = {
+                            "NSN": nsn,
+                            "FirstName": student["FirstName"],
+                            "LastName": student["LastName"],
+                            "PreferredName": student["PreferredName"],
+                            "DateOfBirth": student["DateOfBirth"],
+                            "Ethnicity": student["Ethnicity"],
+                            "YearLevelID": student["YearLevelID"],
+                            **comp_row
+                        }
+                        all_records.append(merged_row)
+
+                    df_combined = pd.DataFrame(all_records)
+                    df_combined = df_combined.replace('Y', '✓')
+                    session["class_cache"][cache_key]["student_competencies"] = df_combined.to_dict()
+                    print("✅ Regenerated and updated cache with student competencies")
+
+        else:
+            print("❌ Cache miss — no matching data found, redirecting to view_class")
             engine = get_db_engine()
-            with engine.begin() as conn:
-                comp_df["label"] = comp_df["CompetencyDesc"] + " <br>(" + comp_df["YearGroupDesc"] + ")"
-                comp_df["col_order"] = comp_df["YearGroupID"].astype(str).str.zfill(2) + "-" + comp_df["CompetencyID"].astype(str).str.zfill(4)
-                
-                comp_df = comp_df.sort_values("col_order")
-                labels = comp_df["label"].tolist()
+            with engine.connect() as conn:
+                result = conn.execute(
+                    text("""EXEC FlaskHelperFunctionsSpecific
+                            @Request = :Request,
+                            @ClassID = :class_id,
+                            @Term = :term,
+                            @Year = :year"""),
+                    {"Request": "StudentsByClassTermYear", "class_id": class_id, "term": term, "year": year}
+                )
+                students = pd.DataFrame(result.fetchall(), columns=result.keys())
+                if students.empty:
+                    print("⚠️ No students found for class — redirecting")
+                    flash("No students found.", "warning")
+                    return redirect(url_for("class_bp.funder_classes"))
 
-                all_records = []
-                for _, student in students.iterrows():
-                    nsn = student["NSN"]
-                    print(f"🔄 Regenerating data for NSN {nsn}")
-                    comp_data = pd.read_sql(
-                        text("""EXEC FlaskGetStudentCompetencyStatus 
-                                @NSN = :NSN, 
-                                @Term = :Term, 
-                                @CalendarYear = :CalendarYear,
-                                @Email = :Email"""),
-                        conn,
-                        params={"NSN": nsn, "Term": term, "CalendarYear": year, "Email": session.get("user_email")}
-                    )
-                    if not comp_data.empty:
-                        comp_data = comp_data.merge(comp_df[["CompetencyID", "YearGroupID", "label"]],
-                                                    on=["CompetencyID", "YearGroupID"], how="inner")
-                        comp_row = comp_data.set_index("label")["CompetencyStatusID"].reindex(labels).fillna(0).astype(int).map({1: 'Y', 0: ''}).to_dict()
-                    else:
-                        comp_row = {label: '' for label in labels}
+                comp_result = conn.execute(
+                    text("EXEC GetRelevantCompetencies :CalendarYear, :Term"),
+                    {"CalendarYear": year, "Term": term}
+                )
+                comp_df = pd.DataFrame(comp_result.fetchall(), columns=comp_result.keys())
 
-                    merged_row = {
-                        "NSN": nsn,
-                        "FirstName": student["FirstName"],
-                        "LastName": student["LastName"],
-                        "PreferredName": student["PreferredName"],
-                        "DateOfBirth": student["DateOfBirth"],
-                        "Ethnicity": student["Ethnicity"],
-                        "YearLevelID": student["YearLevelID"],
-                        **comp_row
-                    }
-                    all_records.append(merged_row)
+            session.setdefault("class_cache", {})[cache_key] = {
+                "students": students.to_dict(),
+                "competencies": comp_df.to_dict(orient="records"),
 
-                df_combined = pd.DataFrame(all_records)
-                df_combined = df_combined.replace('Y', '✓')
+                "filter": filter_type
+            }
+            print(f"🆕 Created empty cache for key: {cache_key}")
+            flash("Class data not cached yet — please view the class first.", "warning")
+            return redirect(url_for("class_bp.view_class", class_id=class_id, term=term, year=year, filter=filter_type))
+        print(comp_df)
+        comp_df["col_order"] = comp_df["YearGroupID"].astype(str).str.zfill(2) + "-" + comp_df["CompetencyID"].astype(str).str.zfill(4)
+        comp_df = comp_df.sort_values("col_order")
+        df_combined = df_combined.replace('Y', '✓')
+        labels = comp_df["label"].tolist()
 
-                session["class_cache"][cache_key]["student_competencies"] = df_combined.to_dict()
-                print("✅ Regenerated and updated cache with student competencies")
+        grouped = {"0–2": [], "3–4": [], "5–6": [], "7–8": []}
+        for row in df_combined.to_dict(orient="records"):
+            for group in grouped:
+                grouped[group].append(row)
 
-    else:
-        print("❌ Cache miss — no matching data found, redirecting to view_class")
+        def get_range_labels(labels, yr_range):
+            return [label for label in labels if f"({yr_range})" in label]
+
+        columns_by_range = {
+            "0–2": get_range_labels(labels, "0-2"),
+            "3–4": get_range_labels(labels, "3-4"),
+            "5–6": get_range_labels(labels, "5-6"),
+            "7–8": get_range_labels(labels, "7-8")
+        }
+
         engine = get_db_engine()
         with engine.connect() as conn:
-            result = conn.execute(
-                text("""EXEC FlaskHelperFunctionsSpecific
-                        @Request = :Request,
-                        @ClassID = :class_id,
-                        @Term = :term,
-                        @Year = :year"""),
-                {"Request": "StudentsByClassTermYear", "class_id": class_id, "term": term, "year": year}
-            )
-            students = pd.DataFrame(result.fetchall(), columns=result.keys())
-            if students.empty:
-                print("⚠️ No students found for class — redirecting")
-                flash("No students found.", "warning")
-                return redirect(url_for("class_bp.funder_classes"))
+            class_info = conn.execute(
+                text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :class_id"),
+                {"Request": "ClassInfoByID", "class_id": class_id}
+            ).fetchone()
 
-            comp_result = conn.execute(
-                text("EXEC GetRelevantCompetencies :CalendarYear, :Term"),
-                {"CalendarYear": year, "Term": term}
-            )
-            comp_df = pd.DataFrame(comp_result.fetchall(), columns=comp_result.keys())
+        class_name = class_info.ClassName if class_info else "Unknown Class"
+        teacher_name = class_info.TeacherName if class_info else "Unknown Teacher"
 
-        
-        session.setdefault("class_cache", {})[cache_key] = {
-            "students": students.to_dict(),
-            "competencies": comp_df.to_dict(),
-            "filter": filter_type
-        }
-        print(f"🆕 Created empty cache for key: {cache_key}")
-        flash("Class data not cached yet — please view the class first.", "warning")
-        return redirect(url_for("class_bp.view_class", class_id=class_id, term=term, year=year, filter=filter_type))
+        return render_template(
+            "print_view.html",
+            grouped=grouped,
+            columns_by_range=columns_by_range,
+            class_name=class_name,
+            teacher_name=teacher_name,
+            filter_type=filter_type,
+            now=datetime.now
+        )
 
-    # Grouping and prep for rendering
-    comp_df["label"] = comp_df["CompetencyDesc"] + " <br>(" + comp_df["YearGroupDesc"] + ")"
-    comp_df["col_order"] = comp_df["YearGroupID"].astype(str).str.zfill(2) + "-" + comp_df["CompetencyID"].astype(str).str.zfill(4)
-    comp_df = comp_df.sort_values("col_order")
-    df_combined = df_combined.replace('Y', '✓')
-    labels = comp_df["label"].tolist()
-
-    print(f"🧮 Final number of students: {len(df_combined)}")
-    print(f"🏷️ Competency labels used: {labels[:5]}...")
-
-    grouped = {"0–2": [], "3–4": [], "5–6": [], "7–8": []}
-    for row in df_combined.to_dict(orient="records"):
-        for group in grouped:
-            grouped[group].append(row)
-
-    def get_range_labels(labels, yr_range):
-        return [label for label in labels if f"({yr_range})" in label]
-
-    columns_by_range = {
-        "0–2": get_range_labels(labels, "0-2"),
-        "3–4": get_range_labels(labels, "3-4"),
-        "5–6": get_range_labels(labels, "5-6"),
-        "7–8": get_range_labels(labels, "7-8")
-    }
-
-    engine = get_db_engine()
-    with engine.connect() as conn:
-        class_info = conn.execute(
-            text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :class_id"),
-            {"Request": "ClassInfoByID", "class_id": class_id}
-        ).fetchone()
-
-    class_name = class_info.ClassName if class_info else "Unknown Class"
-    teacher_name = class_info.TeacherName if class_info else "Unknown Teacher"
-    print(f"📘 Class: {class_name} | 👩‍🏫 Teacher: {teacher_name}")
-
-    return render_template(
-        "print_view.html",
-        grouped=grouped,
-        columns_by_range=columns_by_range,
-        class_name=class_name,
-        teacher_name=teacher_name,
-        filter_type=filter_type,
-        now=datetime.now
-    )
+    except Exception as e:
+        import traceback
+        print("❌ Unhandled error in print_class_view:", e)
+        traceback.print_exc()
+        return "Internal Server Error (print view)", 500
