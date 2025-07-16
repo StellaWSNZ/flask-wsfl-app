@@ -4,7 +4,7 @@ import pandas as pd
 import json
 from sqlalchemy import text
 from app.routes.auth import login_required
-
+import pprint
 eLearning_bp = Blueprint("eLearning_bp", __name__)
 
 @eLearning_bp.route("/eLearning", methods=["GET", "POST"])
@@ -29,8 +29,10 @@ def admin_eLearning_upload():
 
             # Convert CourseNumber to integer safely
             df["CourseNumber"] = pd.to_numeric(df["CourseNumber"], errors="coerce").fillna(0).astype(int)
+            print(df[["CourseNumber", "CourseName"]].drop_duplicates())
 
             json_payload = df.to_json(orient="records")
+            print(json_payload)
 
             engine = get_db_engine()
             with engine.begin() as conn:

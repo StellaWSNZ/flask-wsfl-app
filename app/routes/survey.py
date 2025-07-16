@@ -275,7 +275,7 @@ def view_my_survey_response(respondent_id):
 
             questions = {}
             for row in rows:
-                (_, _, _, _, qid, qtext, qcode, answer_likert, answer_text) = row
+                (_, _, _, sid, qid, qtext, qcode, answer_likert, answer_text) = row
 
                 if qid not in questions:
                     question = {
@@ -290,8 +290,8 @@ def view_my_survey_response(respondent_id):
                     # For Likert questions, load all labels
                     if qcode == "LIK":
                         label_rows = conn.execute(text("""
-                            EXEC SVY_GetLikertLabelsByQuestionID @QuestionID = :qid
-                        """), {"qid": qid}).fetchall()
+                            EXEC SVY_GetLikertLabelsByQuestionID @QuestionID = :qid, @SurveyID = :sid
+                        """), {"qid": qid,"sid":sid}).fetchall()
                         question["labels"] = [(pos, label) for pos, label in label_rows]
 
                     questions[qid] = question
