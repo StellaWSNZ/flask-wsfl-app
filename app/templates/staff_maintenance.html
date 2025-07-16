@@ -295,16 +295,31 @@
                 </div>
                 <div class="col-md-3">
                   {% if row.Active != 1 %}
-<form method="POST" action="{{ url_for('staff_bp.invite_user') }}">
-  <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
-  <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
-  <input type="hidden" name="email" value="{{ row.Email }}" />
-  <input type="hidden" name="firstname" value="{{ row.FirstName }}">
-  <input type="hidden" name="admin" value="{{ row.Admin or 0 }}">
-  <button type="submit" class="btn btn-sm btn-outline-primary w-100">
-    Invite User
-  </button>
-</form>
+<div class="row g-2">
+  <div class="col">
+    <form method="POST" action="{{ url_for('staff_bp.invite_user') }}">
+      <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
+      <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
+      <input type="hidden" name="email" value="{{ row.Email }}" />
+      <input type="hidden" name="firstname" value="{{ row.FirstName }}">
+      <input type="hidden" name="admin" value="{{ row.Admin or 0 }}">
+      <button type="submit" class="btn btn-sm btn-outline-primary w-100">
+        Invite User
+      </button>
+    </form>
+  </div>
+  <div class="col">
+    <button
+      type="button"
+      class="btn btn-sm btn-outline-primary w-100"
+      data-bs-toggle="modal"
+      data-bs-target="#hideModal_{{ safe_id }}"
+    >
+      Hide User
+    </button>
+  </div>
+</div>
+
 {% else %}
 <form method="POST" action="{{ url_for('staff_bp.disable_user') }}">
   <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
@@ -315,6 +330,7 @@
   <button type="submit" class="btn btn-sm btn-outline-primary w-100">
     Disable User
   </button>
+
 </form>
 {% endif %}
                 </div>
@@ -324,8 +340,57 @@
         </div>
       </div>
     </div>
+    
+
 
     <!-- MODAL -->
+     <div
+  class="modal fade"
+  id="hideModal_{{ safe_id }}"
+  tabindex="-1"
+  aria-labelledby="hideLabel_{{ safe_id }}"
+  aria-hidden="true"
+>
+  <div class="modal-dialog">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title" id="hideLabel_{{ safe_id }}">
+          Confirm Hide User
+        </h5>
+        <button
+          type="button"
+          class="btn-close btn-close-white"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-2">
+          Are you sure you want to <strong>hide this user</strong>?<br><br>
+          They will no longer appear in:
+        </p>
+        <ul>
+          <li>Staff Overviews</li>
+          <li>eLearning</li>
+          <li>Self Reviews</li>
+        </ul>
+        <p class="mb-2">
+          This is recommended for staff who no longer work for your organisation.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <form method="POST" action="{{ url_for('staff_bp.hide_user') }}">
+          <input type="hidden" name="email" value="{{ row.Email }}" />
+          <button type="submit" class="btn btn-danger">Yes, Hide User</button>
+        </form>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
     <div
       class="modal fade"
       id="editModal_{{ safe_id }}"
@@ -423,7 +488,30 @@
   </div>
   {% endif %}
 
+{% if hidden_staff and hidden_staff|length > 0 %}
+  <div class="card border-primary mt-5">
+    <div class="card-body">
+      <h5 class="text-primary mb-3">
+        {{ hidden_staff|length }} Staff Member{{ 's' if hidden_staff|length > 1 else '' }} Hidden
+      </h5>
+      <ul class="list-unstyled">
+        {% for person in hidden_staff %}
+          <li class="d-flex justify-content-between align-items-center mb-2">
+            <span>{{ person.FirstName }} {{ person.Surname }} ({{ person.Email }})</span>
+              <form method="POST" action="{{ url_for('staff_bp.unhide_user') }}" class="d-inline">
+                <input type="hidden" name="email" value="{{ person.Email }}">
+                <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
+                <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
+                <button type="submit" class="btn btn-sm btn-outline-primary">Unhide</button>
+              </form>
+            
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
 
+{% endif %}
 
   <!-- Add New Staff Modal -->
   <div class="modal fade" id="addStaffModal" tabindex="-1" aria-labelledby="addStaffLabel" aria-hidden="true">

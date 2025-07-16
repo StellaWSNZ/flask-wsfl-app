@@ -174,7 +174,12 @@ def staff_maintenance():
             rows = result.fetchall()
             staff_data = pd.DataFrame(rows, columns=result.keys())
             columns = result.keys()
-
+            # Fetch hidden staff using same role_type and target_id
+            hidden_result = conn.execute(
+                text("EXEC FlaskGetHiddenStaff @EntityType = :etype, @EntityID = :eid"),
+                {"etype": role_type, "eid": target_id}
+            )
+            hidden_staff = [dict(row._mapping) for row in hidden_result]
         return render_template(
             "staff_maintenance.html",
             entity_type=selected_entity_type,
@@ -191,7 +196,8 @@ def staff_maintenance():
             name=name+"'s Staff eLearning",
             user_role=user_role,
             user_admin=is_admin,
-            has_groups=has_groups
+            has_groups=has_groups,
+            hidden_staff=hidden_staff
         )
 
     except Exception as e:
@@ -626,3 +632,42 @@ def staff_eLearning():
         print("❌ Error rendering staff_elearning.html:")
         print(traceback.format_exc())
         return "500 Template Error", 500
+
+@staff_bp.route("/hide_user", methods=["POST"])
+@login_required
+def hide_user():
+    print("***")
+    email = request.form.get("email")
+
+    engine = get_db_engine()
+    try:
+        with engine.begin() as conn:
+            conn.execute(text("EXEC FlaskDeactivateUser @Email = :email"), {"email": email})
+        flash(f"{email} has been hidden from all staff views.", "success")
+    except Exception:
+        import traceback
+        traceback.print_exc()
+        flash("Failed to hide the user. Please contact support.", "danger")
+    selected_entity_type = request.form.get("entity_type") or request.args.get("entity_type")
+    selected_entity_id = request.form.get("entity_id") or request.args.get("entity_id")
+    return redirect(url_for('staff_bp.staff_maintenance', entity_type=selected_entity_type, entity_id=selected_entity_id))
+
+
+@staff_bp.route("/unhide_user", methods=["POST"])
+@login_required
+def unhide_user():
+  
+    email = request.form.get("email")
+    engine = get_db_engine()
+    try:
+        with engine.begin() as conn:
+            conn.execute(text("EXEC FlaskUnhideUserByEmail @Email = :email"), {"email": email})
+
+        flash(f"{email} has been unhidden.", "success")
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        flash("Something went wrong while unhiding the user.", "danger")
+    selected_entity_type = request.form.get("entity_type") or request.args.get("entity_type")
+    selected_entity_id = request.form.get("entity_id") or request.args.get("entity_id")
+    return redirect(url_for('staff_bp.staff_maintenance', entity_type=selected_entity_type, entity_id=selected_entity_id))

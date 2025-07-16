@@ -29,10 +29,10 @@ def admin_eLearning_upload():
 
             # Convert CourseNumber to integer safely
             df["CourseNumber"] = pd.to_numeric(df["CourseNumber"], errors="coerce").fillna(0).astype(int)
-            print(df[["CourseNumber", "CourseName"]].drop_duplicates())
+            #print(df[["CourseNumber", "CourseName"]].drop_duplicates())
 
             json_payload = df.to_json(orient="records")
-            print(json_payload)
+            #print(json_payload)
 
             engine = get_db_engine()
             with engine.begin() as conn:
