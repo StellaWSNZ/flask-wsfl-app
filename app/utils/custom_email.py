@@ -275,3 +275,81 @@ def send_feedback_email(mail, user_email, issue_text, display_name, role, is_adm
     
     
     mail.send(msg)
+def send_elearning_reminder_email(mail, email, firstname, requested_by, from_org, course_statuses):
+    # Badge color map
+    status_badges = {
+        'Passed': 'green',
+        'In Progress': 'orange',
+        'Not Started': 'grey',
+        'Cancelled': 'red',
+        'Not enrolled': 'grey'
+    }
+
+    # Build the rows
+    course_rows = ""
+    for course_name, status in course_statuses:
+        color = status_badges.get(status, 'grey')
+        course_rows += f"""
+        <div style="display: flex; justify-content: space-between; align-items: center; margin: 8px 0; font-size: 14px;">
+            <div style="flex: 1; padding-right: 12px;">{course_name}</div>
+            <div>
+                <span style="display: inline-block; padding: 3px 10px; font-size: 13px; border-radius: 4px; background-color: {color}; color: white;">
+                    {status}
+                </span>
+            </div>
+        </div>
+        """
+
+    # Text version
+    msg = Message(
+        subject="Reminder: Complete Your eLearning Courses",
+        sender=(f"{requested_by} via WSFL", current_app.config["MAIL_DEFAULT_SENDER"]),
+        recipients=[email]
+    )
+
+    msg.body = f"""
+Kia ora {firstname},
+
+This is a reminder to complete your eLearning courses with WSFL via SportTutor.
+
+You can either follow the instructions in the attached PDF or go directly to the SportTutor website to continue:
+
+https://sporttutor.nz/ilp/pages/catalogsearch.jsf?catalogId=3712496&menuId=3712463&locale=en-GB&showbundlekeys=false&client=watersafetynz&sidebarExpanded=true&q=*:*&rows=9
+
+Ngā mihi,  
+The WSFL Team
+"""
+
+    msg.html = f"""
+<div style="font-family: Arial, sans-serif; font-size: 16px; line-height: 1.6;">
+  <p>Kia ora <strong>{firstname}</strong>,</p>
+  
+  <p>This is a reminder to complete your eLearning courses with WSFL via SportTutor.</p>
+  
+  <p>Below is your current course status at the time this email was sent:</p>
+
+  <div style="background-color: #f5f5f5; border-radius: 8px; padding: 16px 20px; margin-top: 20px; display: inline-block; max-width: 500px;">
+    {course_rows}
+  </div>
+
+  <p>You can follow the instructions in the attached PDF, or click the link below to access your courses:</p>
+  <p>
+    <a href="https://sporttutor.nz/ilp/pages/catalogsearch.jsf?catalogId=3712496&menuId=3712463&locale=en-GB&showbundlekeys=false&client=watersafetynz&sidebarExpanded=true&q=*:*&rows=9">
+      View your eLearning courses on SportTutor
+    </a>
+  </p>
+
+  <p>Ngā mihi,<br>The WSFL Team</p>
+  <img src="cid:wsfl_logo" alt="WSFL Logo" style="margin-top: 20px; width: 200px;">
+</div>
+"""
+    # Attach logo
+    with current_app.open_resource("static/WSFLLogo.png") as fp:
+        msg.attach("WSFLLogo.png", "image/png", fp.read(), disposition='inline',
+                   headers={"Content-ID": "<wsfl_logo>"})
+
+    # Attach PDF
+    with current_app.open_resource("static/eLearningGuide.pdf") as pdf_fp:
+        msg.attach("eLearningGuide.pdf", "application/pdf", pdf_fp.read())
+
+    mail.send(msg)

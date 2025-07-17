@@ -7,7 +7,7 @@
   <form method="POST" class="mb-4" id="entityForm">
     <div class="row g-2 align-items-end justify-content-center">
   
-      <div class="col-md-3">
+      <div class="col-md-2">
         <label for="entity_type" class="form-label">Entity Type</label>
         <select name="entity_type" id="entity_type" class="form-select" {% if user_role == "PRO" %}readonly disabled{% endif %}>
           {% if user_role != "GRP" %}
@@ -221,7 +221,7 @@
           <div class="row mt-4">
             <div class="col-12">
               <div class="row g-2">
-                <div class="col-md-3">
+                <div class="col">
                   <form
                     method="POST"
                     action="{{ url_for('survey_bp.send_survey_reminder') if row.Active == 1 else url_for('survey_bp.email_survey_link') }}"
@@ -259,7 +259,7 @@
                     </button>
                   </form>
                 </div>
-                <div class="col-md-3">
+                <div class="col">
                   {% if not row.LastSelfReview or row.LastSelfReview|string == "NaT" %}
   <!-- This shows the popover -->
   <button
@@ -285,7 +285,24 @@
 {% endif %}
 
                 </div>
-                <div class="col-md-3">
+                <div class="col">
+<form method="POST" action="{{ url_for('staff_bp.send_elearning_reminder') }}">
+  <input type="hidden" name="email" value="{{ row.Email }}" />
+  <input type="hidden" name="firstname" value="{{ row.FirstName }}" />
+  <input
+    type="hidden"
+    name="requested_by"
+    value="{{ session['user_firstname'] ~ ' ' ~ session['user_surname'] }}"
+  />
+  <input type="hidden" name="from_org" value="{{ session['desc'] }}" />
+   <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
+  <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
+  <button type="submit" class="btn btn-sm btn-outline-primary w-100">
+    Email eLearning Reminder
+  </button>
+</form>
+</div>
+                <div class="col">
                   <button
                     class="btn btn-sm btn-outline-primary w-100"
                     data-bs-toggle="modal"
@@ -294,9 +311,7 @@
                     Edit
                   </button>
                 </div>
-                <div class="col-md-3">
                   {% if row.Active != 1 %}
-<div class="row g-2">
   <div class="col">
     <form method="POST" action="{{ url_for('staff_bp.invite_user') }}">
       <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
@@ -309,19 +324,10 @@
       </button>
     </form>
   </div>
-  <div class="col">
-    <button
-      type="button"
-      class="btn btn-sm btn-outline-primary w-100"
-      data-bs-toggle="modal"
-      data-bs-target="#hideModal_{{ safe_id }}"
-    >
-      Hide User
-    </button>
-  </div>
-</div>
+  
 
 {% else %}
+<div class="col">
 <form method="POST" action="{{ url_for('staff_bp.disable_user') }}">
   <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
   <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
@@ -333,12 +339,23 @@
   </button>
 
 </form>
+  </div>
 {% endif %}
+<div class="col">
+    <button
+      type="button"
+      class="btn btn-sm btn-outline-primary w-100"
+      data-bs-toggle="modal"
+      data-bs-target="#hideModal_{{ safe_id }}"
+    >
+      Hide User
+    </button>
+  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
+        
       </div>
     </div>
     
@@ -378,6 +395,11 @@
         <p class="mb-2">
           This is recommended for staff who no longer work for your organisation.
         </p>
+        {% if row.Active == 1 %}
+<p class="text-danger fw-bold">
+  This will also <strong>disable their login</strong>.
+</p>
+{% endif %}
       </div>
       <div class="modal-footer">
         <form method="POST" action="{{ url_for('staff_bp.hide_user') }}">

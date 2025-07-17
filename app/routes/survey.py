@@ -379,7 +379,7 @@ def guest_survey_by_id(survey_id):
 
     
 from flask import request, redirect, url_for, flash
-from app.utils.custom_email import send_survey_invite_email
+from app.utils.custom_email import send_survey_invite_email, send_elearning_reminder_email
 
 @survey_bp.route("/send_invite", methods=["POST"])
 @login_required

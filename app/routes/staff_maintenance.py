@@ -3,7 +3,7 @@ import pandas as pd
 from sqlalchemy import text
 from app.utils.database import get_db_engine
 from app.routes.auth import login_required
-from app.utils.custom_email import send_account_setup_email
+from app.utils.custom_email import send_account_setup_email, send_elearning_reminder_email
 from app.extensions import mail
 import traceback
 
@@ -671,3 +671,34 @@ def unhide_user():
     selected_entity_type = request.form.get("entity_type") or request.args.get("entity_type")
     selected_entity_id = request.form.get("entity_id") or request.args.get("entity_id")
     return redirect(url_for('staff_bp.staff_maintenance', entity_type=selected_entity_type, entity_id=selected_entity_id))
+
+
+@staff_bp.route("/send_elearning_reminder", methods=["POST"])
+@login_required
+def send_elearning_reminder():
+    try:
+        email = request.form["email"]
+        firstname = request.form["firstname"]
+        requested_by = request.form["requested_by"]
+        from_org = request.form["from_org"]
+
+        # Query course status
+        engine = get_db_engine()
+        with engine.begin() as conn:
+            result = conn.execute(text("EXEC FlaskGetUserELearningStatus :email"), {"email": email})
+            course_statuses = [(row.ELearningCourseName, row.ELearningStatus) for row in result]
+
+
+        send_elearning_reminder_email(mail, email, firstname, requested_by, from_org, course_statuses)
+        flash(f"📧 eLearning reminder sent to {firstname}.", "info")
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+       
+        flash("❌ Failed to send eLearning reminder.", "danger")
+
+    selected_entity_type = request.form.get("entity_type") or request.args.get("entity_type")
+    selected_entity_id = request.form.get("entity_id") or request.args.get("entity_id")
+    return redirect(url_for('staff_bp.staff_maintenance', entity_type=selected_entity_type, entity_id=selected_entity_id))
+
