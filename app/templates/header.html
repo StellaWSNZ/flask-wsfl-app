@@ -244,7 +244,7 @@
                 </li>
               </ul>
             </li>
-            {% if user_role == "ADM" and user_email !=
+            {%endif%} {% if user_role == "ADM" and user_email !=
             "megan@watersafety.org.nz" %}
             <li class="nav-item dropdown">
               <a
@@ -321,7 +321,7 @@
                 </li>
               </ul>
             </li>
-            {% endif%} {% elif user_role == "ADM" and user_email ==
+            {% elif user_role == "ADM" and user_email ==
             "megan@watersafety.org.nz" %}
             <li class="nav-item dropdown">
               <a
