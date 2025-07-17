@@ -244,7 +244,8 @@
                 </li>
               </ul>
             </li>
-            {% endif %} {% if user_role == "ADM" %}
+            {% if user_role == "ADM" and user_email !=
+            "megan@watersafety.org.nz" %}
             <li class="nav-item dropdown">
               <a
                 class="nav-link dropdown-toggle {% if 'reporting' in request.path or 'classlistupload' in request.path or 'funder_classes' in request.path %}active{% endif %}"
@@ -320,7 +321,85 @@
                 </li>
               </ul>
             </li>
-            {% endif %}
+            {% endif%} {% elif user_role == "ADM" and user_email ==
+            "megan@watersafety.org.nz" %}
+            <li class="nav-item dropdown">
+              <a
+                class="nav-link dropdown-toggle {% if 'reporting' in request.path or 'classlistupload' in request.path or 'funder_classes' in request.path %}active{% endif %}"
+                href="#"
+                role="button"
+                data-bs-toggle="dropdown"
+                aria-expanded="false"
+              >
+                Admin Tools
+              </a>
+              <ul class="dropdown-menu dropdown-menu-end">
+                <li>
+                  <a
+                    class="dropdown-item py-2"
+                    href="{{ url_for('report_bp.reporting') }}"
+                  >
+                    Reporting
+                  </a>
+                </li>
+                <!-- <li>
+                  <a
+                    class="dropdown-item py-2"
+                    href="{{ url_for('admin_bp.provider_maintenance') }}"
+                    >Provider Maintenance</a
+                  >
+                </li>
+                <li>
+                  <a
+                    class="dropdown-item py-2"
+                    href="{{ url_for('upload_bp.classlistupload') }}"
+                  >
+                    Upload Class List
+                  </a>
+                </li>
+                <li>
+                  <a
+                    class="dropdown-item py-2"
+                    href="{{ url_for('class_bp.funder_classes') }}"
+                  >
+                    Class Lookup
+                  </a>
+                </li>
+
+                <li>
+                  <a
+                    class="dropdown-item py-2"
+                    href="{{ url_for('eLearning_bp.admin_eLearning_upload') }}"
+                  >
+                    Upload eLearning Excel
+                  </a>
+                </li>
+                <li>
+                  <a
+                    class="dropdown-item py-2"
+                    href="{{ url_for('students_bp.student_search_page') }}"
+                  >
+                    Edit Student Record
+                  </a>
+                </li>
+              -->
+                <li>
+                  <a
+                    class="dropdown-item py-2"
+                    href="{{ url_for('funder_bp.funder_dashboard') }}"
+                    >Overview by Entity
+                  </a>
+                </li>
+                <li>
+                  <a
+                    class="dropdown-item py-2"
+                    href="{{ url_for('funder_bp.admin_dashboard') }}"
+                    >Overview
+                  </a>
+                </li>
+              </ul>
+            </li>
+            {% endif %} {% if user_email != "megan@watersafety.org.nz"%}
             <li class="nav-item dropdown mt-2 mt-lg-0 me-2">
               <a
                 class="nav-link dropdown-toggle"
@@ -367,7 +446,7 @@
                 </li>
               </ul>
             </li>
-            {% if session['user_admin'] == 1%}
+            {% endif %} {% if session['user_admin'] == 1%}
             <li class="nav-item dropdown mt-2 mt-lg-0 me-2">
               <a
                 class="nav-link dropdown-toggle"
@@ -379,6 +458,7 @@
                 <i class="bi bi-people-fill me-1"></i> Staff
               </a>
               <ul class="dropdown-menu dropdown-menu-end">
+                {% if user_email != "megan@watersafety.org.nz"%}
                 <li>
                   <a
                     class="dropdown-item py-2"
@@ -387,7 +467,7 @@
                     Manage My Staff
                   </a>
                 </li>
-                {% if user_role != "MOE" %}
+                {% endif %} {% if user_role != "MOE" %}
                 <li>
                   <a
                     class="dropdown-item py-2"
@@ -399,6 +479,7 @@
                 {% endif %}
               </ul>
             </li>
+            {% if user_email != "megan@watersafety.org.nz"%}
             <li class="nav-item mt-2 mt-lg-0 me-2">
               <a
                 href="{{ url_for('eLearning_bp.eLearning_guide') }}"
@@ -419,7 +500,7 @@
                 >Upload Class List</a
               >
             </li>
-            {% endif %}
+            {% endif %} {% endif %}
             <!--{% if user_email in ["emma@dgss.co.nz",
             "kin@clmnz.co.nz","leanne.stocks@ccc.govt.nz","fun_admin@example.com","pro_admin_1@example.com","clair.muirhead@qldc.govt.nz"]
             %}
