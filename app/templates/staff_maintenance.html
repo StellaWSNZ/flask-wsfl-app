@@ -247,8 +247,9 @@
                     <input
                       type="hidden"
                       name="from_org"
-                      value="{{ session['desc'] if row.Active != 1 else name }}"
+                      value="{{ session['desc']  }}"
                     />
+                    <!-- {{ session['desc']  }} -->
                     <button
                       type="submit"
                       class="btn btn-sm btn-outline-primary w-100"

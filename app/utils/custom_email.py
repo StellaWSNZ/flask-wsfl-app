@@ -165,19 +165,45 @@ def send_survey_invite_email(mail, recipient_email, first_name, role, user_id, s
     
     
 def send_survey_reminder_email(mail, email, firstname, requested_by, from_org):
+    login_link = url_for('auth_bp.login', _external=True)
+
     msg = Message(
         subject="Reminder: Complete Your Self Review",
-        recipients=[email],
-        sender=(f"{requested_by} via WSFL", current_app.config["MAIL_DEFAULT_SENDER"])
+        sender=(f"{requested_by} via WSFL", current_app.config["MAIL_DEFAULT_SENDER"]),
+        recipients=[email]
     )
-    msg.html = f"""
-    <p>Kia ora {firstname},</p>
-    <p>This is a friendly reminder to log into the WSFL site and complete your self review.</p>
-    <p>This reminder was sent at the request of an administrator from <strong>{from_org}</strong>.</p>
-    <p><a href="{url_for('auth_bp.login', _external=True)}">Click here to log in</a></p>
-    <p>Ngā mihi,<br>WSFL Team</p>
+
+    msg.body = f"""
+    Kia ora {firstname},
+
+    This is a friendly reminder to log into the WSFL site and complete your self review.
+
+    This reminder was sent at the request of an administrator from {from_org or "WSFL"}.
+
+    Please click the link below to log in:
+    {login_link}
+
+    Ngā mihi,
+    The WSFL Team
     """
+
+    msg.html = f"""
+    <div style="font-family: Arial, sans-serif; font-size: 16px; line-height: 1.6;">
+      <p>Kia ora <strong>{firstname}</strong>,</p>
+      <p>This is a friendly reminder to log into the <strong>WSFL</strong> site and complete your self review.</p>
+      <p>This reminder was sent at the request of an administrator from <strong>{from_org}</strong>.</p>
+      <p><a href="{login_link}">Click here to log in</a></p>
+      <p>Ngā mihi,<br>The WSFL Team</p>
+      <img src="cid:wsfl_logo" alt="WSFL Logo" style="margin-top: 20px; width: 200px;">
+    </div>
+    """
+
+    with current_app.open_resource("static/WSFLLogo.png") as fp:
+        msg.attach("WSFLLogo.png", "image/png", fp.read(), disposition='inline',
+                   headers={"Content-ID": "<wsfl_logo>"})
+
     mail.send(msg)
+
 
 def send_survey_invitation_email(mail, email, firstname, lastname, role, user_id, survey_id, requested_by, from_org):
     # Generate tokenized one-time link

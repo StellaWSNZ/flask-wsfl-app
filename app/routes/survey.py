@@ -449,7 +449,8 @@ def send_survey_reminder():
         firstname = request.form["firstname"]
         requested_by = request.form["requested_by"]  # Should be full name
         from_org = request.form["from_org"]
-        
+        print(from_org)
+        print(requested_by)
         send_survey_reminder_email(mail, email, firstname, requested_by, from_org)
         flash(f"📧 Reminder sent to {firstname}.", "info")
     except Exception as e:
