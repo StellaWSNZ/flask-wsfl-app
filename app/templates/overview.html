@@ -102,7 +102,7 @@
                         <span class="badge bg-danger" style="font-size: 0.8rem;">{{ status }}</span>
                       {% elif status == 'In Progress' %}
                         <span class="badge bg-warning text-dark" style="font-size: 0.8rem;">{{ status }}</span>
-                      {% elif status == 'Not Started' %}
+                      {% elif status in ['Not Started', 'Enrolled'] %}
                         <span class="badge bg-secondary" style="font-size: 0.8rem;">{{ status }}</span>
                       {% else %}
                         <span class="badge bg-light text-dark" style="font-size: 0.8rem;">{{ status }}</span>

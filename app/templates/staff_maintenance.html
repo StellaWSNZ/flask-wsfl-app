@@ -207,7 +207,7 @@
                       <small>{{ row[col] }}</small>
                     </div>
                     <span
-                      class="badge me-3 {% if row['ELearningStatus_' + course_id] == 'Passed' %}bg-success {% elif row['ELearningStatus_' + course_id] == 'In Progress' %}bg-warning text-dark {% elif row['ELearningStatus_' + course_id] == 'Cancelled' %}bg-danger {% elif row['ELearningStatus_' + course_id] == 'Not Started' %}bg-secondary {% else %}bg-light text-dark{% endif %}"
+                      class="badge me-3 {% if row['ELearningStatus_' + course_id] == 'Passed' %}bg-success {% elif row['ELearningStatus_' + course_id] == 'In Progress' %}bg-warning text-dark {% elif row['ELearningStatus_' + course_id] == 'Cancelled' %}bg-danger {% elif row['ELearningStatus_' + course_id] == 'Not Started' %}bg-secondary {% else %}bg-secondary{% endif %}"
                     >
                       {{ row['ELearningStatus_' + course_id] }}
                     </span>
