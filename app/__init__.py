@@ -5,6 +5,7 @@ from app.stored_session import StoredProcSessionInterface
 from app.utils.database import get_db_engine
 from app.routes import register_routes
 import os
+import urllib.parse
 
 # Global objects (used across blueprints)
 db = SQLAlchemy()
@@ -19,11 +20,23 @@ def create_app():
     # -----------------------------
     # 🔌 Database Configuration
     # -----------------------------
-    db_url = os.getenv("DB_URL")
-    print("🧪 DB_URL =", repr(db_url))
 
-    if not db_url or not db_url.strip():
-        raise RuntimeError("❌ DB_URL is not set or is empty! Set it in your Render environment.")
+    user = os.getenv("WSNZDBUSER")
+    password = os.getenv("WSNZDBPASS")
+
+    if not user or not password:
+        raise RuntimeError("❌ WSNZDBUSER or WSNZDBPASS not set!")
+
+    # Safely encode the password (in case it contains special characters)
+    quoted_password = urllib.parse.quote_plus(password)
+
+    # Build the connection string
+    db_url = (
+        f"mssql+pyodbc://{user}:{quoted_password}@heimatau.database.windows.net:1433"
+        f"/WSFL?driver=ODBC+Driver+18+for+SQL+Server"
+    )
+
+    print("🧪 DB_URL =", db_url)
 
     app.config["SQLALCHEMY_DATABASE_URI"] = db_url
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
