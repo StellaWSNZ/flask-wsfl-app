@@ -12,15 +12,22 @@ mail = Mail()
 
 def create_app():
     app = Flask(__name__, static_folder="static", template_folder="templates")
-    
+
     # Secret key
     app.secret_key = os.getenv("SECRET_KEY", "changeme123")
 
     # -----------------------------
     # 🔌 Database Configuration
     # -----------------------------
-    app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DB_URL")
+    db_url = os.getenv("DB_URL")
+    print("🧪 DB_URL =", repr(db_url))
+
+    if not db_url or not db_url.strip():
+        raise RuntimeError("❌ DB_URL is not set or is empty! Set it in your Render environment.")
+
+    app.config["SQLALCHEMY_DATABASE_URI"] = db_url
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
     db.init_app(app)
 
     # -----------------------------
@@ -58,12 +65,10 @@ def create_app():
             "auth_bp.forgot_password",
             "auth_bp.reset_password",
             "survey_bp.survey_invite_token",
-        "survey_bp.guest_survey_by_id",
-        "survey_bp.submit_survey",
-
-            "static"
+            "survey_bp.guest_survey_by_id",
+            "survey_bp.submit_survey",
+            "static",
         }
-        #print(session)
         if not session.get("logged_in") and not session.get("guest_user") and request.endpoint not in allowed_routes:
             return redirect(url_for("auth_bp.login", next=request.url))
 
@@ -77,7 +82,7 @@ def create_app():
     @app.context_processor
     def inject_user_admin():
         return {"user_admin": session.get("user_admin")}
-    
+
     @app.context_processor
     def inject_user_email():
         return {"user_email": session.get("user_email")}
