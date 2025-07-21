@@ -1,4 +1,6 @@
 ## Survey.py
+from datetime import timezone
+from zoneinfo import ZoneInfo
 from flask import Blueprint, render_template, request, redirect, flash, session, url_for, current_app
 from sqlalchemy import text
 from app.utils.database import get_db_engine
@@ -262,20 +264,22 @@ def view_my_survey_response(respondent_id):
     engine = get_db_engine()
     try:
         with engine.begin() as conn:
-            # Get all questions and answers (including unanswered)
             rows = conn.execute(text("""
                 EXEC SVY_GetSurveyResponseByRespondentID @RespondentID = :rid
-            """), {"rid": respondent_id}).fetchall()
+            """), {"rid": respondent_id}).mappings().all()  # <--- dictionary-style access!
 
             if not rows:
                 flash("Survey response not found.", "warning")
                 return redirect(url_for("survey_bp.list_my_surveys"))
 
-            response_email = rows[0][1]
-
             questions = {}
             for row in rows:
-                (_, _, _, sid, qid, qtext, qcode, answer_likert, answer_text) = row
+                sid = row["SurveyID"]
+                qid = row["QuestionID"]
+                qtext = row["QuestionText"]
+                qcode = row["QuestionCode"]
+                answer_likert = row["AnswerLikert"]
+                answer_text = row["AnswerText"]
 
                 if qid not in questions:
                     question = {
@@ -287,22 +291,47 @@ def view_my_survey_response(respondent_id):
                         "labels": []
                     }
 
-                    # For Likert questions, load all labels
                     if qcode == "LIK":
                         label_rows = conn.execute(text("""
                             EXEC SVY_GetLikertLabelsByQuestionID @QuestionID = :qid, @SurveyID = :sid
-                        """), {"qid": qid,"sid":sid}).fetchall()
+                        """), {"qid": qid, "sid": sid}).fetchall()
                         question["labels"] = [(pos, label) for pos, label in label_rows]
 
                     questions[qid] = question
                 else:
-                    # Just in case, update answers if found in another row
                     if answer_likert and not questions[qid]["answer_likert"]:
                         questions[qid]["answer_likert"] = answer_likert
                     if answer_text and not questions[qid]["answer_text"]:
                         questions[qid]["answer_text"] = answer_text
 
-        return render_template("survey_view.html", questions=list(questions.values()))
+            # ⬇️ Metadata from first row
+            email = rows[0]["Email"]
+            submitted_utc = rows[0]["SubmittedDate"].replace(tzinfo=timezone.utc)
+            submitted = submitted_utc.astimezone(ZoneInfo("Pacific/Auckland"))
+            role_code = rows[0]["Role"]
+            role_mapping = {
+                "PRO": "Provider Staff",
+                "FUN": "Funder Staff",
+                "MOE": "School Staff",
+                "GRP": "Swim School Staff",
+                "ADM":"WSNZ Admin"
+            }
+            role = role_mapping.get(role_code, role_code)
+            entity = rows[0]["EntityDescription"]
+            
+            if(role == "WSNZ Admin"):
+                entity = "WSNZ"
+            fullname = f"{rows[0]['FirstName']} {rows[0]['Surname']}"
+
+            return render_template(
+                "survey_view.html",
+                questions=list(questions.values()),
+                email=email,
+                role=role,
+                submitted=submitted,
+                entity=entity,
+                fullname=fullname
+            )
 
     except Exception:
         traceback.print_exc()
