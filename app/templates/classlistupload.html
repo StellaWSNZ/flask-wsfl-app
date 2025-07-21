@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="container mt-5">
-  <h2 "mb-4 text-center text-primary">Upload Class List</h2>
+ <h2 class="text-center text-primary mb-4">Upload Class List</h2>
 
   <form id="upload-form" action="{{ url_for('upload_bp.classlistupload') }}" method="post" enctype="multipart/form-data" class="row g-3">
     <div class="col-md-6">
@@ -20,7 +20,7 @@
     <div class="col-md-6">
       <label for="school" class="form-label">School</label>
       <select class="form-select" id="school" name="school" required {% if user_role == 'MOE' %}disabled{% endif %}>
-        {% if user_role == 'ADM' or user_role == 'PRO' %}
+        {% if user_role == 'ADM' or user_role == 'PRO' or user_role == 'GRP'%}
           <option selected disabled value="">Select a school</option>
           {% for name in schools %}
             <option value="{{ name }}" {% if selected_school == name %}selected{% endif %}>{{ name }}</option>
@@ -169,15 +169,15 @@
                   {% endif %}
                 {% endfor %}
                 {% if validated and 'Match' in row %}
-  {% set match_status = row.Match|string|lower in ['1', 'true', 'yes'] %}
-  <td>
-    {% if match_status %}
-      <span class="badge bg-success">Ready</span>
-    {% else %}
-      <span class="badge bg-danger">Fix required</span>
-    {% endif %}
-  </td>
-{% endif %}
+                  {% set match_status = row.Match|string|lower in ['1', 'true', 'yes'] %}
+                  <td>
+                    {% if match_status %}
+                      <span class="badge bg-success">Ready</span>
+                    {% else %}
+                      <span class="badge bg-danger">Fix required</span>
+                    {% endif %}
+                  </td>
+                {% endif %}
               </tr>
             {% endfor %}
           </tbody>

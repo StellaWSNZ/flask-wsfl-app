@@ -230,6 +230,7 @@ def get_entities():
                 #print("🎯 Handling GRP role for Provider")
                 raw_providers = session.get("group_entities", {}).get("PRO", [])
                 #print(f"🗂 raw_providers from session = {raw_providers}")
+                print(raw_providers)
                 entities = [{"id": e["id"], "name": e["name"]} for e in raw_providers]
 
             elif user_role == "FUN":

@@ -99,7 +99,7 @@ def normalize_date_string(s):
 def classlistupload():
     try:
         validated=False
-        if session.get("user_role") not in ["ADM", "FUN", "MOE","PRO"]:
+        if session.get("user_role") not in ["ADM", "FUN", "MOE","PRO","GRP"]:
             flash("You don’t have permission to access the class upload page.", "danger")
             return redirect(url_for("home_bp.home"))  # or whatever landing page is suitable
         engine = get_db_engine()
@@ -117,6 +117,22 @@ def classlistupload():
                     text("EXEC FlaskHelperFunctions :Request, @Number=:Number"),
                     {"Request": "GetFunderByProvider", "Number": session.get("user_id")}
                 )
+                funders = [dict(row._mapping) for row in result]
+            elif session.get("user_role") == "GRP":
+                stmt = text("""
+                    EXEC FlaskHelperFunctionsSpecific 
+                        @Request = 'FunderIDsFromGroupEntities', 
+                        @ProviderIDs = :ProviderIDs, 
+                        @RawFUNIDs = :RawFUNIDs
+                """)
+
+                provider_ids = ",".join(str(e["id"]) for e in session.get("group_entities", {}).get("PRO", []))
+                raw_fun_ids = ",".join(str(e["id"]) for e in session.get("group_entities", {}).get("FUN", []))
+
+                result = conn.execute(stmt, {
+                    "ProviderIDs": provider_ids,
+                    "RawFUNIDs": raw_fun_ids
+                })
                 funders = [dict(row._mapping) for row in result]
             else:
                 result = conn.execute(text("EXEC FlaskHelperFunctions :Request"), {"Request": "FunderDropdown"})
