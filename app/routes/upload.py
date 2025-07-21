@@ -536,6 +536,50 @@ def classlistdownload():
         as_attachment=True,
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
+    
+    
+@upload_bp.route('/classlistdownload_csv', methods=['POST'])
+@login_required
+def classlistdownload_csv():
+    if not session.get("preview_data"):
+        flash("No data available to export.", "danger")
+        return redirect(url_for("upload_bp.classlistupload"))
+
+    desired_order = [
+        "NSN",
+        "FirstName",
+        "PreferredName",
+        "LastName",
+        "Birthdate",
+        "Ethnicity",
+        "YearLevel",
+        "ErrorMessage",
+        "Match"
+    ]
+
+    df = pd.DataFrame(session["preview_data"])
+    df["Birthdate"] = autodetect_date_column(df["Birthdate"])
+    df = df.fillna("")
+
+    # Keep only desired columns and order
+    columns_to_write = [col for col in desired_order if col in df.columns]
+
+    output = BytesIO()
+    df[columns_to_write].to_csv(output, index=False)
+    output.seek(0)
+
+    classname = sanitize_filename(session.get("selected_class"))
+    teachername = sanitize_filename(session.get("selected_teacher"))
+    year = sanitize_filename(session.get("selected_year"))
+    term = sanitize_filename(session.get("selected_term"))
+
+    filename = f"{classname or 'Class'}_{teachername or 'Teacher'}_{year or 'Year'}_T{term or 'Term'}.csv"
+    return send_file(
+        output,
+        download_name=filename,
+        as_attachment=True,
+        mimetype='text/csv'
+    )
 @upload_bp.route('/submitclass', methods=['POST'])
 @login_required
 def submitclass():
