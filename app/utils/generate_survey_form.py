@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 load_dotenv(override=True)
 
 # DB connection string
-DB_URL = os.getenv("DB_URL_CUSTOM")
+DB_URL = os.getenv("DB_URL")
 engine = create_engine(DB_URL)
 
 # Output Jinja2 HTML template path
