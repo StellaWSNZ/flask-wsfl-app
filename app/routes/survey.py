@@ -253,7 +253,6 @@ def _load_survey_list(email):
         return "Internal Server Error", 500
 
 from flask import render_template, session, redirect, url_for, flash, request
-from flask_login import login_required
 from sqlalchemy import text
 from datetime import timezone
 from zoneinfo import ZoneInfo
