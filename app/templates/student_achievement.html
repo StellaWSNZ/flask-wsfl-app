@@ -209,7 +209,7 @@ select option {
             <th class="col-0">Last Name</th>
             <th class="col-1">Preferred Name</th>
             <th class="col-2">Year Level</th>
-{% for col in columns[3:] %}
+{% for col in columns[4:] %}
   {% set normalized_col = col|replace('&lt;br&gt;', '<br>') %}
   <th>
     <div class="mark-all-wrapper">
@@ -242,15 +242,18 @@ data-colraw="{{ col }}"
             <td class="col-0">{{ student.LastName }}</td>
             <td class="col-1">{{ student.PreferredName }}</td>
             <td class="col-2">{{ student.YearLevelID }}</td>
-            {% for col in columns[3:] %}
+            {% for col in columns[4:] %}
             {% set val = student[col]|default('')|string|trim %}
             {% set unescaped_col = col|replace('&lt;br&gt;', '<br>') %}
             <td>
               {% if col in ["Scenario One - Selected <br>(7-8)", "Scenario Two - Selected <br>(7-8)"] %}
               <select class="form-control"
-                      data-nsn="{{ student.NSN }}"
-                      data-header="{{ col }}"
-                      data-scenario-index="{{ 1 if 'Scenario One' in col else 2 }}">
+        data-nsn="{{ student.NSN }}"
+        data-header="{{ col }}"
+        data-scenario-index="{{ 1 if 'Scenario One' in col else 2 }}"
+        data-row="{{ row_index }}"
+        data-col="{{ loop.index0 }}">
+
                 {% for scenario in scenarios %}
                 <option value="{{ scenario.ScenarioID }}" {% if val == scenario.ScenarioID|string %}selected{% endif %}>
                   {{ scenario.HTMLScenario | safe }}
@@ -322,6 +325,16 @@ data-colraw="{{ col }}"
           <li><strong>🖥️ Full Screen</strong> – expands the table to fill the screen for easier data entry</li>
           <li><strong>Sort by First/Last Name</strong> – reorders students alphabetically</li>
         </ul>
+        {% if students | selectattr("YearLevelID", "in", [7, 8]) | list | length > 0 %}
+<h6 class="fw-bold mt-3">Scenarios</h6>
+<ul>
+  <li>Use the dropdowns to select which scenario a student is assigned to.</li>
+  <li>You can press the number keys <strong>0–4</strong> to quickly select a scenario.</li>
+  <li>Use <strong>Arrow Up</strong> and <strong>Arrow Down</strong> keys to scroll through scenario options.</li>
+  <li>Use <strong>Tab</strong> or <strong>Shift+Tab</strong> to move between dropdowns and checkboxes.</li>
+  <li>If you’re unsure about a scenario, click <strong>“View full descriptions”</strong> above the dropdown to open a detailed explanation.</li>
+</ul>
+{% endif %}
       </div>
     </div>
   </div>
@@ -594,96 +607,90 @@ document.addEventListener("keydown", function (e) {
 });
 document.addEventListener("keydown", function (e) {
   const active = document.activeElement;
-  console.log("🔑 Key pressed:", e.key);
 
-  if (!active) {
-    console.log("❌ No active element.");
-    return;
-  }
+  if (!active) return;
 
-  if (active.tagName !== "INPUT" || active.type !== "checkbox") {
-    console.log("⛔ Not a checkbox input:", active.tagName, active.type);
-    return;
-  }
+  const isCheckbox = active.tagName === "INPUT" && active.type === "checkbox";
+  const isSelect = active.tagName === "SELECT";
+
+  if (!isCheckbox && !isSelect) return;
 
   const row = parseInt(active.dataset.row);
   const col = parseInt(active.dataset.col);
-  if (isNaN(row) || isNaN(col)) {
-    console.log("❌ Missing or invalid data-row / data-col", active.dataset);
-    return;
-  }
+  if (isNaN(row) || isNaN(col)) return;
 
   const scrollY = window.scrollY;
   let next = null;
 
-  const allCheckboxes = document.querySelectorAll('input[type="checkbox"][data-row]');
-  const maxRow = Math.max(...Array.from(allCheckboxes).map(cb => parseInt(cb.dataset.row)));
-
-  // ↔ TAB / SHIFT+TAB
-  if (e.key === "Tab") {
-    console.log("➡️ Tab key");
+  // 1–5 key quick-select for selects
+  if (isSelect && ["0", "1", "2", "3", "4"].includes(e.key)) {
+  const index = parseInt(e.key); // 0 through 4
+  if (index < active.options.length) {
+    active.selectedIndex = index;
+    active.dispatchEvent(new Event("change"));
     e.preventDefault();
-    const offset = e.shiftKey ? -1 : 1;
-    next = document.querySelector(`input[data-row="${row}"][data-col="${col + offset}"]`);
-    if (next) {
-      console.log(`✅ Moving ${offset === 1 ? "right" : "left"} to col ${col + offset}`);
-    } else {
-      console.log("❌ No checkbox found for tab movement");
-    }
+    return;
+  }
+}
+
+  // Arrow up/down for selects
+  if (isSelect && ["ArrowDown", "ArrowUp"].includes(e.key)) {
+    e.preventDefault();
+    const dir = e.key === "ArrowDown" ? 1 : -1;
+    active.selectedIndex = Math.max(0, Math.min(active.options.length - 1, active.selectedIndex + dir));
+    active.dispatchEvent(new Event("change"));
+    return;
   }
 
-  // ↕ ENTER / SHIFT+ENTER
-  else if (e.key === "Enter") {
-    console.log("⏎ Enter key");
-    e.preventDefault();
-    const offset = e.shiftKey ? -1 : 1;
-    let targetRow = row + offset;
-
-    while (targetRow >= 0 && targetRow <= maxRow) {
-      console.log(`🔍 Looking at row ${targetRow}, col ${col}`);
-      next = document.querySelector(`input[data-row="${targetRow}"][data-col="${col}"]`);
-      if (next) {
-        console.log("✅ Found next checkbox");
-        break;
-      }
-      targetRow += offset;
-    }
-
-    if (!next) {
-      console.log("❌ No checkbox found in that direction");
-    }
-  }
-
-  // ✅ SPACE — toggle
-  else if (e.key === " ") {
-    console.log("␣ Spacebar toggle");
+  // SPACE or Y/N or 1/0 for checkboxes
+  if (isCheckbox && e.key === " ") {
     e.preventDefault();
     active.checked = !active.checked;
     active.dispatchEvent(new Event("change"));
     return;
   }
 
-  // ✅ Y/N or 1/0 — toggle
-  else if (["y", "n", "1", "0"].includes(e.key.toLowerCase())) {
-    console.log("✅ Y/N or 1/0 toggle:", e.key);
+  if (isCheckbox && ["y", "n", "1", "0"].includes(e.key.toLowerCase())) {
     e.preventDefault();
     active.checked = ["y", "1"].includes(e.key.toLowerCase());
     active.dispatchEvent(new Event("change"));
     return;
   }
 
+  // Tab / Shift+Tab movement
+  if (e.key === "Tab") {
+    e.preventDefault();
+    const offset = e.shiftKey ? -1 : 1;
+
+    // Loop through columns to find the next focusable input or select
+    for (let i = col + offset; offset > 0 ? i < 100 : i >= 0; i += offset) {
+      const nextElem = document.querySelector(`[data-row="${row}"][data-col="${i}"]`);
+      if (nextElem) {
+        next = nextElem;
+        break;
+      }
+    }
+  }
+
+  // Enter / Shift+Enter (up/down)
+  else if (e.key === "Enter") {
+    e.preventDefault();
+    const offset = e.shiftKey ? -1 : 1;
+
+    for (let r = row + offset; r >= 0 && r <= 100; r += offset) {
+      const nextElem = document.querySelector(`[data-row="${r}"][data-col="${col}"]`);
+      if (nextElem) {
+        next = nextElem;
+        break;
+      }
+    }
+  }
+
   if (next) {
-    console.log("🎯 Focusing next input");
     next.focus();
     window.scrollTo({ top: scrollY });
-  } else {
-    console.log("⛔ No next input to focus");
   }
 });
-
-
-
-
 
 </script>
 
