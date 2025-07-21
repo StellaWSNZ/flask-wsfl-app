@@ -801,3 +801,50 @@ def assign_kaiako_staff():
     except Exception as e:
         print(f"❌ Error during DB execution: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
+    
+    
+@admin_bp.route("/SchoolType", methods=["GET", "POST"])
+@login_required
+def edit_school_type():
+    if not session.get("user_role"):
+        abort(403)
+    engine = get_db_engine()
+    school_data, school_types = [], []
+
+    with engine.begin() as conn:
+        # Dropdown options
+        school_types = conn.execute(
+            text("EXEC FlaskSchoolTypeChanger @Request = 'GetSchoolTypeDropdown'")
+        ).fetchall()
+
+        # Handle update
+        if request.method == "POST":
+            moenumber = request.form.get("moenumber")
+            new_type = request.form.get("schooltype")
+
+            conn.execute(
+                text("EXEC FlaskSchoolTypeChanger @Request = 'UpdateSchoolType', @MOENumber = :moe, @SchoolTypeID = :stype"),
+                {"moe": moenumber, "stype": new_type}
+            )
+            flash("School type updated successfully.", "success")
+
+        # Get schools
+        school_data = conn.execute(
+            text("EXEC FlaskSchoolTypeChanger @Request = 'GetSchoolDirectory'")
+        ).fetchall()
+        
+        glossary = conn.execute(
+            text("EXEC FlaskSchoolTypeChanger @Request = 'GetGlossary'")
+        ).fetchall()
+        search_term = request.form.get("search_term", "")
+        sort_by = request.form.get("sort_by", "")
+        sort_direction = request.form.get("sort_direction", "")
+    return render_template(
+        "edit_school_type.html",
+        school_data=school_data,
+        school_types=school_types,
+        glossary=glossary,
+        search_term=search_term,
+        sort_by=sort_by,
+        sort_direction=sort_direction
+    )
