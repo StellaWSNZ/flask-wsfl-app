@@ -253,8 +253,6 @@ def _load_survey_list(email):
         return "Internal Server Error", 500
 
 
-# 🔹 View a specific completed survey by respondent ID
-# TO DO: Fix this
 @survey_bp.route("/MyForms/<int:respondent_id>")
 @login_required
 def view_my_survey_response(respondent_id):
@@ -266,7 +264,7 @@ def view_my_survey_response(respondent_id):
         with engine.begin() as conn:
             rows = conn.execute(text("""
                 EXEC SVY_GetSurveyResponseByRespondentID @RespondentID = :rid
-            """), {"rid": respondent_id}).mappings().all()  # <--- dictionary-style access!
+            """), {"rid": respondent_id}).mappings().all()
 
             if not rows:
                 flash("Survey response not found.", "warning")
@@ -304,7 +302,6 @@ def view_my_survey_response(respondent_id):
                     if answer_text and not questions[qid]["answer_text"]:
                         questions[qid]["answer_text"] = answer_text
 
-            # ⬇️ Metadata from first row
             email = rows[0]["Email"]
             submitted_utc = rows[0]["SubmittedDate"].replace(tzinfo=timezone.utc)
             submitted = submitted_utc.astimezone(ZoneInfo("Pacific/Auckland"))
@@ -314,12 +311,11 @@ def view_my_survey_response(respondent_id):
                 "FUN": "Funder Staff",
                 "MOE": "School Staff",
                 "GRP": "Swim School Staff",
-                "ADM":"WSNZ Admin"
+                "ADM": "WSNZ Admin"
             }
             role = role_mapping.get(role_code, role_code)
             entity = rows[0]["EntityDescription"]
-            
-            if(role == "WSNZ Admin"):
+            if role == "WSNZ Admin":
                 entity = "WSNZ"
             fullname = f"{rows[0]['FirstName']} {rows[0]['Surname']}"
 
@@ -333,8 +329,11 @@ def view_my_survey_response(respondent_id):
                 fullname=fullname
             )
 
-    except Exception:
-        traceback.print_exc()
+    except Exception as e:
+        tb_str = traceback.format_exc()
+        print(tb_str)  # Always logs to console/logfile
+        flash("Something went wrong loading the survey form.", "danger")
+        flash(tb_str.splitlines()[-1], "warning")  # Show just the final error line to the user
         return "Internal Server Error", 500
 
 @survey_bp.route("/Form/invite/<token>")
