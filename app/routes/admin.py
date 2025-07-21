@@ -806,7 +806,7 @@ def assign_kaiako_staff():
 @admin_bp.route("/SchoolType", methods=["GET", "POST"])
 @login_required
 def edit_school_type():
-    if not session.get("user_role"):
+    if session.get("user_role") != "ADM":
         abort(403)
     engine = get_db_engine()
     school_data, school_types = [], []
