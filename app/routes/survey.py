@@ -252,6 +252,12 @@ def _load_survey_list(email):
         traceback.print_exc()
         return "Internal Server Error", 500
 
+from flask import render_template, session, redirect, url_for, flash, request
+from flask_login import login_required
+from sqlalchemy import text
+from datetime import timezone
+from zoneinfo import ZoneInfo
+import traceback
 
 @survey_bp.route("/MyForms/<int:respondent_id>")
 @login_required
@@ -259,12 +265,16 @@ def view_my_survey_response(respondent_id):
     session_email = session.get("user_email")
     is_admin = session.get("user_role") == "ADM"
 
-    engine = get_db_engine()
     try:
+        engine = get_db_engine()
+        print("🔌 Got engine")
+
         with engine.begin() as conn:
+            print(f"📥 Executing SVY_GetSurveyResponseByRespondentID for {respondent_id}")
             rows = conn.execute(text("""
                 EXEC SVY_GetSurveyResponseByRespondentID @RespondentID = :rid
             """), {"rid": respondent_id}).mappings().all()
+            print(f"✅ Rows fetched: {len(rows)}")
 
             if not rows:
                 flash("Survey response not found.", "warning")
@@ -290,6 +300,7 @@ def view_my_survey_response(respondent_id):
                     }
 
                     if qcode == "LIK":
+                        print(f"🔍 Loading labels for QuestionID={qid}, SurveyID={sid}")
                         label_rows = conn.execute(text("""
                             EXEC SVY_GetLikertLabelsByQuestionID @QuestionID = :qid, @SurveyID = :sid
                         """), {"qid": qid, "sid": sid}).fetchall()
@@ -303,8 +314,14 @@ def view_my_survey_response(respondent_id):
                         questions[qid]["answer_text"] = answer_text
 
             email = rows[0]["Email"]
-            submitted_utc = rows[0]["SubmittedDate"].replace(tzinfo=timezone.utc)
-            submitted = submitted_utc.astimezone(ZoneInfo("Pacific/Auckland"))
+            submitted_raw = rows[0]["SubmittedDate"]
+
+            if submitted_raw:
+                submitted_utc = submitted_raw.replace(tzinfo=timezone.utc)
+                submitted = submitted_utc.astimezone(ZoneInfo("Pacific/Auckland"))
+            else:
+                submitted = "Not submitted yet"
+
             role_code = rows[0]["Role"]
             role_mapping = {
                 "PRO": "Provider Staff",
@@ -329,12 +346,16 @@ def view_my_survey_response(respondent_id):
                 fullname=fullname
             )
 
-    except Exception as e:
+    except Exception:
         tb_str = traceback.format_exc()
-        print(tb_str)  # Always logs to console/logfile
+        print("🔥 FULL TRACEBACK:")
+        print(tb_str)
+
+        # Flash minimal message
         flash("Something went wrong loading the survey form.", "danger")
-        flash(tb_str.splitlines()[-1], "warning")  # Show just the final error line to the user
-        return "Internal Server Error", 500
+
+        # Render full traceback in browser (optional: disable after debugging)
+        return f"<pre>{tb_str}</pre>", 500
 
 @survey_bp.route("/Form/invite/<token>")
 def survey_invite_token(token):
