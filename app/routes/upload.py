@@ -563,6 +563,7 @@ def classlistdownload_csv():
 
     # Keep only desired columns and order
     columns_to_write = [col for col in desired_order if col in df.columns]
+    df["Match"] = df["Match"].apply(lambda x: "Ready" if str(x).strip().lower() in ["1", "true", "yes"] else "Fix required")
 
     output = BytesIO()
     df[columns_to_write].to_csv(output, index=False)
@@ -572,7 +573,7 @@ def classlistdownload_csv():
     teachername = sanitize_filename(session.get("selected_teacher"))
     year = sanitize_filename(session.get("selected_year"))
     term = sanitize_filename(session.get("selected_term"))
-
+    
     filename = f"{classname or 'Class'}_{teachername or 'Teacher'}_{year or 'Year'}_T{term or 'Term'}.csv"
     return send_file(
         output,
@@ -580,6 +581,8 @@ def classlistdownload_csv():
         as_attachment=True,
         mimetype='text/csv'
     )
+    
+    
 @upload_bp.route('/submitclass', methods=['POST'])
 @login_required
 def submitclass():
