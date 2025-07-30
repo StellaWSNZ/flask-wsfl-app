@@ -511,3 +511,38 @@ def send_survey_reminder():
 @survey_bp.route("/thankyou")
 def thank_you():
     return render_template("thankyou.html")
+
+
+@survey_bp.route("/SurveyByEntity", methods=["GET"])
+def staff_survey_admin():
+    entity_type = request.args.get("entity_type", "Funder")
+    selected_entity_id = request.args.get("entity_id", type=int)
+
+    staff_surveys = []
+
+    try:
+        if selected_entity_id:
+            engine = get_db_engine()
+            with engine.begin() as conn:
+                cursor = conn.connection.cursor()
+                cursor.execute("EXEC SVY_GetEntityResponses @EntityType=?, @EntityID=?", entity_type, selected_entity_id)
+                staff_surveys = [
+                    {
+                        "FirstName": row.FirstName,
+                        "Surname": row.Surname,
+                        "Email": row.Email,
+                        "SubmittedDate": row.SubmittedDate,
+                        "RespondentID": row.RespondentID
+                    }
+                    for row in cursor.fetchall()
+                ]
+
+    except Exception:
+        print("❌ Error in /staff_survey_admin:")
+        traceback.print_exc()
+        flash("An error occurred while loading survey data.", "danger")
+
+    return render_template("survey_staff.html",
+                           entity_type=entity_type,
+                           selected_entity_id=selected_entity_id,
+                           staff_surveys=staff_surveys)

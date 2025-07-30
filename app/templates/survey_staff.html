@@ -1,0 +1,119 @@
+{% extends "header.html" %}
+{% block title %}Staff Self Review Responses{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+  <h2 class="mb-4 text-primary text-center">Staff Self Review Submissions</h2>
+
+  <!-- 🔍 Filter Form -->
+  <form method="GET" id="filterForm" class="mb-4">
+    <div class="row g-3 justify-content-center align-items-end">
+      <div class="col-md-3">
+        <label for="entity_type" class="form-label">Entity Type</label>
+        <select class="form-select" id="entity_type" name="entity_type" required>
+          <option value="Funder" {% if entity_type == 'Funder' %}selected{% endif %}>Funder</option>
+          <option value="Provider" {% if entity_type == 'Provider' %}selected{% endif %}>Provider</option>
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label for="entity_id" class="form-label" id="entityLabel">Select Entity</label>
+        <select class="form-select" id="entity_id" name="entity_id" required>
+          <option value="">-- Choose an entity --</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button type="submit" class="btn btn-primary w-100">View</button>
+      </div>
+    </div>
+  </form>
+
+  <!-- 📋 Survey Table -->
+  {% if staff_surveys %}
+  <div class="table-responsive mt-4">
+    <table class="table table-bordered align-middle shadow-sm bg-white rounded">
+      <thead class="table-dark-blue text-white">
+        <tr>
+          <th>First Name</th>
+          <th>Surname</th>
+          <th>Email</th>
+          <th>Submitted</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in staff_surveys %}
+        <tr>
+          <td>{{ s.FirstName }}</td>
+          <td>{{ s.Surname }}</td>
+          <td>{{ s.Email }}</td>
+          <td>{{ s.SubmittedDate.strftime('%d %B %Y, %I:%M %p') }}</td>
+          <td>
+            {% if s.RespondentID %}
+            <a href="{{ url_for('survey_bp.view_my_survey_response', respondent_id=s.RespondentID) }}"
+               class="btn btn-sm btn-outline-primary" target="_blank">
+              View Response
+            </a>
+            {% else %}
+            <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% elif selected_entity_id %}
+  <div class="alert alert-info text-center mt-4">
+    No survey responses found for this selection.
+  </div>
+  {% endif %}
+</div>
+
+<!-- 💅 Custom CSS -->
+<style>
+.table-dark-blue th {
+  background-color: #1a427d;
+  color: white;
+}
+</style>
+
+<!-- JS: Load /get_entities dynamically -->
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const entityTypeSelect = document.getElementById("entity_type");
+  const entityIdSelect = document.getElementById("entity_id");
+  const entityLabel = document.getElementById("entityLabel");
+  const selectedEntityId = "{{ selected_entity_id }}";
+
+  function loadEntities(type) {
+    if (!type) return;
+    entityLabel.textContent = `Select ${type}`;
+    entityIdSelect.innerHTML = '<option value="">Loading...</option>';
+
+    fetch(`/get_entities?entity_type=${type}`)
+      .then(res => res.json())
+      .then(data => {
+        entityIdSelect.innerHTML = '<option value="">-- Choose --</option>';
+        data.forEach(entity => {
+          const option = document.createElement("option");
+          option.value = entity.id;
+          option.textContent = entity.name;
+          if (String(entity.id) === selectedEntityId) {
+            option.selected = true;
+          }
+          entityIdSelect.appendChild(option);
+        });
+      })
+      .catch(err => {
+        console.error("Error loading entities:", err);
+        entityIdSelect.innerHTML = '<option value="">-- Failed to load --</option>';
+      });
+  }
+
+  loadEntities(entityTypeSelect.value);
+  entityTypeSelect.addEventListener("change", function () {
+    loadEntities(this.value);
+  });
+});
+</script>
+{% endblock %}
