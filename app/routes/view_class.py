@@ -34,7 +34,7 @@ def view_class(class_id, term, year):
         order_by = request.args.get("order_by", "last")
         cache_key = f"{class_id}_{term}_{year}_{filter_type}"
         cached = session.get("class_cache", {}).get(cache_key)
-        cahced = None
+        cached = None
         # ⏳ Cache expiry check
         if cached:
             expires_str = cached.get("expires")

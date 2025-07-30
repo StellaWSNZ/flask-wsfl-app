@@ -270,7 +270,8 @@ data-colraw="{{ col }}"
                      data-competency="{{ col }}"
                      data-competencyid="{{ competency_id_map[unescaped_col]['CompetencyID'] if unescaped_col in competency_id_map else '' }}"
                      data-yeargroupid="{{ competency_id_map[unescaped_col]['YearGroupID'] if unescaped_col in competency_id_map else '' }}"
-                     {% if val == "Y" %}checked{% endif %} />
+                     {% if val in ["Y", "1", 1] %}checked{% endif %}
+/>
               {% endif %}
             </td>
             {% endfor %}
