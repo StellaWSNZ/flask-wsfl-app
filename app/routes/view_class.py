@@ -25,6 +25,7 @@ from dateutil.parser import isoparse
 from collections import defaultdict
 
 
+
 @class_bp.route('/Class/<int:class_id>/<int:term>/<int:year>')
 @login_required
 def view_class(class_id, term, year):
@@ -33,7 +34,7 @@ def view_class(class_id, term, year):
         order_by = request.args.get("order_by", "last")
         cache_key = f"{class_id}_{term}_{year}_{filter_type}"
         cached = session.get("class_cache", {}).get(cache_key)
-
+        cahced = None
         # ⏳ Cache expiry check
         if cached:
             expires_str = cached.get("expires")
@@ -125,7 +126,6 @@ columns=[col for col in df_combined.columns if col not in ["DateOfBirth", "Ethni
                 "FirstName",
                 "LastName",
                 "PreferredName",
-                "DateOfBirth",
                 "Ethnicity",
                 "YearLevelID",
                 "Scenario1",
@@ -205,6 +205,7 @@ columns=[col for col in df_combined.columns if col not in ["DateOfBirth", "Ethni
         print("❌ An error occurred in view_class:")
         traceback.print_exc()
         return "An internal error occurred. Check logs for details.", 500
+
 
 @class_bp.route("/update_class_info", methods=["POST"])
 @login_required
@@ -1039,3 +1040,4 @@ def print_class_view(class_id, term, year):
         print("❌ Unhandled error in print_class_view:", e)
         traceback.print_exc()
         return "Internal Server Error (print view)", 500
+
