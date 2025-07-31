@@ -278,7 +278,23 @@ def get_entities():
                 stmt = text("EXEC FlaskGetGroupsByFunder @FunderID = :fid")
                 result = conn.execute(stmt, {"fid": user_id})
                 entities = [{"id": row._mapping["ID"], "name": row._mapping["Name"]} for row in result]
+        elif entity_type == "School":
+           # print("*")
+            if user_role == "ADM":
+              #  print("*")
+                # ✅ Example: adjust request string if needed
+                stmt = text("EXEC FlaskHelperFunctions @Request = 'SchoolDropdown'")
+                result = conn.execute(stmt)
 
+                # ✅ Safely consume just the first result set
+                rows = result.fetchall()
+                entities = [
+                    {"id": row._mapping["MOENumber"], "name": row._mapping["SchoolName"]}
+                    for row in rows
+                ]
+            else:
+                # Optional: restrict non-ADM access or return empty
+                entities = []
     #print(f"✅ Final entities being returned = {entities}\n")
     return jsonify(entities)
 

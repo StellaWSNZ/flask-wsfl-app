@@ -1,0 +1,317 @@
+{% extends "header.html" %} {% block title %}Manage User Entities{% endblock %}
+{% block content %}
+<style>
+  thead.custom-header th {
+    background-color: #004080 !important;
+    color: white !important;
+    border-color: #004080 !important;
+    text-align: center;
+  }
+</style>
+
+<div class="container mt-4">
+  <h2 id="pageHeader" class="mb-3 text-primary text-center">
+    Manage User Entities
+  </h2>
+
+  <div class="row mb-3" id="filterControls" style="display: none">
+    <div class="col-md-6">
+      <input
+        type="text"
+        id="searchInput"
+        class="form-control"
+        placeholder="Search by name or email..."
+        autocomplete="off"
+      />
+    </div>
+    <div class="col-md-6">
+      <select id="roleFilter" class="form-select">
+        <option value="">All Roles</option>
+      </select>
+    </div>
+  </div>
+
+  <div id="loadingIndicator" class="text-center my-3">
+    <div class="spinner-border text-primary" role="status">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+    <p class="text-muted mt-2">Loading users…</p>
+  </div>
+
+  <div
+    id="emptyMessage"
+    class="text-center my-4 text-muted"
+    style="display: none"
+  >
+    Start typing or filter by role to view results.
+  </div>
+
+  <div class="table-responsive" id="userTableWrapper" style="display: none">
+    <table class="table table-bordered table-hover" id="userTable">
+      <thead class="custom-header">
+        <tr>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Role</th>
+          <th>Entity</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal fade" id="editUserModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="editUserForm">
+        <div class="modal-header">
+          <h5 class="modal-title">Change User Entity</h5>
+          <button
+            type="button"
+            class="btn-close"
+            data-bs-dismiss="modal"
+          ></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="editUserId" />
+          <div
+            id="editUserAlert"
+            class="alert alert-info small py-2 px-3 mb-3"
+            role="alert"
+            style="display: none"
+          ></div>
+          <div
+            id="editUnhideWarning"
+            class="alert alert-danger small py-2 px-3 mb-3"
+            role="alert"
+            style="display: none"
+          >
+            ⚠️ Changing this user's entity will unhide them
+          </div>
+          <div
+            id="editAdminWarning"
+            class="alert alert-warning small py-2 px-3 mb-3"
+            role="alert"
+            style="display: none"
+          >
+            ⚠️ This user is an admin. Changing their role or entity will remove
+            their admin rights.
+          </div>
+          <div class="mb-3">
+            <label for="editRole" class="form-label">Role</label>
+            <select id="editRole" class="form-select" required>
+              <option value="">Select a role</option>
+              <option value="MOE">School</option>
+              <option value="PRO">Provider</option>
+              <option value="FUN">Funder</option>
+              <option value="GRP">Group</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label for="editEntity" class="form-label">Entity</label>
+            <select id="editEntity" class="form-select" required>
+              <option value="">Select an entity</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" id="saveButton" class="btn btn-primary w-100">
+            Save Changes
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    let allUsers = [];
+    let debounceTimer = null;
+    let currentUser = null;
+
+    const searchInput = document.getElementById("searchInput");
+    const roleFilter = document.getElementById("roleFilter");
+    const loading = document.getElementById("loadingIndicator");
+    const emptyMsg = document.getElementById("emptyMessage");
+    const tableWrapper = document.getElementById("userTableWrapper");
+    const tbody = document.querySelector("#userTable tbody");
+    const filterControls = document.getElementById("filterControls");
+
+    fetch("/get_users")
+      .then((res) => res.json())
+      .then((data) => {
+        allUsers = data;
+        populateRoleFilter(allUsers);
+        renderTable(allUsers);
+        filterControls.style.display = "flex";
+        applyFilters();
+      });
+
+    function renderTable(users) {
+      loading.style.display = "block";
+      emptyMsg.style.display = "none";
+      tableWrapper.style.display = "none";
+      tbody.innerHTML = "";
+      const fragment = document.createDocumentFragment();
+      users.forEach((user) => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${user.FirstName} ${user.Surname}</td>
+          <td>${user.Email}</td>
+          <td>${user.DisplayRole}</td>
+          <td>${user.EntityName || "-"}</td>
+          <td>
+            <button class="btn btn-sm btn-primary" onclick="editUser('${
+              user.Email
+            }')" title="Edit">
+  <i class="bi bi-pencil-fill"></i>
+</button>
+          </td>`;
+        fragment.appendChild(tr);
+      });
+      tbody.appendChild(fragment);
+      loading.style.display = "none";
+      tableWrapper.style.display = users.length > 0 ? "block" : "none";
+      emptyMsg.style.display = users.length === 0 ? "block" : "none";
+    }
+
+    function populateRoleFilter(users) {
+      const roleSet = new Set(users.map((u) => u.DisplayRole).filter(Boolean));
+      [...roleSet].sort().forEach((role) => {
+        const opt = document.createElement("option");
+        opt.value = role;
+        opt.textContent = role;
+        roleFilter.appendChild(opt);
+      });
+    }
+
+    function applyFilters() {
+      const searchTerm = searchInput.value.toLowerCase();
+      const selectedRole = roleFilter.value;
+      const filtered = allUsers.filter((u) => {
+        const matchesSearch =
+          (u.FirstName && u.FirstName.toLowerCase().includes(searchTerm)) ||
+          (u.Surname && u.Surname.toLowerCase().includes(searchTerm)) ||
+          (u.Email && u.Email.toLowerCase().includes(searchTerm));
+        const matchesRole =
+          selectedRole === "" || u.DisplayRole === selectedRole;
+        return matchesSearch && matchesRole;
+      });
+      renderTable(filtered);
+    }
+
+    searchInput.addEventListener("input", () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(applyFilters, 300);
+    });
+    roleFilter.addEventListener("change", applyFilters);
+
+    window.editUser = function (email) {
+      const user = allUsers.find((u) => u.Email === email);
+      if (!user) return;
+      currentUser = user;
+      document.getElementById("editUserId").value = email;
+      document.getElementById("editRole").value = "";
+      document.getElementById(
+        "editEntity"
+      ).innerHTML = `<option value="">Select an entity</option>`;
+
+      const alertBox = document.getElementById("editUserAlert");
+      alertBox.style.display = "block";
+      alertBox.innerHTML = `
+        Editing <strong>${user.FirstName} ${user.Surname}</strong> (${
+        user.Email
+      })<br>
+        Current role: <strong>${user.DisplayRole || "—"}</strong> (${
+        user.EntityName || "-"
+      })`;
+
+      const unhideBox = document.getElementById("editUnhideWarning");
+      if (user.Hidden === 1 || user.Hidden === true) {
+        unhideBox.style.display = "block";
+      } else {
+        unhideBox.style.display = "none";
+      }
+
+      const adminWarningBox = document.getElementById("editAdminWarning");
+      if (user.admin === 1 || user.admin === true) {
+        adminWarningBox.style.display = "block";
+      } else {
+        adminWarningBox.style.display = "none";
+      }
+      new bootstrap.Modal(document.getElementById("editUserModal")).show();
+    };
+
+    document.getElementById("editRole").addEventListener("change", function () {
+      const selectedRole = this.value;
+      const entityTypeMap = {
+        MOE: "School",
+        PRO: "Provider",
+        FUN: "Funder",
+        GRP: "Group",
+      };
+      const displayRoleMap = {
+        MOE: "School Staff",
+        PRO: "Provider Staff",
+        FUN: "Funder Staff",
+        GRP: "Group Staff",
+      };
+      currentUser.DisplayRole = displayRoleMap[selectedRole];
+      const entityType = entityTypeMap[selectedRole];
+      if (!entityType) return;
+      fetch(`/get_entities?entity_type=${entityType}`)
+        .then((res) => res.json())
+        .then((data) => {
+          const entitySelect = document.getElementById("editEntity");
+          entitySelect.innerHTML = `<option value="">Select an entity</option>`;
+          data.forEach((e) => {
+            const opt = document.createElement("option");
+            opt.value = e.id;
+            opt.textContent = e.name;
+            opt.setAttribute("data-name", e.name);
+            entitySelect.appendChild(opt);
+          });
+        });
+    });
+
+    document
+      .getElementById("editUserForm")
+      .addEventListener("submit", function (e) {
+        e.preventDefault();
+        const role = document.getElementById("editRole").value;
+        const entityId = document.getElementById("editEntity").value;
+        const entitySelect = document.getElementById("editEntity");
+        const selectedEntityName =
+          entitySelect.options[entitySelect.selectedIndex].text;
+        if (!currentUser.Email || !role || !entityId) {
+          alert("All fields are required.");
+          return;
+        }
+        document.getElementById("saveButton").disabled = true;
+        fetch("/update_user_role_entity", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: currentUser.Email,
+            role: role,
+            entityId: entityId,
+            fullName: `${currentUser.FirstName} ${currentUser.Surname}`,
+            entityName: selectedEntityName,
+            displayRole: currentUser.DisplayRole,
+          }),
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            const baseUrl = data.success ? "/EditUser?s=1" : "/EditUser?e=1";
+            const searchParam = encodeURIComponent(searchInput.value || "");
+            const roleParam = encodeURIComponent(roleFilter.value || "");
+            window.location.href = `${baseUrl}&search=${searchParam}&role=${roleParam}`;
+          });
+      });
+  });
+</script>
+{% endblock %}

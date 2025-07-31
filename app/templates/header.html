@@ -257,6 +257,8 @@
                 Admin Tools
               </a>
               <ul class="dropdown-menu dropdown-menu-end">
+                <!-- 📊 Reports & Dashboards -->
+                <h6 class="dropdown-header">Reports & Dashboards</h6>
                 <li>
                   <a
                     class="dropdown-item py-2"
@@ -268,17 +270,60 @@
                 <li>
                   <a
                     class="dropdown-item py-2"
-                    href="{{ url_for('admin_bp.provider_maintenance') }}"
-                    >Provider Maintenance</a
+                    href="{{ url_for('funder_bp.funder_dashboard') }}"
                   >
+                    Overview by Entity
+                  </a>
+                </li>
+                <li>
+                  <a
+                    class="dropdown-item py-2"
+                    href="{{ url_for('funder_bp.admin_dashboard') }}"
+                  >
+                    Overview
+                  </a>
+                </li>
+
+                <hr class="dropdown-divider" />
+
+                <!-- 🏫 Entity & User Management -->
+                <h6 class="dropdown-header">Entity & User Management</h6>
+                <li>
+                  <a
+                    class="dropdown-item py-2"
+                    href="{{ url_for('admin_bp.admin_user_entities') }}"
+                  >
+                    Edit User Entity
+                  </a>
                 </li>
                 <li>
                   <a
                     class="dropdown-item py-2"
                     href="{{ url_for('admin_bp.provider_maintenance') }}"
-                    >Change School Type</a
                   >
+                    Provider Maintenance
+                  </a>
                 </li>
+                <li>
+                  <a
+                    class="dropdown-item py-2"
+                    href="{{ url_for('admin_bp.provider_maintenance') }}"
+                  >
+                    Edit School Type
+                  </a>
+                </li>
+                <li>
+                  <a
+                    class="dropdown-item py-2"
+                    href="{{ url_for('students_bp.student_search_page') }}"
+                  >
+                    Edit Student Record
+                  </a>
+                </li>
+                <hr class="dropdown-divider" />
+
+                <!-- 📁 Data Uploads & Lookup -->
+                <h6 class="dropdown-header">Data Uploads & Lookup</h6>
                 <li>
                   <a
                     class="dropdown-item py-2"
@@ -290,15 +335,6 @@
                 <li>
                   <a
                     class="dropdown-item py-2"
-                    href="{{ url_for('class_bp.funder_classes') }}"
-                  >
-                    Class Lookup
-                  </a>
-                </li>
-
-                <li>
-                  <a
-                    class="dropdown-item py-2"
                     href="{{ url_for('eLearning_bp.admin_eLearning_upload') }}"
                   >
                     Upload eLearning Excel
@@ -307,23 +343,9 @@
                 <li>
                   <a
                     class="dropdown-item py-2"
-                    href="{{ url_for('students_bp.student_search_page') }}"
+                    href="{{ url_for('class_bp.funder_classes') }}"
                   >
-                    Edit Student Record
-                  </a>
-                </li>
-                <li>
-                  <a
-                    class="dropdown-item py-2"
-                    href="{{ url_for('funder_bp.funder_dashboard') }}"
-                    >Overview by Entity
-                  </a>
-                </li>
-                <li>
-                  <a
-                    class="dropdown-item py-2"
-                    href="{{ url_for('funder_bp.admin_dashboard') }}"
-                    >Overview
+                    Class Lookup
                   </a>
                 </li>
               </ul>

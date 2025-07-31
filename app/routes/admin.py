@@ -4,6 +4,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, sessio
 from werkzeug.security import generate_password_hash
 from app.utils.database import get_db_engine
 from app.routes.auth import login_required
+import pandas as pd
 import bcrypt
 from sqlalchemy import text
 import sqlalchemy.sql
@@ -848,3 +849,64 @@ def edit_school_type():
         sort_by=sort_by,
         sort_direction=sort_direction
     )
+    
+    
+@admin_bp.route("/EditUser")
+@login_required
+def admin_user_entities():
+    if(session.get("user_role")!="ADM"):
+        flash("Unauthorised", "danger")
+        return redirect(url_for("home_bp.home"))
+    return render_template("admin_user_entities.html")
+
+
+@admin_bp.route("/get_users")
+@login_required
+def get_users():
+    engine = get_db_engine()
+    query = "EXEC FlaskGetAllUsers"
+    with engine.connect() as conn:
+        df = pd.read_sql(query, conn)
+    return jsonify(df.to_dict(orient="records"))
+
+
+@admin_bp.route("/update_user_role_entity", methods=["POST"])
+@login_required
+def update_user_role_entity():
+    data = request.get_json()
+    email = data.get("email")
+    role = data.get("role")
+    entity_id = data.get("entityId")
+    full_name = data.get("fullName")
+    entity_name = data.get("entityName")
+    display_role = data.get("displayRole")  # ✅ Add this line
+
+    print(f"🔁 Received update request for user: {email}")
+    print(f"   → New Role: {role}, Entity ID: {entity_id}")
+
+    if not all([email, role, entity_id]):
+        flash("❌ Missing required fields.", "warning")
+        return jsonify(success=False, message="Missing fields")
+
+    try:
+        engine = get_db_engine()
+        with engine.begin() as conn:
+            print("✅ Executing stored procedure FlaskUpdateUserRoleAndEntity...")
+            stmt = text("""
+                EXEC FlaskUpdateUserRoleAndEntity
+                    @Email = :email,
+                    @Role = :role,
+                    @EntityID = :entity_id
+            """)
+            conn.execute(stmt, {
+                "email": email,
+                "role": role,
+                "entity_id": entity_id
+            })
+
+        flash(f"✅ Updated {full_name} to {display_role} – {entity_name}.", "success")  # ✅ Use display_role
+        return jsonify(success=True)
+
+    except Exception as e:
+        flash(f"🔥 Error during update: {e}", "danger")
+        return jsonify(success=False, message="Internal server error")
