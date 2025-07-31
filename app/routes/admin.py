@@ -855,7 +855,7 @@ def edit_school_type():
 @login_required
 def admin_user_entities():
     if(session.get("user_role")!="ADM"):
-        flash("Unauthorised", "danger")
+        flash("You don’t have permission to access this page", "danger")
         return redirect(url_for("home_bp.home"))
     return render_template("admin_user_entities.html")
 
