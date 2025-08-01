@@ -63,6 +63,7 @@ def survey_by_routename(routename):
 
 @survey_bp.route("/submit/<string:routename>", methods=["POST"])
 def submit_survey(routename):
+    print(session.get("user_email"))
     try:
         engine = get_db_engine()
         form_data = request.form.to_dict()

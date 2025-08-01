@@ -1,60 +1,342 @@
-{% extends "header.html" %}
-{% block title %}Self Review{% endblock %}
-{% block content %}
+{% extends "header.html" %} {% block title %}Self Review{% endblock %} {% block
+content %}
+
 <div class="container mt-5">
-  <h1 class="mb-4 text-center text-primary">Self Review</h2>
-    <form action="{{ url_for('survey_bp.submit_survey', routename='SelfReview') }}" method="post">
-      <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
-<legend class="h6"><strong>Q1:</strong> On a scale of 1–5, how would you rate your understanding of the Water Skills for Life content?</legend>
-<div class="form-check"><input class="form-check-input" type="radio" name="q1" value="1"><label class="form-check-label">1-Not Confident - I have very little understanding of Water Skills for Life content, including which age-appropriate skills to teach and how to explain why these skills are important for open water environments.</label></div>
-<div class="form-check"><input class="form-check-input" type="radio" name="q1" value="2"><label class="form-check-label">2-Slightly Confident - I have some understanding of Water Skills for Life content but struggle with explaining why the skills are important for open water environments and applying effective instructional strategies.</label></div>
-<div class="form-check"><input class="form-check-input" type="radio" name="q1" value="3"><label class="form-check-label">3-Moderately Confident - I have a good grasp of Water Skills for Life content and can teach age-appropriate skills and use instructional strategies. However, I find it challenging to relate the content specifically to open water environments and need further development in this area.</label></div>
-<div class="form-check"><input class="form-check-input" type="radio" name="q1" value="4"><label class="form-check-label">4-Confident - I have a strong understanding of Water Skills for Life content, can teach age-appropriate skills, and use instructional strategies effectively. I can explain why the skills are important and relate the content to open water environments, though I face occasional challenges.</label></div>
-<div class="form-check"><input class="form-check-input" type="radio" name="q1" value="5"><label class="form-check-label">5-Extremely Confident - I have an excellent understanding of Water Skills for Life content. I can effectively teach age-appropriate skills, use instructional strategies, and easily explain why the skills are important and how they relate to open water environments without significant challenges.</label></div>
-</fieldset>
-<fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
-<legend class="h6"><strong>Q2:</strong> If you did not rate yourself as a 5, please identify one area where you need improvement to increase your confidence in understanding Water Skills for Life content. This includes explaining why the skills are important, relating the content to open water environments, and using effective instructional strategies.</legend>
-<textarea name="q2" class="form-control" rows="4" placeholder="Your response..."></textarea>
-</fieldset>
-<fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
-<legend class="h6"><strong>Q3:</strong> On a scale of 1–5, how effective do you feel you are in delivering Water Skills for Life lessons poolside, including managing instruction, engaging students, and ensuring understanding of water safety concepts?</legend>
-<div class="form-check"><input class="form-check-input" type="radio" name="q3" value="1"><label class="form-check-label">1-Not Confident – I find it very difficult to manage instruction, engage students, or explain key concepts effectively.</label></div>
-<div class="form-check"><input class="form-check-input" type="radio" name="q3" value="2"><label class="form-check-label">2-Slightly Confident – I can deliver lessons but struggle to maintain engagement and ensure students understand water safety.</label></div>
-<div class="form-check"><input class="form-check-input" type="radio" name="q3" value="3"><label class="form-check-label">3-Moderately Confident – I can manage lessons fairly well and convey key concepts with occasional difficulty.</label></div>
-<div class="form-check"><input class="form-check-input" type="radio" name="q3" value="4"><label class="form-check-label">4-Confident – I can confidently manage instruction, keep students engaged, and explain water safety principles.</label></div>
-<div class="form-check"><input class="form-check-input" type="radio" name="q3" value="5"><label class="form-check-label">5-Extremely Confident – I consistently deliver effective lessons, engage students fully, and clearly communicate all key water safety concepts.</label></div>
-</fieldset>
-<fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
-<legend class="h6"><strong>Q4:</strong> If you did not rate yourself a 5, please tell us the one thing you need to increase your confidence in delivering Water Skills for Life lessons effectively poolside, including managing instruction, engaging students, and ensuring understanding of water safety concepts.</legend>
-<textarea name="q4" class="form-control" rows="4" placeholder="Your response..."></textarea>
-</fieldset>
-<fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
-<legend class="h6"><strong>Q5:</strong> On a scale of 1–5, how would you rate your ability to consistently assess your students' skill and knowledge competence in Water Skills for Life?</legend>
-<div class="form-check"><input class="form-check-input" type="radio" name="q5" value="1"><label class="form-check-label">1 - Not Confident at All: I struggle to teach the skills clearly, provide effective feedback, address misunderstandings, and adjust my approach, which impacts my ability to assess skill and knowledge competence accurately. I am not confident in uploading the WSFL student achievement forms.</label></div>
-<div class="form-check"><input class="form-check-input" type="radio" name="q5" value="2"><label class="form-check-label">2 - Somewhat Confident: I can occasionally teach the skills clearly and provide feedback, but I often feel unsure about assessing skill and knowledge competence, addressing misunderstandings, making necessary adjustments, and uploading the WSFL student achievement forms.</label></div>
-<div class="form-check"><input class="form-check-input" type="radio" name="q5" value="3"><label class="form-check-label">3 - Moderately Confident: I can teach the skills and provide feedback reasonably well, and I can identify and address misunderstandings, but I still face challenges in assessing skill and knowledge competence, making effective adjustments, and uploading the WSFL student achievement forms.</label></div>
-<div class="form-check"><input class="form-check-input" type="radio" name="q5" value="4"><label class="form-check-label">4 - Very Confident: I am generally confident in teaching the skills, providing constructive feedback, addressing misunderstandings, and assessing skill and knowledge competence, with only occasional difficulties in making adjustments. I am confident in uploading the WSFL student achievement forms.</label></div>
-<div class="form-check"><input class="form-check-input" type="radio" name="q5" value="5"><label class="form-check-label">5 - Extremely Confident: I am highly confident in my ability to teach the skills clearly, provide effective feedback, address misunderstandings, and accurately assess skill and knowledge competence, with no significant challenges in making adjustments. I am extremely confident in uploading the WSFL student achievement forms.</label></div>
-</fieldset>
-<fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
-<legend class="h6"><strong>Q6:</strong> If you did not rate yourself a 5, please tell us the one thing you need to increase your confidence in assessing your students' skill and knowledge competence in Water Skills for Life content.</legend>
-<textarea name="q6" class="form-control" rows="4" placeholder="Your response..."></textarea>
-</fieldset>
-<fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
-<legend class="h6"><strong>Q7:</strong> On a scale of 1–5, how would you rate your ability to consistently connect students' skill and knowledge competencies in Water Skills for Life to real-world open water scenarios and clearly explain their practical relevance?</legend>
-<div class="form-check"><input class="form-check-input" type="radio" name="q7" value="1"><label class="form-check-label">1- Poor: I do not connect activities to real-world open water scenarios or explain their relevance. Students struggle to understand the practical importance of the skills being taught.</label></div>
-<div class="form-check"><input class="form-check-input" type="radio" name="q7" value="2"><label class="form-check-label">2- Fair: I make minimal connections to real-world open water scenarios and provide limited explanations of their relevance. Some students may find it challenging to see how the skills apply in practical situations.</label></div>
-<div class="form-check"><input class="form-check-input" type="radio" name="q7" value="3"><label class="form-check-label">3- Good: I make some connections between activities and real-world open water scenarios and explain the relevance of the skills. Most students understand how the skills relate to practical situations, though some may need additional clarification.</label></div>
-<div class="form-check"><input class="form-check-input" type="radio" name="q7" value="4"><label class="form-check-label">4- Very Good: I effectively connect activities to real-world open water scenarios and provide clear explanations of their relevance. Students generally grasp the practical importance of the skills and can relate them to various open water situations.</label></div>
-<div class="form-check"><input class="form-check-input" type="radio" name="q7" value="5"><label class="form-check-label">5- Excellent: I skillfully integrate activities with real-world open water scenarios and thoroughly explain the practical importance of each skill. Students not only understand but can creatively apply the skills to diverse open water situations, demonstrating a deep grasp of their relevance.</label></div>
-</fieldset>
-<fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
-<legend class="h6"><strong>Q8:</strong> If you did not rate yourself a 5, please tell us the one thing you need to increase your confidence to better connect the Water Skills for Life competencies to real-world open water scenarios.</legend>
-<textarea name="q8" class="form-control" rows="4" placeholder="Your response..."></textarea>
-</fieldset>
-<fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
-<legend class="h6"><strong>Q9:</strong> What resources and support do you need to boost your confidence in teaching Water Skills for Life?</legend>
-<textarea name="q9" class="form-control" rows="4" placeholder="Your response..."></textarea>
-</fieldset>
-<button type="submit" class="btn btn-primary">Submit Survey</button>
-</form></div>{% endblock %}
+  <h1 class="mb-4 text-center text-primary">Self Review</h1>
+
+  <form
+    action="{{ url_for('survey_bp.submit_survey', routename='SelfReview') }}"
+    method="post"
+    id="selfReviewForm"
+  >
+    <!-- Q1 -->
+    <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
+      <legend class="h6">
+        <strong>Q1:</strong> On a scale of 1–5, how would you rate your
+        understanding of the Water Skills for Life content?
+      </legend>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="q1"
+          value="1"
+        /><label class="form-check-label"
+          >1 - Not Confident: I have very little understanding...</label
+        >
+      </div>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="q1"
+          value="2"
+        /><label class="form-check-label"
+          >2 - Slightly Confident: I have some understanding...</label
+        >
+      </div>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="q1"
+          value="3"
+        /><label class="form-check-label"
+          >3 - Moderately Confident: I have a good grasp...</label
+        >
+      </div>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="q1"
+          value="4"
+        /><label class="form-check-label"
+          >4 - Confident: I have a strong understanding...</label
+        >
+      </div>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="q1"
+          value="5"
+        /><label class="form-check-label"
+          >5 - Extremely Confident: I have an excellent understanding...</label
+        >
+      </div>
+    </fieldset>
+
+    <!-- Q2 -->
+    <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
+      <legend class="h6">
+        <strong>Q2:</strong> If you did not rate yourself as a 5, please
+        identify one area for improvement.
+      </legend>
+      <textarea
+        name="q2"
+        class="form-control"
+        rows="4"
+        placeholder="Your response..."
+      ></textarea>
+    </fieldset>
+
+    <!-- Q3 -->
+    <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
+      <legend class="h6">
+        <strong>Q3:</strong> On a scale of 1–5, how effective do you feel you
+        are in delivering lessons poolside?
+      </legend>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="q3"
+          value="1"
+        /><label class="form-check-label"
+          >1 - Not Confident: I find it very difficult...</label
+        >
+      </div>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="q3"
+          value="2"
+        /><label class="form-check-label"
+          >2 - Slightly Confident: I can deliver lessons but struggle...</label
+        >
+      </div>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="q3"
+          value="3"
+        /><label class="form-check-label"
+          >3 - Moderately Confident: I can manage lessons fairly well...</label
+        >
+      </div>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="q3"
+          value="4"
+        /><label class="form-check-label"
+          >4 - Confident: I can confidently manage instruction...</label
+        >
+      </div>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="q3"
+          value="5"
+        /><label class="form-check-label"
+          >5 - Extremely Confident: I consistently deliver effective
+          lessons...</label
+        >
+      </div>
+    </fieldset>
+
+    <!-- Q4 -->
+    <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
+      <legend class="h6">
+        <strong>Q4:</strong> If not rated 5 above, what could increase your
+        confidence in delivery?
+      </legend>
+      <textarea
+        name="q4"
+        class="form-control"
+        rows="4"
+        placeholder="Your response..."
+      ></textarea>
+    </fieldset>
+
+    <!-- Q5 -->
+    <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
+      <legend class="h6">
+        <strong>Q5:</strong> How confident are you in assessing students’ skill
+        and knowledge competence?
+      </legend>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="q5"
+          value="1"
+        /><label class="form-check-label"
+          >1 - Not Confident at All: I struggle with teaching and
+          feedback...</label
+        >
+      </div>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="q5"
+          value="2"
+        /><label class="form-check-label"
+          >2 - Somewhat Confident: I can occasionally teach...</label
+        >
+      </div>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="q5"
+          value="3"
+        /><label class="form-check-label"
+          >3 - Moderately Confident: I can teach and provide feedback...</label
+        >
+      </div>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="q5"
+          value="4"
+        /><label class="form-check-label"
+          >4 - Very Confident: I am generally confident with minor
+          issues...</label
+        >
+      </div>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="q5"
+          value="5"
+        /><label class="form-check-label"
+          >5 - Extremely Confident: I teach clearly, give effective
+          feedback...</label
+        >
+      </div>
+    </fieldset>
+
+    <!-- Q6 -->
+    <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
+      <legend class="h6">
+        <strong>Q6:</strong> What could help increase your confidence in
+        assessing students?
+      </legend>
+      <textarea
+        name="q6"
+        class="form-control"
+        rows="4"
+        placeholder="Your response..."
+      ></textarea>
+    </fieldset>
+
+    <!-- Q7 -->
+    <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
+      <legend class="h6">
+        <strong>Q7:</strong> How well do you connect skills to real-world open
+        water scenarios?
+      </legend>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="q7"
+          value="1"
+        /><label class="form-check-label"
+          >1 - Poor: I do not connect activities to real-world
+          scenarios...</label
+        >
+      </div>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="q7"
+          value="2"
+        /><label class="form-check-label"
+          >2 - Fair: Minimal connection and explanation...</label
+        >
+      </div>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="q7"
+          value="3"
+        /><label class="form-check-label"
+          >3 - Good: I make some connections and explain the relevance...</label
+        >
+      </div>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="q7"
+          value="4"
+        /><label class="form-check-label"
+          >4 - Very Good: I effectively connect and explain the
+          importance...</label
+        >
+      </div>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="q7"
+          value="5"
+        /><label class="form-check-label"
+          >5 - Excellent: I skillfully integrate activities and explain
+          thoroughly...</label
+        >
+      </div>
+    </fieldset>
+
+    <!-- Q8 -->
+    <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
+      <legend class="h6">
+        <strong>Q8:</strong> What could help you better connect skills to open
+        water?
+      </legend>
+      <textarea
+        name="q8"
+        class="form-control"
+        rows="4"
+        placeholder="Your response..."
+      ></textarea>
+    </fieldset>
+
+    <!-- Q9 -->
+    <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
+      <legend class="h6">
+        <strong>Q9:</strong> What resources/support would boost your confidence?
+      </legend>
+      <textarea
+        name="q9"
+        class="form-control"
+        rows="4"
+        placeholder="Your response..."
+      ></textarea>
+    </fieldset>
+
+    <div class="text-center">
+      <button type="submit" class="btn btn-primary" id="submitBtn">
+        Submit Survey
+      </button>
+    </div>
+  </form>
+</div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const form = document.getElementById("selfReviewForm");
+    const submitBtn = document.getElementById("submitBtn");
+
+    if (!form || !submitBtn) return;
+
+    form.addEventListener("submit", function () {
+      submitBtn.disabled = true;
+      submitBtn.innerText = "Submitting...";
+    });
+  });
+</script>
+
+{% endblock %}
