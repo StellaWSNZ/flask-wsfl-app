@@ -11,6 +11,8 @@ __all__ = ["auth_bp", "login_required"]
 
 from functools import wraps
 from flask import session, redirect, url_for, request
+from urllib.parse import urlparse, urljoin
+
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -21,9 +23,15 @@ def login_required(f):
     return decorated_function
 
 
+def is_safe_url(target):
+    ref_url = urlparse(request.host_url)
+    test_url = urlparse(urljoin(request.host_url, target))
+    return test_url.scheme in ("http", "https") and ref_url.netloc == test_url.netloc
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     try:
+        next_url = request.args.get("next") or request.form.get("next")  # 🔧 capture next from GET or POST
+
         if request.method == 'POST':
             email = request.form.get('username')
             password = request.form.get('password')
@@ -37,16 +45,16 @@ def login():
 
             if not result or 'HashPassword' not in result._mapping:
                 flash("Email not found or invalid.", "danger")
-                return render_template("login.html")
+                return render_template("login.html", next=next_url)  # 🔧 pass next back to form
 
             stored_hash = result.HashPassword
             is_active = result.Active
             if not is_active:
                 flash("Your account has been disabled. Please contact support.", "danger")
-                return render_template("login.html")
+                return render_template("login.html", next=next_url)
             if not stored_hash:
                 flash("Password not set for this account.", "danger")
-                return render_template("login.html")
+                return render_template("login.html", next=next_url)
 
             if bcrypt.checkpw(password.encode('utf-8'), stored_hash.encode('utf-8')):
                 with engine.begin() as conn:
@@ -88,28 +96,27 @@ def login():
                             text("EXEC FlaskGetGroupEntities :Email"),
                             {"Email": email}
                         ).fetchall()
-
                     group_entities = {}
                     for row in result:
-                        etype = row.EntityType  # 'PRO' or 'FUN'
+                        etype = row.EntityType
                         group_entities.setdefault(etype, []).append({
                             "id": row.EntityID,
                             "name": row.Description
                         })
-
-                    print("🗂 Populated group_entities =", group_entities)
                     session["group_entities"] = group_entities
-                #else:
-                #    session["provider_ids"] = [user_info.ID]
-                return redirect(url_for("home_bp.home"))
+
+                # 🔧 use next_url if it's safe
+                if next_url and is_safe_url(next_url):
+                    return redirect(next_url)
+                return redirect(url_for("home_bp.home"))  # fallback
 
             flash("Invalid password", "danger")
-        return render_template("login.html")
+        return render_template("login.html", next=next_url)  # 🔧 pass next to form
 
     except Exception as e:
         print("LOGIN ERROR:", e)
         flash("Something went wrong. Please contact support.", "danger")
-        return render_template("login.html")
+        return render_template("login.html", next=next_url)
 
 
 @auth_bp.route('/logout', methods=['GET', 'POST'])

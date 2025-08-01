@@ -35,6 +35,13 @@
       class="p-4 rounded shadow"
       style="width: 300px; background-color: rgba(255, 255, 255, 0.9)"
     >
+      <!-- ✅ Preserve next URL -->
+      <input
+        type="hidden"
+        name="next"
+        value="{{ next or request.args.get('next', '') }}"
+      />
+
       <h4 class="mb-3 text-center">Login</h4>
 
       {% with messages = get_flashed_messages(with_categories=True) %} {% if

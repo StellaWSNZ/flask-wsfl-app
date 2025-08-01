@@ -1010,8 +1010,9 @@ def print_class_view(class_id, term, year):
         class_name = class_info.ClassName if class_info else "Unknown Class"
         teacher_name = class_info.TeacherName if class_info else "Unknown Teacher"
 
-        url = url_for("class_bp.view_class", class_id=class_id, term=term, year=year, _external=True)
-        qr_data_uri = generate_qr_code_png(url)
+        target_path = url_for("class_bp.view_class", class_id=class_id, term=term, year=year)
+        login_url = url_for("auth_bp.login", next=target_path, _external=True)
+        qr_data_uri = generate_qr_code_png(login_url)
 
         return render_template(
             "print_view.html",
