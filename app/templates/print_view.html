@@ -103,13 +103,33 @@
               <th
                 colspan="{{ 3 + columns_by_range.get(range, [])|length }}"
                 class="meta-header"
+                style="padding: 0"
               >
-                Class: {{ class_name or "?" }} | Teacher: {{ teacher_name or "?"
-                }} | Competencies: {% if filter_type == "water" %}Water-based
-                only{% else %}All{% endif %} | Year Group: {{
-                group_headers.get(range, range) }}
+                <div
+                  style="
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 6px;
+                  "
+                >
+                  <span>
+                    Class: {{ class_name or "?" }} | Teacher: {{ teacher_name or
+                    "?" }} | Competencies: {% if filter_type == "water"
+                    %}Water-based only{% else %}All{% endif %} | Year Group: {{
+                    group_headers.get(range, range) }}
+                  </span>
+                  <img
+                    src="{{ qr_data_uri }}"
+                    alt="QR Code"
+                    width="20"
+                    height="20"
+                    style="margin-left: 10px"
+                  />
+                </div>
               </th>
             </tr>
+
             <tr class="meta-spacer">
               <td
                 colspan="{{ 3 + columns_by_range.get(range, [])|length }}"

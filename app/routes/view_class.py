@@ -1,5 +1,9 @@
 # app/routes/view_class.py
-
+from datetime import datetime, timezone, timedelta
+from collections import defaultdict
+import qrcode
+import base64
+from io import BytesIO
 from flask import Blueprint, render_template, session, redirect, url_for, flash, request, jsonify
 from app.utils.database import get_db_engine
 from sqlalchemy import text
@@ -888,14 +892,28 @@ def moe_classes():
         TERM=session.get("nearest_term"),
         YEAR=session.get("nearest_year")
     )
+    
+    
+def generate_qr_code_png(data, box_size=2):
+    qr = qrcode.QRCode(box_size=box_size, border=1)
+    qr.add_data(data)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white").convert("RGB")
+    
+    buffered = BytesIO()
+    img.save(buffered, format="PNG")
+    img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
+    return f"data:image/png;base64,{img_str}"
 @class_bp.route("/Class/print/<int:class_id>/<int:term>/<int:year>")
 @login_required
 def print_class_view(class_id, term, year):
     try:
-        from datetime import datetime
+        
+
         filter_type = request.args.get("filter") or session.get("last_filter_used", "all")
         order_by = request.args.get("order_by", "last")
         cache_key = f"{class_id}_{term}_{year}_{filter_type}"
+
         print(f"🖨️ [print_class_view] Requested print for cache key: {cache_key}")
         print(f"📦 Available cache keys: {list(session.get('class_cache', {}).keys())}")
 
@@ -903,103 +921,70 @@ def print_class_view(class_id, term, year):
             print("🔁 Refresh requested — clearing cache key if present")
             session.get("class_cache", {}).pop(cache_key, None)
 
-        if "class_cache" in session and cache_key in session["class_cache"]:
-            print("✅ Cache hit — loading data from session cache")
-            cache = session["class_cache"][cache_key]
-            students = pd.DataFrame(cache["students"])
-            comp_df = pd.DataFrame(cache["competencies"])
-            df_combined = pd.DataFrame(cache.get("student_competencies", {}))
+        cache = session.get("class_cache", {}).get(cache_key)
 
-            filter_type = cache.get("filter", "all")
-            print(f"🔍 Filter used from cache: {filter_type}")
-            print(f"📐 Number of students in cache: {len(students)}")
-            print(f"📊 Number of competencies in cache: {len(comp_df)}")
-
-            if df_combined.empty:
-                print("⚠️ Cache is incomplete — regenerating student competency data")
-                engine = get_db_engine()
-                with engine.begin() as conn:
-                    comp_df["label"] = comp_df["CompetencyDesc"] + " <br>(" + comp_df["YearGroupDesc"] + ")"
-                    comp_df["col_order"] = comp_df["YearGroupID"].astype(str).str.zfill(2) + "-" + comp_df["CompetencyID"].astype(str).str.zfill(4)
-                    comp_df = comp_df.sort_values("col_order")
-                    labels = comp_df["label"].tolist()
-
-                    all_records = []
-                    for _, student in students.iterrows():
-                        nsn = student["NSN"]
-                        print(f"🔄 Regenerating data for NSN {nsn}")
-                        comp_data = pd.read_sql(
-                            text("""EXEC FlaskGetStudentCompetencyStatus 
-                                    @NSN = :NSN, 
-                                    @Term = :Term, 
-                                    @CalendarYear = :CalendarYear,
-                                    @Email = :Email"""),
-                            conn,
-                            params={"NSN": nsn, "Term": term, "CalendarYear": year, "Email": session.get("user_email")}
-                        )
-                        if not comp_data.empty:
-                            comp_data = comp_data.merge(comp_df[["CompetencyID", "YearGroupID", "label"]],
-                                                        on=["CompetencyID", "YearGroupID"], how="inner")
-                            comp_row = comp_data.set_index("label")["CompetencyStatusID"].reindex(labels).fillna(0).astype(int).map({1: 'Y', 0: ''}).to_dict()
-                        else:
-                            comp_row = {label: '' for label in labels}
-
-                        merged_row = {
-                            "NSN": nsn,
-                            "FirstName": student["FirstName"],
-                            "LastName": student["LastName"],
-                            "PreferredName": student["PreferredName"],
-                            "DateOfBirth": student["DateOfBirth"],
-                            "Ethnicity": student["Ethnicity"],
-                            "YearLevelID": student["YearLevelID"],
-                            **comp_row
-                        }
-                        all_records.append(merged_row)
-
-                    df_combined = pd.DataFrame(all_records)
-                    df_combined = df_combined.replace('Y', '✓')
-                    session["class_cache"][cache_key]["student_competencies"] = df_combined.to_dict()
-                    print("✅ Regenerated and updated cache with student competencies")
-
-        else:
-            print("❌ Cache miss — no matching data found, redirecting to view_class")
+        if not cache or "student_competencies" not in cache:
+            print("🔄 Cache miss or incomplete — regenerating from FlaskGetClassStudentAchievement")
             engine = get_db_engine()
-            with engine.connect() as conn:
+            with engine.begin() as conn:
                 result = conn.execute(
-                    text("""EXEC FlaskHelperFunctionsSpecific
-                            @Request = :Request,
-                            @ClassID = :class_id,
-                            @Term = :term,
-                            @Year = :year"""),
-                    {"Request": "StudentsByClassTermYear", "class_id": class_id, "term": term, "year": year}
+                    text("""EXEC FlaskGetClassStudentAchievement 
+                            @ClassID = :class_id, 
+                            @Term = :term, 
+                            @CalendarYear = :year, 
+                            @Email = :email, 
+                            @FilterType = :filter"""),
+                    {
+                        "class_id": class_id,
+                        "term": term,
+                        "year": year,
+                        "email": session.get("user_email"),
+                        "filter": filter_type
+                    }
                 )
-                students = pd.DataFrame(result.fetchall(), columns=result.keys())
-                if students.empty:
-                    print("⚠️ No students found for class — redirecting")
-                    flash("No students found.", "warning")
+                df = pd.DataFrame(result.fetchall(), columns=result.keys())
+
+                if df.empty:
+                    flash("No class data found for printing.", "warning")
                     return redirect(url_for("class_bp.funder_classes"))
 
-                comp_result = conn.execute(
-                    text("EXEC GetRelevantCompetencies :CalendarYear, :Term"),
-                    {"CalendarYear": year, "Term": term}
+                comp_df = (
+                    df[["CompetencyLabel", "CompetencyID", "YearGroupID"]]
+                    .drop_duplicates()
+                    .rename(columns={"CompetencyLabel": "label"})
                 )
-                comp_df = pd.DataFrame(comp_result.fetchall(), columns=comp_result.keys())
+                comp_df["col_order"] = comp_df["YearGroupID"].astype(str).str.zfill(2) + "-" + comp_df["CompetencyID"].astype(str).str.zfill(4)
+                comp_df = comp_df.sort_values("col_order")
+                labels = comp_df["label"].tolist()
 
-            session.setdefault("class_cache", {})[cache_key] = {
-                "students": students.to_dict(),
-                "competencies": comp_df.to_dict(orient="records"),
+                meta_cols = [
+                    "NSN", "FirstName", "LastName", "PreferredName",
+                    "DateOfBirth", "Ethnicity", "YearLevelID"
+                ]
+                df_combined = df.pivot_table(
+                    index=meta_cols,
+                    columns="label",
+                    values="CompetencyStatus",
+                    aggfunc="first"
+                ).fillna(0).astype(int).replace({1: "✓", 0: ""}).reset_index()
 
-                "filter": filter_type
-            }
-            print(f"🆕 Created empty cache for key: {cache_key}")
-            flash("Class data not cached yet — please view the class first.", "warning")
-            return redirect(url_for("class_bp.view_class", class_id=class_id, term=term, year=year, filter=filter_type))
-        print(comp_df)
-        comp_df["col_order"] = comp_df["YearGroupID"].astype(str).str.zfill(2) + "-" + comp_df["CompetencyID"].astype(str).str.zfill(4)
-        comp_df = comp_df.sort_values("col_order")
-        df_combined = df_combined.replace('Y', '✓')
+                expiry_time = datetime.now(timezone.utc) + timedelta(minutes=15)
+                session.setdefault("class_cache", {})[cache_key] = {
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "expires": expiry_time.isoformat(),
+                    "students": df_combined.to_dict(),
+                    "competencies": comp_df.to_dict(orient="records"),
+                    "filter": filter_type,
+                    "student_competencies": df_combined.to_dict(orient="records")
+                }
+
+        else:
+            print("✅ Cache hit — loading from session")
+            df_combined = pd.DataFrame(cache["student_competencies"])
+            df_combined = df_combined.replace({1: "✓", 0: ""})
+            comp_df = pd.DataFrame(cache["competencies"])
+
         labels = comp_df["label"].tolist()
-
         grouped = {"0–2": [], "3–4": [], "5–6": [], "7–8": []}
         for row in df_combined.to_dict(orient="records"):
             for group in grouped:
@@ -1025,6 +1010,9 @@ def print_class_view(class_id, term, year):
         class_name = class_info.ClassName if class_info else "Unknown Class"
         teacher_name = class_info.TeacherName if class_info else "Unknown Teacher"
 
+        url = url_for("class_bp.view_class", class_id=class_id, term=term, year=year, _external=True)
+        qr_data_uri = generate_qr_code_png(url)
+
         return render_template(
             "print_view.html",
             grouped=grouped,
@@ -1032,7 +1020,8 @@ def print_class_view(class_id, term, year):
             class_name=class_name,
             teacher_name=teacher_name,
             filter_type=filter_type,
-            now=datetime.now
+            now=datetime.now,
+            qr_data_uri=qr_data_uri
         )
 
     except Exception as e:
@@ -1040,4 +1029,3 @@ def print_class_view(class_id, term, year):
         print("❌ Unhandled error in print_class_view:", e)
         traceback.print_exc()
         return "Internal Server Error (print view)", 500
-
