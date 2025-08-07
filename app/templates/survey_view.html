@@ -1,19 +1,17 @@
 {% extends "header.html" %} {% block title %}WSFL Self Review Survey{% endblock
 %} {% block content %}
 <div class="container my-5">
-  <h1 class="mb-4 text-center text-primary">
-    WSFL Self Review Survey (Submitted)
-  </h1>
+  <h1 class="mb-4 text-center text-primary">{{title}} (Submitted)</h1>
 
   <div class="d-flex justify-content-center">
     <div
       class="alert alert-secondary d-inline-block px-4 py-3"
       style="max-width: 1200px"
     >
-      <strong>Name:</strong> {{ fullname }} | <strong>Email:</strong> {{ email
-      }} | <strong>Role:</strong> {{ role }} | <strong>Entity:</strong> {{
-      entity }} | <strong>Submitted:</strong> {{ submitted.strftime('%d %B %Y,
-      %I:%M %p') }}
+      <strong>Name:</strong> {{ fullname or 'Unknown' }} |
+      <strong>Email:</strong> {{ email }} | <strong>Role:</strong> {{ role or
+      'Unknown' }} | <strong>Entity:</strong> {{ entity or 'Unknown' }} |
+      <strong>Submitted:</strong> {{ submitted.strftime('%d %B %Y, %I:%M %p') }}
     </div>
   </div>
   <form>

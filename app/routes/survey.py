@@ -315,7 +315,7 @@ def view_my_survey_response(respondent_id):
 
             email = rows[0]["Email"]
             submitted_raw = rows[0]["SubmittedDate"]
-
+            title = rows[0]["Title"]
             if submitted_raw:
                 submitted_utc = submitted_raw.replace(tzinfo=timezone.utc)
                 submitted = submitted_utc.astimezone(ZoneInfo("Pacific/Auckland"))
@@ -334,8 +334,9 @@ def view_my_survey_response(respondent_id):
             entity = rows[0]["EntityDescription"]
             if role == "WSNZ Admin":
                 entity = "WSNZ"
-            fullname = f"{rows[0]['FirstName']} {rows[0]['Surname']}"
-
+            fullname = f"{rows[0]['FirstName'] or ''} {rows[0]['Surname'] or ''}".strip()
+            if not fullname:
+                fullname = None
             return render_template(
                 "survey_view.html",
                 questions=list(questions.values()),
@@ -343,7 +344,8 @@ def view_my_survey_response(respondent_id):
                 role=role,
                 submitted=submitted,
                 entity=entity,
-                fullname=fullname
+                fullname=fullname,
+                title = title 
             )
 
     except Exception:

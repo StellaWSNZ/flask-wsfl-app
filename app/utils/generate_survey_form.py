@@ -6,24 +6,29 @@ from dotenv import load_dotenv
 load_dotenv(override=True)
 
 # DB connection string
-DB_URL = os.getenv("DB_URL")
+DB_URL = os.getenv("DB_URL_CUSTOM")
 engine = create_engine(DB_URL)
 
 # Output Jinja2 HTML template path
-SURVEY_ID = 1
+SURVEY_ID = 3
 output_path = f"app/templates/survey_form_{SURVEY_ID}.html"
-
-# Step 1: Get survey title
 with engine.connect() as conn:
-    survey_title = conn.execute(
-        text("SELECT Title FROM SVY_Survey WHERE SurveyID = :id"), {"id": SURVEY_ID}
-    ).scalar() or "Survey"
+    result = conn.execute(
+        text("SELECT Title, Header, Footer FROM SVY_Survey WHERE SurveyID = :id"),
+        {"id": SURVEY_ID}
+    ).mappings().first()
 
-# Step 2: Fetch questions + labels
+survey_title = result["Title"] or "Survey"
+survey_header = result["Header"] or ""
+survey_footer = result["Footer"] or ""
+
+
+# Step 2: Fetch sections, questions + labels
 query = """
 SELECT 
     s.SectionName,
     s.SectionOrder,
+    s.SectionText,
     q.QuestionID,
     q.QuestionText,
     q.QuestionCode,
@@ -36,18 +41,20 @@ WHERE q.QuestionCode IN ('LIK', 'T/F', 'SHT', 'LNG') AND q.SurveyID = :id
 ORDER BY s.SectionOrder, q.QuestionID, l.Position
 """
 
-# Group: section → { question → list of labels }
-sections = defaultdict(lambda: defaultdict(list))
+# Group: section → {text + question → labels}
+sections = defaultdict(lambda: {"text": "", "questions": defaultdict(list)})
 
 with engine.connect() as conn:
     rows = conn.execute(text(query), {"id": SURVEY_ID}).fetchall()
 
-for secname, secorder, qid, qtext, qcode, pos, label in rows:
+for secname, secorder, sectext, qid, qtext, qcode, pos, label in rows:
     key = (secorder or 0, secname or "No Section")
+    sections[key]["text"] = sectext or ""
+
     if qcode in ['SHT', 'LNG']:
-        sections[key][(qid, qtext, qcode)] = []  # no labels
+        sections[key]["questions"][(qid, qtext, qcode)] = []  # No labels needed
     else:
-        sections[key][(qid, qtext, qcode)].append((pos, label))
+        sections[key]["questions"][(qid, qtext, qcode)].append((pos, label))
 
 # Step 3: Build Jinja2 HTML
 html = [
@@ -55,15 +62,23 @@ html = [
     '{% block title %}' + survey_title + '{% endblock %}',
     '{% block content %}',
     '<div class="container mt-5">',
-    f'  <h1 class="mb-4 text-center text-primary">{ survey_title }</h2>',
+    f'  <h1 class="mb-4 text-center text-primary">{ survey_title }</h1>',
     '<form action="/submit" method="post">'
 ]
+if survey_header.strip():
+    html.append(survey_header)
 
 # Render all sections and questions
-for (secorder, secname) in sorted(sections):
+for (secorder, secname), secdata in sorted(sections.items()):
     if secname != "No Section":
-        html.append(f'<h3 class="mt-4">{secname}</h3>')
-    for (qid, qtext, qcode), labels in sections[(secorder, secname)].items():
+        html.append('<div class="p-3 mb-3 bg-white rounded">')
+        html.append(f'<h3 class="mt-2">{secname}</h3>')
+        if secdata["text"].strip():
+            sectext_html = secdata["text"].replace("\r\n", "<br>").replace("\n", "<br>")
+            html.append(f'<p class="text-muted">{sectext_html}</p>')
+        html.append('</div>')
+
+    for (qid, qtext, qcode), labels in secdata["questions"].items():
         html.append('<fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">')
         html.append(f'<legend class="h6"><strong>Q{qid}:</strong> {qtext}</legend>')
 
@@ -94,6 +109,7 @@ for (secorder, secname) in sorted(sections):
 
         html.append('</fieldset>')
 
+# Final submit button
 html.append('<button type="submit" class="btn btn-primary">Submit Survey</button>')
 html.append('</form></div>{% endblock %}')
 

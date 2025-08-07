@@ -265,3 +265,103 @@ def download_png():
         traceback.print_exc()
         flash("An error occurred while downloading the PNG.", "danger")
         return redirect(url_for("report_bp.reporting"))
+    
+
+@report_bp.route('/NewReporting', methods=["GET", "POST"])
+@login_required
+def new_reports():
+    role = session.get("user_role")
+    default_funder_name = session.get("desc") if role == "FUN" else None
+    engine = get_db_engine()
+
+    results = []
+    selected_term = None
+    selected_year = None
+    selected_funder_name = default_funder_name
+    funder_dropdown = []
+
+    try:
+        with engine.connect() as conn:
+            # 🌐 Load ADM funder dropdown
+            if role == "ADM":
+                funder_dropdown = [row.Description for row in conn.execute(
+                    text("EXEC FlaskHelperFunctions :Request"), {"Request": "FunderDropdown"}
+                )]
+                print("✅ ADM funder dropdown loaded:", funder_dropdown)
+
+            if request.method == "POST":
+                selected_term = int(request.form.get("term", 3))
+                selected_year = int(request.form.get("year", 2025))
+                report_option = request.form.get("report_option")
+                print(f"📥 POST received: term={selected_term}, year={selected_year}, option={report_option}")
+
+                if role == "ADM":
+                    selected_funder_name = request.form.get("selected_funder")
+                elif role == "FUN":
+                    selected_funder_name = default_funder_name
+
+                print("🔍 Selected funder name:", selected_funder_name)
+
+                row = conn.execute(
+                    text("EXEC FlaskHelperFunctions @Request = 'FunderIDDescription', @Text = :Text"),
+                    {"Text": selected_funder_name}
+                ).fetchone()
+
+                if not row:
+                    flash("❗ Funder not found.", "danger")
+                    print("❌ No funder row found for name:", selected_funder_name)
+                    return redirect(url_for("report_bp.new_reports"))
+
+                funder_id = int(row.FunderID)
+                print("🔑 Funder ID:", funder_id)
+
+                # 📊 Run the appropriate report
+                if report_option == "national_vs_funder":
+                    print("▶ Running GetFunderNationalRates...")
+                    results = conn.execute(
+                        text("EXEC [GetFunderNationalRatesSmart] :CalendarYear, :Term, :FunderID"),
+                        {"CalendarYear": selected_year, "Term": selected_term, "FunderID": funder_id}
+                    ).mappings().all()
+
+                elif report_option == "provider_comparison":
+                    print("▶ Running GetProviderRatesByFunder...")
+                    results = conn.execute(
+                        text("EXEC [GetProviderRatesByFunder] :FunderID, :CalendarYear, :Term"),
+                        {"FunderID": funder_id, "CalendarYear": 2024, "Term": 3}
+                    ).mappings().all()
+
+                elif report_option == "best_funder":
+                    print("▶ Running GetFunderRateVsBest...")
+                    results = conn.execute(
+                        text("EXEC [GetFunderRateVsBest] :CalendarYear, :Term, :FunderID"),
+                        {"CalendarYear": selected_year, "Term": selected_term, "FunderID": funder_id}
+                    ).mappings().all()
+
+
+                else:
+                    flash("Invalid report option selected.", "warning")
+                    print("⚠️ Invalid report option selected.")
+                    return redirect(url_for("report_bp.new_reports"))
+
+                if not results:
+                    flash("No results found for the selected filters.", "warning")
+                    print("📭 No results returned.")
+                    return redirect(url_for("report_bp.new_reports"))
+
+                print("✅ Results found:", len(results), "rows")
+
+        return render_template(
+            "reportingnew.html",
+            role=role,
+            funder_name=selected_funder_name,
+            funder_dropdown=funder_dropdown,
+            results=results,
+            selected_term=selected_term,
+            selected_year=selected_year
+        )
+
+    except Exception as e:
+        print("❌ Error in /NewReporting:", e)
+        traceback.print_exc()
+        flash("An error occurred while generating the new report.", "danger")
+        return redirect(url_for("report_bp.new_reports"))

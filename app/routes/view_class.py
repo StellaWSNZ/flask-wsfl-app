@@ -59,7 +59,11 @@ def view_class(class_id, term, year):
             try:
                 print("using cached")
                 df_combined = pd.DataFrame(cached["student_competencies"])
-                df_combined = df_combined.sort_values("PreferredName" if order_by == "first" else "LastName")
+                key_col = "PreferredName" if order_by == "first" else "LastName"
+                df_combined = df_combined.sort_values(
+                    by=key_col,
+                    key=lambda col: col.str.lower().fillna('')
+                )
 
                 comp_df = pd.DataFrame(cached.get("competencies", []))
                 competency_id_map = {}
@@ -143,8 +147,12 @@ columns=[col for col in df_combined.columns if col not in ["DateOfBirth", "Ethni
             ).reset_index()
             comp_df_sorted = comp_df.sort_values(["YearGroupID", "CompetencyID"])
             competency_cols = comp_df_sorted["label"].tolist()
+            key_col = "PreferredName" if order_by == "first" else "LastName"
 
-            pivot_df = pivot_df.sort_values("PreferredName" if order_by == "first" else "LastName")
+            pivot_df = pivot_df.sort_values(
+                        by=key_col,
+                        key=lambda col: col.str.lower().fillna('')
+                    )
             # Rename scenario columns
             pivot_df = pivot_df.rename(columns={
                 "Scenario1": "Scenario One - Selected <br>(7-8)",

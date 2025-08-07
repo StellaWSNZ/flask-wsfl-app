@@ -1,0 +1,272 @@
+{% extends "header.html" %} {% block title %}WSFL Teacher Assessment{% endblock
+%} {% block content %}
+<div class="container mt-5">
+  <h1 class="mb-4 text-center text-primary">WSFL Teacher Assessment</h1>
+  <form
+    action="{{ url_for('survey_bp.submit_survey', routename='TeacherAssessment') }}"
+    method="post"
+  >
+    <div class="bg-light border rounded p-3 mb-4 small">
+      <strong>Rating Scale:</strong><br /><br />
+
+      <strong>1 = Needs Improvement:</strong> The teacher is having difficulty
+      delivering or assessing Water Skills for Life (WSFL) competencies. They
+      require additional training, guidance, and support to improve their
+      ability to teach these skills effectively and meet programme standards.<br /><br />
+
+      <strong>2 = Satisfactory:</strong> The teacher is able to deliver and
+      assess WSFL competencies at a basic level. While they meet expectations,
+      there are noticeable areas where improvement is needed to enhance their
+      teaching techniques and assessment methods.<br /><br />
+
+      <strong>3 = Proficient:</strong> The teacher demonstrates a high level of
+      competence in delivering and assessing WSFL competencies. They
+      consistently show expertise, engage students effectively, and serve as a
+      strong example for other educators.
+    </div>
+    <div class="p-3 mb-3 bg-white rounded">
+      <h3 class="mt-2">Delivery of WSFL Competencies and Student Engagement</h3>
+      <p class="text-muted">
+        What to look for:<br />• Clear and engaging delivery of WSFL
+        competencies.<br />• Use of real-world open water examples.<br />•
+        Active student participation in activities.<br />• Efficient use of the
+        majority of lesson time concentrating on WSFL competencies.
+      </p>
+    </div>
+    <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
+      <legend class="h6">
+        <strong>Q1:</strong> The teacher effectively delivers appropriate WSFL
+        competencies, engages students actively, and integrates real-world
+        examples to enhance understanding
+      </legend>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="q1"
+          value="1"
+        /><label class="form-check-label">Needs Improvement</label>
+      </div>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="q1"
+          value="2"
+        /><label class="form-check-label">Satisfactory</label>
+      </div>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="q1"
+          value="3"
+        /><label class="form-check-label">Proficient</label>
+      </div>
+    </fieldset>
+    <div class="p-3 mb-3 bg-white rounded">
+      <h3 class="mt-2">Adaptation to Student Abilities and Needs</h3>
+      <p class="text-muted">
+        What to look for:<br />• Lessons are tailored to individual student
+        abilities.<br />• Flexibility in teaching methods based on student
+        needs.<br />• Effective management of class dynamics and pool safety.
+      </p>
+    </div>
+    <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
+      <legend class="h6">
+        <strong>Q2:</strong> The teacher consistently links WSFL competencies to
+        students' abilities, adapts teaching methods accordingly, and manages
+        class/pool activities effectively.
+      </legend>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="q2"
+          value="1"
+        /><label class="form-check-label">Needs Improvement</label>
+      </div>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="q2"
+          value="2"
+        /><label class="form-check-label">Satisfactory</label>
+      </div>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="q2"
+          value="3"
+        /><label class="form-check-label">Proficient</label>
+      </div>
+    </fieldset>
+    <div class="p-3 mb-3 bg-white rounded">
+      <h3 class="mt-2">Assessment and Feedback on Student Performance</h3>
+      <p class="text-muted">
+        What to look for:<br />• Accurate and regular assessment of student
+        progress.<br />• Timely and specific feedback that helps students
+        improve.<br />• Can complete and update WSFL student achievement forms.
+      </p>
+    </div>
+    <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
+      <legend class="h6">
+        <strong>Q3:</strong> The teacher accurately assesses student abilities
+        and provides clear, constructive feedback to support improvement and
+        skill development.
+      </legend>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="q3"
+          value="1"
+        /><label class="form-check-label">Needs Improvement</label>
+      </div>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="q3"
+          value="2"
+        /><label class="form-check-label">Satisfactory</label>
+      </div>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="q3"
+          value="3"
+        /><label class="form-check-label">Proficient</label>
+      </div>
+    </fieldset>
+    <div class="p-3 mb-3 bg-white rounded">
+      <h3 class="mt-2">
+        Relating WSFL Competencies to Open Water Environments
+      </h3>
+      <p class="text-muted">
+        What to look for:<br />• Integration of open water safety knowledge in
+        lessons.<br />• Relating pool-based activities to real-life open water
+        situations.
+      </p>
+    </div>
+    <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
+      <legend class="h6">
+        <strong>Q4:</strong> The teacher demonstrates comprehensive knowledge of
+        open water safety and environments and relates WSFL competencies to
+        authentic scenarios.
+      </legend>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="q4"
+          value="1"
+        /><label class="form-check-label">Needs Improvement</label>
+      </div>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="q4"
+          value="2"
+        /><label class="form-check-label">Satisfactory</label>
+      </div>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="q4"
+          value="3"
+        /><label class="form-check-label">Proficient</label>
+      </div>
+    </fieldset>
+    <div class="p-3 mb-3 bg-white rounded">
+      <h3 class="mt-2">Determining the Appropriate Teacher Level</h3>
+      <p class="text-muted">
+        (Foundational, Intermediate, or Expert) for a teacher based on the
+        assessment criteria requires a systematic approach. Here are some steps
+        and a suggested system to facilitate this process:<br />Foundational
+        Level: Teachers scoring mostly 1’s (Needs Improvement) across the
+        criteria. <br />Intermediate Level: Teachers scoring mostly 2’s
+        (Satisfactory) with some 3’s. <br />Expert Level: Teachers consistently
+        scoring 3’s (Proficient) across all or most criteria.
+      </p>
+      <div id="recommendation" class="text-primary fw-bold mt-3"></div>
+      <input type="hidden" id="recommended_level" name="recommended_level" />
+    </div>
+    <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
+      <legend class="h6">
+        <strong>Q5:</strong> What level would you rate this teacher?
+      </legend>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="q5"
+          value="1"
+        /><label class="form-check-label">Foundational Level</label>
+      </div>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="q5"
+          value="2"
+        /><label class="form-check-label">Intermediate Level</label>
+      </div>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="q5"
+          value="3"
+        /><label class="form-check-label">Expert Level</label>
+      </div>
+    </fieldset>
+
+    <button type="submit" class="btn btn-primary">Submit Survey</button>
+  </form>
+</div>
+<script>
+  function calculateRecommendation() {
+    const scores = [1, 2, 3, 4].map((n) => {
+      const input = document.querySelector(`input[name="q${n}"]:checked`);
+      return input ? parseInt(input.value) : null;
+    });
+
+    if (scores.includes(null)) {
+      document.getElementById("recommendation").innerText = "";
+      document.getElementById("recommended_level").value = "";
+      return;
+    }
+
+    const ones = scores.filter((x) => x === 1).length;
+    const twos = scores.filter((x) => x === 2).length;
+    const threes = scores.filter((x) => x === 3).length;
+
+    let level = "Intermediate Level";
+    if (ones >= 3) level = "Foundational Level";
+    else if (threes >= 3) level = "Expert Level";
+
+    // Show live recommendation
+    document.getElementById(
+      "recommendation"
+    ).innerText = `🔍 Recommended Level: ${level}`;
+
+    // Store hidden input value for backend
+    document.getElementById("recommended_level").value = level;
+  }
+
+  // Attach change listeners to Q1–Q4
+  document.addEventListener("DOMContentLoaded", () => {
+    [1, 2, 3, 4].forEach((q) => {
+      document.querySelectorAll(`input[name="q${q}"]`).forEach((el) => {
+        el.addEventListener("change", calculateRecommendation);
+      });
+    });
+  });
+</script>
+{% endblock %}
