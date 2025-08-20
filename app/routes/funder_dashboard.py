@@ -259,7 +259,7 @@ def funder_dashboard():
             f"in <strong>Term {selected_term}</strong>, <strong>{selected_year}</strong>."
         )
         print(session.get("desc"))
-        page_title = f"{entity_desc or session.get("desc") or ""} Overview"
+        page_title = f"{entity_desc or session.get('desc') or ''} Overview"
 
         return render_template(
             "overview.html",
