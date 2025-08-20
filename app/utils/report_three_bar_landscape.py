@@ -26,13 +26,13 @@ CALENDARYEAR = 2025
 vars_to_plot = [
     "National Rate (YTD)",
     "Funder Rate (YTD)",
-    "Funder Target",
+    "WSNZ Target",
 ]
 
 colors_dict = {
-    "National Rate (YTD)": "#2EBDC2",
-    "Funder Rate (YTD)": "#356FB6",
-    "Funder Target": "#BBE6E9",
+    "Funder Rate (YTD)": "#2EBDC2",
+    "WSNZ Target": "#356FB6",
+    "National Rate (YTD)": "#BBE6E9",
 }
 
 # ===================
@@ -283,12 +283,19 @@ def make_yeargroup_plot(ax, x, y_top, cell_height, title, df_relcomp, df_results
     # Legend under the last item in this cell
     draw_key(ax, cell_center, y_current - 0.05, vars_to_plot, colors_dict)
 
-# Optional function if you want to generate via a single call
-def create_competency_report(term, year, funder_id, vars_to_plot, colors_dict, funder_name=None):
+# r3/report_three_bar_landscape.py
+
+def create_competency_report(term, year, funder_id, vars_to_plot, colors_dict,
+                             funder_name=None, rows=None):
     con = get_db_engine()
     competencies_df = load_competencies(con, year, term)
     competencies_df = competencies_df[competencies_df['WaterBased'] == 1]
-    fundersresults = load_funder_results(con, year, term, [funder_id])
+
+    # use provided rows if present; otherwise fall back to funder-only (old behaviour)
+    if rows is not None:
+        df_results = pd.DataFrame(rows)
+    else:
+        df_results = load_funder_results(con, year, term, [funder_id])
 
     if funder_name is None:
         funder_name = load_funder_name(con, funder_id)
@@ -297,29 +304,16 @@ def create_competency_report(term, year, funder_id, vars_to_plot, colors_dict, f
     make_grid(
         ax, N_COLS, N_ROWS, ROW_HEIGHTS,
         TITLE_SPACE, SUBTITLE_SPACE,
-        competencies_df, fundersresults,
+        competencies_df, df_results,   # <- pass the LONG rows
         DEBUG, vars_to_plot, colors_dict
     )
 
-    # Main heading
-    ax.text(
-        N_COLS / 2,
-        N_ROWS + (TITLE_SPACE / 2),
-        f"Competency Report for {funder_name}",
-        ha='center', va='center',
-        fontsize=14, weight='bold'
-    )
-
-    # Subheading: term/year + selected vars + generated time
-    # vars_str = " | ".join(vars_to_plot)
-    ax.text(
-        N_COLS / 2,
-        N_ROWS + (TITLE_SPACE / 2) - 0.04,
-        f"Term {term}, {year}  |  Generated {get_nz_datetime_string()}",
-        ha='center', va='top',
-        fontsize=9, color='gray'
-    )
-
+    ax.text(N_COLS/2, N_ROWS + (TITLE_SPACE/2),
+            f"Competency Report for {funder_name}",
+            ha='center', va='center', fontsize=14, weight='bold')
+    ax.text(N_COLS/2, N_ROWS + (TITLE_SPACE/2) - 0.04,
+            f"Term {term}, {year}  |  Generated {get_nz_datetime_string()}",
+            ha='center', va='top', fontsize=9, color='gray')
     return fig
 
 # ===================

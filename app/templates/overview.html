@@ -6,15 +6,10 @@
 
   <!-- 🔄 Loading Spinner -->
   <div id="loadingSpinner" style="
-    display: none;
-    position: fixed;
-    top: 0; left: 0; width: 100%; height: 100%;
-    background-color: rgba(255, 255, 255, 0.75);
-    z-index: 9999;
-    text-align: center;
-    padding-top: 20%;
+    display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background-color: rgba(255,255,255,0.75); z-index: 9999; text-align: center; padding-top: 20%;
   ">
-    <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+    <div class="spinner-border text-primary" role="status" style="width:3rem;height:3rem;">
       <span class="visually-hidden">Loading...</span>
     </div>
     <p class="mt-2">Loading, please wait...</p>
@@ -22,35 +17,33 @@
 
   <h2 class="text-center text-primary mb-4">{{ title }}</h2>
 
-  {% if user_role == "ADM" or (user_role in ["FUN", "PRO","GRP"] and user_admin == 1) %}
+  {% if user_role == "ADM" or (user_role in ["FUN","PRO","GRP"] and user_admin == 1) %}
   <form method="POST" class="mb-4" id="entityForm">
     <div class="row g-2 align-items-end justify-content-center">
       <div class="col-md-3">
         <label for="entity_type" class="form-label">Entity Type</label>
         <select name="entity_type" id="entity_type" class="form-select">
           {% if user_role in ["ADM","FUN"] %}
-      <option value="Funder" {% if entity_type == "Funder" %}selected{% endif %}>Funder</option>
-    {% endif %}{# 
-      {% if user_role in ["ADM","FUN","GRP"] and has_groups  %}
-      <option value="Group" {% if entity_type == "Group" %}selected{% endif %}>Group</option>
-      {% endif %}
-      #}
-          <option value="Provider" {% if entity_type == "Provider" %}selected{% endif %}>Provider</option>
+            <option value="Funder"   {% if entity_type == "Funder" %}selected{% endif %}>Funder</option>
+          {% endif %}
+          {% if (user_role in ["ADM","FUN","GRP"] and has_groups) or user_role=="GRP" %}
+            <option value="Group"    {% if entity_type == "Group" %}selected{% endif %}>Group</option>
+          {% endif %}
+          <option value="Provider"   {% if entity_type == "Provider" %}selected{% endif %}>Provider</option>
         </select>
       </div>
+
       <div class="col-md-5">
-        <label for="funder_id" class="form-label" id="entityLabel">
-          Select 
-        </label>
-        <select name="funder_id" id="funder_id" class="form-select">
+        <label for="entity_id" class="form-label" id="entityLabel">Select</label>
+        <select name="entity_id" id="entity_id" class="form-select">
           <option value="">-- Choose a {{ entity_type or 'Funder' }} --</option>
-          {% for funder in funder_list %}
-            <option value="{{ funder.id }}" {% if funder.id == selected_funder_id %}selected{% endif %}>
-              {{ funder.name }}
-            </option>
+          {# Initial server-provided list for current entity_type #}
+          {% for e in entity_list %}
+            <option value="{{ e.id }}" {% if e.id == selected_entity_id %}selected{% endif %}>{{ e.name }}</option>
           {% endfor %}
         </select>
       </div>
+
       <div class="col-md-2">
         <button type="submit" class="btn btn-primary w-100">Submit</button>
       </div>
@@ -61,14 +54,14 @@
   {% if summary_string %}
   <div class="row justify-content-center">
     <div class="col-md-8">
-      <div class="alert text-center align-items-center gap-2" style="background-color: #4d544120; color: #4d5441; border: 2px solid #4d5441;">
+      <div class="alert text-center align-items-center gap-2" style="background-color:#4d544120;color:#4d5441;border:2px solid #4d5441;">
         <span>{{ summary_string | safe }}</span>
       </div>
     </div>
   </div>
   {% endif %}
 
-  {% if selected_funder_id %}
+  {% if selected_entity_id %}
   <div class="row g-4">
     <!-- Column 1: Staff eLearning -->
     <div class="col-md-8">
@@ -77,14 +70,14 @@
           <h5 class="mb-0">Your Staff eLearning Progress</h5>
         </div>
         <div class="card-body">
-          {% if eLearning %}
+          {% if eLearning and not no_eLearning %}
           <div class="table-responsive">
             <table class="table table-bordered text-center align-middle">
               <thead class="table-light">
                 <tr>
                   <th>Staff</th>
                   {% for module in eLearning[0].keys() if module != 'Name' %}
-                  <th>{{ module }}</th>
+                    <th>{{ module }}</th>
                   {% endfor %}
                 </tr>
               </thead>
@@ -92,23 +85,21 @@
                 {% for row in eLearning %}
                 <tr>
                   <td>{{ row["Name"] }}</td>
-                  {% for key, val in row.items() %}
-                    {% if key != "Name" %}
-                    <td>
-                      {% set status = val|string %}
-                      {% if status in ['Passed', 'Completed'] %}
-                        <span class="badge bg-success" style="font-size: 0.8rem;">{{ status }}</span>
-                      {% elif status == 'Cancelled' %}
-                        <span class="badge bg-danger" style="font-size: 0.8rem;">{{ status }}</span>
-                      {% elif status == 'In Progress' %}
-                        <span class="badge bg-warning text-dark" style="font-size: 0.8rem;">{{ status }}</span>
-                      {% elif status in ['Not Started', 'Enrolled'] %}
-                        <span class="badge bg-secondary" style="font-size: 0.8rem;">{{ status }}</span>
-                      {% else %}
-                        <span class="badge bg-light text-dark" style="font-size: 0.8rem;">{{ status }}</span>
-                      {% endif %}
-                    </td>
+                  {% for key, val in row.items() if key != "Name" %}
+                  <td>
+                    {% set status = val|string %}
+                    {% if status in ['Passed','Completed'] %}
+                      <span class="badge bg-success" style="font-size:0.8rem;">{{ status }}</span>
+                    {% elif status == 'Cancelled' %}
+                      <span class="badge bg-danger" style="font-size:0.8rem;">{{ status }}</span>
+                    {% elif status == 'In Progress' %}
+                      <span class="badge bg-warning text-dark" style="font-size:0.8rem;">{{ status }}</span>
+                    {% elif status in ['Not Started','Enrolled','Not Enrolled'] %}
+                      <span class="badge bg-secondary" style="font-size:0.8rem;">{{ status }}</span>
+                    {% else %}
+                      <span class="badge bg-light text-dark" style="font-size:0.8rem;">{{ status }}</span>
                     {% endif %}
+                  </td>
                   {% endfor %}
                 </tr>
                 {% endfor %}
@@ -116,7 +107,7 @@
             </table>
           </div>
           {% else %}
-          <div class="alert alert-warning">No eLearning data available.</div>
+          <div class="alert alert-warning mb-0">No eLearning data available.</div>
           {% endif %}
         </div>
       </div>
@@ -130,13 +121,13 @@
         </div>
         <div class="card-body">
           <form method="POST" class="row g-2 mb-3" id="filterForm">
-            <input type="hidden" name="funder_id" value="{{ selected_funder_id }}">
+            <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
             <input type="hidden" name="entity_type" value="{{ entity_type }}">
             <div class="col-md-6">
               <label for="term" class="form-label">Term</label>
               <select name="term" id="term" class="form-select" onchange="document.getElementById('filterForm').submit();">
                 {% for t in available_terms %}
-                <option value="{{ t }}" {% if selected_term|int == t %}selected{% endif %}>Term {{ t }}</option>
+                  <option value="{{ t }}" {% if selected_term|int == t %}selected{% endif %}>Term {{ t }}</option>
                 {% endfor %}
               </select>
             </div>
@@ -144,42 +135,41 @@
               <label for="year" class="form-label">Year</label>
               <select name="year" id="year" class="form-select" onchange="document.getElementById('filterForm').submit();">
                 {% for y in available_years %}
-                <option value="{{ y }}" {% if selected_year|int == y %}selected{% endif %}>{{ y }}</option>
+                  <option value="{{ y }}" {% if selected_year|int == y %}selected{% endif %}>{{ y }}</option>
                 {% endfor %}
               </select>
             </div>
           </form>
 
-          {% if schools %}
+          {% if schools and not no_schools %}
           <div class="table-responsive">
             <table class="table table-bordered text-center align-middle">
               <thead class="table-light">
                 <tr>
                   {% for col in schools[0].keys() %}
-                  <!-- {{col}}-->
-  <th>
-    {{ col.replace('_', ' ') }}
-    {% if col == 'Classes Edited' %}
-      <i class="bi bi-info-circle-fill text-primary ms-1" data-bs-toggle="tooltip" data-bs-placement="top"
-         title="This is calculated by counting classes where at least 85% of students were edited."></i>
-    {% endif %}
-  </th>
-{% endfor %}
+                    <th>
+                      {{ col.replace('_',' ') }}
+                      {% if col == 'Classes Edited' %}
+                        <i class="bi bi-info-circle-fill text-primary ms-1" data-bs-toggle="tooltip" data-bs-placement="top"
+                           title="This is calculated by counting classes where at least 85% of students were edited."></i>
+                      {% endif %}
+                    </th>
+                  {% endfor %}
                 </tr>
               </thead>
               <tbody>
                 {% for row in schools %}
-                <tr>
-                  {% for val in row.values() %}
-                  <td>{{ val }}</td>
-                  {% endfor %}
-                </tr>
+                  <tr>
+                    {% for val in row.values() %}
+                      <td>{{ val }}</td>
+                    {% endfor %}
+                  </tr>
                 {% endfor %}
               </tbody>
             </table>
           </div>
           {% else %}
-          <div class="alert alert-warning">No school summary data for the selected term and year.</div>
+          <div class="alert alert-warning mb-0">No school summary data for the selected term and year.</div>
           {% endif %}
         </div>
       </div>
@@ -188,89 +178,48 @@
   {% elif user_role == "ADM" %}
   <div class="d-flex justify-content-center">
     <div class="alert alert-info mt-4 w-75 text-center">
-      Please select a funder or provider from the dropdown above to view the dashboard.
+      Please select an entity from the dropdown above to view the dashboard.
     </div>
   </div>
   {% endif %}
 </div>
+
 <script>
-  document.addEventListener("DOMContentLoaded", function () {
-    const entitySelect = document.getElementById("entity_type");
-    const funderSelect = document.getElementById("funder_id");
-    const label = document.getElementById("entityLabel");
+document.addEventListener("DOMContentLoaded", function () {
+  const entityTypeSel = document.getElementById("entity_type");
+  const entityIdSel   = document.getElementById("entity_id");
+  const label         = document.getElementById("entityLabel");
 
-    entitySelect.addEventListener("change", function () {
-      const selectedType = this.value;
-      label.textContent = `Select ${selectedType}`;
+  function loadEntities(type) {
+    label.textContent = `Select ${type}`;
+    entityIdSel.innerHTML = `<option value="">Loading ${type}s...</option>`;
+    entityIdSel.disabled = true;
 
-      // Clear and show loading message
-      funderSelect.innerHTML = `<option value="">Loading ${selectedType}s...</option>`;
-      funderSelect.disabled = true;
+    fetch(`/get_entities?entity_type=${encodeURIComponent(type)}`)
+      .then(r => r.json())
+      .then(data => {
+        entityIdSel.innerHTML = `<option value="">-- Choose a ${type} --</option>`;
+        data.forEach(item => {
+          const opt = document.createElement("option");
+          opt.value = item.id;
+          opt.textContent = item.name;
+          entityIdSel.appendChild(opt);
+        });
+        entityIdSel.disabled = false;
+      })
+      .catch(err => {
+        console.error("Error loading entities:", err);
+        entityIdSel.innerHTML = `<option value="">Error loading ${type}s</option>`;
+      });
+  }
 
-      // Only fetch providers dynamically
-      if (selectedType === "Provider") {
-        fetch(`/get_entities?entity_type=Provider`)
-          .then(response => response.json())
-          .then(data => {
-            funderSelect.innerHTML = `<option value="">-- Choose a Provider --</option>`;
-            data.forEach(item => {
-              const option = document.createElement("option");
-              option.value = item.id;
-              option.textContent = item.name;
-              funderSelect.appendChild(option);
-            });
-            funderSelect.disabled = false;
-          })
-          .catch(error => {
-            funderSelect.innerHTML = `<option value="">Error loading providers</option>`;
-            console.error("Error loading providers:", error);
-          });
-      } else if (selectedType === "Funder") {
-        fetch(`/get_entities?entity_type=Funder`)
-          .then(response => response.json())
-          .then(data => {
-            funderSelect.innerHTML = `<option value="">-- Choose a Funder --</option>`;
-            data.forEach(item => {
-              const option = document.createElement("option");
-              option.value = item.id;
-              option.textContent = item.name;
-              funderSelect.appendChild(option);
-            });
-            funderSelect.disabled = false;
-          })
-          .catch(error => {
-            funderSelect.innerHTML = `<option value="">Error loading funders</option>`;
-            console.error("Error loading funders:", error);
-          });
-      }else if (selectedType === "Group") {
-        fetch(`/get_entities?entity_type=Group`)
-          .then(response => response.json())
-          .then(data => {
-            funderSelect.innerHTML = `<option value="">-- Choose a Group --</option>`;
-            data.forEach(item => {
-              const option = document.createElement("option");
-              option.value = item.id;
-              option.textContent = item.name;
-              funderSelect.appendChild(option);
-            });
-            funderSelect.disabled = false;
-          })
-          .catch(error => {
-            funderSelect.innerHTML = `<option value="">Error loading groups</option>`;
-            console.error("Error loading groups:", error);
-          });
-      }
-    });
+  entityTypeSel.addEventListener("change", function () { loadEntities(this.value); });
+  if (entityTypeSel.value) loadEntities(entityTypeSel.value);
 
-    entitySelect.dispatchEvent(new Event("change"));
-
-  });
-  document.addEventListener("DOMContentLoaded", function () {
-    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
-    tooltipTriggerList.forEach(function (tooltipTriggerEl) {
-      new bootstrap.Tooltip(tooltipTriggerEl)
-    })
-  });
+  // Bootstrap tooltips
+  const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+  tooltipTriggerList.forEach(el => new bootstrap.Tooltip(el));
+});
 </script>
 
 {% endblock %}

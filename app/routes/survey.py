@@ -1,7 +1,7 @@
 ## Survey.py
 from datetime import timezone
 from zoneinfo import ZoneInfo
-from flask import Blueprint, render_template, request, redirect, flash, session, url_for, current_app
+from flask import Blueprint, jsonify, render_template, request, redirect, flash, session, url_for, current_app
 from sqlalchemy import text
 from app.utils.database import get_db_engine
 from collections import namedtuple
@@ -9,19 +9,21 @@ from app.routes.auth import login_required
 import traceback
 from app.extensions import mail
 from itsdangerous import URLSafeTimedSerializer,BadSignature, SignatureExpired
+import re
 survey_bp = Blueprint("survey_bp", __name__)
 
 
-# 🔹 Load and show a survey form by its route name
 @survey_bp.route("/Form/<string:routename>")
 def survey_by_routename(routename):
     engine = get_db_engine()
     Label = namedtuple("Label", ["pos", "text"])
     questions = []
     seen_ids = {}
+    extra_ctx = {}  # conditional template context (e.g., schools)
 
     try:
         with engine.connect() as conn:
+            # 1) Resolve survey id
             result = conn.execute(text("""
                 EXEC SVY_GetSurveyIDByRouteName @RouteName = :routename
             """), {"routename": routename})
@@ -36,117 +38,288 @@ def survey_by_routename(routename):
 
             survey_id = row.SurveyID
 
+            # 2) Load survey questions
             rows = conn.execute(text("""
                 EXEC SVY_GetSurveyQuestions @SurveyID = :survey_id
             """), {"survey_id": survey_id}).fetchall()
 
+            # 3) Special handling for Survey 3 (Teacher Assessment):
+            #    - Only funders can access
+            #    - Schools come from FlaskHelperFunctions 'SchoolDropdown' using the session user id
+            print(session)
+            if survey_id == 3:
+                user_role = session.get("user_role") 
+                user_id = (session.get("user_id") )
+
+                if user_role != "FUN":
+                    flash("This assessment is restricted to funders.", "warning")
+                    return redirect("/Profile")
+
+                if not user_id:
+                    flash("Please sign in again to access this assessment.", "warning")
+                    return redirect("/Login")
+
+                # Call your stored procedure to get ONLY the schools this funder can see.
+                # Adjust parameter names if your proc expects different names.
+                schools_rows = conn.execute(text("""
+                    EXEC FlaskHelperFunctions @Request='SchoolDropdownKaiako', @Number=:uid
+                """), {"uid": user_id}).mappings().all()
+
+                # Normalize to expected keys for the template
+                # (rename columns here if your proc returns different names)
+                schools = []
+                for r in schools_rows:
+                    d = dict(r)
+                    # Try common variations and map to MOENumber / SchoolName
+                    moe = d.get("MOENumber") or d.get("MOE") or d.get("SchoolID") or d.get("ID")
+                    name = d.get("SchoolName") or d.get("Name") or d.get("Description")
+                    if moe is not None and name:
+                        schools.append({"MOENumber": moe, "SchoolName": name})
+
+                extra_ctx["schools"] = schools
+
+        # 4) Build question objects
         for qid, qtext, qcode, pos, label in rows:
             if qid not in seen_ids:
-                question = {
+                seen_ids[qid] = {
                     "id": qid,
                     "text": qtext,
                     "type": qcode,
                     "labels": []
                 }
-                questions.append(question)
-                seen_ids[qid] = question
+                questions.append(seen_ids[qid])
 
             if qcode == "LIK" and label:
-                question["labels"].append(Label(pos, label))
+                seen_ids[qid]["labels"].append(Label(pos, label))
 
-        return render_template(f"survey_form_{survey_id}.html", questions=questions, route_name=routename)
+        # 5) Render with conditional context (schools only present for Survey 3)
+        ctx = {"questions": questions, "route_name": routename}
+        ctx.update(extra_ctx)
+        return render_template(f"survey_form_{survey_id}.html", **ctx)
 
     except Exception:
         traceback.print_exc()
         return "Internal Server Error: Failed to load survey", 500
 
+@survey_bp.route("/api/teachers")
+def api_teachers():
+    school_id = request.args.get("school_id", "").strip()
+    if not school_id:
+        return jsonify([])
+
+    try:
+        uid = int(school_id)
+    except ValueError:
+        # Bad id → empty list instead of 500
+        return jsonify([])
+
+    engine = get_db_engine()
+    with engine.connect() as conn:
+        result = conn.execute(
+            text("EXEC FlaskHelperFunctions @Request='SchoolStaffFunder', @Number=:uid"),
+            {"uid": uid},
+        ).mappings()
+
+        # Convert RowMapping → plain dicts
+        rows = [dict(r) for r in result]
+
+    # Optional: enforce only the fields your frontend expects
+    payload = [{"Name": r.get("Name"), "Email": r.get("Email")} for r in rows]
+    return jsonify(payload)
+
+@survey_bp.route("/api/surveys/<int:survey_id>/questions/<int:question_id>/options")
+def api_dropdown_options(survey_id, question_id):
+    with get_db_engine().connect() as conn:
+        result = conn.execute(
+            text("EXEC dbo.SVY_GetOptions @SurveyID=:sid, @QuestionID=:qid"),
+            {"sid": survey_id, "qid": question_id}
+        ).mappings()
+        rows = [dict(r) for r in result]
+
+    payload = [{"id": r["OptionID"], "value": r["OptionValue"], "label": r["Label"]} for r in rows]
+    return jsonify(payload)
 
 @survey_bp.route("/submit/<string:routename>", methods=["POST"])
 def submit_survey(routename):
-    print(session.get("user_email"))
     try:
-        engine = get_db_engine()
-        form_data = request.form.to_dict()
-
         email = session.get("user_email")
         if not email:
             return "Email required", 400
 
-        responses = {k[1:]: v for k, v in form_data.items() if k.startswith("q")}
+        form = request.form  # MultiDict
 
-        with engine.begin() as conn:
-            # 🔹 Get survey ID
-            if routename.startswith("guest/") and routename.split("/")[1].isdigit():
-                survey_id = int(routename.split("/")[1])
+        # ---- Parse qN + qN_id pairs from the form into a dict
+        # answers = { "3": {"value": "Lead Classroom Teacher", "id": "1"}, ... }
+        answers = {}
+        for key in form.keys():
+            m = re.fullmatch(r"q(\d+)(?:_id)?", key)
+            if not m:
+                continue
+            qid = m.group(1)
+            answers.setdefault(qid, {"value": None, "id": None})
+            if key.endswith("_id"):
+                answers[qid]["id"] = form.get(key) or None
             else:
-                result = conn.execute(text("""
-                    EXEC SVY_GetSurveyIDByRouteName @RouteName = :routename
-                """), {"routename": routename})
+                answers[qid]["value"] = (form.get(key) or "").strip()
 
-                row = result.fetchone()
-                result.fetchall()
-                result.close()
-
+        engine = get_db_engine()
+        with engine.begin() as conn:
+            # ---- Resolve SurveyID from route
+            if routename.startswith("guest/") and routename.split("/", 1)[1].isdigit():
+                survey_id = int(routename.split("/", 1)[1])
+            else:
+                res = conn.execute(
+                    text("EXEC SVY_GetSurveyIDByRouteName @RouteName = :r"),
+                    {"r": routename},
+                )
+                row = res.fetchone()
                 if not row:
                     return f"Survey '{routename}' not found", 400
+                # support tuple-like or mappings
+                survey_id = row[0] if hasattr(row, "__getitem__") else row.SurveyID
 
-                survey_id = row.SurveyID
+            # ---- Upsert respondent + fetch RespondentID
+            conn.execute(
+                text("""
+                    EXEC SVY_InsertRespondent 
+                        @SurveyID = :sid,
+                        @Email    = :email,
+                        @RespondentID = NULL;
+                """),
+                {"sid": survey_id, "email": email},
+            )
 
-            # 🔹 Insert respondent
-            conn.execute(text("""
-                EXEC SVY_InsertRespondent 
-                    @SurveyID = :survey_id,
-                    @Email = :email,
-                    @RespondentID = NULL;
-            """), {"survey_id": survey_id, "email": email})
-
-            # 🔹 Get respondent ID
-            respondent_result = conn.execute(text("""
-                EXEC SVY_GetRespondentID 
-                    @SurveyID = :survey_id,
-                    @Email = :email;
-            """), {"survey_id": survey_id, "email": email})
-
-            respondent_id = respondent_result.scalar()
+            respondent_id = conn.execute(
+                text("EXEC SVY_GetRespondentID @SurveyID=:sid, @Email=:email;"),
+                {"sid": survey_id, "email": email},
+            ).scalar()
             if not respondent_id:
-                raise Exception("❌ Could not retrieve RespondentID")
+                raise RuntimeError("Could not retrieve RespondentID")
 
-            # 🔹 Get question types
-            question_types_result = conn.execute(text("""
-                EXEC SVY_GetQuestionTypesBySurveyID @SurveyID = :sid
-            """), {"sid": survey_id}).fetchall()
-            question_type_map = {str(row.QuestionID): row.QuestionCode for row in question_types_result}
+            # ---- Map QuestionID -> QuestionCode (e.g., LIK, DDL, TEXT, BOOL)
+            qtypes = conn.execute(
+                text("EXEC SVY_GetQuestionTypesBySurveyID @SurveyID=:sid"),
+                {"sid": survey_id},
+            ).mappings().all()
+            qtype_map = {str(r["QuestionID"]): r["QuestionCode"] for r in qtypes}
 
-            # 🔹 Insert answers
-            for qid_str, value in responses.items():
-                qtype = question_type_map.get(qid_str)
+            # ---- Truthy/falsy sets for boolean-like questions
+            truthy = {"1", "true", "t", "yes", "y", "on"}
+            falsy  = {"0", "false", "f", "no", "n", "off"}
+
+            # ---- Insert answers
+            for qid_str, payload in answers.items():
+                qtype = qtype_map.get(qid_str)
+                if not qtype:
+                    continue  # unknown qid (ignore)
                 qid = int(qid_str)
+                val = payload.get("value")
+                opt_id_raw = payload.get("id")
+                opt_id = int(opt_id_raw) if (opt_id_raw and opt_id_raw.isdigit()) else None
 
                 if qtype == "LIK":
-                    if value:
-                        conn.execute(text("""
-                            EXEC SVY_InsertAnswer 
-                                @RespondentID = :rid, 
-                                @QuestionID = :qid, 
-                                @AnswerLikert = :val;
-                        """), {"rid": respondent_id, "qid": qid, "val": int(value)})
+                    if val:
+                        conn.execute(
+                            text("""
+                                EXEC SVY_InsertAnswer2 
+                                    @RespondentID = :rid, 
+                                    @QuestionID   = :qid, 
+                                    @AnswerLikert = :val;
+                            """),
+                            {"rid": respondent_id, "qid": qid, "val": int(val)},
+                        )
+
+                elif qtype == "DDL":
+                    # Use resolver proc to validate/resolve OptionID from (opt_id, val)
+                    row = conn.execute(
+                        text("""
+                            DECLARE @Resolved INT, @IsValid BIT;
+                            EXEC dbo.SVY_ResolveAndValidateOption
+                                @SurveyID=:sid,
+                                @QuestionID=:qid,
+                                @PostedOptionID=:opt,
+                                @PostedValue=:v,
+                                @ResolvedOptionID=@Resolved OUTPUT,
+                                @IsValid=@IsValid OUTPUT;
+                            SELECT Resolved=@Resolved, IsValid=@IsValid;
+                        """),
+                        {"sid": survey_id, "qid": qid, "opt": opt_id, "v": val},
+                    ).mappings().first()
+
+                    resolved_opt = row["Resolved"] if row else None
+
+                    if resolved_opt is not None:
+                        # Store OptionID, and optionally keep the human text too
+                        conn.execute(
+                            text("""
+                                EXEC SVY_InsertAnswer2
+                                    @RespondentID    = :rid,
+                                    @QuestionID      = :qid,
+                                    @AnswerOptionID  = :opt,
+                                    @AnswerText      = :val;
+                            """),
+                            {"rid": respondent_id, "qid": qid, "opt": int(resolved_opt), "val": (val or None)},
+                        )
+                    elif val:
+                        # Fall back to storing text if we couldn’t resolve an OptionID
+                        conn.execute(
+                            text("""
+                                EXEC SVY_InsertAnswer2
+                                    @RespondentID = :rid,
+                                    @QuestionID   = :qid,
+                                    @AnswerText   = :val;
+                            """),
+                            {"rid": respondent_id, "qid": qid, "val": val},
+                        )
+
+                elif qtype in ("BOOL", "YN", "CHK"):
+                    # Map checkbox/radio booleans
+                    if val is not None:
+                        v = str(val).strip().lower()
+                        if v in truthy:
+                            b = 1
+                        elif v in falsy:
+                            b = 0
+                        else:
+                            b = 1 if v else 0
+                        conn.execute(
+                            text("""
+                                EXEC SVY_InsertAnswer2
+                                    @RespondentID  = :rid,
+                                    @QuestionID    = :qid,
+                                    @AnswerBoolean = :b;
+                            """),
+                            {"rid": respondent_id, "qid": qid, "b": b},
+                        )
+
                 else:
-                    if value is not None:
-                        conn.execute(text("""
-                            EXEC SVY_InsertAnswer 
-                                @RespondentID = :rid, 
-                                @QuestionID = :qid, 
-                                @AnswerText = :val;
-                        """), {"rid": respondent_id, "qid": qid, "val": value})
+                    # Default: store as text if non-empty
+                    if val:
+                        conn.execute(
+                            text("""
+                                EXEC SVY_InsertAnswer2
+                                    @RespondentID = :rid, 
+                                    @QuestionID   = :qid, 
+                                    @AnswerText   = :val;
+                            """),
+                            {"rid": respondent_id, "qid": qid, "val": val},
+                        )
 
         flash("✅ Survey submitted successfully!", "success")
-        if routename.startswith("Form/guest"):
+
+        # Guest flows go to a thank-you page
+        rn_lower = routename.lower()
+        if rn_lower.startswith("form/guest") or rn_lower.startswith("guest/"):
             return redirect("/thankyou")
         return redirect(url_for("survey_bp.list_my_surveys"))
 
-    except Exception:
-        traceback.print_exc()
-        return "Internal Server Error", 500
+    except Exception as e:
+        # Log e as appropriate for your app
+        flash(f"❌ Error submitting survey: {e}", "danger")
+        rn_lower = routename.lower()
+        if rn_lower.startswith("form/guest") or rn_lower.startswith("guest/"):
+            return redirect("/thankyou")  # or to a safer fallback
+        return redirect(url_for("survey_bp.list_my_surveys"))
 
 
 @survey_bp.route("/submit/guest/<int:survey_id>", methods=["POST"])
@@ -181,14 +354,14 @@ def submit_guest_survey(survey_id):
                 qid = int(qid_str)
                 if value.isdigit():
                     conn.execute(text("""
-                        EXEC SVY_InsertAnswer 
+                        EXEC SVY_InsertAnswer2 
                             @RespondentID = :rid, 
                             @QuestionID = :qid, 
                             @AnswerLikert = :val;
                     """), {"rid": respondent_id, "qid": qid, "val": int(value)})
                 else:
                     conn.execute(text("""
-                        EXEC SVY_InsertAnswer 
+                        EXEC SVY_InsertAnswer2 
                             @RespondentID = :rid, 
                             @QuestionID = :qid, 
                             @AnswerText = :val;
@@ -259,6 +432,39 @@ from datetime import timezone
 from zoneinfo import ZoneInfo
 import traceback
 
+
+@survey_bp.get("/api/classes")
+def api_classes():
+    school_id = request.args.get("school_id", type=str)
+    term = request.args.get("term", type=int)
+    year = request.args.get("year", type=int)
+    if not school_id:
+        return jsonify({"error": "school_id required"}), 400
+
+    engine = get_db_engine()
+    with engine.connect() as conn:
+        rows = conn.execute(
+            text("""
+                EXEC dbo.FlaskHelperFunctionsSpecific
+                    @Request       = 'ClassesBySchool',
+                    @MOENumber     = :moe,
+                    @Term          = :term,
+                    @CalendarYear  = :year
+            """),
+            {"moe": school_id, "term": term, "year": year},
+        ).mappings().all()
+
+    data = [
+        {
+            "ClassID": r.get("ClassID"),
+            "ClassName": r.get("ClassName") or r.get("Name"),
+            "Term": r.get("Term"),
+            "CalendarYear": r.get("CalendarYear"),
+        }
+        for r in rows
+    ]
+    return jsonify(data)
+
 @survey_bp.route("/MyForms/<int:respondent_id>")
 @login_required
 def view_my_survey_response(respondent_id):
@@ -317,8 +523,9 @@ def view_my_survey_response(respondent_id):
             submitted_raw = rows[0]["SubmittedDate"]
             title = rows[0]["Title"]
             if submitted_raw:
-                submitted_utc = submitted_raw.replace(tzinfo=timezone.utc)
-                submitted = submitted_utc.astimezone(ZoneInfo("Pacific/Auckland"))
+                submitted = submitted_raw
+                #submitted_utc = submitted_raw.replace(tzinfo=timezone.utc)
+                #submitted = submitted_utc.astimezone(ZoneInfo("Pacific/Auckland"))
             else:
                 submitted = "Not submitted yet"
 
@@ -549,3 +756,18 @@ def staff_survey_admin():
                            entity_type=entity_type,
                            selected_entity_id=selected_entity_id,
                            staff_surveys=staff_surveys)
+
+@survey_bp.get("/api/FlaskGetAllUsers")
+def api_flask_get_all_users():
+    """
+    Returns a JSON list of users for the instructor dropdown.
+    Expected columns: FirstName, LastName, Email
+    """
+    engine = get_db_engine()
+    with engine.connect() as conn:
+        # If your proc needs params, add them; else just EXEC
+        result = conn.execute(text("EXEC dbo.FlaskGetAllUsers"))
+        rows = [dict(r._mapping) for r in result]
+    # Optionally filter/transform here if you only want instructors
+    # rows = [r for r in rows if r.get("Role") == "Instructor"]
+    return jsonify(rows)

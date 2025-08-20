@@ -1,0 +1,515 @@
+{% extends "header.html" %} {% block title %}WSNZ Extenal Review{% endblock %}
+{% block content %}
+<div class="container mt-5">
+  <h1 class="mb-4 text-center text-primary">WSNZ Extenal Review</h1>
+  <form
+    action="{{ url_for('survey_bp.submit_survey', routename='ExternalReview') }}"
+    method="post"
+  >
+    <div class="p-3 mb-3 bg-white rounded">
+      <h3 class="mt-2">Instructor Information</h3>
+    </div>
+    <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
+      <legend class="h6"><strong>Q1:</strong> Instructor Email</legend>
+      <select id="instructorEmail" name="q1" class="form-control" required>
+        <option value="" selected disabled>Loading instructors…</option>
+      </select>
+      <small class="form-text text-muted">
+        Start typing to jump to a match. If you can’t see a name, try scrolling.
+      </small>
+    </fieldset>
+    <div class="p-3 mb-3 bg-white rounded">
+      <h3 class="mt-2">Understanding Water Skills for Life</h3>
+      <p class="text-muted">
+        How well does the instructor grasp and deliver the Water Skills for Life
+        content, focusing on its key competencies and instructional strategies?
+        <br /><br />When evaluating your understanding consider the following
+        examples:<br />• The application of age-appropriate water skills and
+        techniques for different age groups.<br />• How the Water Skills for
+        Life content is related to open water environments, including lakes,
+        rivers, and beaches.<br />• The methods used for teaching essential
+        water safety and survival skills.<br />• Strategies for adapting lessons
+        to accommodate various skill levels and environments
+      </p>
+    </div>
+    <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
+      <legend class="h6">
+        <strong>Q2:</strong> On a scale of 1 to 5, how would you rate the
+        instructor's understanding of the Water Skills for Life content?
+      </legend>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="q2"
+          value="1"
+        /><label class="form-check-label"
+          >1. Not Confident - The instructor has very little understanding of
+          Water Skills for Life content, including which age-appropriate skills
+          to teach and how to explain their importance for open water
+          environments.</label
+        >
+      </div>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="q2"
+          value="2"
+        /><label class="form-check-label"
+          >2. Slightly Confident - The instructor has some understanding of
+          Water Skills for Life content but struggles to explain why the skills
+          are important for open water environments and to apply effective
+          instructional strategies.</label
+        >
+      </div>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="q2"
+          value="3"
+        /><label class="form-check-label"
+          >3. Moderately Confident - The instructor has a good grasp of Water
+          Skills for Life content and can teach age-appropriate skills using
+          instructional strategies. However, they find it challenging to relate
+          the content specifically to open water environments and need further
+          development in this area.</label
+        >
+      </div>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="q2"
+          value="4"
+        /><label class="form-check-label"
+          >4. Confident - The instructor has a strong understanding of Water
+          Skills for Life content, can teach age-appropriate skills, and use
+          instructional strategies effectively. They can explain the importance
+          of these skills and relate the content to open water environments,
+          though they encounter occasional challenges.</label
+        >
+      </div>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="q2"
+          value="5"
+        /><label class="form-check-label"
+          >5. Extremely Confident - The instructor has an excellent
+          understanding of Water Skills for Life content. They can effectively
+          teach age-appropriate skills, use instructional strategies, and
+          clearly explain why these skills are important and how they relate to
+          open water environments, with minimal challenges</label
+        >
+      </div>
+    </fieldset>
+    <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
+      <legend class="h6">
+        <strong>Q3:</strong> If you did not rate the instructor as a 5, please
+        specify one area where they need improvement to enhance their confidence
+        in understanding Water Skills for Life content, including
+        age-appropriate skills, the importance of these skills for open water
+        environments, and instructional strategies
+      </legend>
+      <textarea
+        name="q3"
+        class="form-control"
+        rows="4"
+        placeholder="Your response..."
+      ></textarea>
+    </fieldset>
+    <div class="p-3 mb-3 bg-white rounded">
+      <h3 class="mt-2">Poolside Strategies Support</h3>
+      <p class="text-muted">
+        To build their confidence in poolside instruction, they may need support
+        in key strategies that ensure students effectively learn and apply Water
+        Skills for Life. They should consider focusing on areas such as adapting
+        lessons, explaining the reasons behind each skill, and using teaching
+        games to maximise participation.
+      </p>
+    </div>
+    <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
+      <legend class="h6">
+        <strong>Q4:</strong> On a scale of 1 to 5, how effective do you feel the
+        instructor is in delivering Water Skills for Life lessons poolside,
+        including managing instruction, engaging students, and ensuring
+        understanding of water safety concepts?
+      </legend>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="q4"
+          value="1"
+        /><label class="form-check-label"
+          >1 - High Need for Support: The instructor has a high need for support
+          in almost all poolside strategies and would benefit from comprehensive
+          help with communication, adapting lessons, teaching methods, providing
+          feedback, and explaining the rationale behind water safety
+          concepts</label
+        >
+      </div>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="q4"
+          value="2"
+        /><label class="form-check-label"
+          >2 - Significant Need for Support: The instructor requires significant
+          support with many poolside strategies, including communication,
+          teaching methods, and providing feedback, and would greatly benefit
+          from focused assistance</label
+        >
+      </div>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="q4"
+          value="3"
+        /><label class="form-check-label"
+          >3 - Moderate Need for Support: The instructor needs moderate support
+          with several poolside strategies, such as communication or adapting
+          lessons, and would benefit from additional guidance in these
+          areas</label
+        >
+      </div>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="q4"
+          value="4"
+        /><label class="form-check-label"
+          >4 - Minimal Need for Support: The instructor requires minimal
+          assistance with some poolside strategies but handles most aspects
+          effectively on their own</label
+        >
+      </div>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="q4"
+          value="5"
+        /><label class="form-check-label"
+          >5 - No Need for Support: The instructor demonstrates complete
+          confidence in all poolside strategies, including communication,
+          adapting lessons, teaching methods, providing feedback, and explaining
+          the rationale behind water safety concepts</label
+        >
+      </div>
+    </fieldset>
+    <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
+      <legend class="h6">
+        <strong>Q5:</strong> If you did not rate the instructor as a 5, please
+        specify one area where they need improvement to increase their
+        confidence in delivering Water Skills for Life lessons effectively
+        poolside, including managing instruction, engaging students, and
+        ensuring understanding of water safety concepts.
+      </legend>
+      <textarea
+        name="q5"
+        class="form-control"
+        rows="4"
+        placeholder="Your response..."
+      ></textarea>
+    </fieldset>
+    <div class="p-3 mb-3 bg-white rounded">
+      <h3 class="mt-2">
+        Assessing Student Competence in Water Skills for Life
+      </h3>
+      <p class="text-muted">
+        To build your confidence and understanding in assessing your students'
+        skill and knowledge <br />competence during Water Skills for Life
+        lessons, consider the following:<br />• Are you able to teach the skills
+        and techniques clearly?<br />• Can you provide constructive feedback and
+        make any necessary corrections?.<br />• Do you identify and address any
+        misunderstandings?<br />• Are you able to adjust your approach to ensure
+        students perform the skills correctly?
+      </p>
+    </div>
+    <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
+      <legend class="h6">
+        <strong>Q6:</strong> On a scale of 1 to 5, how would you rate the
+        instructor's ability to consistently assess students' skill and
+        knowledge competence in Water Skills for Life?
+      </legend>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="q6"
+          value="1"
+        /><label class="form-check-label"
+          >1. Not Confident - The instructor struggles to teach skills and
+          techniques clearly, has difficulty providing constructive feedback or
+          making corrections, rarely identifies or addresses misunderstandings,
+          and is unable to adjust their approach to ensure students perform the
+          skills correctly.</label
+        >
+      </div>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="q6"
+          value="2"
+        /><label class="form-check-label"
+          >2. Slightly Confident - The instructor can teach skills and
+          techniques but may not always do so clearly. They provide some
+          constructive feedback but may struggle with corrections, occasionally
+          identify and address misunderstandings, and find it challenging to
+          adjust their approach to ensure correct student performance.</label
+        >
+      </div>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="q6"
+          value="3"
+        /><label class="form-check-label"
+          >3. Moderately Confident - The instructor teaches skills and
+          techniques clearly and provides constructive feedback with occasional
+          corrections. They can identify and address misunderstandings but may
+          need to improve their ability to adjust their approach to ensure
+          students perform the skills correctly.</label
+        >
+      </div>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="q6"
+          value="4"
+        /><label class="form-check-label"
+          >4. Confident - The instructor teaches skills and techniques clearly,
+          provides effective constructive feedback, and makes necessary
+          corrections. They reliably identify and address misunderstandings and
+          can adjust their approach to ensure students perform the skills
+          correctly, though occasional improvements may be needed.</label
+        >
+      </div>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="q6"
+          value="5"
+        /><label class="form-check-label"
+          >5. Extremely Confident - The instructor has an excellent
+          understanding of Water Skills for Life content. They can effectively
+          teach age-appropriate skills, use instructional strategies, and
+          clearly explain why these skills are important and how they relate to
+          open water environments, with minimal challenges.</label
+        >
+      </div>
+    </fieldset>
+    <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
+      <legend class="h6">
+        <strong>Q7:</strong> If you did not rate the instructor as a 5, please
+        specify one area where they need improvement to increase their
+        confidence in assessing students' skill and knowledge competence in
+        Water Skills for Life content.
+      </legend>
+      <textarea
+        name="q7"
+        class="form-control"
+        rows="4"
+        placeholder="Your response..."
+      ></textarea>
+    </fieldset>
+    <div class="p-3 mb-3 bg-white rounded">
+      <h3 class="mt-2">
+        Assessing Creativity in Relating Water Skills for Life Activities to
+        Real World Open Water Scenarios
+      </h3>
+      <p class="text-muted">
+        Assessing creativity in a Water Skills for Life lesson involves
+        evaluating how well the instructor helps students connect activities to
+        real-world open water scenarios. Key criteria include clearly explaining
+        the relevance of each activity to open water environments, adapting the
+        competencies to reflect realistic challenges, and encouraging students
+        to understand the 'why' behind each skill. The instructor should foster
+        critical thinking and creative problem-solving by relating the skills to
+        practical, real-life situations. Students' creativity is measured by
+        their ability to apply these competencies to different open water
+        scenarios and adapt their skills effectively. Overall, creativity in a
+        Water Skills for Life lesson is about making activities relatable to
+        real-world contexts and ensuring students grasp the practical importance
+        of what they are learning.
+      </p>
+    </div>
+    <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
+      <legend class="h6">
+        <strong>Q8:</strong> On a scale of 1 to 5, how would you rate the
+        instructor's ability to consistently connect students' skill and
+        knowledge competencies in Water Skills for Life to real-world open water
+        scenarios and clearly explain their practical relevance?
+      </legend>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="q8"
+          value="1"
+        /><label class="form-check-label"
+          >1. Poor: The instructor does not connect activities to real-world
+          open water scenarios or explain the relevance. Students struggle to
+          understand the practical importance of the skills being taught.</label
+        >
+      </div>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="q8"
+          value="2"
+        /><label class="form-check-label"
+          >2. Fair: The instructor makes minimal connections to real-world open
+          water scenarios and provides limited explanation of the relevance.
+          Some students may find it challenging to see how the skills apply in
+          practical situations.</label
+        >
+      </div>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="q8"
+          value="3"
+        /><label class="form-check-label"
+          >3. Good: The instructor makes some connections between activities and
+          real-world open water scenarios and explains the relevance of the
+          skills. Most students understand how the skills relate to practical
+          situations, though some may need additional clarification.</label
+        >
+      </div>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="q8"
+          value="4"
+        /><label class="form-check-label"
+          >4. Very Good: The instructor effectively connects activities to
+          real-world open water scenarios and provides clear explanations of the
+          relevance. Students generally grasp the practical importance of the
+          skills and can relate them to various open water situations</label
+        >
+      </div>
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="radio"
+          name="q8"
+          value="5"
+        /><label class="form-check-label"
+          >5. Excellent: The instructor skillfully integrates activities with
+          real-world open water scenarios and thoroughly explains the practical
+          importance of each skill. Students not only understand but can
+          creatively apply the skills to diverse open water situations,
+          demonstrating a deep grasp of their relevance</label
+        >
+      </div>
+    </fieldset>
+    <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
+      <legend class="h6">
+        <strong>Q9:</strong> If you did not rate the instructor as a 5, please
+        specify one area where they could improve to better connect students'
+        skill and knowledge competencies in Water Skills for Life to real-world
+        open water scenarios and enhance their explanation of the practical
+        relevance.
+      </legend>
+      <textarea
+        name="q9"
+        class="form-control"
+        rows="4"
+        placeholder="Your response..."
+      ></textarea>
+    </fieldset>
+    <div class="p-3 mb-3 bg-white rounded">
+      <h3 class="mt-2">General Comments</h3>
+    </div>
+    <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
+      <legend class="h6">
+        <strong>Q10:</strong> Based on your observation and feedback from your
+        review, what resources and support do you think the instructor needs to
+        improve their performance and confidence in teaching Water Skills for
+        Life?
+      </legend>
+      <textarea
+        name="q10"
+        class="form-control"
+        rows="4"
+        placeholder="Your response..."
+      ></textarea>
+    </fieldset>
+    <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
+      <legend class="h6"><strong>Q11:</strong> Additional Comments:</legend>
+      <textarea
+        name="q11"
+        class="form-control"
+        rows="4"
+        placeholder="Your response..."
+      ></textarea>
+    </fieldset>
+    <button type="submit" class="btn btn-primary">Submit Survey</button>
+  </form>
+</div>
+<script>
+  document.addEventListener("DOMContentLoaded", async () => {
+    const sel = document.getElementById("instructorEmail");
+    const url = "/api/FlaskGetAllUsers"; // adjust if different
+
+    const makeLabel = (u) => {
+      const fn = (u.FirstName || "").trim();
+      const ln = (u.Surname || "").trim();
+      const name = [fn, ln].filter(Boolean).join(" ");
+      const email = (u.Email || "").trim();
+      return name ? `${name} (${email})` : email; // fallback if no name
+    };
+
+    try {
+      const res = await fetch(url, {
+        method: "GET",
+        headers: { Accept: "application/json" },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const users = await res.json();
+
+      // Clear existing options
+      sel.innerHTML =
+        '<option value="" selected disabled>Select an instructor…</option>';
+
+      // Optional: sort by name
+      users.sort((a, b) => makeLabel(a).localeCompare(makeLabel(b)));
+
+      // Add options (value = email, label = "First Last (email)")
+      for (const u of users) {
+        if (!u.Email) continue; // skip bad rows
+        const opt = document.createElement("option");
+        opt.value = u.Email.trim(); // <-- submitted value
+        opt.textContent = makeLabel(u); // <-- displayed text
+        sel.appendChild(opt);
+      }
+
+      // If you want to preselect via query string (?email=...), do it here:
+      const params = new URLSearchParams(window.location.search);
+      const pre = params.get("email");
+      if (pre && sel.querySelector(`option[value="${pre}"]`)) {
+        sel.value = pre;
+      }
+    } catch (err) {
+      console.error("Failed to load instructors:", err);
+      sel.innerHTML =
+        '<option value="" selected disabled>Could not load instructors</option>';
+    }
+  });
+</script>
+{% endblock %}

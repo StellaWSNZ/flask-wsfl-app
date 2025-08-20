@@ -30,7 +30,38 @@
           {{ label }}
         </label>
       </div>
-      {% endfor %} {% elif question.type == 'TEXT' %}
+      {% endfor %} {% elif question.type == 'DDL' %} {# current answer: text +
+      optional resolved option id #} {% set ans_txt = question.answer_text %} {%
+      set ans_id = question.answer_option_id %}
+
+      <select class="form-select" disabled>
+        {% if question.options %} {# Render all options and select the matching
+        one #} {% for opt in question.options %} {% set label = opt.OptionLabel
+        or opt.label or opt.Description %} {% set value = opt.OptionValue or
+        opt.value %} {% set match_id = (ans_id is not none and opt.OptionID ==
+        ans_id) %} {% set match_txt = ans_txt and ( (label and label|trim|lower
+        == ans_txt|trim|lower) or (value and value|trim|lower ==
+        ans_txt|trim|lower) ) %}
+        <option
+          value="{{ opt.OptionID }}"
+          {%
+          if
+          match_id
+          or
+          match_txt
+          %}selected{%
+          endif
+          %}
+        >
+          {{ label or value or '—' }}
+        </option>
+        {% endfor %} {% else %} {# No options available? Show the current answer
+        as the lone choice #}
+        <option selected>{{ ans_txt or '—' }}</option>
+        {% endif %}
+      </select>
+
+      {% elif question.type == 'TEXT' %}
       <input
         type="text"
         class="form-control mt-2"

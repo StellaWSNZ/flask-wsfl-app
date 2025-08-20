@@ -42,13 +42,7 @@
               </select>
             </div>
             {% endif %}
-            <div class="col-12" id="funder_variable_section" style="display: none;">
-  <label for="funder_variables" class="form-label">Select Variables</label>
-  <select name="funder_variables" id="funder_variables" class="form-select">
-    <option value="YTD">National Rate (YTD), Funder Rate (YTD), Target</option>
-    <option value="LY" selected>National Rate (LY), Funder Rate (YTD), Target</option>
-  </select>
-</div>
+            
             {% if user_role in ["FUN", "ADM","GRP"] %}
             <div class="col-12" id="provider_section">
               <label for="provider" class="form-label">Provider</label>

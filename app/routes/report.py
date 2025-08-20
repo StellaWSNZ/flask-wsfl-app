@@ -12,12 +12,38 @@ from app.utils.fundernationalplot import create_competency_report as create_fund
 from app.utils.providerplot import create_competency_report as create_provider_report
 from app.utils.competencyplot import load_competency_rates, make_figure as create_comp_figure
 from app.utils.schoolplot import create_school_report
-
+from flask import Blueprint, render_template, request, jsonify, send_file, abort
+from sqlalchemy import text
+import pandas as pd
+import io
+from datetime import date
 from sqlalchemy import text
 from app.routes.auth import login_required
 import traceback
 report_bp = Blueprint("report_bp", __name__)
+import app.utils.report_three_bar_landscape as r3  # old fundernationalplot.py
+import app.utils.report_two_bar_portrait as r2     # old nationalplot.py
+from  app.utils.one_bar_one_line import provider_portrait_with_target
+from flask import Blueprint, render_template, request, session, flash, redirect, url_for
+from sqlalchemy import text
+import traceback
 
+
+from app.utils.one_bar_one_line import provider_portrait_with_target, use_ppmori
+
+def fig_to_png_b64(fig, *, dpi=200) -> str:
+    buf = io.BytesIO()
+    plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
+    fig.savefig(buf, format="png", dpi=dpi)
+    plt.close(fig)
+    return base64.b64encode(buf.getvalue()).decode("ascii")
+
+def fig_to_pdf_b64(fig) -> str:
+    buf = io.BytesIO()
+    plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
+    fig.savefig(buf, format="pdf")
+    plt.close(fig)
+    return base64.b64encode(buf.getvalue()).decode("ascii")
 # Store raw bytes to avoid "I/O on closed file" errors
 last_pdf_bytes = None
 last_pdf_filename = None
@@ -135,8 +161,21 @@ def reporting():
                         flash("Funder not found.", "danger")
                         return redirect(url_for("report_bp.reporting"))
                     funder_id = int(row.FunderID)
-                    funder_variables = request.form.get("funder_variables", "ly") 
-                    fig = create_funder_report(selected_term, selected_year, funder_id, funder_name, funder_variables)
+                    
+                    vars_to_plot = ["National Rate (YTD)", "Funder Rate (YTD)", "Funder Target"]  # default
+
+                    colors_dict = {
+                        "National Rate (YTD)": "#2EBDC2",
+                        "Funder Rate (YTD)": "#356FB6",
+                        "Funder Target": "#BBE6E9",
+                        "National Rate (LY)": "#2EBDC2",
+                        "Funder Rate (LY)": "#356FB6"
+                    }
+
+                    fig = create_funder_report(
+                        selected_term, selected_year, funder_id,
+                        vars_to_plot, colors_dict, funder_name
+                    )
 
 
             elif report_type == "Provider":
@@ -266,102 +305,472 @@ def download_png():
         flash("An error occurred while downloading the PNG.", "danger")
         return redirect(url_for("report_bp.reporting"))
     
+# at top of the file with your other imports:
+from flask import Blueprint, render_template, request, session, flash, redirect, url_for
+from sqlalchemy import text
+import traceback
 
-@report_bp.route('/NewReporting', methods=["GET", "POST"])
+
+from app.utils.one_bar_one_line import provider_portrait_with_target, use_ppmori
+
+
+def is_one_var_vs_target(rows):
+    """Return True iff dataset contains exactly one rate series + WSNZ Target."""
+    def norm(s):
+        return str(s or "").strip().lower()
+
+    rtypes = {norm(r.get("ResultType")) for r in rows}
+    has_target = ("wsnz target" in rtypes) or ("target" in rtypes)
+
+    has_prov = ("provider rate (ytd)" in rtypes) or ("provider rate ytd" in rtypes)
+    has_fund = ("funder rate (ytd)"   in rtypes) or ("funder rate ytd"  in rtypes)
+    has_nat  = ("national rate (ytd)" in rtypes) or ("national rate ytd" in rtypes)
+
+    num_rates = sum([has_prov, has_fund, has_nat])
+    return has_target and (num_rates == 1)
+
+
+@report_bp.route("/NewReporting", methods=["GET", "POST"])
 @login_required
 def new_reports():
-    role = session.get("user_role")
-    default_funder_name = session.get("desc") if role == "FUN" else None
+    role = session.get("user_role")  # "ADM", "FUN", or "PRO"
+    print(f"🔑 Session role: {role}")
+
     engine = get_db_engine()
 
-    results = []
-    selected_term = None
-    selected_year = None
-    selected_funder_name = default_funder_name
-    funder_dropdown = []
+    # --------- UI state (defaults shown in form) ----------
+    selected_year  = None
+    selected_term  = None
+    selected_type  = None
+    selected_funder_name = None
 
-    try:
-        with engine.connect() as conn:
-            # 🌐 Load ADM funder dropdown
-            if role == "ADM":
-                funder_dropdown = [row.Description for row in conn.execute(
-                    text("EXEC FlaskHelperFunctions :Request"), {"Request": "FunderDropdown"}
-                )]
-                print("✅ ADM funder dropdown loaded:", funder_dropdown)
+    # sticky IDs from POST if present
+    selected_provider_id = request.form.get("provider_id") if request.method == "POST" else None
+    selected_school_id   = request.form.get("school_id") if request.method == "POST" else None  # 🆕
+    print(f"📥 initial provider_id from POST: {selected_provider_id} (type {type(selected_provider_id)})")
+    print(f"📥 initial school_id from POST: {selected_school_id} (type {type(selected_school_id)})")
 
-            if request.method == "POST":
-                selected_term = int(request.form.get("term", 3))
+    # FUN sees their funder in the UI; providers list is loaded via AJAX using that name
+    if role == "FUN":
+        selected_funder_name = session.get("desc")
+        print(f"FUN default funder_name (session.desc): {selected_funder_name}")
+    elif role == "PRO":
+        selected_provider_id = selected_provider_id or session.get("id")
+        print(f"PRO effective provider_id: {selected_provider_id}")
+
+    results = None
+    plot_payload = None
+    plot_png_b64 = None
+
+    # --------- Figure out intent ----------
+    action = request.form.get("action")
+    is_ajax = (request.form.get("ajax") == "1") or (request.headers.get("X-Requested-With") == "fetch")
+
+    if request.method == "POST" and action == "show_report":
+        print("📩 POST detected (show_report)")
+        try:
+            with engine.connect() as conn:
                 selected_year = int(request.form.get("year", 2025))
-                report_option = request.form.get("report_option")
-                print(f"📥 POST received: term={selected_term}, year={selected_year}, option={report_option}")
+                selected_term = int(request.form.get("term", 3))
+                selected_type = request.form.get("report_option")
+                print(f"📥 POST params: year={selected_year}, term={selected_term}, type={selected_type}")
 
+                # Resolve funder from ADM dropdown (FUN is implied from session, PRO has none)
                 if role == "ADM":
-                    selected_funder_name = request.form.get("selected_funder")
-                elif role == "FUN":
-                    selected_funder_name = default_funder_name
+                    selected_funder_name = request.form.get("selected_funder") or None
+                print(f"effective funder_name: {selected_funder_name}")
 
-                print("🔍 Selected funder name:", selected_funder_name)
+                funder_id = None
+                if selected_funder_name:
+                    row = conn.execute(
+                        text("EXEC FlaskHelperFunctions @Request='FunderIDDescription', @Text=:t"),
+                        {"t": selected_funder_name}
+                    ).fetchone()
+                    if not row:
+                        msg = "Funder not found."
+                        if is_ajax:
+                            return jsonify({"ok": False, "error": msg}), 400
+                        flash(msg, "danger")
+                        return redirect(url_for("report_bp.new_reports"))
+                    funder_id = row[0] if not hasattr(row, "_mapping") else int(row._mapping.get("FunderID") or row[0])
+                    print(f"🔑 resolved funder_id={funder_id}")
 
-                row = conn.execute(
-                    text("EXEC FlaskHelperFunctions @Request = 'FunderIDDescription', @Text = :Text"),
-                    {"Text": selected_funder_name}
-                ).fetchone()
+                # Do we need a provider?
+                needs_provider = selected_type in {"provider_ytd_vs_target", "provider_ytd_vs_target_vs_funder"}
+                if needs_provider and not selected_provider_id:
+                    if role == "PRO":
+                        selected_provider_id = session.get("id")
+                    if not selected_provider_id:
+                        msg = "Please choose a provider."
+                        if is_ajax:
+                            return jsonify({"ok": False, "error": msg}), 400
+                        flash("Please choose a provider to run that report.", "warning")
+                        return render_template(
+                            "reportingnew.html",
+                            role=role,
+                            funder_name=selected_funder_name,
+                            results=None,
+                            plot_payload=None,
+                            plot_png_b64=None,
+                            selected_term=selected_term,
+                            selected_year=selected_year,
+                            selected_type=selected_type,
+                            entities_url=url_for("funder_bp.get_entities"),
+                        )
 
-                if not row:
-                    flash("❗ Funder not found.", "danger")
-                    print("❌ No funder row found for name:", selected_funder_name)
-                    return redirect(url_for("report_bp.new_reports"))
+                # Do we need a school?  🆕
+                needs_school = selected_type in {"school_ytd_vs_national"}
+                if needs_school and not selected_school_id:
+                    msg = "Please choose a school."
+                    if is_ajax:
+                        return jsonify({"ok": False, "error": msg}), 400
+                    flash(msg, "warning")
+                    return render_template(
+                        "reportingnew.html",
+                        role=role,
+                        funder_name=selected_funder_name,
+                        results=None,
+                        plot_payload=None,
+                        plot_png_b64=None,
+                        selected_term=selected_term,
+                        selected_year=selected_year,
+                        selected_type=selected_type,
+                        entities_url=url_for("funder_bp.get_entities"),
+                    )
 
-                funder_id = int(row.FunderID)
-                print("🔑 Funder ID:", funder_id)
+                # ===== Execute the selected report =====
+                print(f"▶ executing report type: {selected_type}")
 
-                # 📊 Run the appropriate report
-                if report_option == "national_vs_funder":
-                    print("▶ Running GetFunderNationalRates...")
-                    results = conn.execute(
-                        text("EXEC [GetFunderNationalRatesSmart] :CalendarYear, :Term, :FunderID"),
-                        {"CalendarYear": selected_year, "Term": selected_term, "FunderID": funder_id}
-                    ).mappings().all()
+                if selected_type == "funder_ytd_vs_target":
+                    sql = text("""
+                        SET NOCOUNT ON;
+                        EXEC dbo.GetFunderNationalRates_All
+                             @Term = :Term,
+                             @CalendarYear = :CalendarYear;
+                    """)
+                    params = {"Term": selected_term, "CalendarYear": selected_year}
+                    res = conn.execute(sql, params)
+                    rows = res.mappings().all()
 
-                elif report_option == "provider_comparison":
-                    print("▶ Running GetProviderRatesByFunder...")
-                    results = conn.execute(
-                        text("EXEC [GetProviderRatesByFunder] :FunderID, :CalendarYear, :Term"),
-                        {"FunderID": funder_id, "CalendarYear": 2024, "Term": 3}
-                    ).mappings().all()
+                    if funder_id:
+                        funder_rows = [
+                            r for r in rows
+                            if (int(r.get("FunderID", 0) or 0) == funder_id)
+                            or (r.get("ResultType") == "WSNZ Target")
+                        ]
+                        if not funder_rows:
+                            unique_comps = {
+                                (r["CompetencyID"], r["CompetencyDesc"], r["YearGroupID"], r["YearGroupDesc"])
+                                for r in rows
+                            }
+                            funder_rows = []
+                            for cid, cdesc, yid, ydesc in unique_comps:
+                                funder_rows.append({
+                                    "FunderID": funder_id,
+                                    "CompetencyID": cid,
+                                    "CompetencyDesc": cdesc,
+                                    "YearGroupID": yid,
+                                    "YearGroupDesc": ydesc,
+                                    "ResultType": "Funder Rate (YTD)",
+                                    "Rate": 0,
+                                    "StudentCount": 0
+                                })
+                                funder_rows.append({
+                                    "FunderID": funder_id,
+                                    "CompetencyID": cid,
+                                    "CompetencyDesc": cdesc,
+                                    "YearGroupID": yid,
+                                    "YearGroupDesc": ydesc,
+                                    "ResultType": "Funder Student Count (YTD)",
+                                    "Rate": 0,
+                                    "StudentCount": 0
+                                })
+                        results = funder_rows
+                    else:
+                        results = rows
 
-                elif report_option == "best_funder":
-                    print("▶ Running GetFunderRateVsBest...")
-                    results = conn.execute(
-                        text("EXEC [GetFunderRateVsBest] :CalendarYear, :Term, :FunderID"),
-                        {"CalendarYear": selected_year, "Term": selected_term, "FunderID": funder_id}
-                    ).mappings().all()
+                    print("🔎 rows:", len(results))
 
+                elif selected_type == "ly_funder_vs_ly_national_vs_target":
+                    ly = selected_year - 1
+                    sql = text("""
+                        SET NOCOUNT ON;
+                        EXEC dbo.GetFunderNationalRates_All
+                            @Term = :Term,
+                            @CalendarYear = :CalendarYear;
+                    """)
+                    params = {"Term": selected_term, "CalendarYear": ly}
+                    res = conn.execute(sql, params)
+                    rows = res.mappings().all()
+
+                    if funder_id:
+                        rows = [
+                            r for r in rows
+                            if int(r.get("FunderID", 0) or 0) == funder_id
+                            or r.get("Funder") == "National"
+                            or r.get("ResultType") == "WSNZ Target"
+                        ]
+                    results = rows
+
+                elif selected_type == "provider_ytd_vs_target_vs_funder":
+                    sql = text("""
+                        SET NOCOUNT ON;
+                        EXEC dbo.GetProviderNationalRates
+                            @Term         = :Term,
+                            @CalendarYear = :CalendarYear,
+                            @ProviderID   = :ProviderID,
+                            @FunderID     = :FunderID;
+                    """)
+                    params = {
+                        "Term": selected_term,
+                        "CalendarYear": selected_year,
+                        "ProviderID": int(selected_provider_id),
+                        "FunderID": int(funder_id) if funder_id is not None else None
+                    }
+                    res = conn.execute(sql, params)
+                    rows = res.mappings().all()
+
+                    if len(rows) == 0:
+                        res2 = conn.exec_driver_sql(
+                            "SET NOCOUNT ON; EXEC dbo.GetProviderNationalRates @Term=?, @CalendarYear=?, @ProviderID=?, @FunderID=?",
+                            (selected_term, selected_year, int(selected_provider_id),
+                             funder_id if funder_id is not None else None)
+                        )
+                        if getattr(res2, "cursor", None) and res2.cursor.description:
+                            cols = [d[0] for d in res2.cursor.description]
+                            rows = [dict(zip(cols, row)) for row in res2.fetchall()]
+                    results = rows
+
+                elif selected_type == "provider_ytd_vs_target":
+                    sql = text("""
+                        SET NOCOUNT ON;
+                        EXEC dbo.GetProviderNationalRates
+                             @Term         = :Term,
+                             @CalendarYear = :CalendarYear,
+                             @ProviderID   = :ProviderID,
+                             @FunderID     = :FunderID;
+                    """)
+                    params = {
+                        "Term": selected_term,
+                        "CalendarYear": selected_year,
+                        "ProviderID": int(selected_provider_id),
+                        "FunderID": int(funder_id) if funder_id is not None else None
+                    }
+                    res = conn.execute(sql, params)
+                    rows = res.mappings().all()
+
+                    if len(rows) == 0:
+                        res2 = conn.exec_driver_sql(
+                            "SET NOCOUNT ON; EXEC dbo.GetProviderNationalRates @Term=?, @CalendarYear=?, @ProviderID=?, @FunderID=?",
+                            (selected_term, selected_year, int(selected_provider_id),
+                             funder_id if funder_id is not None else None)
+                        )
+                        if getattr(res2, "cursor", None) and res2.cursor.description:
+                            cols = [d[0] for d in res2.cursor.description]
+                            rows = [dict(zip(cols, row)) for row in res2.fetchall()]
+                    results = rows
+
+                # 🆕 SCHOOL: YTD vs National (uses GetSchoolNationalRates @CalendarYear, @Term, @MoeNumber)
+                elif selected_type == "school_ytd_vs_national":
+                    sql = text("""
+                        SET NOCOUNT ON;
+                        EXEC dbo.GetSchoolNationalRates
+                             @CalendarYear = :CalendarYear,
+                             @Term         = :Term,
+                             @MoeNumber    = :MoeNumber;
+                    """)
+                    params = {
+                        "CalendarYear": selected_year,
+                        "Term": selected_term,
+                        "MoeNumber": int(selected_school_id)
+                    }
+                    print(f"📥 SQL params (school): {params}")
+                    res = conn.execute(sql, params)
+                    rows = res.mappings().all()
+
+                    # pyodbc fallback if needed
+                    if len(rows) == 0:
+                        res2 = conn.exec_driver_sql(
+                            "SET NOCOUNT ON; EXEC dbo.GetSchoolNationalRates @CalendarYear=?, @Term=?, @MoeNumber=?",
+                            (selected_year, selected_term, int(selected_school_id))
+                        )
+                        if getattr(res2, "cursor", None) and res2.cursor.description:
+                            cols = [d[0] for d in res2.cursor.description]
+                            rows = [dict(zip(cols, row)) for row in res2.fetchall()]
+                    results = rows
 
                 else:
-                    flash("Invalid report option selected.", "warning")
-                    print("⚠️ Invalid report option selected.")
+                    msg = "Invalid report option."
+                    if is_ajax:
+                        return jsonify({"ok": False, "error": msg}), 400
+                    flash(msg, "warning")
                     return redirect(url_for("report_bp.new_reports"))
 
-                if not results:
-                    flash("No results found for the selected filters.", "warning")
-                    print("📭 No results returned.")
-                    return redirect(url_for("report_bp.new_reports"))
+                # --- keep payload ---
+                plot_payload = {
+                    "year": selected_year,
+                    "term": selected_term,
+                    "type": selected_type,
+                    "funder_id": funder_id,
+                    "provider_id": int(selected_provider_id) if selected_provider_id else None,
+                    "school_id": int(selected_school_id) if selected_school_id else None,  # 🆕
+                    "rows": results
+                }
 
-                print("✅ Results found:", len(results), "rows")
+                # ========= Render figs =========
+                fig = None
+                if results:
+                    if selected_type == "provider_ytd_vs_target_vs_funder":
+                        vars_to_plot = ["Provider Rate (YTD)", "Funder Rate (YTD)", "WSNZ Target"]
+                        colors_dict = {
+                            "Provider Rate (YTD)": "#2EBDC2",
+                            "WSNZ Target": "#356FB6",
+                            "Funder Rate (YTD)": "#BBE6E9",
+                        }
+                        fig = r3.create_competency_report(
+                            term=selected_term,
+                            year=selected_year,
+                            funder_id=funder_id or 0,
+                            rows=results,
+                            vars_to_plot=vars_to_plot,
+                            colors_dict=colors_dict,
+                            funder_name=selected_funder_name
+                        )
 
-        return render_template(
-            "reportingnew.html",
-            role=role,
-            funder_name=selected_funder_name,
-            funder_dropdown=funder_dropdown,
-            results=results,
-            selected_term=selected_term,
-            selected_year=selected_year
-        )
+                    elif selected_type == "ly_funder_vs_ly_national_vs_target":
+                        vars_to_plot = ["National Rate (LY)", "Funder Rate (LY)", "WSNZ Target"]
+                        colors_dict = {
+                            "Funder Rate (LY)": "#2EBDC2",
+                            "WSNZ Target": "#356FB6",
+                            "National Rate (LY)": "#BBE6E9",
+                        }
+                        fig = r3.create_competency_report(
+                            term=selected_term,
+                            year=selected_year - 1,
+                            funder_id=funder_id or 0,
+                            rows=results,
+                            vars_to_plot=vars_to_plot,
+                            colors_dict=colors_dict,
+                            funder_name=f"{selected_funder_name} (LY)"
+                        )
 
-    except Exception as e:
-        print("❌ Error in /NewReporting:", e)
-        traceback.print_exc()
-        flash("An error occurred while generating the new report.", "danger")
-        return redirect(url_for("report_bp.new_reports"))
+                    elif selected_type == "provider_ytd_vs_target":
+                        try:
+                            use_ppmori("app/static/fonts")
+                        except Exception as font_e:
+                            print(f"⚠️ font setup skipped: {font_e}")
+
+                        rtypes_join = " ".join(str(r.get("ResultType", "")).lower() for r in results)
+                        mode = "provider" if "provider rate" in rtypes_join else ("funder" if "funder rate" in rtypes_join else "provider")
+
+                        if mode == "provider":
+                            subject_name = request.form.get("provider_name") or session.get("user_desc") or next(
+                                (r.get("ProviderName") for r in results if r.get("ProviderName")), None
+                            )
+                        else:
+                            subject_name = (selected_funder_name
+                                            or next(((r.get("FunderName") or r.get("Funder")) for r in results
+                                                     if r.get("FunderName") or r.get("Funder")), None))
+
+                        fig = provider_portrait_with_target(
+                            results, term=selected_term, year=selected_year,
+                            mode=mode, subject_name=subject_name,
+                            title=f"{(subject_name or mode.title())} YTD vs Target",
+                        )
+
+                    elif selected_type == "funder_ytd_vs_target":
+                        try:
+                            use_ppmori("app/static/fonts")
+                        except Exception as font_e:
+                            print(f"⚠️ font setup skipped: {font_e}")
+
+                        fig = provider_portrait_with_target(
+                            results, term=selected_term, year=selected_year,
+                            mode="funder", subject_name=selected_funder_name,
+                            title=f"{selected_funder_name or 'Funder'} YTD vs Target"
+                        )
+
+                    # 🆕 School portrait (one var + target)
+                    elif selected_type == "school_ytd_vs_national":
+                        try:
+                            use_ppmori("app/static/fonts")
+                        except Exception as font_e:
+                            print(f"⚠️ font setup skipped: {font_e}")
+
+                        school_name = request.form.get("school_name") or next(
+                            (r.get("SchoolName") for r in results if r.get("SchoolName")), None
+                        )
+                        fig = provider_portrait_with_target(
+                            results,
+                            term=selected_term,
+                            year=selected_year,
+                            mode="school",                       # your helper can treat this like "provider"
+                            subject_name=school_name,
+                            title=f"{school_name or 'School'} YTD vs National"
+                        )
+
+                    else:
+                        fig = r3.create_competency_report(
+                            term=selected_term, year=selected_year, funder_id=funder_id or 0,
+                            rows=results, vars_to_plot=r3.vars_to_plot, colors_dict=r3.colors_dict,
+                            funder_name=selected_funder_name
+                        )
+
+                if fig is not None:
+                    png_b64 = fig_to_png_b64(fig)
+                    pdf_b64 = fig_to_pdf_b64(fig)
+                    session["report_png_bytes"] = png_b64
+                    session["report_png_filename"] = f"Report_{selected_type}_{selected_term}_{selected_year}.png"
+                    session["report_pdf_bytes"] = pdf_b64
+                    session["report_pdf_filename"] = f"Report_{selected_type}_{selected_term}_{selected_year}.pdf"
+                    plot_png_b64 = png_b64
+
+                # ===== AJAX response (no full reload) =====
+                if is_ajax:
+                    provider_name = request.form.get("provider_name")
+                    school_name   = request.form.get("school_name")   # 🆕
+                    provider_id   = request.form.get("provider_id")
+                    school_id     = request.form.get("school_id")     # 🆕
+
+                    left_bits = []
+                    if selected_funder_name:
+                        left_bits.append(selected_funder_name)
+                    left_bits.append(f"Term {selected_term}, {selected_year}")
+
+                    # prefer readable names over IDs
+                    if selected_type == "school_ytd_vs_national" and (school_name or school_id):
+                        left_bits.append(school_name or f"School MOE {school_id}")
+                    elif provider_name:
+                        left_bits.append(provider_name)
+                    elif provider_id:
+                        left_bits.append(f"Provider ID {provider_id}")
+
+                    header_html = " • ".join(left_bits)
+
+                    return jsonify({
+                        "ok": True,
+                        "plot_png_b64": plot_png_b64,
+                        "header_html": header_html
+                    })
+
+        except Exception as e:
+            print("❌ Error in /NewReporting (POST):", e)
+            traceback.print_exc()
+            if is_ajax:
+                return jsonify({"ok": False, "error": "Error generating report."}), 500
+            flash("An error occurred while generating the report.", "danger")
+            return redirect(url_for("report_bp.new_reports"))
+
+    # GET, or POST without show_report → just render the page; dropdowns loaded via AJAX
+    return render_template(
+        "reportingnew.html",
+        role=role,
+        funder_name=selected_funder_name,
+        results=results,
+        plot_payload=plot_payload,
+        plot_png_b64=plot_png_b64,
+        selected_term=selected_term,
+        selected_year=selected_year,
+        selected_type=selected_type,
+        entities_url=url_for("funder_bp.get_entities"),
+    )

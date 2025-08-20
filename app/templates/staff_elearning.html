@@ -9,44 +9,63 @@
     <div class="mx-auto" style="max-width: 1000px; width: 100%;">
       <form method="GET" id="filterForm" class="w-100">
         <div class="d-flex flex-wrap justify-content-center align-items-end gap-1">
-          {% if user_role != "PRO" %}
-          <div class="col-md-4">
-            <label for="entity_type" class="form-label">Entity Type</label>
-            <select class="form-select" name="entity_type" id="entity_type" required>
-              <option value="Funder" {% if selected_entity_type == "Funder" %}selected{% endif %}>Funder</option>
-              <option value="Provider" {% if selected_entity_type == "Provider" %}selected{% endif %}>Provider</option>
-            </select>
-          </div>
+
+          {# ----- Entity Type picker ----- #}
+          {% if user_role == "GRP" %}
+            {# Force Group for GRP users #}
+            <input type="hidden" name="entity_type" value="Group">
+          {% elif user_role != "PRO" %}
+            <div class="col-md-4">
+              <label for="entity_type" class="form-label">Entity Type</label>
+              <select class="form-select" name="entity_type" id="entity_type" required>
+                <option value="Funder"   {% if selected_entity_type == "Funder" %}selected{% endif %}>Funder</option>
+                <option value="Provider" {% if selected_entity_type == "Provider" %}selected{% endif %}>Provider</option>
+                <option value="Group"    {% if selected_entity_type == "Group" %}selected{% endif %}>Group</option>
+              </select>
+            </div>
           {% else %}
-          <input type="hidden" name="entity_type" value="Provider">
+            <input type="hidden" name="entity_type" value="Provider">
           {% endif %}
-          {% if user_role != "PRO"%}
-  <div class="col-md-6">
-    <label for="entity_id" class="form-label" id="entityLabel">Select Entity</label>
-    <select class="form-select" name="entity_id" id="entity_id" required>
-      <option value="">-- Choose an entity --</option>
-      {% if entity_list %}
-        {% for entity in entity_list %}
-        <option value="{{ entity.id }}" {% if selected_entity_id == entity.id %}selected{% endif %}>
-          {{ entity.name }}
-        </option>
-        {% endfor %}
-      {% endif %}
-    </select>
-  </div>
-  <div class="col-md-1 align-self-end">
-    <button type="submit" class="btn btn-primary w-100">View</button>
-  </div>
-{% else %}
-  <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
-{% endif %}
-          
+
+          {# ----- Entity picker ----- #}
+          {% if user_role in ["ADM","FUN","PRO"] %}
+            <div class="col-md-6">
+              <label for="entity_id" class="form-label" id="entityLabel">Select {{ selected_entity_type or "Entity" }}</label>
+              <select class="form-select" name="entity_id" id="entity_id" required>
+                <option value="">-- Choose an entity --</option>
+                {% if entity_list %}
+                  {% for entity in entity_list %}
+                    <option value="{{ entity.id }}" {% if selected_entity_id == entity.id %}selected{% endif %}>
+                      {{ entity.name }}
+                    </option>
+                  {% endfor %}
+                {% endif %}
+              </select>
+            </div>
+            <div class="col-md-1 align-self-end">
+              <button type="submit" class="btn btn-primary w-100">View</button>
+            </div>
+          {% elif user_role == "GRP" %}
+            {# GRP: If they belong to only one group, just hide and submit it.
+               If your backend sends multiple groups, you can render a select here instead. #}
+            <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
+            <div class="col-md-12 text-center">
+              <button type="submit" class="btn btn-primary">View My Group</button>
+            </div>
+          {% endif %}
+
         </div>
       </form>
     </div>
   </div>
-  <!-- 🔽 Results -->
-  {% if staff_eLearning_data %}
+
+  {# ------ Results remain unchanged ------ #}
+  <!-- (keep your results/cards section exactly as you have it) -->
+<!-- 🔽 Results -->
+{% set count = staff_eLearning_data|length %}
+{% if count > 0 %}
+ 
+
   <div class="row">
     {% for email, details in staff_eLearning_data.items() %}
     <div class="col-12 mb-4">
@@ -58,11 +77,12 @@
 
           <p class="text-center mb-4"><strong>Email:</strong> {{ details.Email }}</p>
 
-          <!-- Active Courses -->
+          <!-- Active Courses (limited to course_ids order) -->
           <div class="row row-cols-2 g-2">
+            {% set any_active = false %}
             {% for cid in course_ids %}
               {% set course = details.Courses.get(cid) %}
-              {% if course %}
+              {% if course %}{% set any_active = true %}
               <div class="col">
                 <div class="border rounded p-2 bg-light d-flex justify-content-between align-items-center">
                   <small class="pe-2">{{ course.CourseName }}</small>
@@ -78,9 +98,11 @@
               </div>
               {% endif %}
             {% endfor %}
+
+            
           </div>
 
-          <!-- Extra (Non-Active) Courses -->
+          <!-- Extra (non-active) courses -->
           {% set extra_courses = [] %}
           {% for cid, course in details.Courses.items() %}
             {% if cid not in course_ids and course.Status not in ['Not Enrolled', 'Not Started'] %}
@@ -116,32 +138,36 @@
     </div>
     {% endfor %}
   </div>
-  {% else %}
+
+{% else %}
   <div class="d-flex justify-content-center">
     <div class="alert alert-warning text-center w-100" style="max-width: 600px;">
       No eLearning data found for this selection.
     </div>
-  </div>  {% endif %}
+  </div>
+{% endif %}
 </div>
 
 <script>
   document.addEventListener("DOMContentLoaded", function () {
     const entityTypeSelect = document.getElementById("entity_type");
-    const entityIdSelect = document.getElementById("entity_id");
-    const entityLabel = document.getElementById("entityLabel");
+    const entityIdSelect   = document.getElementById("entity_id");
+    const entityLabel      = document.getElementById("entityLabel");
     const selectedEntityId = "{{ selected_entity_id }}";
+    const userRole         = "{{ user_role }}";
 
     function loadEntities(selectedType) {
+      if (!entityIdSelect) return;         // GRP path may not have a select
       if (!selectedType) {
-        entityLabel.textContent = "Select Entity";
+        entityLabel && (entityLabel.textContent = "Select Entity");
         entityIdSelect.innerHTML = '<option value="">-- Choose an entity --</option>';
         return;
       }
 
-      entityLabel.textContent = `Select ${selectedType}`;
+      entityLabel && (entityLabel.textContent = `Select ${selectedType}`);
       entityIdSelect.innerHTML = '<option value="">Loading...</option>';
 
-      fetch(`/get_entities?entity_type=${selectedType}`)
+      fetch(`/get_entities?entity_type=${encodeURIComponent(selectedType)}`)
         .then(res => res.json())
         .then(data => {
           entityIdSelect.innerHTML = '<option value="">-- Choose --</option>';
@@ -151,10 +177,7 @@
             option.textContent = d.name;
             entityIdSelect.appendChild(option);
           });
-
-          if (selectedEntityId) {
-            entityIdSelect.value = selectedEntityId;
-          }
+          if (selectedEntityId) entityIdSelect.value = selectedEntityId;
         })
         .catch(err => {
           console.error("Error loading entities:", err);
@@ -162,16 +185,13 @@
         });
     }
 
-    // 🔁 Load once on page load if ADM and no preloaded entity_list
-    if (entityTypeSelect && entityIdSelect) {
+    // ADM/FUN initial load
+    if (userRole !== "GRP" && entityTypeSelect && entityIdSelect) {
       loadEntities(entityTypeSelect.value);
+      entityTypeSelect.addEventListener("change", function () {
+        loadEntities(this.value);
+      });
     }
-
-    // 🔁 Reload on dropdown change
-    entityTypeSelect?.addEventListener("change", function () {
-      loadEntities(this.value);
-    });
   });
 </script>
-
 {% endblock %}
