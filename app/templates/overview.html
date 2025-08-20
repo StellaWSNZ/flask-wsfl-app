@@ -27,7 +27,7 @@
             <option value="Funder"   {% if entity_type == "Funder" %}selected{% endif %}>Funder</option>
           {% endif %}
           {% if (user_role in ["ADM","FUN","GRP"] and has_groups) or user_role=="GRP" %}
-            <option value="Group"    {% if entity_type == "Group" %}selected{% endif %}>Group</option>
+            <option value="Group"    {% if entity_type == "Group" %}selected{% endif %}>Provider Group</option>
           {% endif %}
           <option value="Provider"   {% if entity_type == "Provider" %}selected{% endif %}>Provider</option>
         </select>
