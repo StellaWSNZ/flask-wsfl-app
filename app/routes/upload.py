@@ -153,7 +153,7 @@ def classlistupload():
             session["selected_funder"] = selected_funder
             session["selected_funder"] = selected_funder
 
-            selected_school_str = request.form.get("school") or str(session.get("user_desc")) + "("+str(session.get("user_id"))+ ")"
+            selected_school_str = request.form.get("school") or str(session.get("desc")) + "("+str(session.get("user_id"))+ ")"
             selected_school = selected_school_str 
             #print(selected_school_str)
             moe_number = (

@@ -23,7 +23,7 @@ def create_user():
     engine = get_db_engine()
     user_role = session.get("user_role")
     user_id = session.get("user_id")
-    user_desc = session.get("desc")
+    desc = session.get("desc")
 
     print(f"📌 user_role: {user_role}, user_id: {user_id}")
 
@@ -97,7 +97,7 @@ def create_user():
                 ).fetchone()
 
             elif user_role == "GRP":
-                groups = [{"id": user_id, "Description": user_desc}]
+                groups = [{"id": user_id, "Description": desc}]
                 print("🔍 Loading schools and providers for GRP...")
                 group_entities = session.get("group_entities", {})
                 provider_ids = [str(e["id"]) for e in group_entities.get("PRO", [])]
@@ -212,7 +212,7 @@ def create_user():
                             role=selected_role,
                             is_admin=admin,
                             invited_by_name=f"{session.get('user_firstname')} {session.get('user_surname')}",
-                            inviter_desc=user_desc
+                            inviter_desc=desc
                         )
         except Exception as e:
             print("❌ Error during user creation")
@@ -225,7 +225,7 @@ def create_user():
     return render_template(
         "create_user.html",
         user_role=user_role,
-        name=user_desc,
+        name=desc,
         funder=funder,
         funders=funders,
         providers=providers,

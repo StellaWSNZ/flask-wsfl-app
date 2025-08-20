@@ -664,7 +664,7 @@ def new_reports():
                         mode = "provider" if "provider rate" in rtypes_join else ("funder" if "funder rate" in rtypes_join else "provider")
 
                         if mode == "provider":
-                            subject_name = request.form.get("provider_name") or session.get("user_desc") or next(
+                            subject_name = request.form.get("provider_name") or session.get("desc") or next(
                                 (r.get("ProviderName") for r in results if r.get("ProviderName")), None
                             )
                         else:

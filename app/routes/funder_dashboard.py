@@ -195,7 +195,7 @@ def funder_dashboard():
             )
 
         # Resolve description for title/summary
-        entity_desc = next((x["name"] for x in entity_list if int(x["id"]) == int(selected_entity_id)), session.get("user_desc"))
+        entity_desc = next((x["name"] for x in entity_list if int(x["id"]) == int(selected_entity_id)), session.get("desc"))
 
         # ----- Choose procs by entity_type -----
         # Adjust these names if your stored procedures differ.
@@ -258,7 +258,8 @@ def funder_dashboard():
             f"<strong>{total_schools}</strong> school{'s' if total_schools != 1 else ''} "
             f"in <strong>Term {selected_term}</strong>, <strong>{selected_year}</strong>."
         )
-        page_title = f"{entity_desc or session.get('user_desc')} Overview"
+        print(session.get("desc"))
+        page_title = f"{entity_desc or session.get("desc") or ""} Overview"
 
         return render_template(
             "overview.html",
@@ -289,7 +290,7 @@ def get_entities():
     entity_type = request.args.get("entity_type")
     user_id = session.get("user_id")
     user_role = session.get("user_role")
-    user_desc = session.get("desc")
+    desc = session.get("desc")
     user_admin = session.get("user_admin")
 
     print(f"\n📥 /get_entities called")
@@ -303,7 +304,7 @@ def get_entities():
         if entity_type == "Provider":
             if user_role == "PRO":
                 #print("🎯 Handling PRO role")
-                entities = [{"id": user_id, "name": user_desc}]
+                entities = [{"id": user_id, "name": desc}]
 
             elif user_role == "GRP":
                 #print("🎯 Handling GRP role for Provider")
@@ -330,7 +331,7 @@ def get_entities():
         elif entity_type == "Funder":
             if user_role == "FUN":
                 #print("🎯 Handling FUN role for Funder")
-                entities = [{"id": user_id, "name": user_desc}]
+                entities = [{"id": user_id, "name": desc}]
             else:  # ADM or fallback
                 #print("🎯 Handling ADM role for Funder")
                 stmt = text("EXEC FlaskHelperFunctions @Request = 'FunderDropdown'")
@@ -344,7 +345,7 @@ def get_entities():
                 #print("🔹 GRP user: loading from session")
                 raw_groups = session.get("group_entities", {}).get("PRO", [])
                 #print(f"🗂 raw_groups = {raw_groups}")
-                entities = [{"id": user_id, "name": user_desc} ]
+                entities = [{"id": user_id, "name": desc} ]
 
             elif user_role == "ADM":
                 #print("🔹 ADM user: loading all groups via stored procedure")

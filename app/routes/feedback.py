@@ -10,7 +10,7 @@ from werkzeug.utils import secure_filename
 @feedback_bp.route("/feedback", methods=["GET", "POST"])
 @login_required
 def feedback():
-    user_desc = session.get("desc")
+    desc = session.get("desc")
     user_admin = session.get("user_admin")
     user_role = session.get("user_role", "Unknown")
     user_role_desc = {
@@ -21,9 +21,9 @@ def feedback():
         "GRP":"Group"
     }.get(user_role, "User")
     if(user_role == "ADM"):
-        user_desc = f"{user_role_desc}"
+        desc = f"{user_role_desc}"
     else:
-        user_desc = f"{user_role_desc} {'Administrator' if user_admin else 'Staff'} from {user_desc}"
+        desc = f"{user_role_desc} {'Administrator' if user_admin else 'Staff'} from {desc}"
 
     display_name = session.get("display_name", "Unknown")
 
@@ -35,7 +35,7 @@ def feedback():
 
         email = session.get("user_email")
         role = session.get("user_role", "Unknown")
-        desc = session.get("user_desc", "Unknown")
+        desc = session.get("desc", "Unknown")
 
         admin = "Yes" if session.get("user_admin") else "No"
         display_name = session.get("display_name", "Unknown")
@@ -76,4 +76,4 @@ def feedback():
     # Load info for template
 
 
-    return render_template("feedback.html", display_name=display_name, user_desc=user_desc)
+    return render_template("feedback.html", display_name=display_name, desc=desc)

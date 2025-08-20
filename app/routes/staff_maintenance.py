@@ -20,9 +20,9 @@ def staff_maintenance():
         user_id = session.get("user_id")
         user_role = session.get("user_role")
         user_email = session.get("user_email")
-        user_desc = session.get("desc")
+        desc = session.get("desc")
         user_admin = session.get("user_admin")
-        print(f"🧑 Session info — ID: {user_id}, Role: {user_role}, Admin: {user_admin}, Email: {user_email}, Desc: {user_desc}")
+        print(f"🧑 Session info — ID: {user_id}, Role: {user_role}, Admin: {user_admin}, Email: {user_email}, Desc: {desc}")
 
         if not user_role or user_admin != 1:
             abort(403)
@@ -42,7 +42,7 @@ def staff_maintenance():
                 group_list = [{"id": row.GroupID, "name": row.Description} for row in result]
                 has_groups = len(group_list) > 0
             elif user_role == "GRP":
-                group_list = [{"id": user_id, "name": user_desc}]
+                group_list = [{"id": user_id, "name": desc}]
                 has_groups = True
         selected_entity_type = request.form.get("entity_type") or request.args.get("entity_type")
         selected_entity_id = request.form.get("entity_id") or request.args.get("entity_id")
@@ -69,7 +69,7 @@ def staff_maintenance():
         funder_list = []  # Add this if missing
         staff_data = pd.DataFrame()
         columns = []
-        name = user_desc
+        name = desc
         is_admin = user_admin == 1
 
         with get_db_engine().connect() as conn:
@@ -87,7 +87,7 @@ def staff_maintenance():
                     print("⚠️ ADM but missing entity_type/id")
                     return render_template("staff_maintenance.html",
                         data=[], columns=[],
-                        user_role=user_role, name=user_desc,
+                        user_role=user_role, name=desc,
                         selected_entity_type=None, selected_entity_id=None,
                         selected_entity_name=None, provider_options=[]
                     )
@@ -97,7 +97,7 @@ def staff_maintenance():
                 if entity_type == "Funder":
                     role_type = "FUN"
                     target_id = int(user_id)
-                    selected_entity_name = user_desc
+                    selected_entity_name = desc
                 elif entity_type == "Provider":
                     providers = conn.execute(
                         text("EXEC FlaskHelperFunctions @Request = 'ProvidersByFunderID', @Number = :fid"),
@@ -117,7 +117,7 @@ def staff_maintenance():
                         print("⚠️ FUN selected Provider but no provider selected")
                         return render_template("staff_maintenance.html",
                             data=[], columns=[],
-                            user_role=user_role, name=user_desc,
+                            user_role=user_role, name=desc,
                             selected_entity_type="Provider", selected_entity_id=None,
                             selected_entity_name=None, provider_options=provider_options
                         )
@@ -165,7 +165,7 @@ def staff_maintenance():
             else:
                 role_type = user_role
                 target_id = int(user_id)
-                selected_entity_name = user_desc
+                selected_entity_name = desc
 
             print(f"🧾 Fetching staff for role_type: {role_type}, ID: {target_id}")
             result = conn.execute(
@@ -361,7 +361,7 @@ def add_staff():
             selected_role = session.get("user_role")
         hashed_pw = None
         send_email = account_status == "enable"
-        user_desc = session.get("desc")
+        desc = session.get("desc")
 
         engine = get_db_engine()
 
@@ -409,7 +409,7 @@ def add_staff():
                 role=selected_role,
                 is_admin=admin,
                 invited_by_name=f"{session.get('user_firstname')} {session.get('user_surname')}",
-                inviter_desc=user_desc
+                inviter_desc=desc
             )
 
         return redirect(url_for('staff_bp.staff_maintenance', entity_type=entity_type, entity_id=entity_id, trigger_load=1))
@@ -517,7 +517,7 @@ def staff_eLearning():
         user_role  = session.get("user_role")   # "ADM","FUN","PRO","GRP"
         user_id    = session.get("user_id")
         user_email = session.get("user_email")
-        user_desc  = session.get("desc")
+        desc  = session.get("desc")
         user_admin = session.get("user_admin")
 
         # If you want GRP users to access even if not admin, allow GRP here:
@@ -563,7 +563,7 @@ def staff_eLearning():
                 user_role=user_role
             )
 
-        print(f"🔍 user_role: {user_role}, user_id: {user_id}, email: {user_email}, desc: {user_desc}")
+        print(f"🔍 user_role: {user_role}, user_id: {user_id}, email: {user_email}, desc: {desc}")
         print(f"🔽 selected_entity_type = {selected_entity_type}, selected_entity_id = {selected_entity_id}")
 
         # --- Load entities for the dropdown via /get_entities ---
@@ -639,7 +639,7 @@ def staff_eLearning():
 
             # Pick label for selected entity
             selected_name = next((e["name"] for e in entity_list if str(e["id"]) == selected_entity_id),
-                                 user_desc if user_role == "PRO" else "Selected")
+                                 desc if user_role == "PRO" else "Selected")
             if grouped:
                 # peek a couple entries
                 import itertools
