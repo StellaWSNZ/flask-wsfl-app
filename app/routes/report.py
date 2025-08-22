@@ -1,35 +1,35 @@
 import io
 import base64
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
+import traceback
 from base64 import b64decode
 from datetime import date, datetime
+
+import matplotlib
+matplotlib.use("Agg")  # safe backend for servers
+import matplotlib.pyplot as plt
+import pandas as pd
 import pytz
-from flask import Blueprint, render_template, request, session, flash, redirect, url_for, send_file
+from sqlalchemy import text
+from flask import (
+    Blueprint, render_template, request,
+    session, flash, redirect, url_for,
+    send_file, jsonify, abort
+)
+
+# App utilities
 from app.utils.database import get_db_engine
 from app.utils.fundernationalplot import create_competency_report as create_funder_report
 from app.utils.providerplot import create_competency_report as create_provider_report
 from app.utils.competencyplot import load_competency_rates, make_figure as create_comp_figure
 from app.utils.schoolplot import create_school_report
-from flask import Blueprint, render_template, request, jsonify, send_file, abort
-from sqlalchemy import text
-import pandas as pd
-import io
-from datetime import date
-from sqlalchemy import text
-from app.routes.auth import login_required
-import traceback
-report_bp = Blueprint("report_bp", __name__)
 import app.utils.report_three_bar_landscape as r3  # old fundernationalplot.py
 import app.utils.report_two_bar_portrait as r2     # old nationalplot.py
-from  app.utils.one_bar_one_line import provider_portrait_with_target
-from flask import Blueprint, render_template, request, session, flash, redirect, url_for
-from sqlalchemy import text
-import traceback
-
-
 from app.utils.one_bar_one_line import provider_portrait_with_target, use_ppmori
+
+# Routes / auth
+from app.routes.auth import login_required
+
+report_bp = Blueprint("report_bp", __name__) 
 
 def fig_to_png_b64(fig, *, dpi=200) -> str:
     buf = io.BytesIO()
@@ -349,7 +349,7 @@ def new_reports():
     selected_school_id   = request.form.get("school_id") if request.method == "POST" else None  # 🆕
     print(f"📥 initial provider_id from POST: {selected_provider_id} (type {type(selected_provider_id)})")
     print(f"📥 initial school_id from POST: {selected_school_id} (type {type(selected_school_id)})")
-
+    display = False
     # FUN sees their funder in the UI; providers list is loaded via AJAX using that name
     if role == "FUN":
         selected_funder_name = session.get("desc")
@@ -588,15 +588,6 @@ def new_reports():
                     res = conn.execute(sql, params)
                     rows = res.mappings().all()
 
-                    # pyodbc fallback if needed
-                    if len(rows) == 0:
-                        res2 = conn.exec_driver_sql(
-                            "SET NOCOUNT ON; EXEC dbo.GetSchoolNationalRates @CalendarYear=?, @Term=?, @MoeNumber=?",
-                            (selected_year, selected_term, int(selected_school_id))
-                        )
-                        if getattr(res2, "cursor", None) and res2.cursor.description:
-                            cols = [d[0] for d in res2.cursor.description]
-                            rows = [dict(zip(cols, row)) for row in res2.fetchall()]
                     results = rows
 
                 else:
@@ -627,6 +618,14 @@ def new_reports():
                             "WSNZ Target": "#356FB6",
                             "Funder Rate (YTD)": "#BBE6E9",
                         }
+                        provider_display_name = (
+                            request.form.get("provider_name")
+                            or next((r.get("ProviderName") or r.get("Provider")
+                                    for r in (results or []) if r.get("ProviderName") or r.get("Provider")), None)
+                            or f"Provider {selected_provider_id}"
+                        )
+                        funder_display_name = selected_funder_name or "Funder"
+                        title_text = f"{provider_display_name} & {funder_display_name}"
                         fig = r3.create_competency_report(
                             term=selected_term,
                             year=selected_year,
@@ -634,7 +633,7 @@ def new_reports():
                             rows=results,
                             vars_to_plot=vars_to_plot,
                             colors_dict=colors_dict,
-                            funder_name=selected_funder_name
+                            funder_name=title_text
                         )
 
                     elif selected_type == "ly_funder_vs_ly_national_vs_target":
@@ -724,7 +723,7 @@ def new_reports():
                     session["report_pdf_bytes"] = pdf_b64
                     session["report_pdf_filename"] = f"Report_{selected_type}_{selected_term}_{selected_year}.pdf"
                     plot_png_b64 = png_b64
-
+                    display = True 
                 # ===== AJAX response (no full reload) =====
                 if is_ajax:
                     provider_name = request.form.get("provider_name")
@@ -750,15 +749,30 @@ def new_reports():
                     return jsonify({
                         "ok": True,
                         "plot_png_b64": plot_png_b64,
-                        "header_html": header_html
+                        "header_html": header_html,
+                        "display": True,   
                     })
 
         except Exception as e:
+            # Keep full details in logs/console
             print("❌ Error in /NewReporting (POST):", e)
             traceback.print_exc()
+
+            # Inspect the underlying DB error text (SQLAlchemy wraps pyodbc errors)
+            err_text = str(getattr(e, "orig", e))
+
+            # Friendly message + status code
+            if "Provider is not linked to the supplied FunderID" in err_text:
+                user_msg = "You must select a provider and funder that are linked for this report"
+                status_code = 400  # Bad Request (validation/config issue)
+            else:
+                user_msg = "An error occurred while generating the report."
+                status_code = 500  # Generic server error
+
             if is_ajax:
-                return jsonify({"ok": False, "error": "Error generating report."}), 500
-            flash("An error occurred while generating the report.", "danger")
+                return jsonify({"ok": False, "error": user_msg, "display": False}), status_code
+
+            flash(user_msg, "danger")
             return redirect(url_for("report_bp.new_reports"))
 
     # GET, or POST without show_report → just render the page; dropdowns loaded via AJAX
@@ -773,4 +787,5 @@ def new_reports():
         selected_year=selected_year,
         selected_type=selected_type,
         entities_url=url_for("funder_bp.get_entities"),
+        display=display,
     )

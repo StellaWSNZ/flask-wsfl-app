@@ -293,9 +293,9 @@ def get_entities():
     desc = session.get("desc")
     user_admin = session.get("user_admin")
 
-    print(f"\n📥 /get_entities called")
-    print(f"🧑 role = {user_role}, id = {user_id}, admin = {user_admin}")
-    print(f"📦 entity_type = {entity_type}")
+    #print(f"\n📥 /get_entities called")
+    #print(f"🧑 role = {user_role}, id = {user_id}, admin = {user_admin}")
+    #print(f"📦 entity_type = {entity_type}")
 
     engine = get_db_engine()
     entities = []
@@ -309,8 +309,8 @@ def get_entities():
             elif user_role == "GRP":
                 #print("🎯 Handling GRP role for Provider")
                 raw_providers = session.get("group_entities", {}).get("PRO", [])
-                #print(f"🗂 raw_providers from session = {raw_providers}")
-                print(raw_providers)
+               # print(f"🗂 raw_providers from session = {raw_providers}")
+               # print(raw_providers)
                 entities = [{"id": e["id"], "name": e["name"]} for e in raw_providers]
 
             elif user_role == "FUN":
@@ -372,8 +372,8 @@ def get_entities():
                     {"id": row._mapping["MOENumber"], "name": row._mapping["SchoolName"]}
                     for row in rows
                 ]
-            elif user_role == "FUN":
-                stmt = text("EXEC FlaskHelperFunctions @Request = 'SchoolDropdownFunder', @Number = :fid")
+            elif user_role == "PRO":
+                stmt = text("EXEC FlaskHelperFunctions @Request = 'SchoolDropdownProvider', @Number = :fid")
                 result = conn.execute(stmt, {"fid": user_id})
                 
                 # ✅ Safely consume just the first result set
@@ -383,10 +383,24 @@ def get_entities():
                     {"id": row._mapping["MOENumber"], "name": row._mapping["SchoolName"]}
                     for row in rows
                 ]
+            elif user_role == "GRP":
+                stmt = text("EXEC FlaskHelperFunctions @Request = 'SchoolDropdownGroup', @Number = :fid")
+                result = conn.execute(stmt, {"fid": user_id})
+                
+                # ✅ Safely consume just the first result set
+                rows = result.fetchall()
+                print(rows)
+                entities = [
+                    {"id": row._mapping["MOENumber"], "name": row._mapping["SchoolName"]}
+                    for row in rows
+                ]
+            elif user_role == "MOE":
+                #print("🎯 Handling FUN role for Funder")
+                entities = [{"id": user_id, "name": desc}]
             else:
                 # Optional: restrict non-ADM access or return empty
                 entities = []
-    print(f"✅ Final entities being returned = {entities}\n")
+    #print(f"✅ Final entities being returned = {entities}\n")
     return jsonify(entities)
 
     

@@ -34,21 +34,6 @@
               </select>
             </div>
 
-            <!-- Funder (ADM dropdown; FUN readonly) -->
-            {% if role == "ADM" %}
-            <div class="mb-3">
-              <label for="selected_funder" class="form-label">Funder</label>
-              <select name="selected_funder" id="selected_funder" class="form-select">
-                <option value="" disabled selected>Loading funders…</option>
-              </select>
-            </div>
-            {% elif role == "FUN" and funder_name %}
-            <div class="mb-3">
-              <label class="form-label">Funder</label>
-              <input class="form-control" value="{{ funder_name }}" readonly>
-            </div>
-            {% endif %}
-
             <!-- Report Type -->
             <div class="mb-3">
               <label for="report_option" class="form-label">Report Type</label>
@@ -56,7 +41,7 @@
                 {% if role in ["ADM","FUN"] %}
                   <option value="funder_ytd_vs_target"
                     {% if selected_type == "funder_ytd_vs_target" or not selected_type %}selected{% endif %}>
-                    YTD Performance vs WSNZ Target
+                    YTD Funder Performance vs WSNZ Target
                   </option>
                   <option value="ly_funder_vs_ly_national_vs_target"
                     {% if selected_type == "ly_funder_vs_ly_national_vs_target" %}selected{% endif %}>
@@ -68,9 +53,8 @@
                   </option>
                   <option value="provider_ytd_vs_target_vs_funder"
                     {% if selected_type == "provider_ytd_vs_target_vs_funder" %}selected{% endif %}>
-                    Provider YTD Performance vs WSNZ Target vs Funder YTD
+                    Provider YTD vs Funder YTD vs Target
                   </option>
-                  <!-- 🆕 School report -->
                   <option value="school_ytd_vs_national"
                     {% if selected_type == "school_ytd_vs_national" %}selected{% endif %}>
                     School YTD Performance vs National Target
@@ -80,8 +64,39 @@
                     {% if selected_type == "provider_ytd_vs_target" or not selected_type %}selected{% endif %}>
                     YTD Performance vs WSNZ Target
                   </option>
+                  <option value="school_ytd_vs_national"
+                    {% if selected_type == "school_ytd_vs_national" %}selected{% endif %}>
+                    School YTD Performance vs National Target
+                  </option>
+                {% elif role == "GRP" %}
+                  <option value="provider_ytd_vs_target"
+                    {% if selected_type == "provider_ytd_vs_target" or not selected_type %}selected{% endif %}>
+                    Provider YTD Performance vs WSNZ Target
+                  </option>
+                  <option value="school_ytd_vs_national"
+                    {% if selected_type == "school_ytd_vs_national" %}selected{% endif %}>
+                    School YTD Performance vs National Target
+                  </option>
+                {% elif role == "MOE" %}
+                  <option value="school_ytd_vs_national"
+                    {% if selected_type == "school_ytd_vs_national" or not selected_type %}selected{% endif %}>
+                    YTD Performance vs National Target
+                  </option>
                 {% endif %}
               </select>
+            </div>
+
+            <!-- Funder (appears only when report type needs it) -->
+            <div class="mb-3" id="funderBlock" style="display:none;">
+              {% if role == "ADM" %}
+                <label for="selected_funder" class="form-label">Funder</label>
+                <select name="selected_funder" id="selected_funder" class="form-select">
+                  <option value="" disabled selected>Loading funders…</option>
+                </select>
+              {% elif role == "FUN" and funder_name %}
+                <label class="form-label">Funder</label>
+                <input class="form-control" value="{{ funder_name }}" readonly>
+              {% endif %}
             </div>
 
             <!-- Provider (only for provider reports) -->
@@ -92,7 +107,7 @@
               </select>
             </div>
 
-            <!-- 🆕 School (MOE number) -->
+            <!-- School (MOE number) -->
             <div class="mb-3" id="schoolBlock" style="display:none;">
               <label for="school_id" class="form-label">School</label>
               <select name="school_id" id="school_id" class="form-select">
@@ -112,7 +127,7 @@
       </div>
     </div>
 
-    <!-- ===== Main content (card always present so message can show) ===== -->
+    <!-- ===== Main content ===== -->
     <div class="col-lg-9">
       <div class="card">
         <div id="report-header" class="card-header text-white d-flex justify-content-between align-items-start" style="background:#1a427d;">
@@ -128,18 +143,15 @@
             {% if provider_name %} • {{ provider_name }}{% endif %}
             {% if school_name %} • {{ school_name }}{% endif %}
           </div>
-          <div class="d-flex gap-2 mt-0">
-            <a class="btn btn-sm btn-light" href="{{ url_for('report_bp.download_pdf') }}">Export PDF</a>
-            <a class="btn btn-sm btn-light" href="{{ url_for('report_bp.download_png') }}">Export PNG</a>
-          </div>
+          <!-- (No buttons in the header) -->
         </div>
 
         <div class="card-body">
           <div id="chart-container"
                class="position-relative text-center"
-               style="min-height:220px; max-height:75vh; overflow:hidden;"> <!-- no scroll -->
+               style="min-height:220px; max-height:85vh; overflow:visible;">
 
-            <!-- Message placeholder (idle/loading/error) -->
+            <!-- Message placeholder -->
             <div id="chart-message" style="color:#1a427d; font-weight:600;">
               {% if plot_png_b64 %}
                 <span style="display:none;">Report will appear here once submitted.</span>
@@ -148,20 +160,20 @@
               {% endif %}
             </div>
 
-            <!-- Chart image -->
-            {% if plot_png_b64 %}
-              <img id="report-img"
-                   class="img-fluid d-block mx-auto fade-in is-visible"
-                   src="data:image/png;base64,{{ plot_png_b64 }}"
-                   alt="Report chart"
-                   style="max-width:100%; height:auto; max-height:75vh; object-fit:contain; border:1px solid #eee; border-radius:.5rem;" />
-            {% else %}
-              <img id="report-img"
-                   class="img-fluid d-block mx-auto fade-in"
-                   src=""
-                   alt="Report chart"
-                   style="display:none; max-width:100%; height:auto; max-height:75vh; object-fit:contain; border:1px solid #eee; border-radius:.5rem;" />
-            {% endif %}
+            <!-- Chart image (no Jinja inside style=) -->
+            <img id="report-img"
+                 class="img-fluid mx-auto fade-in {{ 'is-visible d-block' if plot_png_b64 else 'd-none' }}"
+                 src="{{ ('data:image/png;base64,' ~ plot_png_b64) if plot_png_b64 else '' }}"
+                 alt="Report chart"
+                 style="max-width:100%; height:auto; max-height:70vh; object-fit:contain; border:1px solid #eee; border-radius:.5rem;" />
+
+            <!-- Export buttons UNDER the image; toggle with classes instead of inline styles -->
+            <div id="exportButtons"
+                 class="justify-content-center gap-2 mt-3 {{ 'd-flex' if display else 'd-none' }}">
+              <a class="btn btn-sm btn-outline-primary" href="{{ url_for('report_bp.download_pdf') }}">Export PDF</a>
+              <a class="btn btn-sm btn-outline-primary" href="{{ url_for('report_bp.download_png') }}">Export PNG</a>
+            </div>
+
           </div>
         </div>
       </div>
@@ -175,7 +187,7 @@
 </style>
 
 <script>
-// ---------- Dynamic sidebar helpers ----------
+/* ===================== Controls & data-loading ===================== */
 (function () {
   const ENTITIES_URL   = "{{ entities_url }}";
   const ROLE           = "{{ role }}";
@@ -183,14 +195,17 @@
 
   const form              = document.getElementById('report-form');
   const reportSel         = document.getElementById('report_option');
+
+  const funderBlock       = document.getElementById('funderBlock');
+  const funderSel         = document.getElementById('selected_funder'); // ADM only
+
   const providerBlock     = document.getElementById('providerBlock');
   const providerSel       = document.getElementById('provider_id');
   const providerNameInput = document.getElementById('provider_name');
-  const funderSel         = document.getElementById('selected_funder'); // ADM only
 
-  const schoolBlock       = document.getElementById('schoolBlock');     // 🆕
-  const schoolSel         = document.getElementById('school_id');       // 🆕
-  const schoolNameInput   = document.getElementById('school_name');     // 🆕
+  const schoolBlock       = document.getElementById('schoolBlock');
+  const schoolSel         = document.getElementById('school_id');
+  const schoolNameInput   = document.getElementById('school_name');
 
   const prevProviderId = "{{ request.form.get('provider_id', '') }}";
   const prevFunderName = "{{ request.form.get('selected_funder', funder_name or '') }}";
@@ -202,8 +217,15 @@
   function needsProvider(val) {
     return ['provider_ytd_vs_target', 'provider_ytd_vs_target_vs_funder'].includes(val);
   }
-  function needsSchool(val) { // 🆕
-    return ['school_ytd_vs_national'].includes(val);
+  function needsSchool(val) {
+    return ['school_ytd_vs_national', 'school_ytd_vs_target'].includes(val);
+  }
+  function needsFunder(val) {
+    return [
+      'funder_ytd_vs_target',
+      'ly_funder_vs_ly_national_vs_target',
+      'provider_ytd_vs_target_vs_funder'
+    ].includes(val);
   }
 
   async function loadFunders() {
@@ -229,7 +251,7 @@
   async function loadProviders() {
     providerSel.innerHTML = '<option value="" disabled>Loading providers…</option>';
     try {
-      const funderName = funderSel ? funderSel.value : FUNDER_NAME;
+      const funderName = (funderSel && funderSel.value) ? funderSel.value : FUNDER_NAME;
       const qs = new URLSearchParams({ entity_type: 'Provider' });
       if (funderName) qs.set('funder_name', funderName);
 
@@ -255,7 +277,7 @@
     }
   }
 
-  async function loadSchools() { // 🆕
+  async function loadSchools() {
     schoolSel.innerHTML = '<option value="" disabled>Loading schools…</option>';
     try {
       const qs = new URLSearchParams({ entity_type: 'School' });
@@ -266,7 +288,6 @@
       let picked = false;
       for (const s of items) {
         const opt = document.createElement('option');
-        // Expecting: s.id == MOE number, s.name == School name
         opt.value = s.id;
         opt.textContent = s.name;
         if (prevSchoolId && String(s.id) === String(prevSchoolId)) { opt.selected = true; picked = true; }
@@ -282,10 +303,21 @@
     }
   }
 
-  function toggleEntityBlocks() {
+  async function toggleEntityBlocks() {
     const val = reportSel.value;
 
-    // Provider block
+    // Funder
+    const wantFunder = needsFunder(val);
+    if (funderBlock) {
+      funderBlock.style.display = wantFunder ? 'block' : 'none';
+      if (wantFunder && "{{ role }}" === 'ADM') {
+        loadFunders();
+      } else if (!wantFunder && "{{ role }}" === 'ADM' && funderSel) {
+        funderSel.selectedIndex = 0; // optional clear
+      }
+    }
+
+    // Provider
     const wantProvider = needsProvider(val);
     providerBlock.style.display = wantProvider ? 'block' : 'none';
     if (wantProvider) loadProviders();
@@ -294,7 +326,7 @@
       providerNameInput.value = '';
     }
 
-    // School block
+    // School
     const wantSchool = needsSchool(val);
     schoolBlock.style.display = wantSchool ? 'block' : 'none';
     if (wantSchool) loadSchools();
@@ -308,29 +340,25 @@
     const txt = providerSel.options[providerSel.selectedIndex]?.textContent || '';
     providerNameInput.value = txt;
   });
-  schoolSel?.addEventListener('change', () => { // 🆕
+  schoolSel?.addEventListener('change', () => {
     const txt = schoolSel.options[schoolSel.selectedIndex]?.textContent || '';
     schoolNameInput.value = txt;
   });
 
   reportSel.addEventListener('change', toggleEntityBlocks);
-  if (funderSel) funderSel.addEventListener('change', () => {
-    if (needsProvider(reportSel.value)) loadProviders();
-  });
 
-  if (ROLE === 'ADM') {
-    loadFunders().then(() => { toggleEntityBlocks(); });
-  } else {
-    toggleEntityBlocks();
-  }
+  // Initial state
+  toggleEntityBlocks();
 })();
+</script>
 
-// ---------- Async submit: message-based loading (no spinner to freeze) ----------
+<script>
+/* ===================== AJAX submit + show/hide export via 'display' ===================== */
 (function () {
-  const form       = document.getElementById('report-form');
-  const reportImg  = document.getElementById('report-img');
-  const headerLeft = document.getElementById('report-header-left');
-  const msg        = document.getElementById('chart-message');
+  const form      = document.getElementById('report-form');
+  const reportImg = document.getElementById('report-img');
+  const msg       = document.getElementById('chart-message');
+  const btns      = document.getElementById('exportButtons');
 
   form.addEventListener('submit', async function (e) {
     const submitter = e.submitter;
@@ -339,44 +367,52 @@
 
     e.preventDefault();
 
-    // message → loading
-    msg.textContent = 'Loading report, please wait…';
-    msg.style.display = 'block';
-    reportImg.style.display = 'none';
-    reportImg.classList.remove('is-visible');
+    // Loading state
+    if (msg) { msg.textContent = 'Loading report, please wait…'; msg.style.display = 'block'; }
+    if (reportImg) { reportImg.classList.remove('is-visible'); reportImg.classList.add('d-none'); }
+    if (btns) { btns.classList.remove('d-flex'); btns.classList.add('d-none'); }
 
     try {
       const fd = new FormData(form);
-      if (submitter && submitter.name) fd.set(submitter.name, submitter.value); // ensure button name/value
+      if (submitter && submitter.name) fd.set(submitter.name, submitter.value);
       fd.set('ajax', '1');
 
-      const res = await fetch(form.getAttribute('action'), {
+      const res  = await fetch(form.getAttribute('action'), {
         method: 'POST',
         body: fd,
         credentials: 'same-origin',
         headers: { 'X-Requested-With': 'fetch', 'Accept': 'application/json' }
       });
-
       const data = await res.json();
       if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
 
       if (data.plot_png_b64) {
-        reportImg.src = "data:image/png;base64," + data.plot_png_b64;
-        reportImg.alt = "Report chart";
-        reportImg.style.display = 'block';
+        reportImg.src = 'data:image/png;base64,' + data.plot_png_b64;
+        reportImg.classList.remove('d-none');
         requestAnimationFrame(() => reportImg.classList.add('is-visible'));
-        msg.style.display = 'none';
+        if (msg) msg.style.display = 'none';
       } else {
-        msg.textContent = 'No chart to display.';
+        if (msg) msg.textContent = data.error || 'No chart to display.';
       }
 
-      if (data.header_html && headerLeft) headerLeft.innerHTML = data.header_html;
+      // Toggle export buttons
+      if (btns) {
+        if (data.display) { btns.classList.remove('d-none'); btns.classList.add('d-flex'); }
+        else { btns.classList.remove('d-flex'); btns.classList.add('d-none'); }
+      }
 
+      // Header HTML refresh
+      if (data.header_html) {
+        const headerLeft = document.getElementById('report-header-left');
+        if (headerLeft) headerLeft.innerHTML = data.header_html;
+      }
     } catch (err) {
       console.error(err);
-      msg.textContent = 'Sorry — there was a problem loading the report.';
+      if (msg) msg.textContent = 'Sorry — there was a problem loading the report.';
+      if (btns) { btns.classList.remove('d-flex'); btns.classList.add('d-none'); }
     }
   });
 })();
 </script>
+
 {% endblock %}
