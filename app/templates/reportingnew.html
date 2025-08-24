@@ -20,7 +20,6 @@
             <div class="mb-3">
               <label for="year" class="form-label">Year</label>
               <select name="year" id="year" class="form-select">
-                <option value="2024" {% if selected_year == 2024 %}selected{% endif %}>2024</option>
                 <option value="2025" {% if selected_year == 2025 or not selected_year %}selected{% endif %}>2025</option>
               </select>
             </div>
@@ -29,7 +28,6 @@
             <div class="mb-3">
               <label for="term" class="form-label">Term</label>
               <select name="term" id="term" class="form-select">
-                <option value="2" {% if selected_term == 2 %}selected{% endif %}>2</option>
                 <option value="3" {% if selected_term == 3 or not selected_term %}selected{% endif %}>3</option>
               </select>
             </div>

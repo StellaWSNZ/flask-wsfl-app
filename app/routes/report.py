@@ -329,7 +329,6 @@ def is_one_var_vs_target(rows):
     num_rates = sum([has_prov, has_fund, has_nat])
     return has_target and (num_rates == 1)
 
-
 @report_bp.route("/NewReporting", methods=["GET", "POST"])
 @login_required
 def new_reports():
@@ -350,6 +349,7 @@ def new_reports():
     print(f"📥 initial provider_id from POST: {selected_provider_id} (type {type(selected_provider_id)})")
     print(f"📥 initial school_id from POST: {selected_school_id} (type {type(selected_school_id)})")
     display = False
+
     # FUN sees their funder in the UI; providers list is loaded via AJAX using that name
     if role == "FUN":
         selected_funder_name = session.get("desc")
@@ -361,6 +361,7 @@ def new_reports():
     results = None
     plot_payload = None
     plot_png_b64 = None
+    no_data_banner = None  # 🆕 banner we can pass to UI/figure
 
     # --------- Figure out intent ----------
     action = request.form.get("action")
@@ -499,7 +500,7 @@ def new_reports():
                             @Term = :Term,
                             @CalendarYear = :CalendarYear;
                     """)
-                    params = {"Term": selected_term, "CalendarYear": ly}
+                    params = {"Term": 2, "CalendarYear": 2025}
                     res = conn.execute(sql, params)
                     rows = res.mappings().all()
 
@@ -509,6 +510,7 @@ def new_reports():
                             if int(r.get("FunderID", 0) or 0) == funder_id
                             or r.get("Funder") == "National"
                             or r.get("ResultType") == "WSNZ Target"
+                            or r.get("ResultType") == "National Rate (YTD)"
                         ]
                     results = rows
 
@@ -559,15 +561,15 @@ def new_reports():
                     res = conn.execute(sql, params)
                     rows = res.mappings().all()
 
-                    if len(rows) == 0:
-                        res2 = conn.exec_driver_sql(
-                            "SET NOCOUNT ON; EXEC dbo.GetProviderNationalRates @Term=?, @CalendarYear=?, @ProviderID=?, @FunderID=?",
-                            (selected_term, selected_year, int(selected_provider_id),
-                             funder_id if funder_id is not None else None)
-                        )
-                        if getattr(res2, "cursor", None) and res2.cursor.description:
-                            cols = [d[0] for d in res2.cursor.description]
-                            rows = [dict(zip(cols, row)) for row in res2.fetchall()]
+                    # Debug: how many rows + first row
+                    print(f"🧪 Rows fetched: {len(rows)}")
+                    if rows:
+                        first = rows[0]
+                        print("🧪 First row keys:", list(first.keys()))
+                        print("🧪 Distinct ResultTypes:", {r.get("ResultType") for r in rows})
+                    else:
+                        print("⚠️ Stored procedure returned 0 rows for these params.")
+
                     results = rows
 
                 # 🆕 SCHOOL: YTD vs National (uses GetSchoolNationalRates @CalendarYear, @Term, @MoeNumber)
@@ -637,45 +639,88 @@ def new_reports():
                         )
 
                     elif selected_type == "ly_funder_vs_ly_national_vs_target":
-                        vars_to_plot = ["National Rate (LY)", "Funder Rate (LY)", "WSNZ Target"]
+                        vars_to_plot = ["National Rate (YTD)", "Funder Rate (YTD)", "WSNZ Target"]
                         colors_dict = {
-                            "Funder Rate (LY)": "#2EBDC2",
+                            "Funder Rate (YTD)": "#2EBDC2",
                             "WSNZ Target": "#356FB6",
-                            "National Rate (LY)": "#BBE6E9",
+                            "National Rate (YTD)": "#BBE6E9",
                         }
                         fig = r3.create_competency_report(
-                            term=selected_term,
-                            year=selected_year - 1,
+                            term=2,
+                            year=2025,
                             funder_id=funder_id or 0,
                             rows=results,
                             vars_to_plot=vars_to_plot,
                             colors_dict=colors_dict,
-                            funder_name=f"{selected_funder_name} (LY)"
+                            funder_name=selected_funder_name
                         )
 
                     elif selected_type == "provider_ytd_vs_target":
+                        # 1) Font (safe to skip if missing)
                         try:
                             use_ppmori("app/static/fonts")
                         except Exception as font_e:
                             print(f"⚠️ font setup skipped: {font_e}")
 
-                        rtypes_join = " ".join(str(r.get("ResultType", "")).lower() for r in results)
-                        mode = "provider" if "provider rate" in rtypes_join else ("funder" if "funder rate" in rtypes_join else "provider")
+                        mode = "provider"  # always provider for this report
 
-                        if mode == "provider":
-                            subject_name = request.form.get("provider_name") or session.get("desc") or next(
-                                (r.get("ProviderName") for r in results if r.get("ProviderName")), None
+                        # 2) Resolve provider name robustly
+                        provider_id_val = request.form.get("provider_id") or session.get("provider_id")
+                        provider_id_val = int(provider_id_val) if provider_id_val not in (None, "", "None") else None
+
+                        subject_name = (request.form.get("provider_name") or "").strip()
+                        if not subject_name:
+                            subject_name = (session.get("desc") or "").strip()
+                        if not subject_name:
+                            for r in results or []:
+                                subj = r.get("ProviderName") or r.get("Provider") or r.get("ProviderDesc")
+                                if subj:
+                                    subject_name = str(subj).strip()
+                                    break
+                        if not subject_name:
+                            subject_name = "Unknown Provider"
+
+                        # 3) Detect provider-rate rows
+                        def _is_provider_row(r):
+                            return str(r.get("ResultType", "")).lower().startswith("provider rate")
+                        provider_rows = [r for r in results if _is_provider_row(r)]
+
+                        filtered_results = results
+                        if not provider_rows:
+                            print("⚠️ No 'provider rate' rows found in results for provider_ytd_vs_target")
+                            no_data_banner = (
+                                f"⚠️ No YTD provider data found for {subject_name} "
+                                f"(Term {selected_term}, {selected_year}). Showing national/target series only."
                             )
-                        else:
-                            subject_name = (selected_funder_name
-                                            or next(((r.get("FunderName") or r.get("Funder")) for r in results
-                                                     if r.get("FunderName") or r.get("Funder")), None))
+                            filtered_results = [r for r in results if not _is_provider_row(r)]
 
+                        # 4) Title
+                        chart_title = f"{subject_name} — YTD vs Target (Term {selected_term}, {selected_year})"
+
+                        # 5) Draw
                         fig = provider_portrait_with_target(
-                            results, term=selected_term, year=selected_year,
-                            mode=mode, subject_name=subject_name,
-                            title=f"{(subject_name or mode.title())} YTD vs Target",
+                            filtered_results,
+                            term=selected_term,
+                            year=selected_year,
+                            mode=mode,
+                            subject_name=subject_name,
+                            title=chart_title,
                         )
+
+                        # Optional: annotate banner on figure
+                        if no_data_banner and fig is not None:
+                            try:
+                                import matplotlib.pyplot as plt  # ensure available
+                                ax = fig.gca()
+                                ax.annotate(
+                                    no_data_banner,
+                                    xy=(0.5, 1.02),
+                                    xycoords="axes fraction",
+                                    ha="center", va="bottom", fontsize=10,
+                                    bbox=dict(boxstyle="round,pad=0.4", fc="#fff3cd", ec="#ffeeba")
+                                )
+                            except Exception as _e:
+                                print(f"⚠️ Could not annotate no-data banner: {_e}")
 
                     elif selected_type == "funder_ytd_vs_target":
                         try:
@@ -703,7 +748,7 @@ def new_reports():
                             results,
                             term=selected_term,
                             year=selected_year,
-                            mode="school",                       # your helper can treat this like "provider"
+                            mode="school",
                             subject_name=school_name,
                             title=f"{school_name or 'School'} YTD vs National"
                         )
@@ -723,7 +768,8 @@ def new_reports():
                     session["report_pdf_bytes"] = pdf_b64
                     session["report_pdf_filename"] = f"Report_{selected_type}_{selected_term}_{selected_year}.pdf"
                     plot_png_b64 = png_b64
-                    display = True 
+                    display = True
+
                 # ===== AJAX response (no full reload) =====
                 if is_ajax:
                     provider_name = request.form.get("provider_name")
@@ -750,7 +796,8 @@ def new_reports():
                         "ok": True,
                         "plot_png_b64": plot_png_b64,
                         "header_html": header_html,
-                        "display": True,   
+                        "display": True,
+                        "notice": no_data_banner,   # 🆕 let frontend show a toast/banner if present
                     })
 
         except Exception as e:
@@ -788,4 +835,5 @@ def new_reports():
         selected_type=selected_type,
         entities_url=url_for("funder_bp.get_entities"),
         display=display,
+        no_data_banner=no_data_banner,  # 🆕 optional template banner
     )
