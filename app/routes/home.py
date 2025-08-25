@@ -26,7 +26,7 @@ def home():
                 {"title": "Dashboard", "text": "Go to admin dashboard home", "href": url_for("home_bp.home"), "image": "placeholder.png"},
                 {"title": "Overview", "text": "View national performance summary", "href": url_for("funder_bp.funder_dashboard"), "image": "Overview.png"},
                 {"title": "Provider Maintenance", "text": "Add or update provider information", "href": url_for("admin_bp.provider_maintenance"), "image": "placeholder.png"},
-                {"title": "Reporting", "text": "Access full national and provider reports", "href": url_for("report_bp.reporting"), "image": "Reporting.png"},
+                {"title": "Reporting", "text": "Access full national and provider reports", "href": url_for("report_bp.new_reports"), "image": "Reporting.png"},
             ]
             cards = []
 
@@ -38,13 +38,13 @@ def home():
                     {"title": "Overview", "text": "See provider performance and progress", "href": url_for("funder_bp.funder_dashboard"), "image": "Overview.png"},
                     {"title": "Class Lookup", "text": "Search all relevant classes", "href": url_for("class_bp.funder_classes"), "image": "ViewClass.png"},
                     {"title": "Provider Maintenance", "text": "Manage providers funded by your org", "href": url_for("admin_bp.provider_maintenance"), "image": "ProviderMaintenance.png"},
-                    {"title": "Reporting", "text": "Generate funder/provider reports", "href": url_for("report_bp.reporting"), "image": "Reporting.png"},
+                    {"title": "Reporting", "text": "Generate funder/provider reports", "href": url_for("report_bp.new_reports"), "image": "Reporting.png"},
                 ]
             else:
                 cards = [
                     {"title": "Class Lookup", "text": "Search all relevant classes", "href": url_for("class_bp.funder_classes"), "image": "ViewClass.png"},
                     {"title": "Self Review", "text": "Complete your staff review", "href": url_for('survey_bp.survey_by_routename', routename='SelfReview'), "image": "SelfReview.png"},
-                    {"title": "Reporting", "text": "View progress reports", "href": url_for("report_bp.reporting"), "image": "Reporting.png"},
+                    {"title": "Reporting", "text": "View progress reports", "href": url_for("report_bp.new_reports"), "image": "Reporting.png"},
                     {"title": "Profile", "text": "View and update your details", "href": url_for("admin_bp.profile"), "image": "Profile.png"},
 
                 ]
@@ -80,13 +80,13 @@ def home():
                 cards = [
                     {"title": "Class Lookup", "text": "Search classes you’ve delivered", "href": url_for("class_bp.provider_classes"), "image": "ViewClass.png"},
                     {"title": "Staff Maintenance", "text": "Manage provider staff accounts", "href": url_for("staff_bp.staff_maintenance"), "image": "StaffMaintenance.png"},
-                    {"title": "Reporting", "text": "Access provider reports", "href": url_for("report_bp.reporting"), "image": "Reporting.png"},
+                    {"title": "Reporting", "text": "Access provider reports", "href": url_for("report_bp.new_reports"), "image": "Reporting.png"},
                     {"title": "Overview", "text": "See your organisation's overview by term.", "href": url_for("funder_bp.funder_dashboard"), "image": "Overview.png"},
                 ]
             else:
                 cards = [
                     {"title": "Class Lookup", "text": "See your assigned classes", "href": url_for("class_bp.provider_classes"), "image": "ViewClass.png"},
-                    {"title": "Reporting", "text": "Download your provider reports", "href": url_for("report_bp.reporting"), "image": "Reporting.png"},
+                    {"title": "Reporting", "text": "Download your provider reports", "href": url_for("report_bp.new_reports"), "image": "Reporting.png"},
                     {"title": "Self Review", "text": "Complete self review", "href": url_for('survey_bp.survey_by_routename', routename='SelfReview'), "image": "SelfReview.png"},
                     {"title": "Profile", "text": "View and update your details", "href": url_for("admin_bp.profile"), "image": "Profile.png"},
                 ]
@@ -103,7 +103,7 @@ def home():
                     {"title": "Overview", "text": "See provider performance and progress", "href": url_for("funder_bp.funder_dashboard"), "image": "Overview.png"},
                     {"title": "Class Lookup", "text": "Search all relevant classes", "href": url_for("class_bp.funder_classes"), "image": "ViewClass.png"},
                     {"title": "Staff Maintenance", "text": "Manage your school’s staff", "href": url_for("staff_bp.staff_maintenance"), "image": "StaffMaintenance.png"},
-                    {"title": "Reporting", "text": "Access provider reports", "href": url_for("report_bp.reporting"), "image": "Reporting.png"},
+                    {"title": "Reporting", "text": "Access provider reports", "href": url_for("report_bp.new_reports"), "image": "Reporting.png"},
                 ]
             else:
                 cards = []
