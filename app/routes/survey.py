@@ -53,12 +53,12 @@ def survey_by_routename(routename):
 
                 if user_role != "FUN":
                     flash("This assessment is restricted to funders.", "warning")
-                    return redirect("/Profile")
+                    return redirect("/MyForms")
 
                 if not user_id:
                     flash("Please sign in again to access this assessment.", "warning")
                     return redirect("/Login")
-
+            
                 # Call your stored procedure to get ONLY the schools this funder can see.
                 # Adjust parameter names if your proc expects different names.
                 schools_rows = conn.execute(text("""
@@ -77,7 +77,13 @@ def survey_by_routename(routename):
                         schools.append({"MOENumber": moe, "SchoolName": name})
 
                 extra_ctx["schools"] = schools
+            if survey_id == 4:
+                user_role = session.get("user_role") 
+                user_id = (session.get("user_id") )
 
+                if user_role != "ADM":
+                    flash("This assessment is restricted to WSNZ Admins.", "warning")
+                    return redirect("/MyForms")
         # 4) Build question objects
         for qid, qtext, qcode, pos, label in rows:
             if qid not in seen_ids:

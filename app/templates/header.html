@@ -435,6 +435,22 @@
                     >Overview
                   </a>
                 </li>
+                <li>
+                  <a
+                    class="dropdown-item py-2"
+                    href="{{ url_for('survey_bp.survey_by_routename', routename='ExternalReview') }}"
+                  >
+                    Complete an External Review
+                  </a>
+                </li>
+                <li>
+                  <a
+                    class="dropdown-item py-2"
+                    href="{{ url_for('survey_bp.list_my_surveys') }}"
+                  >
+                    View Past Forms
+                  </a>
+                </li>
               </ul>
             </li>
             {% endif %} {% if user_email != "megan@watersafety.org.nz"%}
@@ -457,6 +473,25 @@
                     Complete a Self Review
                   </a>
                 </li>
+                {% if user_role == "ADM"%}
+                <li>
+                  <a
+                    class="dropdown-item py-2"
+                    href="{{ url_for('survey_bp.survey_by_routename', routename='ExternalReview') }}"
+                  >
+                    Complete an External Review
+                  </a>
+                </li>
+                {%endif%} {% if user_role == "FUN" %}
+                <li>
+                  <a
+                    class="dropdown-item py-2"
+                    href="{{ url_for('survey_bp.survey_by_routename', routename='TeacherAssessment') }}"
+                  >
+                    Complete a Teacher Assessment
+                  </a>
+                </li>
+                {%endif%}
                 <li>
                   <a
                     class="dropdown-item py-2"
