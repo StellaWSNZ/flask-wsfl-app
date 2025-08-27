@@ -24,31 +24,32 @@
       consistently show expertise, engage students effectively, and serve as a
       strong example for other educators.
     </div>
+
     <div class="p-3 mb-3 bg-white rounded">
       <h3 class="mt-2">Teacher Information</h3>
     </div>
+
     <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
       <legend class="h6"><strong>Q1:</strong> Select the school</legend>
       <select id="schoolSelect" name="q1" class="form-select" required>
         <option value="" selected disabled>Choose a school…</option>
         {% for s in schools %}
-        <!-- Option A: save the TEXT; keep ID in a data- attribute -->
         <option value="{{ s.SchoolName }}" data-id="{{ s.MOENumber }}">
           {{ s.SchoolName }}
         </option>
         {% endfor %}
       </select>
-      <!-- OPTIONAL (only if you also want the ID posted): -->
       <input type="hidden" name="q1_id" id="schoolIdHidden" />
     </fieldset>
+
     <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
       <legend class="h6"><strong>Q2:</strong> Select the class</legend>
       <select id="classSelect" name="q2" class="form-select" required disabled>
         <option value="" selected disabled>Choose a class…</option>
       </select>
-      <!-- If you also want the ClassID posted: -->
       <input type="hidden" name="q2_id" id="classIdHidden" />
     </fieldset>
+
     <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
       <legend class="h6"><strong>Q3:</strong> Select the teacher</legend>
       <select
@@ -59,11 +60,10 @@
         disabled
       >
         <option value="" selected disabled>Choose a teacher…</option>
-        <!-- filled dynamically after school is chosen -->
       </select>
-      <!-- OPTIONAL (only if you also want the ID posted): -->
       <input type="hidden" name="q3_id" id="teacherIdHidden" />
     </fieldset>
+
     <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
       <legend class="h6"><strong>Q4:</strong> Teacher Role</legend>
       <select id="roleSelect" name="q4" class="form-select" required disabled>
@@ -71,6 +71,7 @@
       </select>
       <input type="hidden" name="q4_id" id="roleIdHidden" />
     </fieldset>
+
     <div class="p-3 mb-3 bg-white rounded">
       <h3 class="mt-2">Delivery of WSFL Competencies and Student Engagement</h3>
       <p class="text-muted">
@@ -80,6 +81,7 @@
         majority of lesson time concentrating on WSFL competencies.
       </p>
     </div>
+
     <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
       <legend class="h6">
         <strong>Q5:</strong> The teacher effectively delivers appropriate WSFL
@@ -92,7 +94,9 @@
           type="radio"
           name="q5"
           value="1"
-        /><label class="form-check-label">Needs Improvement</label>
+          id="q5-1"
+        />
+        <label class="form-check-label" for="q5-1">Needs Improvement</label>
       </div>
       <div class="form-check">
         <input
@@ -100,7 +104,9 @@
           type="radio"
           name="q5"
           value="2"
-        /><label class="form-check-label">Satisfactory</label>
+          id="q5-2"
+        />
+        <label class="form-check-label" for="q5-2">Satisfactory</label>
       </div>
       <div class="form-check">
         <input
@@ -108,9 +114,12 @@
           type="radio"
           name="q5"
           value="3"
-        /><label class="form-check-label">Proficient</label>
+          id="q5-3"
+        />
+        <label class="form-check-label" for="q5-3">Proficient</label>
       </div>
     </fieldset>
+
     <div class="p-3 mb-3 bg-white rounded">
       <h3 class="mt-2">Adaptation to Student Abilities and Needs</h3>
       <p class="text-muted">
@@ -119,6 +128,7 @@
         needs.<br />• Effective management of class dynamics and pool safety.
       </p>
     </div>
+
     <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
       <legend class="h6">
         <strong>Q6:</strong> The teacher consistently links WSFL competencies to
@@ -131,7 +141,9 @@
           type="radio"
           name="q6"
           value="1"
-        /><label class="form-check-label">Needs Improvement</label>
+          id="q6-1"
+        />
+        <label class="form-check-label" for="q6-1">Needs Improvement</label>
       </div>
       <div class="form-check">
         <input
@@ -139,7 +151,9 @@
           type="radio"
           name="q6"
           value="2"
-        /><label class="form-check-label">Satisfactory</label>
+          id="q6-2"
+        />
+        <label class="form-check-label" for="q6-2">Satisfactory</label>
       </div>
       <div class="form-check">
         <input
@@ -147,9 +161,12 @@
           type="radio"
           name="q6"
           value="3"
-        /><label class="form-check-label">Proficient</label>
+          id="q6-3"
+        />
+        <label class="form-check-label" for="q6-3">Proficient</label>
       </div>
     </fieldset>
+
     <div class="p-3 mb-3 bg-white rounded">
       <h3 class="mt-2">Assessment and Feedback on Student Performance</h3>
       <p class="text-muted">
@@ -158,6 +175,7 @@
         improve.<br />• Can complete and update WSFL student achievement forms.
       </p>
     </div>
+
     <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
       <legend class="h6">
         <strong>Q7:</strong> The teacher accurately assesses student abilities
@@ -170,7 +188,9 @@
           type="radio"
           name="q7"
           value="1"
-        /><label class="form-check-label">Needs Improvement</label>
+          id="q7-1"
+        />
+        <label class="form-check-label" for="q7-1">Needs Improvement</label>
       </div>
       <div class="form-check">
         <input
@@ -178,7 +198,9 @@
           type="radio"
           name="q7"
           value="2"
-        /><label class="form-check-label">Satisfactory</label>
+          id="q7-2"
+        />
+        <label class="form-check-label" for="q7-2">Satisfactory</label>
       </div>
       <div class="form-check">
         <input
@@ -186,9 +208,12 @@
           type="radio"
           name="q7"
           value="3"
-        /><label class="form-check-label">Proficient</label>
+          id="q7-3"
+        />
+        <label class="form-check-label" for="q7-3">Proficient</label>
       </div>
     </fieldset>
+
     <div class="p-3 mb-3 bg-white rounded">
       <h3 class="mt-2">
         Relating WSFL Competencies to Open Water Environments
@@ -199,6 +224,7 @@
         situations.
       </p>
     </div>
+
     <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
       <legend class="h6">
         <strong>Q8:</strong> The teacher demonstrates comprehensive knowledge of
@@ -211,7 +237,9 @@
           type="radio"
           name="q8"
           value="1"
-        /><label class="form-check-label">Needs Improvement</label>
+          id="q8-1"
+        />
+        <label class="form-check-label" for="q8-1">Needs Improvement</label>
       </div>
       <div class="form-check">
         <input
@@ -219,7 +247,9 @@
           type="radio"
           name="q8"
           value="2"
-        /><label class="form-check-label">Satisfactory</label>
+          id="q8-2"
+        />
+        <label class="form-check-label" for="q8-2">Satisfactory</label>
       </div>
       <div class="form-check">
         <input
@@ -227,9 +257,12 @@
           type="radio"
           name="q8"
           value="3"
-        /><label class="form-check-label">Proficient</label>
+          id="q8-3"
+        />
+        <label class="form-check-label" for="q8-3">Proficient</label>
       </div>
     </fieldset>
+
     <div class="p-3 mb-3 bg-white rounded">
       <h3 class="mt-2">Determining the Appropriate Teacher Level</h3>
       <p class="text-muted">
@@ -242,10 +275,12 @@
         scoring 3’s (Proficient) across all or most criteria.
       </p>
     </div>
+
     <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
       <legend class="h6">
         <strong>Q9:</strong> What level would you rate this teacher?
       </legend>
+
       <!-- ✨ Recommendation banner -->
       <div id="q9-reco" class="alert alert-info py-2 px-3 mb-3 d-none">
         Recommended level: <strong id="q9-reco-text"></strong>
@@ -258,7 +293,9 @@
           type="radio"
           name="q9"
           value="1"
-        /><label class="form-check-label">Foundational Level</label>
+          id="q9-1"
+        />
+        <label class="form-check-label" for="q9-1">Foundational Level</label>
       </div>
       <div class="form-check">
         <input
@@ -266,7 +303,9 @@
           type="radio"
           name="q9"
           value="2"
-        /><label class="form-check-label">Intermediate Level</label>
+          id="q9-2"
+        />
+        <label class="form-check-label" for="q9-2">Intermediate Level</label>
       </div>
       <div class="form-check">
         <input
@@ -274,12 +313,16 @@
           type="radio"
           name="q9"
           value="3"
-        /><label class="form-check-label">Expert Level</label>
+          id="q9-3"
+        />
+        <label class="form-check-label" for="q9-3">Expert Level</label>
       </div>
     </fieldset>
+
     <button type="submit" class="btn btn-primary">Submit Survey</button>
   </form>
 </div>
+
 <script>
   (() => {
     // ---- Config ----
@@ -395,9 +438,9 @@
           `/api/teachers?school_id=${encodeURIComponent(schoolId)}`
         );
         fillSelect(teacherSel, "Choose a teacher…", teachers, (t) => ({
-          value: `${t.Name} (${t.Email})`, // stored
-          label: t.Name, // displayed
-          id: (t.Email ?? t.TeacherID ?? "").toLowerCase(),
+          value: t.Email, // store email in the value
+          label: t.Name, // show the name
+          id: t.TeacherID || t.Email,
         }));
       } catch (e) {
         console.error(e);
@@ -502,5 +545,4 @@
     });
   })();
 </script>
-
 {% endblock %}
