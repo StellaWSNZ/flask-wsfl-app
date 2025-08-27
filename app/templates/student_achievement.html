@@ -209,7 +209,7 @@ select option {
             <th class="col-0">Last Name</th>
             <th class="col-1">Preferred Name</th>
             <th class="col-2">Year Level</th>
-{% for col in columns[4:] %}
+{% for col in columns[3:] %}
   {% set normalized_col = col|replace('&lt;br&gt;', '<br>') %}
   <th>
     <div class="mark-all-wrapper">
@@ -242,7 +242,7 @@ data-colraw="{{ col }}"
             <td class="col-0">{{ student.LastName }}</td>
             <td class="col-1">{{ student.PreferredName }}</td>
             <td class="col-2">{{ student.YearLevelID }}</td>
-            {% for col in columns[4:] %}
+            {% for col in columns[3:] %}
             {% set val = student[col]|default('')|string|trim %}
             {% set unescaped_col = col|replace('&lt;br&gt;', '<br>') %}
             <td>

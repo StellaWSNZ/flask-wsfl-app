@@ -29,51 +29,70 @@ from dateutil.parser import isoparse
 from collections import defaultdict
 
 
+from datetime import datetime, timedelta, timezone
+from collections import defaultdict
+import traceback
+import pandas as pd
+from sqlalchemy import text
+from dateutil.parser import isoparse
+
+from datetime import datetime, timedelta, timezone
+from collections import defaultdict
+import traceback
+import pandas as pd
+from sqlalchemy import text
+from dateutil.parser import isoparse
 
 @class_bp.route('/Class/<int:class_id>/<int:term>/<int:year>')
 @login_required
 def view_class(class_id, term, year):
     try:
+        # ---------- Query params ----------
         filter_type = request.args.get("filter", "all")
-        order_by = request.args.get("order_by", "last")
-        cache_key = f"{class_id}_{term}_{year}_{filter_type}"
-        cached = session.get("class_cache", {}).get(cache_key)
-        cached = None
+        order_by    = request.args.get("order_by", "last")
+
+        # ---------- Cache lookup ----------
+        cache_key   = f"{class_id}_{term}_{year}_{filter_type}"
+        class_cache = session.get("class_cache", {})
+        cached      = class_cache.get(cache_key)
+
         # ⏳ Cache expiry check
         if cached:
             expires_str = cached.get("expires")
-            if expires_str:
-                try:
-                    expires_at = isoparse(expires_str)
-                    if datetime.now(timezone.utc) > expires_at:
-                        print(f"🕒 Cache expired for {cache_key}")
-                        session["class_cache"].pop(cache_key, None)
-                        cached = None
-                except Exception as e:
-                    print("⚠️ Failed to parse cache expiry:", e)
-                    session["class_cache"].pop(cache_key, None)
+            try:
+                if expires_str and datetime.now(timezone.utc) > isoparse(expires_str):
+                    print(f"🕒 Cache expired for {cache_key}")
+                    class_cache.pop(cache_key, None)
                     cached = None
+                    session["class_cache"] = class_cache
+            except Exception as e:
+                print("⚠️ Failed to parse cache expiry:", e)
+                class_cache.pop(cache_key, None)
+                cached = None
+                session["class_cache"] = class_cache
 
-        # ✅ Use cache if valid
+        # ✅ Serve from cache (if valid)
         if cached and "student_competencies" in cached:
             try:
-                print("using cached")
+                print("✅ Using cached student_competencies")
                 df_combined = pd.DataFrame(cached["student_competencies"])
+
                 key_col = "PreferredName" if order_by == "first" else "LastName"
-                df_combined = df_combined.sort_values(
-                    by=key_col,
-                    key=lambda col: col.str.lower().fillna('')
-                )
+                if key_col in df_combined.columns:
+                    df_combined = df_combined.sort_values(
+                        by=key_col,
+                        key=lambda col: col.astype(str).str.lower().fillna('')
+                    )
 
                 comp_df = pd.DataFrame(cached.get("competencies", []))
                 competency_id_map = {}
-                if not comp_df.empty and "label" in comp_df.columns:
+                if not comp_df.empty and {"label","CompetencyID"} <= set(comp_df.columns):
                     competency_id_map = comp_df.set_index("label")["CompetencyID"].to_dict()
-                print(cached.get("autofill_map", {}))
+
                 return render_template(
                     "student_achievement.html",
                     students=df_combined.to_dict(orient="records"),
-columns=[col for col in df_combined.columns if col not in ["DateOfBirth", "Ethnicity", "FirstName"]],
+                    columns=[c for c in df_combined.columns if c not in ["DateOfBirth", "Ethnicity", "FirstName", "NSN"]],
                     competency_id_map=competency_id_map,
                     scenarios=cached.get("scenarios", []),
                     class_id=class_id,
@@ -86,20 +105,40 @@ columns=[col for col in df_combined.columns if col not in ["DateOfBirth", "Ethni
                     term=term,
                     year=year,
                     order_by=order_by,
-                    filter_type = request.args.get("filter", "all")
-
+                    filter_type=filter_type
                 )
             except Exception:
                 print("⚠️ Error while rendering from cache:")
                 traceback.print_exc()
 
-        # ❌ If no cache or cache failed, load from DB
+        # ❌ No valid cache → fetch from DB
         engine = get_db_engine()
         with engine.begin() as conn:
-            scenario_result = conn.execute(text("EXEC FlaskHelperFunctions @Request = :request"), {"request": "Scenario"})
+            # Scenarios
+            scenario_result = conn.execute(
+                text("EXEC FlaskHelperFunctions @Request = :request"),
+                {"request": "Scenario"}
+            )
             scenarios = [dict(row._mapping) for row in scenario_result]
 
-            
+            # Main data
+            print(
+                text("""
+                    EXEC FlaskGetClassStudentAchievement 
+                        @ClassID = :class_id, 
+                        @Term = :term, 
+                        @CalendarYear = :year, 
+                        @Email = :email, 
+                        @FilterType = :filter
+                """),
+                {
+                    "class_id": class_id,
+                    "term": term,
+                    "year": year,
+                    "email": session.get("user_email"),
+                    "filter": filter_type
+                }
+            )
             result = conn.execute(
                 text("""
                     EXEC FlaskGetClassStudentAchievement 
@@ -117,88 +156,171 @@ columns=[col for col in df_combined.columns if col not in ["DateOfBirth", "Ethni
                     "filter": filter_type
                 }
             )
-            df = pd.DataFrame(result.fetchall(), columns=result.keys())
+            rows = result.fetchall()
+            if not rows:
+                print("ℹ️ No rows returned for this class/term/year/filter.")
+                return render_template(
+                    "student_achievement.html",
+                    students=[],
+                    columns=[],
+                    competency_id_map={},
+                    scenarios=scenarios,
+                    class_id=class_id,
+                    class_name="(Unknown)",
+                    teacher_name="(Unknown)",
+                    school_name="(Unknown)",
+                    class_title="No data for this selection",
+                    edit=session.get("user_admin"),
+                    autofill_map={},
+                    term=term,
+                    year=year,
+                    order_by=order_by,
+                    filter_type=filter_type
+                )
+
+            df = pd.DataFrame(rows, columns=result.keys())
+
+            # Build comp_df for ordering/map BEFORE dropping cols
+            need_cols = ["CompetencyLabel", "CompetencyID", "YearGroupID"]
+            have_cols = [c for c in need_cols if c in df.columns]
             comp_df = (
-                df[["CompetencyLabel", "CompetencyID", "YearGroupID"]]
+                df[have_cols]
                 .drop_duplicates()
                 .rename(columns={"CompetencyLabel": "label"})
-            )
-            class_name = df["ClassName"].dropna().unique()[0] if "ClassName" in df.columns else "(Unknown)"
-            teacher_name = df["TeacherName"].dropna().unique()[0] if "TeacherName" in df.columns else "(Unknown)"
-            school_name = df["SchoolName"].dropna().unique()[0] if "SchoolName" in df.columns else "(Unknown)"
+            ) if have_cols else pd.DataFrame(columns=["label","CompetencyID","YearGroupID"])
+
+            # Normalize labels to avoid invisible mismatches
+            if "label" in comp_df.columns:
+                comp_df["label"] = comp_df["label"].astype(str).str.strip()
+
+            # Titles (guard if columns missing)
+            class_name   = df["ClassName"].dropna().unique()[0]   if "ClassName"   in df.columns and df["ClassName"].notna().any()   else "(Unknown)"
+            teacher_name = df["TeacherName"].dropna().unique()[0] if "TeacherName" in df.columns and df["TeacherName"].notna().any() else "(Unknown)"
+            school_name  = df["SchoolName"].dropna().unique()[0]  if "SchoolName"  in df.columns and df["SchoolName"].notna().any()  else "(Unknown)"
             title_string = f"Class Name: {class_name} | Teacher Name: {teacher_name} | School Name: {school_name}"
-            df = df.drop(columns=["ClassName", "TeacherName", "SchoolName","CompetencyID","YearGroupID"])
-            
+
+            # Drop meta columns we don't want duplicated post-pivot
+            drop_cols = [c for c in ["ClassName", "TeacherName", "SchoolName", "CompetencyID", "YearGroupID"] if c in df.columns]
+            df = df.drop(columns=drop_cols)
+
+            # Pivot
             meta_cols = [
-                "NSN",
-                "FirstName",
-                "LastName",
-                "PreferredName",
-                "Ethnicity",
-                "YearLevelID",
-                "Scenario1",
-                "Scenario2"
+                "NSN", "FirstName", "LastName", "PreferredName",
+                "Ethnicity", "YearLevelID", "Scenario1", "Scenario2"
             ]
+            existing_meta = [c for c in meta_cols if c in df.columns]
             pivot_df = df.pivot_table(
-                index=meta_cols,
+                index=existing_meta,
                 columns="CompetencyLabel",
                 values="CompetencyStatus",
-                aggfunc="first"  # In case of duplicates
+                aggfunc="first"
             ).reset_index()
-            comp_df_sorted = comp_df.sort_values(["YearGroupID", "CompetencyID"])
-            competency_cols = comp_df_sorted["label"].tolist()
-            key_col = "PreferredName" if order_by == "first" else "LastName"
 
-            pivot_df = pivot_df.sort_values(
-                        by=key_col,
-                        key=lambda col: col.str.lower().fillna('')
-                    )
-            # Rename scenario columns
-            pivot_df = pivot_df.rename(columns={
+            # Normalize pivot column labels too
+            pivot_df.columns = [str(c).strip() for c in pivot_df.columns]
+
+            # Desired competency order
+            if not comp_df.empty:
+                comp_df_sorted = comp_df.sort_values(["YearGroupID", "CompetencyID"])
+            else:
+                comp_df_sorted = pd.DataFrame(columns=["label","CompetencyID","YearGroupID"])
+
+            print("🧭 comp_df_sorted (first 10):\n", comp_df_sorted.head(10))
+            desired_competencies = comp_df_sorted["label"].tolist()
+
+            # Sort students by requested key if present
+            key_col = "PreferredName" if order_by == "first" else "LastName"
+            if key_col in pivot_df.columns:
+                pivot_df = pivot_df.sort_values(
+                    by=key_col,
+                    key=lambda col: col.astype(str).str.lower().fillna('')
+                )
+
+            # Rename scenario columns (only if present)
+            rename_map = {
                 "Scenario1": "Scenario One - Selected <br>(7-8)",
                 "Scenario2": "Scenario Two - Selected <br>(7-8)"
-            })
+            }
+            rename_applied = {k: v for k, v in rename_map.items() if k in pivot_df.columns}
+            if rename_applied:
+                pivot_df = pivot_df.rename(columns=rename_applied)
 
-            fixed_cols = ["NSN","LastName", "PreferredName", "YearLevelID"]
-            scenario_cols = [
+            # Fixed & scenario columns
+            existing_cols = set(pivot_df.columns)
+            fixed_cols_all = ["NSN", "LastName", "PreferredName", "YearLevelID"]
+            fixed_cols_present = [c for c in fixed_cols_all if c in existing_cols]
+
+            scenario_cols_all = [
                 "Scenario One - Selected <br>(7-8)",
                 "Scenario One - Completed <br>(7-8)",
                 "Scenario Two - Selected <br>(7-8)",
                 "Scenario Two - Completed <br>(7-8)"
             ]
-            # Filter out any labels that aren't actually in pivot_df.columns (to avoid key errors)
-            competency_cols = [col for col in competency_cols if col in pivot_df.columns]
-            competency_cols = [col for col in competency_cols if col not in set(scenario_cols)]
-            # Final column order
-            ordered_cols = fixed_cols + competency_cols + scenario_cols
+            existing_scenario_cols = [c for c in scenario_cols_all if c in existing_cols]
+            scenario_set = set(existing_scenario_cols)
+
+            # ===== Force-include all competencies (even if no rows) =====
+            # Exclude any labels that equal scenario headers
+            full_comp_cols = [lbl for lbl in desired_competencies if lbl not in scenario_set]
+
+            forced_added = []
+            for lbl in full_comp_cols:
+                if lbl not in pivot_df.columns:
+                    pivot_df[lbl] = pd.NA
+                    forced_added.append(lbl)
+            if forced_added:
+                print("ℹ️ Forced in empty competency columns (no rows under current filter):", forced_added)
+
+            # Final column order (only columns that exist + forced)
+            ordered_cols = fixed_cols_present + full_comp_cols + existing_scenario_cols
+            ordered_cols = [c for c in ordered_cols if c in pivot_df.columns]  # safety
             pivot_df = pivot_df[ordered_cols]
-            auto_result = conn.execute(text("EXEC FlaskHelperFunctions @Request = :request"), {"request": "AutoMappedCompetencies"})
+
+            # Build competency_id_map for template
+            competency_id_map = {}
+            if not comp_df_sorted.empty and {"label","CompetencyID"} <= set(comp_df_sorted.columns):
+                competency_id_map = comp_df_sorted.set_index("label")["CompetencyID"].to_dict()
+
+            # Autofill map
+            auto_result = conn.execute(
+                text("EXEC FlaskHelperFunctions @Request = :request"),
+                {"request": "AutoMappedCompetencies"}
+            )
             header_map = defaultdict(list)
             for row in auto_result:
                 header_map[row.HeaderPre].append(row.HeaderPost)
-            print(header_map)
+
+            # Cache it
             expiry_time = datetime.now(timezone.utc) + timedelta(minutes=15)
-            session.setdefault("class_cache", {})[cache_key] = {
+            class_cache[cache_key] = {
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 "expires": expiry_time.isoformat(),
-                "students": pivot_df.to_dict(),
-                "competencies": comp_df.to_dict(orient="records"),
-
+                "students": pivot_df.to_dict(),  # raw table
+                "competencies": comp_df_sorted.to_dict(orient="records"),
                 "filter": filter_type,
-                "student_competencies": pivot_df.to_dict(orient="records"),
+                "student_competencies": pivot_df.to_dict(orient="records"),  # for cached branch
                 "class_name": class_name,
                 "teacher_name": teacher_name,
                 "school_name": school_name,
                 "scenarios": scenarios,
                 "autofill_map": dict(header_map)
             }
-            print(request.args.get("filter", "all")
-)
+            session["class_cache"] = class_cache
+            target = "Basic awareness of potential water-related hazards"
+            cols_list = list(pivot_df.columns)
+            print("🧱 Ordered columns (first 20):", cols_list[:20])
+            print("🔎 Has 'Basic awareness...' column? ->", any(c.startswith(target) for c in cols_list))
+
+            # Also log what the template will receive:
+            render_cols = [c for c in pivot_df.columns if c not in ["DateOfBirth","Ethnicity","FirstName","NSN"]]
+            print("🧾 Columns passed to template (first 20):", render_cols[:20])
+            print("🔎 In render_cols? ->", any(c.startswith(target) for c in render_cols))
+            # Render
             return render_template(
                 "student_achievement.html",
                 students=pivot_df.to_dict(orient="records"),
-                columns=[col for col in pivot_df.columns if col not in ["DateOfBirth", "Ethnicity", "FirstName", "NSN"]],
-                competency_id_map=comp_df.set_index("label")["CompetencyID"].to_dict(),
+                columns=[c for c in pivot_df.columns if c not in ["DateOfBirth", "Ethnicity", "FirstName", "NSN"]],
+                competency_id_map=competency_id_map,
                 scenarios=scenarios,
                 class_id=class_id,
                 class_name=class_name,
@@ -210,13 +332,14 @@ columns=[col for col in df_combined.columns if col not in ["DateOfBirth", "Ethni
                 term=term,
                 year=year,
                 order_by=order_by,
-                filter_type = request.args.get("filter", "all")
+                filter_type=filter_type
             )
 
     except Exception as e:
         print("❌ An error occurred in view_class:")
         traceback.print_exc()
         return "An internal error occurred. Check logs for details.", 500
+
 
 
 @class_bp.route("/update_class_info", methods=["POST"])
