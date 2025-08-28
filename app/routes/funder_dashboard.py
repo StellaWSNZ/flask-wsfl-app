@@ -383,6 +383,17 @@ def get_entities():
                     {"id": row._mapping["MOENumber"], "name": row._mapping["SchoolName"]}
                     for row in rows
                 ]
+            elif user_role == "FUN":
+                stmt = text("EXEC FlaskHelperFunctions @Request = 'SchoolDropdownFunder', @Number = :fid")
+                result = conn.execute(stmt, {"fid": user_id})
+                
+                # ✅ Safely consume just the first result set
+                rows = result.fetchall()
+                print(rows)
+                entities = [
+                    {"id": row._mapping["MOENumber"], "name": row._mapping["SchoolName"]}
+                    for row in rows
+                ]
             elif user_role == "GRP":
                 stmt = text("EXEC FlaskHelperFunctions @Request = 'SchoolDropdownGroup', @Number = :fid")
                 result = conn.execute(stmt, {"fid": user_id})

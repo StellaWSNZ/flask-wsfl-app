@@ -12,25 +12,22 @@ from itsdangerous import URLSafeTimedSerializer,BadSignature, SignatureExpired
 import re
 survey_bp = Blueprint("survey_bp", __name__)
 
-
 @survey_bp.route("/Form/<string:routename>")
 def survey_by_routename(routename):
     engine = get_db_engine()
     Label = namedtuple("Label", ["pos", "text"])
     questions = []
     seen_ids = {}
-    extra_ctx = {}  # conditional template context (e.g., schools)
 
     try:
         with engine.connect() as conn:
             # 1) Resolve survey id
-            result = conn.execute(text("""
-                EXEC SVY_GetSurveyIDByRouteName @RouteName = :routename
-            """), {"routename": routename})
-
-            row = result.fetchone()
-            result.fetchall()
-            result.close()
+            res = conn.execute(
+                text("EXEC SVY_GetSurveyIDByRouteName @RouteName = :routename"),
+                {"routename": routename}
+            )
+            row = res.fetchone()
+            res.close()
 
             if not row:
                 flash(f"Survey '{routename}' not found.", "danger")
@@ -38,69 +35,51 @@ def survey_by_routename(routename):
 
             survey_id = row.SurveyID
 
-            # 2) Load survey questions
-            rows = conn.execute(text("""
-                EXEC SVY_GetSurveyQuestions @SurveyID = :survey_id
-            """), {"survey_id": survey_id}).fetchall()
+            # 2) Access control
+            user_role = session.get("user_role")
+            user_id = session.get("user_id")
 
-            # 3) Special handling for Survey 3 (Teacher Assessment):
-            #    - Only funders can access
-            #    - Schools come from FlaskHelperFunctions 'SchoolDropdown' using the session user id
-            print(session)
             if survey_id == 3:
-                user_role = session.get("user_role") 
-                user_id = (session.get("user_id") )
-
-                if user_role != "FUN":
-                    flash("This assessment is restricted to funders.", "warning")
+                # Teacher Assessment — funders only
+                if user_role not in  ["FUN","ADM"]:
+                    flash("This assessment is restricted to funders and WSNZ Administrators.", "warning")
                     return redirect("/MyForms")
+                
 
-                if not user_id:
-                    flash("Please sign in again to access this assessment.", "warning")
-                    return redirect("/Login")
-            
-                # Call your stored procedure to get ONLY the schools this funder can see.
-                # Adjust parameter names if your proc expects different names.
-                schools_rows = conn.execute(text("""
-                    EXEC FlaskHelperFunctions @Request='SchoolDropdownKaiako', @Number=:uid
-                """), {"uid": user_id}).mappings().all()
+                # IMPORTANT: do NOT fetch schools here; the template loads them via AJAX
+                # from /get_entities?entity_type=School (scoped server-side).
 
-                # Normalize to expected keys for the template
-                # (rename columns here if your proc returns different names)
-                schools = []
-                for r in schools_rows:
-                    d = dict(r)
-                    # Try common variations and map to MOENumber / SchoolName
-                    moe = d.get("MOENumber") or d.get("MOE") or d.get("SchoolID") or d.get("ID")
-                    name = d.get("SchoolName") or d.get("Name") or d.get("Description")
-                    if moe is not None and name:
-                        schools.append({"MOENumber": moe, "SchoolName": name})
-
-                extra_ctx["schools"] = schools
             if survey_id == 4:
-                user_role = session.get("user_role") 
-                user_id = (session.get("user_id") )
-
+                # Admin-only survey
                 if user_role != "ADM":
                     flash("This assessment is restricted to WSNZ Admins.", "warning")
                     return redirect("/MyForms")
-        # 4) Build question objects
-        for qid, qtext, qcode, pos, label in rows:
-            if qid not in seen_ids:
-                seen_ids[qid] = {
-                    "id": qid,
-                    "text": qtext,
-                    "type": qcode,
-                    "labels": []
-                }
-                questions.append(seen_ids[qid])
 
-            if qcode == "LIK" and label:
+            # 3) Load survey questions
+            qrows = conn.execute(
+                text("EXEC SVY_GetSurveyQuestions @SurveyID = :survey_id"),
+                {"survey_id": survey_id}
+            ).fetchall()
+
+        # 4) Build question objects
+        for qid, qtext, qcode, pos, label in qrows:
+            if qid not in seen_ids:
+                seen_ids[qid] = {"id": qid, "text": qtext, "type": qcode, "labels": []}
+                questions.append(seen_ids[qid])
+            if qcode == "LIK" and label is not None:
                 seen_ids[qid]["labels"].append(Label(pos, label))
 
-        # 5) Render with conditional context (schools only present for Survey 3)
-        ctx = {"questions": questions, "route_name": routename}
-        ctx.update(extra_ctx)
+        # Ensure likert labels are ordered by pos, if provided
+        for q in questions:
+            if q["labels"]:
+                q["labels"].sort(key=lambda L: (L.pos is None, L.pos))
+
+        # 5) Render — no 'schools' passed; template for survey 3 fetches via AJAX
+        ctx = {
+            "questions": questions,
+            "route_name": routename,
+            "survey_id": survey_id,  # template may branch on this
+        }
         return render_template(f"survey_form_{survey_id}.html", **ctx)
 
     except Exception:

@@ -482,7 +482,7 @@
                     Complete an External Review
                   </a>
                 </li>
-                {%endif%} {% if user_role == "FUN" %}
+                {%endif%} {% if user_role in ["FUN" ,"ADM"]%}
                 <li>
                   <a
                     class="dropdown-item py-2"

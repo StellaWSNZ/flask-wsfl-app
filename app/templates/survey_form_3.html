@@ -2,23 +2,21 @@
 %} {% block content %}
 <div class="container mt-5">
   <h1 class="mb-4 text-center text-primary">WSFL Teacher Assessment</h1>
+
   <form
     action="{{ url_for('survey_bp.submit_survey', routename='TeacherAssessment') }}"
     method="post"
   >
     <div class="bg-light border rounded p-3 mb-4 small">
       <strong>Rating Scale:</strong><br /><br />
-
       <strong>1 = Needs Improvement:</strong> The teacher is having difficulty
       delivering or assessing Water Skills for Life (WSFL) competencies. They
       require additional training, guidance, and support to improve their
       ability to teach these skills effectively and meet programme standards.<br /><br />
-
       <strong>2 = Satisfactory:</strong> The teacher is able to deliver and
       assess WSFL competencies at a basic level. While they meet expectations,
       there are noticeable areas where improvement is needed to enhance their
       teaching techniques and assessment methods.<br /><br />
-
       <strong>3 = Proficient:</strong> The teacher demonstrates a high level of
       competence in delivering and assessing WSFL competencies. They
       consistently show expertise, engage students effectively, and serve as a
@@ -29,19 +27,16 @@
       <h3 class="mt-2">Teacher Information</h3>
     </div>
 
+    <!-- Q1 School (AJAX) -->
     <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
       <legend class="h6"><strong>Q1:</strong> Select the school</legend>
       <select id="schoolSelect" name="q1" class="form-select" required>
-        <option value="" selected disabled>Choose a school…</option>
-        {% for s in schools %}
-        <option value="{{ s.SchoolName }}" data-id="{{ s.MOENumber }}">
-          {{ s.SchoolName }}
-        </option>
-        {% endfor %}
+        <option value="" selected disabled>Loading schools…</option>
       </select>
       <input type="hidden" name="q1_id" id="schoolIdHidden" />
     </fieldset>
 
+    <!-- Q2 Class (depends on school) -->
     <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
       <legend class="h6"><strong>Q2:</strong> Select the class</legend>
       <select id="classSelect" name="q2" class="form-select" required disabled>
@@ -50,6 +45,7 @@
       <input type="hidden" name="q2_id" id="classIdHidden" />
     </fieldset>
 
+    <!-- Q3 Teacher (depends on school) -->
     <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
       <legend class="h6"><strong>Q3:</strong> Select the teacher</legend>
       <select
@@ -64,6 +60,7 @@
       <input type="hidden" name="q3_id" id="teacherIdHidden" />
     </fieldset>
 
+    <!-- Q4 Role (AJAX from survey options) -->
     <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
       <legend class="h6"><strong>Q4:</strong> Teacher Role</legend>
       <select id="roleSelect" name="q4" class="form-select" required disabled>
@@ -82,6 +79,7 @@
       </p>
     </div>
 
+    <!-- Q5 -->
     <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
       <legend class="h6">
         <strong>Q5:</strong> The teacher effectively delivers appropriate WSFL
@@ -129,6 +127,7 @@
       </p>
     </div>
 
+    <!-- Q6 -->
     <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
       <legend class="h6">
         <strong>Q6:</strong> The teacher consistently links WSFL competencies to
@@ -176,6 +175,7 @@
       </p>
     </div>
 
+    <!-- Q7 -->
     <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
       <legend class="h6">
         <strong>Q7:</strong> The teacher accurately assesses student abilities
@@ -225,6 +225,7 @@
       </p>
     </div>
 
+    <!-- Q8 -->
     <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
       <legend class="h6">
         <strong>Q8:</strong> The teacher demonstrates comprehensive knowledge of
@@ -268,20 +269,22 @@
       <p class="text-muted">
         (Foundational, Intermediate, or Expert) for a teacher based on the
         assessment criteria requires a systematic approach. Here are some steps
-        and a suggested system to facilitate this process:<br />Foundational
-        Level: Teachers scoring mostly 1’s (Needs Improvement) across the
-        criteria. <br />Intermediate Level: Teachers scoring mostly 2’s
-        (Satisfactory) with some 3’s. <br />Expert Level: Teachers consistently
-        scoring 3’s (Proficient) across all or most criteria.
+        and a suggested system to facilitate this process:<br />
+        Foundational Level: Teachers scoring mostly 1’s (Needs Improvement)
+        across the criteria. <br />
+        Intermediate Level: Teachers scoring mostly 2’s (Satisfactory) with some
+        3’s. <br />
+        Expert Level: Teachers consistently scoring 3’s (Proficient) across all
+        or most criteria.
       </p>
     </div>
 
+    <!-- Q9 with recommendation -->
     <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
       <legend class="h6">
         <strong>Q9:</strong> What level would you rate this teacher?
       </legend>
 
-      <!-- ✨ Recommendation banner -->
       <div id="q9-reco" class="alert alert-info py-2 px-3 mb-3 d-none">
         Recommended level: <strong id="q9-reco-text"></strong>
         <span class="text-muted ms-2" id="q9-reco-reason"></span>
@@ -355,44 +358,66 @@
       if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
       return res.json();
     }
-
     function setSelectLoading(select, msg = "Loading…") {
       if (!select) return;
       select.innerHTML = `<option value="" selected disabled>${msg}</option>`;
       select.disabled = true;
     }
-
     function setSelectEmpty(select, msg = "No results") {
       if (!select) return;
       select.innerHTML = `<option value="" selected disabled>${msg}</option>`;
       select.disabled = true;
     }
-
     function fillSelect(select, placeholder, rows, mapRow) {
       if (!select) return;
       let html = `<option value="" selected disabled>${placeholder}</option>`;
       for (const r of rows) {
         const { value, label, id } = mapRow(r);
-        html += `<option value="${value ?? ""}" data-id="${id ?? ""}">${
-          label ?? value ?? "—"
-        }</option>`;
+        const safeValue = value ?? "";
+        const safeLabel = label ?? value ?? "—";
+        const safeId = id ?? value ?? "";
+        html += `<option value="${String(safeValue)}" data-id="${String(
+          safeId
+        )}">${safeLabel}</option>`;
       }
       select.innerHTML = html;
       select.disabled = rows.length === 0;
       if (rows.length === 0) setSelectEmpty(select, "No results");
     }
 
-    // ---- Roles (Q4) on page load ----
+    // ---- Load Schools (Q1) via /get_entities ----
+    document.addEventListener("DOMContentLoaded", async () => {
+      try {
+        const schools = await fetchJSON(`/get_entities?entity_type=School`);
+        fillSelect(
+          schoolSel,
+          "Select a school…",
+          Array.isArray(schools) ? schools : [],
+          (s) => ({
+            value: s.id, // MOENumber
+            label: s.name, // SchoolName
+            id: s.id,
+          })
+        );
+        schoolSel.disabled = false;
+      } catch (e) {
+        console.error(e);
+        setSelectEmpty(schoolSel, "Failed to load schools");
+      }
+    });
+
+    // ---- Load Roles (Q4) via survey options ----
     document.addEventListener("DOMContentLoaded", async () => {
       try {
         const options = await fetchJSON(
           `/api/surveys/${SURVEY_ID}/questions/${ROLE_QID}/options`
         );
         fillSelect(roleSel, "Choose a role…", options, (o) => ({
-          value: o.value,
-          label: o.label,
-          id: o.id,
+          value: o.id ?? o.value, // prefer a stable ID
+          label: o.label ?? o.value,
+          id: o.id ?? o.value,
         }));
+        roleSel.disabled = false;
       } catch (e) {
         console.error(e);
         setSelectEmpty(roleSel, "Failed to load roles");
@@ -400,13 +425,12 @@
     });
 
     roleSel?.addEventListener("change", () => {
-      roleIdHidden.value = roleSel.selectedOptions[0]?.dataset.id || "";
+      roleIdHidden.value = roleSel.value || "";
     });
 
     // ---- When school changes: load classes + teachers ----
     schoolSel?.addEventListener("change", async () => {
-      const schoolOpt = schoolSel.selectedOptions[0];
-      const schoolId = schoolOpt?.dataset.id || "";
+      const schoolId = schoolSel.value || "";
       if (schoolIdHidden) schoolIdHidden.value = schoolId;
 
       // reset dependents
@@ -421,7 +445,7 @@
           `/api/classes?school_id=${encodeURIComponent(schoolId)}`
         );
         fillSelect(classSel, "Choose a class…", classes, (c) => ({
-          value: c.ClassName || c.Name || `Class ${c.ClassID}`,
+          value: c.ClassID,
           label:
             (c.ClassName || c.Name || `Class ${c.ClassID}`) +
             (c.Term && c.CalendarYear ? ` (T${c.Term} ${c.CalendarYear})` : ""),
@@ -438,8 +462,8 @@
           `/api/teachers?school_id=${encodeURIComponent(schoolId)}`
         );
         fillSelect(teacherSel, "Choose a teacher…", teachers, (t) => ({
-          value: t.Email, // store email in the value
-          label: t.Name, // show the name
+          value: t.TeacherID || t.Email, // submit an ID if available
+          label: t.Name || t.Email,
           id: t.TeacherID || t.Email,
         }));
       } catch (e) {
@@ -449,13 +473,13 @@
     });
 
     classSel?.addEventListener("change", () => {
-      classIdHidden.value = classSel.selectedOptions[0]?.dataset.id || "";
+      classIdHidden.value = classSel.value || "";
     });
     teacherSel?.addEventListener("change", () => {
-      teacherIdHidden.value = teacherSel.selectedOptions[0]?.dataset.id || "";
+      teacherIdHidden.value = teacherSel.value || "";
     });
 
-    // ---- Q9 Recommendation logic (pending until Q5–Q8 all selected) ----
+    // ---- Q9 Recommendation logic (based on Q5–Q8) ----
     function getLikert(name) {
       const el = document.querySelector(`input[name="${name}"]:checked`);
       return el ? Number(el.value) : null;
@@ -479,9 +503,11 @@
       if (radio) radio.checked = true;
     }
     function recommendLevel() {
-      const vals = driverQs.map(getLikert).filter((v) => v !== null);
+      const vals = ["q5", "q6", "q7", "q8"]
+        .map(getLikert)
+        .filter((v) => v !== null);
       const n = vals.length;
-      if (n < driverQs.length) {
+      if (n < 4) {
         showPendingBanner();
         return;
       }
@@ -525,7 +551,7 @@
       showPendingBanner();
       recommendLevel(); // in case radios are prefilled
     });
-    for (const q of driverQs) {
+    for (const q of ["q5", "q6", "q7", "q8"]) {
       document.querySelectorAll(`input[name="${q}"]`).forEach((inp) => {
         inp.addEventListener("change", recommendLevel);
       });
