@@ -192,6 +192,9 @@ select option {
   <a class="btn btn-sm btn-outline-secondary"
      href="{{ url_for('class_bp.print_class_view', class_id=class_id, term=term, year=year, filter=filter_type, order_by=order_by) }}"
      target="_blank">🖨️ Print</a>
+  <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#exportModal">
+  📤 Export
+</button>
   <button class="btn btn-sm btn-secondary fw-bold d-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#helpModal">
     <span class="text-white">?</span>
     Help
@@ -199,6 +202,30 @@ select option {
 </div>
     </div>
   </div>
+<div class="modal fade" id="exportModal" tabindex="-1" aria-labelledby="exportModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content text-center">
+      <div class="modal-header">
+        <h5 class="modal-title" id="exportModalLabel">Export Options</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p>You can export the class list or student achievements as Excel an file.</p>
+        <div class="d-grid gap-2">
+          <a href="{{ url_for('class_bp.export_class_excel', class_id=class_id, term=term, year=year) }}"
+   class="btn btn-outline-primary">📄 Class List (Excel)</a>
+
+<a href="{{ url_for('class_bp.export_achievements_excel', df = students, class_id=class_id, term=term, year=year) }}"
+   class="btn btn-outline-success">✅ Achievements (Excel)</a>
+
+<!--<a href="{{ url_for('class_bp.export_achievements_pdf', class_id=class_id, term=term, year=year) }}"
+   class="btn btn-outline-danger"
+   target="_blank" rel="noopener">📑 Achievements (PDF)</a> -->
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- Scrollable Table -->
 <div class="scroll-table-wrapper">

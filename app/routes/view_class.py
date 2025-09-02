@@ -8,8 +8,12 @@ from flask import Blueprint, render_template, session, redirect, url_for, flash,
 from app.utils.database import get_db_engine
 from sqlalchemy import text
 import pandas as pd
+import io, re, ast, urllib.parse, traceback
+
 from app.routes.auth import login_required
 import matplotlib
+from sqlalchemy.exc import SQLAlchemyError
+
 matplotlib.use('Agg')  # Prevent GUI backend errors in web servers
 import matplotlib.pyplot as plt
 import io, base64
@@ -42,6 +46,120 @@ import traceback
 import pandas as pd
 from sqlalchemy import text
 from dateutil.parser import isoparse
+
+def _build_print_context(engine, class_id: int, term: int, year: int, filter_type: str, order_by: str):
+    """
+    Build the same context dict that print_class_view uses to render print_view.html.
+    Reuses cache when possible; regenerates if needed.
+    """
+    cache_key = f"{class_id}_{term}_{year}_{filter_type}"
+    class_cache = session.get("class_cache", {})
+    cache = class_cache.get(cache_key)
+
+    # If missing, rebuild like print_class_view
+    if not cache or "student_competencies" not in cache:
+        with engine.begin() as conn:
+            result = conn.execute(
+                text("""EXEC FlaskGetClassStudentAchievement 
+                        @ClassID = :class_id, 
+                        @Term = :term, 
+                        @CalendarYear = :year, 
+                        @Email = :email, 
+                        @FilterType = :filter"""),
+                {"class_id": class_id, "term": term, "year": year,
+                 "email": session.get("user_email"), "filter": filter_type}
+            )
+            df = pd.DataFrame(result.fetchall(), columns=result.keys())
+            if df.empty:
+                # Return a minimal context; caller can handle “no data”
+                return {
+                    "grouped": {"0–2": [], "3–4": [], "5–6": [], "7–8": []},
+                    "columns_by_range": {"0–2": [], "3–4": [], "5–6": [], "7–8": []},
+                    "class_name": "(Unknown)", "teacher_name": "(Unknown)",
+                    "filter_type": filter_type, "now": datetime.now,
+                    "qr_data_uri": generate_qr_code_png(url_for("auth_bp.login", _external=True))
+                }
+
+            comp_df = (
+                df[["CompetencyLabel", "CompetencyID", "YearGroupID"]]
+                .drop_duplicates()
+                .rename(columns={"CompetencyLabel": "label"})
+            )
+            comp_df["col_order"] = comp_df["YearGroupID"].astype(str).str.zfill(2) + "-" + comp_df["CompetencyID"].astype(str).str.zfill(4)
+            comp_df = comp_df.sort_values("col_order")
+
+            meta_cols = [
+                "NSN", "FirstName", "LastName", "PreferredName",
+                "DateOfBirth", "Ethnicity", "YearLevelID"
+            ]
+            df_combined = df.pivot_table(
+                index=meta_cols,
+                columns="label",
+                values="CompetencyStatus",
+                aggfunc="first"
+            ).fillna(0).astype(int).replace({1: "✓", 0: ""}).reset_index()
+
+            expiry_time = datetime.now(timezone.utc) + timedelta(minutes=15)
+            class_cache[cache_key] = {
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "expires": expiry_time.isoformat(),
+                "students": df_combined.to_dict(),
+                "competencies": comp_df.to_dict(orient="records"),
+                "filter": filter_type,
+                "student_competencies": df_combined.to_dict(orient="records"),
+            }
+            session["class_cache"] = class_cache
+
+    else:
+        df_combined = pd.DataFrame(cache["student_competencies"]).replace({1: "✓", 0: ""})
+        comp_df = pd.DataFrame(cache["competencies"])
+
+    # Column groups for the template
+    labels = comp_df["label"].tolist() if not comp_df.empty else []
+    def _labels_for(yr): return [l for l in labels if f"({yr})" in l]
+    columns_by_range = {
+        "0–2": _labels_for("0-2"),
+        "3–4": _labels_for("3-4"),
+        "5–6": _labels_for("5-6"),
+        "7–8": _labels_for("7-8"),
+    }
+
+    # Grouped rows (template expects same rows per group; columns are filtered per range)
+    grouped = {"0–2": [], "3–4": [], "5–6": [], "7–8": []}
+    for row in df_combined.to_dict(orient="records"):
+        for k in grouped.keys():
+            grouped[k].append(row)
+
+    # Class/teacher names
+    with engine.connect() as conn:
+        class_info = conn.execute(
+            text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :class_id"),
+            {"Request": "ClassInfoByID", "class_id": class_id}
+        ).fetchone()
+    class_name   = class_info.ClassName if class_info else "Unknown Class"
+    teacher_name = class_info.TeacherName if class_info else "Unknown Teacher"
+
+    # QR for login-to-view
+    target_path = url_for("class_bp.view_class", class_id=class_id, term=term, year=year)
+    login_url   = url_for("auth_bp.login", next=target_path, _external=True)
+    qr_data_uri = generate_qr_code_png(login_url)
+
+    # Sort order for display (optional)
+    key_col = "PreferredName" if order_by == "first" else "LastName"
+    if grouped["0–2"] and key_col in grouped["0–2"][0]:
+        for k in grouped.keys():
+            grouped[k] = sorted(grouped[k], key=lambda r: (r.get(key_col) or "").lower())
+
+    return {
+        "grouped": grouped,
+        "columns_by_range": columns_by_range,
+        "class_name": class_name,
+        "teacher_name": teacher_name,
+        "filter_type": filter_type,
+        "now": datetime.now,
+        "qr_data_uri": qr_data_uri,
+    }
+
 
 @class_bp.route('/Class/<int:class_id>/<int:term>/<int:year>')
 @login_required
@@ -225,7 +343,7 @@ def view_class(class_id, term, year):
             else:
                 comp_df_sorted = pd.DataFrame(columns=["label","CompetencyID","YearGroupID"])
 
-            print("🧭 comp_df_sorted (first 10):\n", comp_df_sorted.head(10))
+            #print("🧭 comp_df_sorted (first 10):\n", comp_df_sorted.head(10))
             desired_competencies = comp_df_sorted["label"].tolist()
 
             # Sort students by requested key if present
@@ -308,13 +426,13 @@ def view_class(class_id, term, year):
             session["class_cache"] = class_cache
             target = "Basic awareness of potential water-related hazards"
             cols_list = list(pivot_df.columns)
-            print("🧱 Ordered columns (first 20):", cols_list[:20])
-            print("🔎 Has 'Basic awareness...' column? ->", any(c.startswith(target) for c in cols_list))
+            #print("🧱 Ordered columns (first 20):", cols_list[:20])
+            #print("🔎 Has 'Basic awareness...' column? ->", any(c.startswith(target) for c in cols_list))
 
             # Also log what the template will receive:
             render_cols = [c for c in pivot_df.columns if c not in ["DateOfBirth","Ethnicity","FirstName","NSN"]]
-            print("🧾 Columns passed to template (first 20):", render_cols[:20])
-            print("🔎 In render_cols? ->", any(c.startswith(target) for c in render_cols))
+            #print("🧾 Columns passed to template (first 20):", render_cols[:20])
+            #print("🔎 In render_cols? ->", any(c.startswith(target) for c in render_cols))
             # Render
             return render_template(
                 "student_achievement.html",
@@ -1039,125 +1157,531 @@ def generate_qr_code_png(data, box_size=2):
 @login_required
 def print_class_view(class_id, term, year):
     try:
-        
-
         filter_type = request.args.get("filter") or session.get("last_filter_used", "all")
-        order_by = request.args.get("order_by", "last")
-        cache_key = f"{class_id}_{term}_{year}_{filter_type}"
-
-        print(f"🖨️ [print_class_view] Requested print for cache key: {cache_key}")
-        print(f"📦 Available cache keys: {list(session.get('class_cache', {}).keys())}")
-
-        if request.args.get("refresh") == "1":
-            print("🔁 Refresh requested — clearing cache key if present")
-            session.get("class_cache", {}).pop(cache_key, None)
-
-        cache = session.get("class_cache", {}).get(cache_key)
-
-        if not cache or "student_competencies" not in cache:
-            print("🔄 Cache miss or incomplete — regenerating from FlaskGetClassStudentAchievement")
-            engine = get_db_engine()
-            with engine.begin() as conn:
-                result = conn.execute(
-                    text("""EXEC FlaskGetClassStudentAchievement 
-                            @ClassID = :class_id, 
-                            @Term = :term, 
-                            @CalendarYear = :year, 
-                            @Email = :email, 
-                            @FilterType = :filter"""),
-                    {
-                        "class_id": class_id,
-                        "term": term,
-                        "year": year,
-                        "email": session.get("user_email"),
-                        "filter": filter_type
-                    }
-                )
-                df = pd.DataFrame(result.fetchall(), columns=result.keys())
-
-                if df.empty:
-                    flash("No class data found for printing.", "warning")
-                    return redirect(url_for("class_bp.funder_classes"))
-
-                comp_df = (
-                    df[["CompetencyLabel", "CompetencyID", "YearGroupID"]]
-                    .drop_duplicates()
-                    .rename(columns={"CompetencyLabel": "label"})
-                )
-                comp_df["col_order"] = comp_df["YearGroupID"].astype(str).str.zfill(2) + "-" + comp_df["CompetencyID"].astype(str).str.zfill(4)
-                comp_df = comp_df.sort_values("col_order")
-                labels = comp_df["label"].tolist()
-
-                meta_cols = [
-                    "NSN", "FirstName", "LastName", "PreferredName",
-                    "DateOfBirth", "Ethnicity", "YearLevelID"
-                ]
-                df_combined = df.pivot_table(
-                    index=meta_cols,
-                    columns="label",
-                    values="CompetencyStatus",
-                    aggfunc="first"
-                ).fillna(0).astype(int).replace({1: "✓", 0: ""}).reset_index()
-
-                expiry_time = datetime.now(timezone.utc) + timedelta(minutes=15)
-                session.setdefault("class_cache", {})[cache_key] = {
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
-                    "expires": expiry_time.isoformat(),
-                    "students": df_combined.to_dict(),
-                    "competencies": comp_df.to_dict(orient="records"),
-                    "filter": filter_type,
-                    "student_competencies": df_combined.to_dict(orient="records")
-                }
-
-        else:
-            print("✅ Cache hit — loading from session")
-            df_combined = pd.DataFrame(cache["student_competencies"])
-            df_combined = df_combined.replace({1: "✓", 0: ""})
-            comp_df = pd.DataFrame(cache["competencies"])
-
-        labels = comp_df["label"].tolist()
-        grouped = {"0–2": [], "3–4": [], "5–6": [], "7–8": []}
-        for row in df_combined.to_dict(orient="records"):
-            for group in grouped:
-                grouped[group].append(row)
-
-        def get_range_labels(labels, yr_range):
-            return [label for label in labels if f"({yr_range})" in label]
-
-        columns_by_range = {
-            "0–2": get_range_labels(labels, "0-2"),
-            "3–4": get_range_labels(labels, "3-4"),
-            "5–6": get_range_labels(labels, "5-6"),
-            "7–8": get_range_labels(labels, "7-8")
-        }
+        order_by    = request.args.get("order_by", "last")
 
         engine = get_db_engine()
-        with engine.connect() as conn:
-            class_info = conn.execute(
-                text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :class_id"),
-                {"Request": "ClassInfoByID", "class_id": class_id}
-            ).fetchone()
+        ctx = _build_print_context(engine, class_id, term, year, filter_type, order_by)
 
-        class_name = class_info.ClassName if class_info else "Unknown Class"
-        teacher_name = class_info.TeacherName if class_info else "Unknown Teacher"
-
-        target_path = url_for("class_bp.view_class", class_id=class_id, term=term, year=year)
-        login_url = url_for("auth_bp.login", next=target_path, _external=True)
-        qr_data_uri = generate_qr_code_png(login_url)
-
-        return render_template(
-            "print_view.html",
-            grouped=grouped,
-            columns_by_range=columns_by_range,
-            class_name=class_name,
-            teacher_name=teacher_name,
-            filter_type=filter_type,
-            now=datetime.now,
-            qr_data_uri=qr_data_uri
-        )
+        # If no data, you can redirect or render a minimal page:
+        return render_template("print_view.html", **ctx)
 
     except Exception as e:
-        import traceback
         print("❌ Unhandled error in print_class_view:", e)
         traceback.print_exc()
         return "Internal Server Error (print view)", 500
+
+# =========================
+# ⭐ Add to app/routes/class.py (where class_bp is defined)
+# =========================
+import io
+import re
+from datetime import datetime
+
+import pandas as pd
+from sqlalchemy import text
+from flask import request, send_file, render_template, render_template_string, session, abort
+
+from app.utils.database import get_db_engine
+
+# ---- helpers ----
+SAFE_FN = re.compile(r"[^-_.() a-zA-Z0-9]+")
+
+def safe_filename(s: str) -> str:
+    s = (s or "").strip() or "export"
+    s = SAFE_FN.sub("_", s)
+    return s[:140]
+def excel_bytes_writer(df: pd.DataFrame, sheet_name: str = "Sheet1"):
+    """
+    Writes a compact, readable Excel:
+    - Wrapped headers (supports \n in header text)
+    - Narrow default widths (12), slightly wider for name columns
+    - Centered numbers/booleans, wrapped text for others
+    """
+    bio = io.BytesIO()
+    sheet = (sheet_name or "Sheet1")[:31]
+
+    try:
+        with pd.ExcelWriter(bio, engine="xlsxwriter") as writer:
+            df.to_excel(writer, index=False, sheet_name=sheet)
+
+            wb = writer.book
+            ws = writer.sheets[sheet]
+
+            # Formats
+            header_fmt = wb.add_format({
+                "bold": True, "valign": "top", "text_wrap": True,
+                "border": 1, "bg_color": "#F2F2F2"
+            })
+            text_fmt   = wb.add_format({"valign": "top", "text_wrap": True})
+            num_fmt    = wb.add_format({"valign": "vcenter", "align": "center"})
+
+            # Re-write headers with wrapping (supports \n inserted earlier)
+            for j, col in enumerate(df.columns):
+                ws.write(0, j, str(col), header_fmt)
+
+            # Make header row a bit taller for wraps
+            ws.set_row(0, 32)
+
+            # Column width plan
+            default_width = 12
+            width_map = {
+                "NSN": 8,
+                "YearLevelID": 8,
+                "LastName": 16,
+                "Surname": 16,
+                "FirstName": 14,
+                "PreferredName": 14,
+                "DateOfBirth": 11,
+            }
+
+            # Apply widths + sensible default cell formats
+            for j, col in enumerate(df.columns):
+                col_name = str(col)
+                width = width_map.get(col_name, default_width)
+
+                # Choose a default format for the column
+                series = df[col]
+                if pd.api.types.is_numeric_dtype(series) or pd.api.types.is_bool_dtype(series):
+                    col_fmt = num_fmt
+                else:
+                    col_fmt = text_fmt
+
+                ws.set_column(j, j, width, col_fmt)
+
+            # Freeze header
+            ws.freeze_panes(1, 0)
+
+        bio.seek(0)
+        return bio
+
+    except Exception:
+        # Fallback (no styling) if xlsxwriter is missing
+        bio = io.BytesIO()
+        with pd.ExcelWriter(bio, engine="openpyxl") as writer:
+            df.to_excel(writer, index=False, sheet_name=sheet)
+            # Optional: set simple widths in openpyxl
+            try:
+                from openpyxl.utils import get_column_letter
+                ws = writer.sheets[sheet]
+                for j, col in enumerate(df.columns, start=1):
+                    col_name = str(col)
+                    width = width_map.get(col_name, default_width)
+                    ws.column_dimensions[get_column_letter(j)].width = width
+            except Exception:
+                pass
+        bio.seek(0)
+        return bio
+
+def _get_class_meta(engine, class_id: int):
+    """Fetch class/teacher/school names. Falls back if SELECT is denied."""
+    # TRY a proc first (if you add one later, this will just start working)
+    try:
+        with engine.begin() as conn:
+            row = conn.execute(
+                text("EXEC FlaskGetClassMeta @ClassID = :cid"),
+                {"cid": class_id}
+            ).mappings().first()
+        if row:
+            return {
+                "ClassName":   row.get("ClassName")  or f"Class {class_id}",
+                "TeacherName": row.get("TeacherName") or "",
+                "SchoolName":  row.get("SchoolName") or "",
+                "MOENumber":   row.get("MOENumber"),
+            }
+    except Exception:
+        pass  # proc doesn't exist or not permitted—fall through to SELECT attempt
+
+    
+    except SQLAlchemyError:
+        # SELECT permission denied or other error—fallback
+        pass
+
+    # FINAL FALLBACK: no metadata available
+    return {
+        "ClassName":   f"Class {class_id}",
+        "TeacherName": "",
+        "SchoolName":  "",
+        "MOENumber":   None,
+    }
+
+def _load_class_list_df(engine, class_id: int, term: int, year: int) -> pd.DataFrame:
+    """Replace this EXEC with your real exporter for class list."""
+    print(session.get("user_role"))
+    with engine.begin() as conn:
+        df = pd.read_sql(
+            text("EXEC FlaskExportClassList @ClassID=:cid, @Term=:t, @CalendarYear=:y, @Role=:r")
+,
+            conn, params={"cid": class_id, "t": term, "y": year, "r":session.get("user_role")}
+        )
+    # Optional: preferred ordering
+    #lead = [c for c in ["NSN","LastName","FirstName","PreferredName","YearLevelID","DateOfBirth"] if c in df.columns]
+    #rest = [c for c in df.columns if c not in lead]
+    return  df
+
+def _load_achievements_df(engine, class_id: int, term: int, year: int) -> pd.DataFrame:
+    """Replace this EXEC with your real exporter for achievements table (one row per student)."""
+    with engine.begin() as conn:
+        df = pd.read_sql(
+            text("EXEC FlaskExportAchievements @ClassID=:cid, @Term=:t, @Year=:y"),
+            conn, params={"cid": class_id, "t": term, "y": year}
+        )
+    # Bring identity columns to the front if present
+    lead = [c for c in ["NSN","LastName","PreferredName","YearLevelID"] if c in df.columns]
+    rest = [c for c in df.columns if c not in lead]
+    return df[lead + rest] if lead else df
+
+def _ensure_authorised_for_class(engine, class_id: int):
+    """
+    If you need to restrict access (e.g., PRO only their classes, MOE only their school),
+    add checks here using session role/id.
+    """
+    role = session.get("user_role")
+    # Example (commented): require login at least
+    if role is None:
+        abort(403)
+    # Add stricter checks if needed:
+    # - for PRO: verify provider owns the class
+    # - for MOE: verify class MOENumber matches session user_id
+    # meta = _get_class_meta(engine, class_id)
+    # if role == "MOE" and meta["MOENumber"] != session.get("user_id"):
+    #     abort(403)
+import traceback
+# ---- Routes used by your Export modal ----
+@class_bp.route("/export_class_excel")
+def export_class_excel():
+    try:
+        engine  = get_db_engine()
+        class_id = int(request.args.get("class_id"))
+        term     = int(request.args.get("term"))
+        year     = int(request.args.get("year"))
+
+        _ensure_authorised_for_class(engine, class_id)
+         
+        meta = _get_class_meta(engine, class_id)
+         
+
+        df = _load_class_list_df(engine, class_id, term, year)
+         
+
+        if df.empty:
+            df = pd.DataFrame(columns=["No results"])
+
+        bio = excel_bytes_writer(df, sheet_name="Class List")
+        fname = safe_filename(f"{meta['SchoolName']} - {meta['ClassName']} - Class List (T{term} {year}).xlsx")
+        return send_file(
+            bio,
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            as_attachment=True,
+            download_name=fname
+        )
+    except Exception:
+        print("❌ export_class_excel failed:\n" + traceback.format_exc())
+        # Return something visible in the browser while you’re debugging
+        return jsonify({"success": False, "error": "Export failed. See server logs for details."}), 500
+
+
+from flask import request, send_file, jsonify
+import pandas as pd
+import io, ast, re, traceback
+from sqlalchemy import text
+@class_bp.route("/export_achievements_excel", methods=["GET", "POST"])
+@login_required
+def export_achievements_excel():
+    try:
+        engine   = get_db_engine()
+        class_id = int((request.values.get("class_id") or 0))
+        term     = int((request.values.get("term") or 0))
+        year     = int((request.values.get("year") or 0))
+
+        _ensure_authorised_for_class(engine, class_id)
+        meta = _get_class_meta(engine, class_id)
+
+        # ---------- Build dataframe ----------
+        df = None
+
+        # Preferred: POST JSON { rows: [...] }  or { data: [...] }
+        if request.method == "POST" and request.is_json:
+            payload = request.get_json(silent=True) or {}
+            rows = payload.get("rows") or payload.get("data") or []
+            if rows:
+                df = pd.DataFrame(rows)
+
+        # Compatibility: GET with repeated &df=... (python-literal dicts)
+        if df is None:
+            raw_list = request.args.getlist("df")
+            if raw_list:
+                rows = [ast.literal_eval(urllib.parse.unquote_plus(s)) for s in raw_list]
+                df = pd.DataFrame(rows)
+
+        # Fallback to DB exporter
+        if df is None:
+            df = _load_achievements_df(engine, class_id, term, year)
+
+        if df.empty:
+            df = pd.DataFrame(columns=["No results"])
+
+        # ---------- Clean & shape ----------
+        # Remove NSN
+        df.drop(columns=["NSN"], errors="ignore", inplace=True)
+
+        # Clean headers: <br> → space
+        def _clean_col(c: str) -> str:
+            s = str(c)
+            s = re.sub(r"<br\s*/?>", " ", s, flags=re.I)
+            return s.strip()
+
+        df.rename(columns={c: _clean_col(c) for c in df.columns}, inplace=True)
+
+        # YearLevelID → YearLevel
+        if "YearLevelID" in df.columns:
+            df.rename(columns={"YearLevelID": "YearLevel"}, inplace=True)
+
+        # Identity first
+        id_cols = [c for c in ["LastName", "PreferredName", "YearLevel"] if c in df.columns]
+        rest_cols = [c for c in df.columns if c not in id_cols]
+        if id_cols:
+            df = df[id_cols + rest_cols]
+
+        # 1 → "Y", 0/NaN → "" for binary columns (only in non-identity columns)
+        def _is_binary(series: pd.Series) -> bool:
+            uniq = set(series.dropna().astype(str).str.strip().unique())
+            return uniq.issubset({"0", "1", "0.0", "1.0"})
+        for col in rest_cols:
+            s = df[col]
+            if _is_binary(s):
+                df[col] = (
+                    s.replace({1: "Y", 1.0: "Y", "1": "Y", "1.0": "Y",
+                               0: "", 0.0: "", "0": "", "0.0": ""})
+                     .fillna("")
+                )
+
+        # ---------- Write Excel with 2-row header (title + subheaders) ----------
+        bio = io.BytesIO()
+        sheet = "Achievements"
+
+        def split_header(col_name: str) -> tuple[str, str]:
+            """
+            Return (base, in_parens) from a header like 'Reading Score (Term 2)'.
+            """
+            s = str(col_name).strip()
+            m = re.match(r"^(.*?)\s*(?:\((.*?)\))?\s*$", s)
+            base = (m.group(1) if m else s).strip()
+            in_parens = (m.group(2) if m else "").strip()
+            return base, in_parens
+
+        DATA_START_COL = 3  # D; identity are A..C
+
+        with pd.ExcelWriter(bio, engine="xlsxwriter") as writer:
+            # Data starts on Excel row 3 (index 2); we craft headers ourselves
+            df.to_excel(writer, index=False, header=False, sheet_name=sheet, startrow=2)
+            wb = writer.book
+            ws = writer.sheets[sheet]
+
+            last_col = max(0, len(df.columns) - 1)
+            school = meta.get("SchoolName", "")
+            klass  = meta.get("ClassName", "")
+            teach  = meta.get("TeacherName", "")
+            # Title in A1:C1 (merge 0..2)
+            title_lines = [
+                f"{school} — {klass}".strip(" —"),
+                f"Teacher: {teach}" if teach else "",
+                f"Term {term}, {year}",
+            ]
+            # remove any empty lines then join with newlines
+            title_text = "\n".join([ln for ln in title_lines if ln])
+
+            title_fmt = wb.add_format({
+                "bold": True,
+                "font_size": 12,
+                "align": "left",
+                "valign": "top",      # top looks better with multiple lines
+                "text_wrap": True,    # <-- required for \n to wrap
+            })
+            ws.merge_range(0, 0, 0, min(2, last_col), title_text, title_fmt)
+
+            # Formats
+            header_row1_rot = wb.add_format({
+                "bold": True, "valign": "top", "align": "center",
+                "text_wrap": True, "border": 1, "bg_color": "#F2F2F2",
+                "rotation": 90   # rotate row 1 headers for D→
+            })
+            header_row2_h = wb.add_format({
+                "bold": True, "valign": "top", "align": "center",
+                "text_wrap": True, "border": 1, "bg_color": "#F2F2F2"  # horizontal
+            })
+            id_header_fmt = wb.add_format({
+                "bold": True, "valign": "vcenter", "align": "left",
+                "text_wrap": False, "border": 1, "bg_color": "#F2F2F2"
+            })
+            cell_text_fmt = wb.add_format({"valign": "bottom", "text_wrap": True})
+            cell_center_fmt = wb.add_format({"valign": "vcenter", "align": "center"})
+
+            # Row heights: Row 1 tall, Row 2 shorter
+            ws.set_row(0, 120)  # row 1 (index 0)
+            ws.set_row(1, 17)  # row 2 (index 1)
+
+            # A2:C2 identity headers (fixed labels)
+            for j, name in enumerate(["LastName", "PreferredName", "YearLevel"]):
+                if j <= last_col:
+                    ws.write(1, j, name, id_header_fmt)
+
+            # D1.. top headers (base, rotated); D2.. subheaders (in-parens, horizontal)
+            for j in range(DATA_START_COL, last_col + 1):
+                base, sub = split_header(df.columns[j])
+                ws.write(0, j, base, header_row1_rot)
+                ws.write(1, j, sub, header_row2_h)
+
+            # Column widths & default cell formats
+            width_map = {"LastName": 16, "PreferredName": 14, "YearLevel": 10}
+            narrow_width = 6
+            default_identity_width = 12
+            for j, col in enumerate(df.columns):
+                series = df[col]
+                col_fmt = (cell_center_fmt
+                           if (pd.api.types.is_numeric_dtype(series) or pd.api.types.is_bool_dtype(series))
+                           else cell_text_fmt)
+                width = width_map.get(col, default_identity_width if col in ["LastName","PreferredName","YearLevel"] else narrow_width)
+                ws.set_column(j, j, width, col_fmt)
+
+            # Freeze panes below headers and after identity columns
+            ws.freeze_panes(2, DATA_START_COL)
+
+        bio.seek(0)
+        fname = _safe_filename(
+            f"{meta.get('SchoolName','')} - {meta.get('ClassName','')} - Achievements (T{term} {year}).xlsx"
+        )
+        return send_file(
+            bio,
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            as_attachment=True,
+            download_name=fname
+        )
+
+    except Exception:
+        print("❌ export_achievements_excel failed:\n" + traceback.format_exc())
+        return jsonify({"success": False, "error": "Export failed. See server logs for details."}), 500
+
+
+def _safe_filename(name: str) -> str:
+    name = re.sub(r'[\\/*?:"<>|]+', "-", str(name))
+    name = re.sub(r"\s+", " ", name).strip()
+    return name[:200]
+
+# ---- PDF via Playwright (Chromium) ----
+def _html_to_pdf_bytes_with_playwright(html: str, base_url: str) -> bytes | None:
+    try:
+        from playwright.sync_api import sync_playwright
+    except Exception:
+        return None  # Playwright not installed
+
+    # Ensure relative /static/... works by injecting a <base href="...">
+    import re
+    def inject_base(h: str, base: str) -> str:
+        # insert right after <head> … keep simple & robust
+        return re.sub(r"<head(\s*)>", f"<head\\1><base href=\"{base}\">", h, count=1, flags=re.I)
+
+    html = inject_base(html, base_url.rstrip("/") + "/")
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch(args=["--no-sandbox", "--disable-dev-shm-usage"])
+        try:
+            page = browser.new_page()
+            # Load the HTML directly; assets resolve thanks to <base href>
+            page.set_content(html, wait_until="networkidle")
+            pdf = page.pdf(
+                format="A4",
+                print_background=True,
+                margin={"top": "18mm", "right": "15mm", "bottom": "18mm", "left": "15mm"},
+            )
+            return pdf
+        finally:
+            browser.close()
+
+def _render_print_html(engine, class_id: int, term: int, year: int, filter_type: str, order_by: str) -> str:
+    # Reuse your existing context builder; you already had this idea earlier
+    # If you don't have a _build_print_context yet, we can synthesize a tiny wrapper
+    ctx = _build_print_context(engine, class_id, term, year, filter_type, order_by)
+    return render_template("print_view.html", **ctx)
+
+try:
+    from playwright.sync_api import sync_playwright
+except Exception:
+    sync_playwright = None
+
+from flask import request, jsonify, send_file, current_app as app
+
+
+def _html_to_pdf_bytes_with_playwright(html: str, base_url: str | None = None) -> bytes | None:
+    """
+    Returns PDF bytes using Playwright/Chromium, or None if Playwright isn't available
+    or PDF rendering fails for any reason.
+    """
+    if not sync_playwright:
+        return None
+
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True, args=["--no-sandbox"])
+            context = browser.new_context()
+            page = context.new_page()
+            # set_content supports base_url so relative assets resolve
+            page.set_content(html, base_url=base_url, wait_until="load")
+            pdf_bytes = page.pdf(
+                format="A4",
+                print_background=True,
+                margin={"top": "10mm", "right": "10mm", "bottom": "10mm", "left": "10mm"},
+            )
+            browser.close()
+            return pdf_bytes
+    except Exception:
+        app.logger.exception("Playwright PDF generation failed")
+        return None
+
+
+@class_bp.route("/export_achievements_pdf", methods=["GET"])
+@login_required
+def export_achievements_pdf():
+    try:
+        engine    = get_db_engine()
+        class_id  = int(request.args.get("class_id", 0))
+        term      = int(request.args.get("term", 0))
+        year      = int(request.args.get("year", 0))
+        filter_by = request.args.get("filter", "all")
+        order_by  = request.args.get("order_by", "last")
+
+        if not class_id or not term or not year:
+            return jsonify({"success": False, "error": "Missing class_id/term/year"}), 400
+
+        _ensure_authorised_for_class(engine, class_id)
+        meta = _get_class_meta(engine, class_id) or {}
+
+        # 1) Render the same HTML you use for “Print”
+        html = _render_print_html(engine, class_id, term, year, filter_by, order_by)
+        if not isinstance(html, str):
+            # in case your renderer returns a (template, ctx) or Response
+            html = str(html)
+
+        # 2) Try Playwright (Chromium) first
+        pdf_bytes = _html_to_pdf_bytes_with_playwright(html, base_url=request.url_root)
+
+        # 3) If Playwright isn't available, fall back to returning HTML
+        if pdf_bytes is None:
+            # You can change this to 503 if you want to signal “PDF not available”
+            return html
+
+        # 4) Download nicely named PDF
+        school = meta.get("SchoolName", "")
+        klass  = meta.get("ClassName", "")
+        fname = _safe_filename(f"{school} - {klass} - Achievements (T{term} {year}) - Print.pdf")
+
+        return send_file(
+            io.BytesIO(pdf_bytes),
+            mimetype="application/pdf",
+            as_attachment=True,
+            download_name=fname,
+        )
+
+    except Exception:
+        app.logger.exception("export_achievements_pdf failed")
+        return jsonify({"success": False, "error": "Export failed. See server logs for details."}), 500

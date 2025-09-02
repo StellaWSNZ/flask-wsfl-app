@@ -3,6 +3,7 @@
 <div class="container mt-5">
   <h1 class="mb-4 text-center text-primary">WSFL Teacher Assessment</h1>
 
+  <!-- ===================== MAIN SURVEY FORM (single form on page) ===================== -->
   <form
     action="{{ url_for('survey_bp.submit_survey', routename='TeacherAssessment') }}"
     method="post"
@@ -45,7 +46,7 @@
       <input type="hidden" name="q2_id" id="classIdHidden" />
     </fieldset>
 
-    <!-- Q3 Teacher (depends on school) -->
+    <!-- Q3 Teacher (depends on school) — add-teacher trigger lives in script -->
     <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
       <legend class="h6"><strong>Q3:</strong> Select the teacher</legend>
       <select
@@ -326,11 +327,67 @@
   </form>
 </div>
 
+<!-- ===================== ADD TEACHER MODAL (outside the form) ===================== -->
+<div class="modal fade" id="addTeacherModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <form id="addTeacherForm" class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Add Teacher</h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        ></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">First name</label>
+          <input type="text" class="form-control" name="firstName" required />
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Surname</label>
+          <input type="text" class="form-control" name="surname" required />
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Email</label>
+          <input type="email" class="form-control" name="email" required />
+        </div>
+        <div class="mb-3">
+          <label class="form-label">MOE Number (School)</label>
+          <input
+            type="number"
+            class="form-control"
+            name="moeNumber"
+            id="modalMoeNumber"
+            required
+            readonly
+          />
+        </div>
+        <div class="alert alert-warning d-none" id="addTeacherError"></div>
+      </div>
+
+      <div class="modal-footer">
+        <button
+          type="button"
+          class="btn btn-outline-secondary"
+          data-bs-dismiss="modal"
+        >
+          Cancel
+        </button>
+        <button type="submit" class="btn btn-primary">Add</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script>
   (() => {
     // ---- Config ----
     const SURVEY_ID = 3;
     const ROLE_QID = 4; // Q4 = Teacher Role
+    const ADD_TEACHER_VALUE = "__add_teacher__";
 
     // ---- Elements ----
     const roleSel = document.getElementById("roleSelect");
@@ -345,11 +402,15 @@
     const teacherSel = document.getElementById("teacherSelect");
     const teacherIdHidden = document.getElementById("teacherIdHidden");
 
+    const addTeacherModalEl = document.getElementById("addTeacherModal");
+    const addTeacherForm = document.getElementById("addTeacherForm");
+    const addTeacherError = document.getElementById("addTeacherError");
+    const modalMoeNumber = document.getElementById("modalMoeNumber");
+
     // Q9 recommendation bits
     const q9RecoBox = document.getElementById("q9-reco");
     const q9RecoText = document.getElementById("q9-reco-text");
     const q9RecoWhy = document.getElementById("q9-reco-reason");
-    const driverQs = ["q5", "q6", "q7", "q8"]; // Likert 1..3
     const levelMap = { Foundational: 1, Intermediate: 2, Expert: 3 };
 
     // ---- Helpers ----
@@ -384,8 +445,16 @@
       select.disabled = rows.length === 0;
       if (rows.length === 0) setSelectEmpty(select, "No results");
     }
+    function ensureAddTeacherOption() {
+      if (!teacherSel.querySelector(`option[value="${ADD_TEACHER_VALUE}"]`)) {
+        const opt = document.createElement("option");
+        opt.value = ADD_TEACHER_VALUE;
+        opt.textContent = "＋ Add teacher…";
+        teacherSel.appendChild(opt);
+      }
+    }
 
-    // ---- Load Schools (Q1) via /get_entities ----
+    // ---- Load Schools (Q1) ----
     document.addEventListener("DOMContentLoaded", async () => {
       try {
         const schools = await fetchJSON(`/get_entities?entity_type=School`);
@@ -393,11 +462,7 @@
           schoolSel,
           "Select a school…",
           Array.isArray(schools) ? schools : [],
-          (s) => ({
-            value: s.id, // MOENumber
-            label: s.name, // SchoolName
-            id: s.id,
-          })
+          (s) => ({ value: s.id, label: s.name, id: s.id })
         );
         schoolSel.disabled = false;
       } catch (e) {
@@ -406,14 +471,14 @@
       }
     });
 
-    // ---- Load Roles (Q4) via survey options ----
+    // ---- Load Roles (Q4) ----
     document.addEventListener("DOMContentLoaded", async () => {
       try {
         const options = await fetchJSON(
           `/api/surveys/${SURVEY_ID}/questions/${ROLE_QID}/options`
         );
         fillSelect(roleSel, "Choose a role…", options, (o) => ({
-          value: o.id ?? o.value, // prefer a stable ID
+          value: o.id ?? o.value,
           label: o.label ?? o.value,
           id: o.id ?? o.value,
         }));
@@ -423,7 +488,6 @@
         setSelectEmpty(roleSel, "Failed to load roles");
       }
     });
-
     roleSel?.addEventListener("change", () => {
       roleIdHidden.value = roleSel.value || "";
     });
@@ -432,6 +496,9 @@
     schoolSel?.addEventListener("change", async () => {
       const schoolId = schoolSel.value || "";
       if (schoolIdHidden) schoolIdHidden.value = schoolId;
+
+      // Prefill modal MOE number from selected school
+      if (modalMoeNumber) modalMoeNumber.value = schoolId || "";
 
       // reset dependents
       setSelectLoading(classSel);
@@ -456,27 +523,127 @@
         setSelectEmpty(classSel, "Failed to load classes");
       }
 
-      // Load teachers (Q3)
+      // Load teachers (Q3) — display "First Last", submit email
       try {
         const teachers = await fetchJSON(
           `/api/teachers?school_id=${encodeURIComponent(schoolId)}`
         );
-        fillSelect(teacherSel, "Choose a teacher…", teachers, (t) => ({
-          value: t.TeacherID || t.Email, // submit an ID if available
-          label: t.Name || t.Email,
-          id: t.TeacherID || t.Email,
-        }));
+        fillSelect(teacherSel, "Choose a teacher…", teachers, (t) => {
+          const email = (t.Email || "").toLowerCase();
+          const display =
+            (t.Name && t.Name.trim()) ||
+            `${(t.FirstName || "").trim()} ${(
+              t.Surname || ""
+            ).trim()}`.trim() ||
+            email ||
+            "—";
+          return {
+            value: email, // submit email as the value
+            label: display, // show only the name
+            id: t.TeacherID || email,
+          };
+        });
+        teacherSel.disabled = false;
+        ensureAddTeacherOption();
       } catch (e) {
         console.error(e);
         setSelectEmpty(teacherSel, "No Teachers Stored for Selected School");
+        teacherSel.disabled = false; // allow opening the modal anyway
+        ensureAddTeacherOption();
       }
     });
 
     classSel?.addEventListener("change", () => {
       classIdHidden.value = classSel.value || "";
     });
+
     teacherSel?.addEventListener("change", () => {
-      teacherIdHidden.value = teacherSel.value || "";
+      const val = teacherSel.value || "";
+      if (val === ADD_TEACHER_VALUE) {
+        if (!schoolSel.value) {
+          alert("Please select a school first.");
+          teacherSel.value = "";
+          return;
+        }
+        if (addTeacherError) addTeacherError.classList.add("d-none");
+        if (addTeacherForm) addTeacherForm.reset();
+        if (modalMoeNumber) modalMoeNumber.value = schoolSel.value || "";
+
+        const modal = bootstrap.Modal.getOrCreateInstance(addTeacherModalEl);
+        modal.show();
+        return;
+      }
+      teacherIdHidden.value = val;
+    });
+
+    // ---- Add Teacher submit (append to dropdown, no page reload) ----
+    addTeacherForm?.addEventListener("submit", async (ev) => {
+      ev.preventDefault();
+      if (addTeacherError) addTeacherError.classList.add("d-none");
+
+      const fd = new FormData(addTeacherForm);
+      const payload = {
+        firstName: (fd.get("firstName") || "").toString().trim(),
+        surname: (fd.get("surname") || "").toString().trim(),
+        email: (fd.get("email") || "").toString().trim().toLowerCase(),
+        moeNumber: (fd.get("moeNumber") || "").toString().trim(),
+      };
+
+      if (
+        !payload.firstName ||
+        !payload.surname ||
+        !payload.email ||
+        !payload.moeNumber
+      ) {
+        if (addTeacherError) {
+          addTeacherError.textContent = "All fields are required.";
+          addTeacherError.classList.remove("d-none");
+        }
+        return;
+      }
+
+      try {
+        const res = await fetch("/api/AddMOEStaff", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) {
+          throw new Error(data.message || `HTTP ${res.status}`);
+        }
+
+        // Close modal
+        bootstrap.Modal.getInstance(addTeacherModalEl)?.hide();
+
+        // Append teacher to Q3 if not already there
+        const email = (data.user.Email || "").trim().toLowerCase();
+        const name = `${(data.user.FirstName || "").trim()} ${(
+          data.user.Surname || ""
+        ).trim()}`.trim();
+        const label = name || email; // show only name, fallback to email
+        let opt = teacherSel.querySelector(`option[value="${email}"]`);
+        if (!opt) {
+          opt = document.createElement("option");
+          opt.value = email; // submit email
+          opt.textContent = label; // display name only
+          const addOpt = teacherSel.querySelector(
+            `option[value="${ADD_TEACHER_VALUE}"]`
+          );
+          teacherSel.insertBefore(opt, addOpt || null);
+        }
+        teacherSel.value = email;
+        teacherIdHidden.value = email;
+      } catch (err) {
+        console.error(err);
+        if (addTeacherError) {
+          addTeacherError.textContent = err.message || "Failed to add teacher.";
+          addTeacherError.classList.remove("d-none");
+        }
+      }
     });
 
     // ---- Q9 Recommendation logic (based on Q5–Q8) ----
@@ -511,7 +678,6 @@
         showPendingBanner();
         return;
       }
-
       const counts = { 1: 0, 2: 0, 3: 0 };
       let sum = 0;
       for (const v of vals) {
@@ -549,7 +715,7 @@
 
     document.addEventListener("DOMContentLoaded", () => {
       showPendingBanner();
-      recommendLevel(); // in case radios are prefilled
+      recommendLevel();
     });
     for (const q of ["q5", "q6", "q7", "q8"]) {
       document.querySelectorAll(`input[name="${q}"]`).forEach((inp) => {

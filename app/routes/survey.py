@@ -756,3 +756,76 @@ def api_flask_get_all_users():
     # Optionally filter/transform here if you only want instructors
     # rows = [r for r in rows if r.get("Role") == "Instructor"]
     return jsonify(rows)
+
+from flask import jsonify, request, current_app
+from sqlalchemy import text
+from sqlalchemy.exc import DBAPIError
+
+@survey_bp.route("/api/AddMOEStaff", methods=["POST"])
+def add_moe_staff():
+    data = request.get_json(force=True, silent=True) or {}
+    first = (data.get("firstName") or "").strip()
+    sur   = (data.get("surname") or "").strip()
+    email = (data.get("email") or "").strip().lower()
+    moe   = (data.get("moeNumber") or "").strip()
+
+    if not (first and sur and email and moe):
+        return jsonify(ok=False, message="Please fill in all fields."), 400
+    try:
+        moe_int = int(moe)
+    except ValueError:
+        return jsonify(ok=False, message="MOE Number must be a whole number."), 400
+
+    try:
+        with get_db_engine().begin() as conn:
+            row = conn.execute(
+                text("""
+                    EXEC dbo.FlaskAddMOEUserIfMissing
+                        @Email=:email,
+                        @FirstName=:first,
+                        @Surname=:sur,
+                        @MOENumber=:moe
+                """),
+                {"email": email, "first": first, "sur": sur, "moe": moe_int}
+            ).mappings().first()
+
+        if not row:
+            return jsonify(ok=False, message="Couldn’t add the teacher. Please try again."), 500
+
+        # If the proc *didn't* THROW on conflict and just returned an existing user,
+        # enforce that the user actually belongs to this MOE school.
+        role_existing = (row.get("Role") or "").upper()
+        id_existing   = row.get("ID")
+        if not (role_existing == "MOE" and int(id_existing or 0) == moe_int):
+            return jsonify(
+                ok=False,
+                message=("That email is already linked to a different organisation. "
+                         "Please ask an administrator to reassign it to this school, or use another email.")
+            ), 409
+
+        # OK — user is MOE and matches this school's MOE number
+        user = {
+            "Email": row["Email"],
+            "FirstName": row["FirstName"],
+            "Surname": row["Surname"],
+            "Role": row["Role"],
+            "ID": row["ID"],
+            "Active": row["Active"],
+            "Hidden": row["Hidden"],
+            "Admin": row["Admin"],
+        }
+        return jsonify(ok=True, user=user)
+
+    except DBAPIError as e:
+        raw = str(getattr(e, "orig", e))
+        if "Email already assigned to another entity" in raw or "already assigned to another entity" in raw:
+            return jsonify(
+                ok=False,
+                message=("That email is already linked to a different organisation. "
+                         "Please ask an administrator to reassign it to this school, or use another email.")
+            ), 409
+        if "MOE Number not found" in raw:
+            return jsonify(ok=False, message="We can’t find that MOE number. Please choose a school from the list."), 400
+
+        current_app.logger.exception("AddMOEStaff failed")
+        return jsonify(ok=False, message="Sorry—something went wrong while adding the teacher."), 500

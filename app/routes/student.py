@@ -117,3 +117,5 @@ def edit_student():
     except Exception as e:
         print("❌ Error editing student:", e)
         return jsonify({"success": False, "message": str(e)}), 500
+    
+    
