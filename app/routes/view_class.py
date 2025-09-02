@@ -1389,10 +1389,13 @@ from sqlalchemy import text
 @login_required
 def export_achievements_excel():
     try:
-        engine   = get_db_engine()
-        class_id = int((request.values.get("class_id") or 0))
-        term     = int((request.values.get("term") or 0))
-        year     = int((request.values.get("year") or 0))
+        engine = get_db_engine()
+
+        # Prefer JSON body; fall back to querystring/form for ids only
+        payload = request.get_json(silent=True) or {}
+        class_id = int(payload.get("class_id") or (request.values.get("class_id") or 0))
+        term     = int(payload.get("term")     or (request.values.get("term")     or 0))
+        year     = int(payload.get("year")     or (request.values.get("year")     or 0))
 
         _ensure_authorised_for_class(engine, class_id)
         meta = _get_class_meta(engine, class_id)
@@ -1400,21 +1403,25 @@ def export_achievements_excel():
         # ---------- Build dataframe ----------
         df = None
 
-        # Preferred: POST JSON { rows: [...] }  or { data: [...] }
+        # POST JSON: { rows: [...] }  or { data: [...] }
         if request.method == "POST" and request.is_json:
-            payload = request.get_json(silent=True) or {}
             rows = payload.get("rows") or payload.get("data") or []
             if rows:
+                # Optional: lightweight guardrails
+                if not isinstance(rows, list):
+                    return jsonify({"success": False, "error": "rows must be a list"}), 400
+                if len(rows) > 5000:
+                    return jsonify({"success": False, "error": "Too many rows"}), 413
                 df = pd.DataFrame(rows)
 
-        # Compatibility: GET with repeated &df=... (python-literal dicts)
-        if df is None:
-            raw_list = request.args.getlist("df")
-            if raw_list:
-                rows = [ast.literal_eval(urllib.parse.unquote_plus(s)) for s in raw_list]
-                df = pd.DataFrame(rows)
+        # Disallow giant/legacy GET with &df=... for privacy + CF limits
+        if request.method == "GET" and request.args.getlist("df"):
+            return jsonify({
+                "success": False,
+                "error": "Large GET payloads are not supported. POST a JSON body with { rows: [...] } instead."
+            }), 413
 
-        # Fallback to DB exporter
+        # Fallback to DB exporter (works for both GET and POST when rows weren’t provided)
         if df is None:
             df = _load_achievements_df(engine, class_id, term, year)
 
@@ -1443,7 +1450,7 @@ def export_achievements_excel():
         if id_cols:
             df = df[id_cols + rest_cols]
 
-        # 1 → "Y", 0/NaN → "" for binary columns (only in non-identity columns)
+        # 1 → "Y", 0/NaN → "" for binary columns (non-identity)
         def _is_binary(series: pd.Series) -> bool:
             uniq = set(series.dropna().astype(str).str.strip().unique())
             return uniq.issubset({"0", "1", "0.0", "1.0"})
@@ -1482,21 +1489,16 @@ def export_achievements_excel():
             school = meta.get("SchoolName", "")
             klass  = meta.get("ClassName", "")
             teach  = meta.get("TeacherName", "")
-            # Title in A1:C1 (merge 0..2)
             title_lines = [
                 f"{school} — {klass}".strip(" —"),
                 f"Teacher: {teach}" if teach else "",
                 f"Term {term}, {year}",
             ]
-            # remove any empty lines then join with newlines
             title_text = "\n".join([ln for ln in title_lines if ln])
 
             title_fmt = wb.add_format({
-                "bold": True,
-                "font_size": 12,
-                "align": "left",
-                "valign": "top",      # top looks better with multiple lines
-                "text_wrap": True,    # <-- required for \n to wrap
+                "bold": True, "font_size": 12, "align": "left",
+                "valign": "top", "text_wrap": True,
             })
             ws.merge_range(0, 0, 0, min(2, last_col), title_text, title_fmt)
 
@@ -1504,11 +1506,11 @@ def export_achievements_excel():
             header_row1_rot = wb.add_format({
                 "bold": True, "valign": "top", "align": "center",
                 "text_wrap": True, "border": 1, "bg_color": "#F2F2F2",
-                "rotation": 90   # rotate row 1 headers for D→
+                "rotation": 90
             })
             header_row2_h = wb.add_format({
                 "bold": True, "valign": "top", "align": "center",
-                "text_wrap": True, "border": 1, "bg_color": "#F2F2F2"  # horizontal
+                "text_wrap": True, "border": 1, "bg_color": "#F2F2F2"
             })
             id_header_fmt = wb.add_format({
                 "bold": True, "valign": "vcenter", "align": "left",
@@ -1517,16 +1519,18 @@ def export_achievements_excel():
             cell_text_fmt = wb.add_format({"valign": "bottom", "text_wrap": True})
             cell_center_fmt = wb.add_format({"valign": "vcenter", "align": "center"})
 
-            # Row heights: Row 1 tall, Row 2 shorter
-            ws.set_row(0, 120)  # row 1 (index 0)
-            ws.set_row(1, 17)  # row 2 (index 1)
+            # Header row heights
+            ws.set_row(0, 120)  # top (rotated) headers
+            ws.set_row(1, 17)   # subheaders
+            # Optional: make data rows taller overall
+            ws.set_default_row(30)
 
-            # A2:C2 identity headers (fixed labels)
+            # A2:C2 identity headers
             for j, name in enumerate(["LastName", "PreferredName", "YearLevel"]):
                 if j <= last_col:
                     ws.write(1, j, name, id_header_fmt)
 
-            # D1.. top headers (base, rotated); D2.. subheaders (in-parens, horizontal)
+            # D1.. base headers (rotated); D2.. subheaders (in-parens)
             for j in range(DATA_START_COL, last_col + 1):
                 base, sub = split_header(df.columns[j])
                 ws.write(0, j, base, header_row1_rot)
