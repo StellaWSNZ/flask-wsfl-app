@@ -708,39 +708,122 @@ def thank_you():
     return render_template("thankyou.html")
 
 
+def _badge_class(title: str) -> str:
+    # Map survey title to a stable blue shade (matches CSS in the template)
+    shades = ["badge-blue-1","badge-blue-2","badge-blue-3","badge-blue-4","badge-blue-5","badge-blue-6"]
+    return shades[hash((title or "").lower()) % len(shades)]
+
+def _normalize_entity_type(entity_type: str) -> str:
+    """
+    Map UI values to your proc's expected codes.
+    Adjust as needed ('PRO'/'FUN'/'PRV' etc).
+    """
+    et = (entity_type or "").strip().lower()
+    if et.startswith("fun"):   # "Funder"
+        return "FUN"
+    if et.startswith("pro"):   # "Provider"
+        return "PRO"
+    return entity_type  # fallback to whatever was passed
+
+# Map UI value -> DB proc code
+ET_CODE = {"Funder": "FUN", "Provider": "PRO", "Group": "GRP", "School": "MOE"}
+
+def _has_groups(engine, funder_id: int) -> bool:
+    try:
+        with engine.begin() as conn:
+            rows = list(conn.execute(
+                text("EXEC FlaskGetGroupsByFunder @FunderID = :fid"),
+                {"fid": funder_id}
+            ))
+        return len(rows) > 0
+    except Exception:
+        return False
+
+def _allowed_entity_types(user_role: str, engine, user_id: int):
+    role = (user_role or "").upper()
+    allowed = []
+    # School: everyone
+    allowed.append({"value": "School", "label": "School"})
+    # Funder: FUN or ADM
+    if role in {"FUN", "ADM"}:
+        allowed.append({"value": "Funder", "label": "Funder"})
+    # Provider: PRO, FUN, ADM, GRP
+    if role in {"PRO", "FUN", "ADM", "GRP"}:
+        allowed.append({"value": "Provider", "label": "Provider"})
+    # Group: ADM or FUN with groups
+    if role == "ADM" or (role == "FUN" and _has_groups(engine, user_id)):
+        allowed.append({"value": "Group", "label": "Group"})
+    # Keep a stable order like: Funder, Provider, Group, School
+    order = {"Funder": 0, "Provider": 1, "Group": 2, "School": 3}
+    allowed.sort(key=lambda x: order.get(x["value"], 99))
+    return allowed
+
+def _coerce_entity_type(chosen: str, allowed: list[dict]) -> str:
+    vals = [x["value"] for x in allowed]
+    if chosen in vals:
+        return chosen
+    return vals[0] if vals else "School"
+
+def _badge_class(title: str) -> str:
+    shades = ["badge-blue-1","badge-blue-2","badge-blue-3","badge-blue-4","badge-blue-5","badge-blue-6"]
+    return shades[hash((title or "").lower()) % len(shades)]
+
 @survey_bp.route("/SurveyByEntity", methods=["GET"])
+@login_required
 def staff_survey_admin():
-    entity_type = request.args.get("entity_type", "Funder")
-    selected_entity_id = request.args.get("entity_id", type=int)
+    # Session/user
+    user_role = session.get("user_role")   # "ADM","FUN","PRO","GRP", etc.
+    user_id   = session.get("user_id")
+
+    # Incoming selection
+    requested_entity_type = request.args.get("entity_type") or "Funder"
+    selected_entity_id    = request.args.get("entity_id", type=int)
 
     staff_surveys = []
-
     try:
+        engine = get_db_engine()
+
+        # Build allowed list & sanitize UI selection
+        allowed_entity_types = _allowed_entity_types(user_role, engine, user_id)
+        entity_type = _coerce_entity_type(requested_entity_type, allowed_entity_types)
+
+        # Only query if an entity is chosen
         if selected_entity_id:
-            engine = get_db_engine()
+            et_code = ET_CODE.get(entity_type, entity_type[:3].upper())
             with engine.begin() as conn:
-                cursor = conn.connection.cursor()
-                cursor.execute("EXEC SVY_GetEntityResponses @EntityType=?, @EntityID=?", entity_type, selected_entity_id)
-                staff_surveys = [
-                    {
-                        "FirstName": row.FirstName,
-                        "Surname": row.Surname,
-                        "Email": row.Email,
-                        "SubmittedDate": row.SubmittedDate,
-                        "RespondentID": row.RespondentID
-                    }
-                    for row in cursor.fetchall()
-                ]
+                # Use .mappings() for name-based access
+                result = conn.exec_driver_sql(
+                    "EXEC SVY_GetEntityResponses @EntityType=?, @EntityID=?",
+                    (et_code, selected_entity_id),
+                ).mappings()
+
+                for row in result:
+                    first = row.get("FirstName") or ""
+                    last  = row.get("Surname") or ""
+                    name  = f"{first} {last}".strip()
+                    staff_surveys.append({
+                        "FirstName": first,
+                        "Surname": last,
+                        "Name": name,
+                        "Email": row.get("Email") or "",
+                        "Title": row.get("Title") or "",
+                        "SubmittedDate": row.get("SubmittedDate"),
+                        "RespondentID": row.get("RespondentID"),
+                        "BadgeClass": _badge_class(row.get("Title") or ""),
+                    })
 
     except Exception:
-        print("❌ Error in /staff_survey_admin:")
-        traceback.print_exc()
+        import traceback; traceback.print_exc()
         flash("An error occurred while loading survey data.", "danger")
 
-    return render_template("survey_staff.html",
-                           entity_type=entity_type,
-                           selected_entity_id=selected_entity_id,
-                           staff_surveys=staff_surveys)
+    # Always render with these keys so Jinja doesn’t blow up
+    return render_template(
+        "survey_staff.html",
+        entity_type=entity_type,
+        allowed_entity_types=allowed_entity_types,
+        selected_entity_id=selected_entity_id,
+        staff_surveys=staff_surveys
+    )
 
 @survey_bp.get("/api/FlaskGetAllUsers")
 def api_flask_get_all_users():
@@ -829,3 +912,7 @@ def add_moe_staff():
 
         current_app.logger.exception("AddMOEStaff failed")
         return jsonify(ok=False, message="Sorry—something went wrong while adding the teacher."), 500
+    
+    
+    
+    

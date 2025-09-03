@@ -1,22 +1,26 @@
 {% extends "header.html" %}
-{% block title %}Staff Self Review Responses{% endblock %}
+{% block title %}Staff Form Responses{% endblock %}
 
 {% block content %}
 <div class="container mt-5">
-  <h2 class="mb-4 text-primary text-center">Staff Self Review Submissions</h2>
+  <h2 class="mb-4 text-primary text-center">Staff Form Responses</h2>
 
-  <!-- 🔍 Filter Form -->
+  <!-- 🔍 Filter Form (entity pickers) -->
   <form method="GET" id="filterForm" class="mb-4">
     <div class="row g-3 justify-content-center align-items-end">
       <div class="col-md-3">
         <label for="entity_type" class="form-label">Entity Type</label>
-        <select class="form-select" id="entity_type" name="entity_type" required>
-          <option value="Funder" {% if entity_type == 'Funder' %}selected{% endif %}>Funder</option>
-          <option value="Provider" {% if entity_type == 'Provider' %}selected{% endif %}>Provider</option>
-        </select>
+<select class="form-select" id="entity_type" name="entity_type" required>
+  {% for et in allowed_entity_types %}
+    <option value="{{ et.value }}" {% if entity_type == et.value %}selected{% endif %}>
+      {{ et.label }}
+    </option>
+  {% endfor %}
+</select>
+
       </div>
       <div class="col-md-4">
-        <label for="entity_id" class="form-label" id="entityLabel">Select Entity</label>
+        <label for="entity_id" class="form-label" id="entityLabel">Select {{ entity_type }}</label>
         <select class="form-select" id="entity_id" name="entity_id" required>
           <option value="">-- Choose an entity --</option>
         </select>
@@ -27,41 +31,77 @@
     </div>
   </form>
 
-  <!-- 📋 Survey Table -->
+  <!-- 🔎 Client-side filter/sort controls (only bottom three filters styled/centered) -->
   {% if staff_surveys %}
-  <div class="table-responsive mt-4">
-    <table class="table table-bordered align-middle shadow-sm bg-white rounded">
-      <thead class="table-dark-blue text-white">
+  <div class="filter-bar row g-2 mb-3 justify-content-center text-center">
+    <div class="col-12 col-md-3">
+      <input id="filterName" type="text" class="form-control" placeholder="Filter by name or email">
+    </div>
+    <div class="col-12 col-md-3">
+      <select id="filterForm" class="form-select">
+        <option value="">All forms</option>
+        {% for form_title in staff_surveys|map(attribute='Title')|unique|list %}
+          <option value="{{ form_title }}">{{ form_title }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-12 col-md-3">
+      <select id="sortBy" class="form-select">
+        <option value="submitted_desc">Submitted (newest)</option>
+        <option value="submitted_asc">Submitted (oldest)</option>
+        <option value="name_asc">Name A→Z</option>
+        <option value="name_desc">Name Z→A</option>
+        <option value="form_asc">Form A→Z</option>
+      </select>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- 📋 Table View -->
+  {% if staff_surveys %}
+  <div class="table-responsive mt-2">
+    <table class="table table-bordered align-middle shadow-sm bg-white rounded table-hover">
+      <thead class="table-dark-blue text-white sticky-top">
         <tr>
-          <th>First Name</th>
-          <th>Surname</th>
+          <th>Form</th>
+          <th>Name</th>
           <th>Email</th>
           <th>Submitted</th>
-          <th>Action</th>
+          <th class="text-center">Action</th>
         </tr>
       </thead>
       <tbody>
         {% for s in staff_surveys %}
-        <tr>
-          <td>{{ s.FirstName }}</td>
-          <td>{{ s.Surname }}</td>
-          <td>{{ s.Email }}</td>
-          <td>{{ s.SubmittedDate.strftime('%d %B %Y, %I:%M %p') }}</td>
+        <tr class="click-row position-relative" data-ts="{{ s.SubmittedDate.timestamp() if s.SubmittedDate }}">
           <td>
-            {% if s.RespondentID %}
+            <span class="badge {{ s.BadgeClass }}">{{ s.Title }}</span>
+            <a class="stretched-link visually-hidden-focusable"
+               href="{{ url_for('survey_bp.view_my_survey_response', respondent_id=s.RespondentID) }}"
+               aria-label="Open {{ s.Title }} for {{ s.Name or (s.FirstName ~ ' ' ~ s.Surname) }}">
+              Open
+            </a>
+          </td>
+          <td>{{ s.Name or (s.FirstName ~ ' ' ~ s.Surname) }}</td>
+          <td>{{ s.Email }}</td>
+          <td>
+            {% if s.SubmittedDate %}
+              {{ s.SubmittedDate.strftime('%d %B %Y, %I:%M %p') }}
+            {% else %}
+              —
+            {% endif %}
+          </td>
+          <td class="text-center">
             <a href="{{ url_for('survey_bp.view_my_survey_response', respondent_id=s.RespondentID) }}"
                class="btn btn-sm btn-outline-primary" target="_blank">
               View Response
             </a>
-            {% else %}
-            <span class="text-muted">—</span>
-            {% endif %}
           </td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
+
   {% elif selected_entity_id %}
   <div class="alert alert-info text-center mt-4">
     No survey responses found for this selection.
@@ -71,18 +111,50 @@
 
 <!-- 💅 Custom CSS -->
 <style>
-.table-dark-blue th {
-  background-color: #1a427d;
-  color: white;
+.table-dark-blue th { background-color: #1a427d; color: white; }
+.sticky-top { position: sticky; top: 0; z-index: 1; }
+.click-row { cursor: pointer; }
+
+/* Dark blue outline ONLY for bottom three filters */
+.filter-bar .form-control,
+.filter-bar .form-select {
+  border-color: #1a427d;
 }
+.filter-bar .form-control:focus,
+.filter-bar .form-select:focus {
+  border-color: #1a427d;
+  box-shadow: 0 0 0 0.2rem rgba(26, 66, 125, 0.25);
+}
+
+/* Deterministic blue shades for badges */
+.badge-blue-1 { background-color: #0d6efd; } /* primary */
+.badge-blue-2 { background-color: #0b5ed7; }
+.badge-blue-3 { background-color: #0a58ca; }
+.badge-blue-4 { background-color: #084298; }
+.badge-blue-5 { background-color: #052c65; }
+.badge-blue-6 { background-color: #1e3a8a; }
+.badge-blue-1, .badge-blue-2, .badge-blue-3, .badge-blue-4, .badge-blue-5, .badge-blue-6 {
+  color: #fff;
+}
+
+.filter-bar .col-12 {
+  display: flex;
+  align-items: stretch;
+}
+.filter-bar .form-control,
+.filter-bar .form-select {
+  flex: 1;   /* make them expand equally */
+}
+
+
 </style>
 
-<!-- JS: Load /get_entities dynamically -->
+<!-- JS: Load /get_entities dynamically & client-side filter/sort -->
 <script>
 document.addEventListener("DOMContentLoaded", function () {
   const entityTypeSelect = document.getElementById("entity_type");
-  const entityIdSelect = document.getElementById("entity_id");
-  const entityLabel = document.getElementById("entityLabel");
+  const entityIdSelect   = document.getElementById("entity_id");
+  const entityLabel      = document.getElementById("entityLabel");
   const selectedEntityId = "{{ selected_entity_id }}";
 
   function loadEntities(type) {
@@ -90,17 +162,15 @@ document.addEventListener("DOMContentLoaded", function () {
     entityLabel.textContent = `Select ${type}`;
     entityIdSelect.innerHTML = '<option value="">Loading...</option>';
 
-    fetch(`/get_entities?entity_type=${type}`)
+    fetch(`/get_entities?entity_type=${encodeURIComponent(type)}`)
       .then(res => res.json())
       .then(data => {
         entityIdSelect.innerHTML = '<option value="">-- Choose --</option>';
-        data.forEach(entity => {
+        (data || []).forEach(entity => {
           const option = document.createElement("option");
           option.value = entity.id;
-          option.textContent = entity.name;
-          if (String(entity.id) === selectedEntityId) {
-            option.selected = true;
-          }
+          option.textContent = entity.name || entity.label || entity.id;
+          if (String(entity.id) === selectedEntityId) option.selected = true;
           entityIdSelect.appendChild(option);
         });
       })
@@ -114,6 +184,57 @@ document.addEventListener("DOMContentLoaded", function () {
   entityTypeSelect.addEventListener("change", function () {
     loadEntities(this.value);
   });
+
+  // --- Filters / sorting (only if table rendered) ---
+  const tbody = document.querySelector("table tbody");
+  if (tbody) {
+    const allRows = Array.from(tbody.querySelectorAll("tr"));
+    const collate = new Intl.Collator();
+
+    function getCell(tr, idx) { return tr.children[idx]?.textContent.trim() || ""; }
+
+    function applyFilterSort() {
+      const q     = (document.getElementById("filterName")?.value || "").toLowerCase();
+      const form  = (document.getElementById("filterForm")?.value || "");
+      const sort  = (document.getElementById("sortBy")?.value || "submitted_desc");
+
+      let out = allRows.filter(tr => {
+        const formTitle = getCell(tr, 0);       // includes badge text
+        const name      = getCell(tr, 1);
+        const email     = getCell(tr, 2);
+        const matchesQ  = !q || (name.toLowerCase().includes(q) || email.toLowerCase().includes(q));
+        const matchesF  = !form || formTitle === form;
+        return matchesQ && matchesF;
+      });
+
+      out.sort((a, b) => {
+        const titleA = getCell(a, 0), titleB = getCell(b, 0);
+        const nameA  = getCell(a, 1), nameB = getCell(b, 1);
+        const tsA    = Number(a.getAttribute("data-ts") || 0);
+        const tsB    = Number(b.getAttribute("data-ts") || 0);
+
+        switch (sort) {
+          case "submitted_desc": return tsB - tsA;
+          case "submitted_asc":  return tsA - tsB;
+          case "name_asc":       return collate.compare(nameA, nameB);
+          case "name_desc":      return collate.compare(nameB, nameA);
+          case "form_asc":       return collate.compare(titleA, titleB);
+          default:               return 0;
+        }
+      });
+
+      tbody.replaceChildren(...out);
+    }
+
+    ["filterName","filterForm","sortBy"].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.addEventListener("input", applyFilterSort);
+        el.addEventListener("change", applyFilterSort);
+      }
+    });
+    applyFilterSort();
+  }
 });
 </script>
 {% endblock %}
