@@ -10,13 +10,13 @@
     <div class="row g-3 justify-content-center align-items-end">
       <div class="col-md-3">
         <label for="entity_type" class="form-label">Entity Type</label>
-<select class="form-select" id="entity_type" name="entity_type" required>
-  {% for et in allowed_entity_types %}
-    <option value="{{ et.value }}" {% if entity_type == et.value %}selected{% endif %}>
-      {{ et.label }}
-    </option>
-  {% endfor %}
-</select>
+        <select class="form-select" id="entity_type" name="entity_type" required>
+          {% for et in allowed_entity_types %}
+            <option value="{{ et.value }}" {% if entity_type == et.value %}selected{% endif %}>
+              {{ et.label }}
+            </option>
+          {% endfor %}
+        </select>
 
       </div>
       <div class="col-md-4">
@@ -63,7 +63,7 @@
     <table class="table table-bordered align-middle shadow-sm bg-white rounded table-hover">
       <thead class="table-dark-blue text-white sticky-top">
         <tr>
-          <th>Form</th>
+          <th>Form Type</th>
           <th>Name</th>
           <th>Email</th>
           <th>Submitted</th>
@@ -81,8 +81,8 @@
               Open
             </a>
           </td>
-          <td>{{ s.Name or (s.FirstName ~ ' ' ~ s.Surname) }}</td>
-          <td>{{ s.Email }}</td>
+          <td>{{ s.Details }}</td>
+          <td>{{ s.SubjectEmail }}</td>
           <td>
             {% if s.SubmittedDate %}
               {{ s.SubmittedDate.strftime('%d %B %Y, %I:%M %p') }}
@@ -127,15 +127,13 @@
 }
 
 /* Deterministic blue shades for badges */
-.badge-blue-1 { background-color: #0d6efd; } /* primary */
-.badge-blue-2 { background-color: #0b5ed7; }
-.badge-blue-3 { background-color: #0a58ca; }
-.badge-blue-4 { background-color: #084298; }
-.badge-blue-5 { background-color: #052c65; }
-.badge-blue-6 { background-color: #1e3a8a; }
-.badge-blue-1, .badge-blue-2, .badge-blue-3, .badge-blue-4, .badge-blue-5, .badge-blue-6 {
-  color: #fff;
-}
+.badge.badge-blue-1 { background-color: #bfdbfe !important; color: #1e3a8a !important; } /* Very Light Blue */
+.badge.badge-blue-2 { background-color: #60a5fa !important; color: #fff !important; }   /* Light Sky Blue */
+.badge.badge-blue-3 { background-color: #3b82f6 !important; color: #fff !important; }   /* Bright Blue */
+.badge.badge-blue-4 { background-color: #2563eb !important; color: #fff !important; }   /* Strong Mid Blue */
+.badge.badge-blue-5 { background-color: #1e40af !important; color: #fff !important; }   /* Navy Blue */
+.badge.badge-blue-6 { background-color: #312e81 !important; color: #fff !important; }   /* Deep Indigo */
+
 
 .filter-bar .col-12 {
   display: flex;

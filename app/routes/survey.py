@@ -764,34 +764,38 @@ def _coerce_entity_type(chosen: str, allowed: list[dict]) -> str:
         return chosen
     return vals[0] if vals else "School"
 
+
+import hashlib
+
 def _badge_class(title: str) -> str:
-    shades = ["badge-blue-1","badge-blue-2","badge-blue-3","badge-blue-4","badge-blue-5","badge-blue-6"]
-    return shades[hash((title or "").lower()) % len(shades)]
+    shades = ["badge-blue-1","badge-blue-2","badge-blue-3",
+              "badge-blue-4","badge-blue-5","badge-blue-6"]
+    key = (title or "").strip().lower().encode("utf-8")
+    # 2-byte digest → small integer → palette index
+    h2 = hashlib.blake2b(key, digest_size=2).digest()
+    idx = int.from_bytes(h2, "big") % len(shades)
+    return shades[idx]
+
+import hashlib  # <- add this at the top of survey.py
 
 @survey_bp.route("/SurveyByEntity", methods=["GET"])
 @login_required
 def staff_survey_admin():
-    # Session/user
-    user_role = session.get("user_role")   # "ADM","FUN","PRO","GRP", etc.
+    user_role = session.get("user_role")
     user_id   = session.get("user_id")
 
-    # Incoming selection
     requested_entity_type = request.args.get("entity_type") or "Funder"
     selected_entity_id    = request.args.get("entity_id", type=int)
 
     staff_surveys = []
     try:
         engine = get_db_engine()
-
-        # Build allowed list & sanitize UI selection
         allowed_entity_types = _allowed_entity_types(user_role, engine, user_id)
         entity_type = _coerce_entity_type(requested_entity_type, allowed_entity_types)
 
-        # Only query if an entity is chosen
         if selected_entity_id:
             et_code = ET_CODE.get(entity_type, entity_type[:3].upper())
             with engine.begin() as conn:
-                # Use .mappings() for name-based access
                 result = conn.exec_driver_sql(
                     "EXEC SVY_GetEntityResponses @EntityType=?, @EntityID=?",
                     (et_code, selected_entity_id),
@@ -808,6 +812,9 @@ def staff_survey_admin():
                         "Email": row.get("Email") or "",
                         "Title": row.get("Title") or "",
                         "SubmittedDate": row.get("SubmittedDate"),
+                        "Details": row.get("Details"),
+                        "SubjectEmail": row.get("SubjectEmail") or row.get("Email"),
+
                         "RespondentID": row.get("RespondentID"),
                         "BadgeClass": _badge_class(row.get("Title") or ""),
                     })
@@ -816,13 +823,16 @@ def staff_survey_admin():
         import traceback; traceback.print_exc()
         flash("An error occurred while loading survey data.", "danger")
 
-    # Always render with these keys so Jinja doesn’t blow up
+    # Precompute unique/sorted titles for the filter dropdown
+    form_titles = sorted({s["Title"] for s in staff_surveys if s.get("Title")})
+
     return render_template(
         "survey_staff.html",
         entity_type=entity_type,
         allowed_entity_types=allowed_entity_types,
         selected_entity_id=selected_entity_id,
-        staff_surveys=staff_surveys
+        staff_surveys=staff_surveys,
+        form_titles=form_titles,            # <- pass to template
     )
 
 @survey_bp.get("/api/FlaskGetAllUsers")
