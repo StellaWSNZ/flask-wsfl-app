@@ -491,6 +491,15 @@
                     Complete a Teacher Assessment
                   </a>
                 </li>
+                {%endif%}{% if user_admin == 1 %}
+                <li>
+                  <a
+                    class="dropdown-item py-2"
+                    href="{{ url_for('survey_bp.staff_survey_admin') }}"
+                  >
+                    View Staff Forms
+                  </a>
+                </li>
                 {%endif%}
                 <li>
                   <a
@@ -546,7 +555,7 @@
                     class="dropdown-item py-2"
                     href="{{ url_for('survey_bp.staff_survey_admin') }}"
                   >
-                    View Staff Surveys
+                    View Staff Forms
                   </a>
                 </li>
                 <li>
