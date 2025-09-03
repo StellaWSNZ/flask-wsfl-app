@@ -74,36 +74,45 @@
           <div class="table-responsive">
             <table class="table table-bordered text-center align-middle">
               <thead class="table-light">
-                <tr>
-                  <th>Staff</th>
-                  {% for module in eLearning[0].keys() if module != 'Name' %}
-                    <th>{{ module }}</th>
-                  {% endfor %}
-                </tr>
-              </thead>
-              <tbody>
-                {% for row in eLearning %}
-                <tr>
-                  <td>{{ row["Name"] }}</td>
-                  {% for key, val in row.items() if key != "Name" %}
-                  <td>
-                    {% set status = val|string %}
-                    {% if status in ['Passed','Completed'] %}
-                      <span class="badge bg-success" style="font-size:0.8rem;">{{ status }}</span>
-                    {% elif status == 'Cancelled' %}
-                      <span class="badge bg-danger" style="font-size:0.8rem;">{{ status }}</span>
-                    {% elif status == 'In Progress' %}
-                      <span class="badge bg-warning text-dark" style="font-size:0.8rem;">{{ status }}</span>
-                    {% elif status in ['Not Started','Enrolled','Not Enrolled'] %}
-                      <span class="badge bg-secondary" style="font-size:0.8rem;">{{ status }}</span>
-                    {% else %}
-                      <span class="badge bg-light text-dark" style="font-size:0.8rem;">{{ status }}</span>
-                    {% endif %}
-                  </td>
-                  {% endfor %}
-                </tr>
-                {% endfor %}
-              </tbody>
+  <tr>
+    <th>Staff</th>
+    {% for module in eLearning[0].keys() if module not in ['Name','RespondentID'] %}
+      <th>{{ module }}</th>
+    {% endfor %}
+  </tr>
+</thead>
+<tbody>
+  {% for row in eLearning %}
+  <tr>
+    <td>{{ row["Name"] }}</td>
+    {% for key, val in row.items() if key not in ["Name","RespondentID"] %}
+    <td>
+      {% set status = val|string %}
+      {% if key == "Latest Self Review" and val %}
+         <a href="{{ url_for('survey_bp.view_my_survey_response', respondent_id=row['RespondentID']) }}" style="text-decoration:none;">
+    <span class="badge bg-light text-dark" style="font-size:0.8rem;">
+      {{ status }}
+    </span>
+  </a>
+      {% else %}
+        {% if status in ['Passed','Completed'] %}
+          <span class="badge bg-success" style="font-size:0.8rem;">{{ status }}</span>
+        {% elif status == 'Cancelled' %}
+          <span class="badge bg-danger" style="font-size:0.8rem;">{{ status }}</span>
+        {% elif status == 'In Progress' %}
+          <span class="badge bg-warning text-dark" style="font-size:0.8rem;">{{ status }}</span>
+        {% elif status in ['Not Started','Enrolled','Not Enrolled'] %}
+          <span class="badge bg-secondary" style="font-size:0.8rem;">{{ status }}</span>
+        {% else %}
+          <span class="badge bg-light text-dark" style="font-size:0.8rem;">{{ status }}</span>
+        {% endif %}
+      {% endif %}
+    </td>
+    {% endfor %}
+  </tr>
+  {% endfor %}
+</tbody>
+
             </table>
           </div>
           {% else %}
