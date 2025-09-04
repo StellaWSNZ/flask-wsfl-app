@@ -71,48 +71,87 @@
         </div>
         <div class="card-body">
           {% if eLearning and not no_eLearning %}
+
+          <!-- 🔎 Filters & Sorting -->
+          <div class="row g-2 mb-3">
+            <div class="col-md-4">
+              <label for="filterName" class="form-label">Search staff</label>
+              <input id="filterName" class="form-control" type="text" placeholder="Type a name…">
+            </div>
+            <div class="col-md-3">
+              <label for="filterReview" class="form-label">Self review</label>
+              <select id="filterReview" class="form-select">
+                <option value="any" selected>Any</option>
+                <option value="has">Has self review</option>
+                <option value="none">No self review</option>
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label for="filterStatus" class="form-label">Course status</label>
+              <select id="filterStatus" class="form-select">
+                <option value="any" selected>Any</option>
+                <option>Passed</option>
+                <option>Completed</option>
+                <option>In Progress</option>
+                <option>Cancelled</option>
+                <option>Not Started</option>
+                <option>Enrolled</option>
+                <option>Not Enrolled</option>
+              </select>
+            </div>
+            <div class="col-md-2">
+              <label for="sortBy" class="form-label">Sort</label>
+              <select id="sortBy" class="form-select">
+                <option value="none" selected>None</option>
+                <option value="mostCompleted">Most completed</option>
+                <option value="leastCompleted">Least completed</option>
+                <option value="nameAZ">Name A → Z</option>
+                <option value="nameZA">Name Z → A</option>
+              </select>
+            </div>
+          </div>
+
           <div class="table-responsive">
             <table class="table table-bordered text-center align-middle">
               <thead class="table-light">
-  <tr>
-    <th>Staff</th>
-    {% for module in eLearning[0].keys() if module not in ['Name','RespondentID'] %}
-      <th>{{ module }}</th>
-    {% endfor %}
-  </tr>
-</thead>
-<tbody>
-  {% for row in eLearning %}
-  <tr>
-    <td>{{ row["Name"] }}</td>
-    {% for key, val in row.items() if key not in ["Name","RespondentID"] %}
-    <td>
-      {% set status = val|string %}
-      {% if key == "Latest Self Review" and val %}
-         <a href="{{ url_for('survey_bp.view_my_survey_response', respondent_id=row['RespondentID']) }}" style="text-decoration:none;">
-    <span class="badge bg-light text-dark" style="font-size:0.8rem;">
-      {{ status }}
-    </span>
-  </a>
-      {% else %}
-        {% if status in ['Passed','Completed'] %}
-          <span class="badge bg-success" style="font-size:0.8rem;">{{ status }}</span>
-        {% elif status == 'Cancelled' %}
-          <span class="badge bg-danger" style="font-size:0.8rem;">{{ status }}</span>
-        {% elif status == 'In Progress' %}
-          <span class="badge bg-warning text-dark" style="font-size:0.8rem;">{{ status }}</span>
-        {% elif status in ['Not Started','Enrolled','Not Enrolled'] %}
-          <span class="badge bg-secondary" style="font-size:0.8rem;">{{ status }}</span>
-        {% else %}
-          <span class="badge bg-light text-dark" style="font-size:0.8rem;">{{ status }}</span>
-        {% endif %}
-      {% endif %}
-    </td>
-    {% endfor %}
-  </tr>
-  {% endfor %}
-</tbody>
-
+                <tr>
+                  <th>Staff</th>
+                  {% for module in eLearning[0].keys() if module not in ['Name','RespondentID'] %}
+                    <th>{{ module }}</th>
+                  {% endfor %}
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in eLearning %}
+                <tr>
+                  <td>{{ row["Name"] }}</td>
+                  {% for key, val in row.items() if key not in ["Name","RespondentID"] %}
+                  <td>
+                    {% set status = val|string %}
+                    {% if key == "Latest Self Review" and val %}
+                      <a href="{{ url_for('survey_bp.view_my_survey_response', respondent_id=row['RespondentID']) }}" style="text-decoration:none;">
+                        <span class="badge bg-light text-dark" style="font-size:0.8rem;">
+                          {{ status }}
+                        </span>
+                      </a>
+                    {% else %}
+                      {% if status in ['Passed','Completed'] %}
+                        <span class="badge bg-success" style="font-size:0.8rem;">{{ status }}</span>
+                      {% elif status == 'Cancelled' %}
+                        <span class="badge bg-danger" style="font-size:0.8rem;">{{ status }}</span>
+                      {% elif status == 'In Progress' %}
+                        <span class="badge bg-warning text-dark" style="font-size:0.8rem;">{{ status }}</span>
+                      {% elif status in ['Not Started','Enrolled','Not Enrolled'] %}
+                        <span class="badge bg-secondary" style="font-size:0.8rem;">{{ status }}</span>
+                      {% else %}
+                        <span class="badge bg-light text-dark" style="font-size:0.8rem;">{{ status }}</span>
+                      {% endif %}
+                    {% endif %}
+                  </td>
+                  {% endfor %}
+                </tr>
+                {% endfor %}
+              </tbody>
             </table>
           </div>
           {% else %}
@@ -200,6 +239,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const label         = document.getElementById("entityLabel");
 
   function loadEntities(type) {
+    if (!entityIdSel) return;
     label.textContent = `Select ${type}`;
     entityIdSel.innerHTML = `<option value="">Loading ${type}s...</option>`;
     entityIdSel.disabled = true;
@@ -222,13 +262,133 @@ document.addEventListener("DOMContentLoaded", function () {
       });
   }
 
-  entityTypeSel.addEventListener("change", function () { loadEntities(this.value); });
-  if (entityTypeSel.value) loadEntities(entityTypeSel.value);
+  if (entityTypeSel) {
+    entityTypeSel.addEventListener("change", function () { loadEntities(this.value); });
+    if (entityTypeSel.value) loadEntities(entityTypeSel.value);
+  }
 
   // Bootstrap tooltips
   const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
   tooltipTriggerList.forEach(el => new bootstrap.Tooltip(el));
 });
+</script>
+
+<!-- 🔎 Client-side filters/sorting for eLearning table -->
+<script>
+(function () {
+  function debounce(fn, ms) {
+    let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+  }
+  function headerIndexByText(table, text) {
+    const ths = table.querySelectorAll('thead th');
+    for (let i = 0; i < ths.length; i++) {
+      if (ths[i].textContent.trim().toLowerCase() === text.trim().toLowerCase()) return i;
+    }
+    return -1;
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    const table = document.querySelector('.card-body table.table');
+    if (!table) return;
+
+    const tbody = table.querySelector('tbody');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+
+    const nameColIdx = 0; // "Staff" column
+    const selfReviewColIdx = headerIndexByText(table, 'Latest Self Review');
+
+    const filterName    = document.getElementById('filterName');
+    const filterReview  = document.getElementById('filterReview');
+    const filterStatus  = document.getElementById('filterStatus');
+    const sortBy        = document.getElementById('sortBy');
+
+    function rowMeta(tr) {
+      const tds = tr.querySelectorAll('td');
+      const name = (tds[nameColIdx]?.textContent || '').trim().toLowerCase();
+
+      let hasSelfReview = false;
+      if (selfReviewColIdx >= 0) {
+        const cell = tds[selfReviewColIdx];
+        hasSelfReview = !!(cell && cell.querySelector('a'));
+      }
+
+      let completedCount = 0;
+      const good = new Set(['passed','completed']);
+      tds.forEach((td, idx) => {
+        if (idx === nameColIdx || idx === selfReviewColIdx) return;
+        const txt = (td.textContent || '').trim().toLowerCase();
+        if (good.has(txt)) completedCount += 1;
+      });
+
+      return { name, hasSelfReview, completedCount, tds };
+    }
+
+    const cache = new Map();
+    rows.forEach(tr => cache.set(tr, rowMeta(tr)));
+
+    function rowMatchesFilters(meta) {
+      const q = (filterName?.value || '').trim().toLowerCase();
+      if (q && !meta.name.includes(q)) return false;
+
+      const rv = filterReview?.value || 'any';
+      if (rv === 'has' && !meta.hasSelfReview) return false;
+      if (rv === 'none' && meta.hasSelfReview) return false;
+
+      const sel = (filterStatus?.value || 'any');
+      if (sel && sel !== 'any') {
+        let anyMatch = false;
+        meta.tds.forEach((td, idx) => {
+          if (idx === nameColIdx) return;
+          const text = (td.textContent || '').trim().toLowerCase();
+          if (text === sel.toLowerCase()) anyMatch = true;
+        });
+        if (!anyMatch) return false;
+      }
+      return true;
+    }
+
+    function applyFilters() {
+      rows.forEach(tr => {
+        const meta = cache.get(tr);
+        tr.style.display = rowMatchesFilters(meta) ? '' : 'none';
+      });
+    }
+
+    function applySort() {
+      const visibleRows = rows.filter(tr => tr.style.display !== 'none');
+      const mode = (sortBy?.value || 'none');
+
+      if (mode === 'none') return;
+
+      const decorated = visibleRows.map((tr) => {
+        const meta = cache.get(tr);
+        return { tr, name: meta.name, completed: meta.completedCount };
+      });
+
+      if (mode === 'mostCompleted') {
+        decorated.sort((a, b) => b.completed - a.completed || a.name.localeCompare(b.name));
+      } else if (mode === 'leastCompleted') {
+        decorated.sort((a, b) => a.completed - b.completed || a.name.localeCompare(b.name));
+      } else if (mode === 'nameAZ') {
+        decorated.sort((a, b) => a.name.localeCompare(b.name));
+      } else if (mode === 'nameZA') {
+        decorated.sort((a, b) => b.name.localeCompare(a.name));
+      }
+
+      decorated.forEach(({ tr }) => tbody.appendChild(tr));
+    }
+
+    const run = () => { applyFilters(); applySort(); };
+    const runDebounced = debounce(run, 150);
+
+    filterName?.addEventListener('input', runDebounced);
+    filterReview?.addEventListener('change', run);
+    filterStatus?.addEventListener('change', run);
+    sortBy?.addEventListener('change', run);
+
+    run();
+  });
+})();
 </script>
 
 {% endblock %}

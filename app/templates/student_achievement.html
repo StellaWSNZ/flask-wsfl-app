@@ -7,146 +7,41 @@ html, body {
   height: 100%;
   margin: 0;
   padding: 0;
-  overflow: hidden; /* prevent double scrolling */
+  overflow: hidden;
 }
-
-.page-wrapper {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  overflow: auto;
+.page-wrapper { display: flex; flex-direction: column; height: 100vh; overflow: auto; }
+#non-table-content { flex-shrink: 0; }
+.scroll-table-wrapper { flex-grow: 1; overflow: auto; min-height: 0; }
+.scroll-table-inner:not(.fullscreen) { max-height: calc(100vh - 250px); }
+body.fullscreen-mode nav.navbar, body.fullscreen-mode #non-table-content { display: none !important; }
+.scroll-table-inner.fullscreen { max-height: 95vh !important; }
+.scroll-table-inner { max-height: 100%; overflow: auto; }
+#studentsTable { border-collapse: collapse; width: max-content; table-layout: fixed; border: none; }
+#studentsTable th, #studentsTable td {
+  padding: 2px; text-align: center; vertical-align: top; background-color: white;
+  font-size: 0.85rem; white-space: normal; word-wrap: break-word; border: none;
 }
-
-#non-table-content {
-  flex-shrink: 0;
+thead th { position: sticky; top: 0; z-index: 10; background-color: white; }
+.mark-all-wrapper { display: flex; flex-direction: column; justify-content: space-between; align-items: center; height: 100%; min-height: 100px; }
+.header-label { margin-bottom: 2px; }
+#studentsTable th.col-0, #studentsTable td.col-0,
+#studentsTable th.col-1, #studentsTable td.col-1,
+#studentsTable th.col-2, #studentsTable td.col-2 {
+  background-color: #f8f9fa; position: sticky; z-index: 5; box-shadow: inset 3px 0 0 #F8F9FA, inset -3px 0 0 #F8F9FA; border: none;
 }
-.scroll-table-wrapper {
-  flex-grow: 1;
-  overflow: auto;
-  min-height: 0; /* 💥 This is essential for flex scroll containment */
-}
-.scroll-table-inner:not(.fullscreen) {
-  max-height: calc(100vh - 250px); /* tweak based on header height */
-}
-body.fullscreen-mode nav.navbar,
-body.fullscreen-mode #non-table-content {
-  display: none !important;
-}
-
-.scroll-table-inner.fullscreen {
-  max-height: 95vh !important;
-}
-.scroll-table-inner {
-  max-height: 100%;
-  overflow: auto;
-}
-#studentsTable {
-  border-collapse: collapse;
-  width: max-content;
-  table-layout: fixed;
-  border: none;
-}
-#studentsTable th,
-#studentsTable td {
-  padding: 2px;
-  text-align: center;
-  vertical-align: top;
-  background-color: white;
-  font-size: 0.85rem;
-  white-space: normal;
-  word-wrap: break-word;
-  border: none;
-}
-thead th {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  background-color: white;
-}
-.mark-all-wrapper {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  align-items: center;
-  height: 100%;
-  min-height: 100px;
-}
-.header-label {
-  margin-bottom: 2px;
-}
-#studentsTable th.col-0,
-#studentsTable td.col-0,
-#studentsTable th.col-1,
-#studentsTable td.col-1,
-#studentsTable th.col-2,
-#studentsTable td.col-2 {
-  background-color: #f8f9fa;
-  position: sticky;
-  z-index: 5;
-  box-shadow: inset 3px 0 0 #F8F9FA, inset -3px 0 0 #F8F9FA;
-  border: none;
-}
-#studentsTable th.col-0,
-#studentsTable td.col-0 {
-  left: 0;
-  width: 180px;
-}
-#studentsTable th.col-1,
-#studentsTable td.col-1 {
-  left: 180px;
-  width: 180px;
-}
-#studentsTable th.col-2,
-#studentsTable td.col-2 {
-  left: 360px;
-  width: 80px;
-}
-.btn-xs {
-  padding: 0.15rem 0.3rem;
-  font-size: 0.7rem;
-  line-height: 1;
-  border-radius: 0.15rem;
-}
-#studentsTable th.col-0,
-#studentsTable th.col-1,
-#studentsTable th.col-2 {
-  z-index: 11;
-}
+#studentsTable th.col-0, #studentsTable td.col-0 { left: 0; width: 180px; }
+#studentsTable th.col-1, #studentsTable td.col-1 { left: 180px; width: 180px; }
+#studentsTable th.col-2, #studentsTable td.col-2 { left: 360px; width: 80px; }
+.btn-xs { padding: 0.15rem 0.3rem; font-size: 0.7rem; line-height: 1; border-radius: 0.15rem; }
+#studentsTable th.col-0, #studentsTable th.col-1, #studentsTable th.col-2 { z-index: 11; }
 #studentsTable th:not(.col-0):not(.col-1):not(.col-2),
-#studentsTable td:not(.col-0):not(.col-1):not(.col-2) {
-  width: 175px;
-}
-input[type="checkbox"] {
-  transform: scale(1.1);
-  margin: 0;
-}
-#studentsTable select.form-control {
-  padding: 2px 4px;
-  font-size: 0.85rem;
-  height: auto;
-  margin: 0;
-  line-height: 1;
-}
-select option {
-  white-space: normal;
-  word-break: break-word;
-}
-.list-group-item {
-  border: none;
-}
-.sticky-horizontal-scroll {
-  position: sticky;
-  bottom: 0;
-  z-index: 20;
-  overflow-x: auto;
-  background: white;
-  border-top: 1px solid #dee2e6;
-}
-
-.scroll-inner-x {
-  width: max-content;
-}
-
+#studentsTable td:not(.col-0):not(.col-1):not(.col-2) { width: 175px; }
+input[type="checkbox"] { transform: scale(1.1); margin: 0; }
+#studentsTable select.form-control { padding: 2px 4px; font-size: 0.85rem; height: auto; margin: 0; line-height: 1; }
+select option { white-space: normal; word-break: break-word; }
+.list-group-item { border: none; }
+.sticky-horizontal-scroll { position: sticky; bottom: 0; z-index: 20; overflow-x: auto; background: white; border-top: 1px solid #dee2e6; }
+.scroll-inner-x { width: max-content; }
 </style>
 
 <div class="page-wrapper d-flex flex-column">
@@ -166,7 +61,6 @@ select option {
         {% if edit == 1 %}
         <button type="button" class="btn btn-sm btn-outline-primary ms-2" onclick="toggleEditMode(true)">Edit</button>
         {% endif %}
-        
       </div>
 
       <!-- Edit Mode -->
@@ -182,191 +76,184 @@ select option {
         <button class="btn btn-sm btn-secondary" onclick="toggleEditMode(false)">Cancel</button>
       </div>
 
-      <!-- Sorting Buttons -->
+      <!-- Sorting + actions -->
       <div class="d-flex justify-content-center flex-wrap gap-2 mb-3">
-  <a href="{{ url_for('class_bp.view_class', class_id=class_id, term=term, year=year, filter=filter_type, order_by='first') }}"
-     class="btn btn-sm btn-outline-secondary {% if order_by == 'first' %}active{% endif %}">Sort by First Name</a>
-  <a href="{{ url_for('class_bp.view_class', class_id=class_id, term=term, year=year, filter=filter_type, order_by='last') }}"
-     class="btn btn-sm btn-outline-secondary {% if order_by == 'last' %}active{% endif %}">Sort by Last Name</a>
-  <button id="fullscreen-btn" class="btn btn-sm btn-outline-secondary" onclick="toggleFullScreen()">🖥️ Full Screen</button>
-  <a class="btn btn-sm btn-outline-secondary"
-     href="{{ url_for('class_bp.print_class_view', class_id=class_id, term=term, year=year, filter=filter_type, order_by=order_by) }}"
-     target="_blank">🖨️ Print</a>
-  <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#exportModal">
-  📤 Export
-</button>
-  <button class="btn btn-sm btn-secondary fw-bold d-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#helpModal">
-    <span class="text-white">?</span>
-    Help
-  </button>
-</div>
+        <a href="{{ url_for('class_bp.view_class', class_id=class_id, term=term, year=year, filter=filter_type, order_by='first') }}"
+           class="btn btn-sm btn-outline-secondary {% if order_by == 'first' %}active{% endif %}">Sort by First Name</a>
+        <a href="{{ url_for('class_bp.view_class', class_id=class_id, term=term, year=year, filter=filter_type, order_by='last') }}"
+           class="btn btn-sm btn-outline-secondary {% if order_by == 'last' %}active{% endif %}">Sort by Last Name</a>
+        <button id="fullscreen-btn" class="btn btn-sm btn-outline-secondary" onclick="toggleFullScreen()">🖥️ Full Screen</button>
+        <a class="btn btn-sm btn-outline-secondary"
+           href="{{ url_for('class_bp.print_class_view', class_id=class_id, term=term, year=year, filter=filter_type, order_by=order_by) }}"
+           target="_blank">🖨️ Print</a>
+        <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#exportModal">📤 Export</button>
+        <button class="btn btn-sm btn-secondary fw-bold d-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#helpModal">
+          <span class="text-white">?</span> Help
+        </button>
+      </div>
     </div>
   </div>
-<div class="modal fade" id="exportModal" tabindex="-1" aria-labelledby="exportModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content text-center">
-      <div class="modal-header">
-        <h5 class="modal-title" id="exportModalLabel">Export Options</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <p>You can export the class list or student achievements as Excel an file.</p>
-        <div class="d-grid gap-2">
-          <a href="{{ url_for('class_bp.export_class_excel', class_id=class_id, term=term, year=year) }}"
-   class="btn btn-outline-primary">📄 Class List (Excel)</a>
 
-<a href="{{ url_for('class_bp.export_achievements_excel', df = students, class_id=class_id, term=term, year=year) }}"
-   class="btn btn-outline-success">✅ Achievements (Excel)</a>
+  <!-- Export Modal -->
+  <div class="modal fade" id="exportModal" tabindex="-1" aria-labelledby="exportModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content text-center">
+        <div class="modal-header">
+          <h5 class="modal-title" id="exportModalLabel">Export Options</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p>You can export the class list or student achievements as an Excel file.</p>
+          <div class="d-grid gap-2">
+            <a href="{{ url_for('class_bp.export_class_excel', class_id=class_id, term=term, year=year) }}"
+               class="btn btn-outline-primary">📄 Class List (Excel)</a>
 
-<!--<a href="{{ url_for('class_bp.export_achievements_pdf', class_id=class_id, term=term, year=year) }}"
-   class="btn btn-outline-danger"
-   target="_blank" rel="noopener">📑 Achievements (PDF)</a> -->
+            <!-- POST JSON export for achievements -->
+            <button id="export-achievements-btn" type="button" class="btn btn-outline-success">
+              ✅ Achievements (Excel)
+            </button>
+          </div>
+          <div id="export-ach-status" class="small text-muted mt-2 d-none">Preparing export…</div>
         </div>
       </div>
     </div>
   </div>
-</div>
 
-<!-- Scrollable Table -->
-<div class="scroll-table-wrapper">
-  <div class="scroll-table-inner">
-    <table id="studentsTable" class="table table-sm">
-          <thead>
+  <!-- Scrollable Table -->
+  <div class="scroll-table-wrapper">
+    <div class="scroll-table-inner">
+      <table id="studentsTable" class="table table-sm">
+        <thead>
           <tr>
             <th class="col-0">Last Name</th>
             <th class="col-1">Preferred Name</th>
             <th class="col-2">Year Level</th>
-{% for col in columns[3:] %}
-  {% set normalized_col = col|replace('&lt;br&gt;', '<br>') %}
-  <th>
-    <div class="mark-all-wrapper">
-      <div class="header-label text-center">
-        {{ col|safe }}
-        {% if "Scenario" not in col %}
-        <br>
-        <button type="button"
-                class="btn btn-xs btn-outline-success mt-1 mark-all-btn"
-data-colraw="{{ col }}"
-                data-competencyid="{{ competency_id_map[normalized_col] if normalized_col in competency_id_map else '' }}">
-          Mark All
-        </button>
-        {% elif "Scenario" in col and "Selected" in col %}
-        <br>
-        <a href="#" class="small" data-bs-toggle="modal" data-bs-target="#scenarioModal">View full descriptions</a>
-        {% endif %}
-      </div>
-    </div>
-  </th>
-{% endfor %}
-
-
+            {% for col in columns[3:] %}
+              {% set normalized_col = col|replace('&lt;br&gt;', '<br>') %}
+              <th>
+                <div class="mark-all-wrapper">
+                  <div class="header-label text-center">
+                    {{ col|safe }}
+                    {% if "Scenario" not in col %}
+                      <br>
+                      <button type="button"
+                              class="btn btn-xs btn-outline-success mt-1 mark-all-btn"
+                              data-colraw="{{ col }}"
+                              data-competencyid="{{ competency_id_map[normalized_col] if normalized_col in competency_id_map else '' }}">
+                        Mark All
+                      </button>
+                    {% elif "Scenario" in col and "Selected" in col %}
+                      <br>
+                      <a href="#" class="small" data-bs-toggle="modal" data-bs-target="#scenarioModal">View full descriptions</a>
+                    {% endif %}
+                  </div>
+                </div>
+              </th>
+            {% endfor %}
           </tr>
         </thead>
         <tbody>
           {% for student in students %}
-          {% set row_index = loop.index0 %}
-          <tr>
-            <td class="col-0">{{ student.LastName }}</td>
-            <td class="col-1">{{ student.PreferredName }}</td>
-            <td class="col-2">{{ student.YearLevelID }}</td>
-            {% for col in columns[3:] %}
-            {% set val = student[col]|default('')|string|trim %}
-            {% set unescaped_col = col|replace('&lt;br&gt;', '<br>') %}
-            <td>
-              {% if col in ["Scenario One - Selected <br>(7-8)", "Scenario Two - Selected <br>(7-8)"] %}
-              <select class="form-control"
-        data-nsn="{{ student.NSN }}"
-        data-header="{{ col }}"
-        data-scenario-index="{{ 1 if 'Scenario One' in col else 2 }}"
-        data-row="{{ row_index }}"
-        data-col="{{ loop.index0 }}">
-
-                {% for scenario in scenarios %}
-                <option value="{{ scenario.ScenarioID }}" {% if val == scenario.ScenarioID|string %}selected{% endif %}>
-                  {{ scenario.HTMLScenario | safe }}
-                </option>
-                {% endfor %}
-              </select>
-              {% else %}
-              <input type="checkbox"
-                      tabindex="0"
-                       data-row="{{ row_index }}" 
-      data-col="{{ loop.index0 }}"
-                     name="competency"
-                     data-nsn="{{ student.NSN }}"
-                     data-competency="{{ col }}"
-                     data-competencyid="{{ competency_id_map[unescaped_col]['CompetencyID'] if unescaped_col in competency_id_map else '' }}"
-                     data-yeargroupid="{{ competency_id_map[unescaped_col]['YearGroupID'] if unescaped_col in competency_id_map else '' }}"
-                     {% if val in ["Y", "1", 1] %}checked{% endif %}
-/>
-              {% endif %}
-            </td>
-            {% endfor %}
-          </tr>
+            {% set row_index = loop.index0 %}
+            <tr>
+              <td class="col-0">{{ student.LastName }}</td>
+              <td class="col-1">{{ student.PreferredName }}</td>
+              <td class="col-2">{{ student.YearLevelID }}</td>
+              {% for col in columns[3:] %}
+                {% set val = student[col]|default('')|string|trim %}
+                {% set unescaped_col = col|replace('&lt;br&gt;', '<br>') %}
+                <td>
+                  {% if col in ["Scenario One - Selected <br>(7-8)", "Scenario Two - Selected <br>(7-8)"] %}
+                    <select class="form-control"
+                            data-nsn="{{ student.NSN }}"
+                            data-header="{{ col }}"
+                            data-scenario-index="{{ 1 if 'Scenario One' in col else 2 }}"
+                            data-row="{{ row_index }}"
+                            data-col="{{ loop.index0 }}">
+                      {% for scenario in scenarios %}
+                        <option value="{{ scenario.ScenarioID }}" {% if val == scenario.ScenarioID|string %}selected{% endif %}>
+                          {{ scenario.HTMLScenario | safe }}
+                        </option>
+                      {% endfor %}
+                    </select>
+                  {% else %}
+                    <input type="checkbox"
+                           tabindex="0"
+                           data-row="{{ row_index }}"
+                           data-col="{{ loop.index0 }}"
+                           name="competency"
+                           data-nsn="{{ student.NSN }}"
+                           data-competency="{{ col }}"
+                           data-competencyid="{{ competency_id_map[unescaped_col]['CompetencyID'] if unescaped_col in competency_id_map else '' }}"
+                           data-yeargroupid="{{ competency_id_map[unescaped_col]['YearGroupID'] if unescaped_col in competency_id_map else '' }}"
+                           {% if val in ["Y", "1", 1] %}checked{% endif %} />
+                  {% endif %}
+                </td>
+              {% endfor %}
+            </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
   </div>
 
-  <!-- Modal -->
-   <!-- Confirm Mark All Modal -->
-<div class="modal fade" id="markAllConfirmModal" tabindex="-1" aria-labelledby="markAllConfirmLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content text-center">
-      <div class="modal-header">
-        <h5 class="modal-title" id="markAllConfirmLabel">Confirm Mark All</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-  This will mark all checkboxes in the <strong><span id="mark-all-column-name">selected column</span></strong> as achieved.<br>
-  <div id="autofill-affected" class="mt-2 text-start"></div>
-  Are you sure you want to continue?
-</div>
-      <div class="modal-footer justify-content-center">
-        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
-        <button id="confirm-mark-all-btn" type="button" class="btn btn-success btn-sm">Yes, mark all</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div class="modal fade" id="helpModal" tabindex="-1" aria-labelledby="helpModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="helpModalLabel">Help & Keyboard Shortcuts</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body small">
-        <h6 class="fw-bold">Keyboard Navigation</h6>
-        <ul>
-          <li><strong>Tab</strong>/<strong>Shift+Tab</strong> – move sideways between checkboxes</li>
-          <li><strong>Enter</strong>/<strong>Shift+Enter</strong> – move down/up between rows</li>
-          <li><strong>Space</strong> – toggle a checkbox</li>
-          <li>You can also <strong>click checkboxes</strong> to toggle them manually</li>
-        </ul>
-
-        <h6 class="fw-bold mt-3">Other Features</h6>
-        <ul>
-          <li><strong>🖨️ Print</strong> – generates a printable version of the table</li>
-          <li><strong>🖥️ Full Screen</strong> – expands the table to fill the screen for easier data entry</li>
-          <li><strong>Sort by First/Last Name</strong> – reorders students alphabetically</li>
-        </ul>
-        {% if students | selectattr("YearLevelID", "in", [7, 8]) | list | length > 0 %}
-<h6 class="fw-bold mt-3">Scenarios</h6>
-<ul>
-  <li>Use the dropdowns to select which scenario a student is assigned to.</li>
-  <li>You can press the number keys <strong>0–4</strong> to quickly select a scenario.</li>
-  <li>Use <strong>Arrow Up</strong> and <strong>Arrow Down</strong> keys to scroll through scenario options.</li>
-  <li>Use <strong>Tab</strong> or <strong>Shift+Tab</strong> to move between dropdowns and checkboxes.</li>
-  <li>If you’re unsure about a scenario, click <strong>“View full descriptions”</strong> above the dropdown to open a detailed explanation.</li>
-</ul>
-{% endif %}
+  <!-- Modals (Mark All, Help, Scenarios, Fullscreen) -->
+  <div class="modal fade" id="markAllConfirmModal" tabindex="-1" aria-labelledby="markAllConfirmLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content text-center">
+        <div class="modal-header">
+          <h5 class="modal-title" id="markAllConfirmLabel">Confirm Mark All</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          This will mark all checkboxes in the <strong><span id="mark-all-column-name">selected column</span></strong> as achieved.<br>
+          <div id="autofill-affected" class="mt-2 text-start"></div>
+          Are you sure you want to continue?
+        </div>
+        <div class="modal-footer justify-content-center">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+          <button id="confirm-mark-all-btn" type="button" class="btn btn-success btn-sm">Yes, mark all</button>
+        </div>
       </div>
     </div>
   </div>
-</div>
+
+  <div class="modal fade" id="helpModal" tabindex="-1" aria-labelledby="helpModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="helpModalLabel">Help & Keyboard Shortcuts</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body small">
+          <h6 class="fw-bold">Keyboard Navigation</h6>
+          <ul>
+            <li><strong>Tab</strong>/<strong>Shift+Tab</strong> – move sideways between checkboxes</li>
+            <li><strong>Enter</strong>/<strong>Shift+Enter</strong> – move down/up between rows</li>
+            <li><strong>Space</strong> – toggle a checkbox</li>
+            <li>You can also <strong>click checkboxes</strong> to toggle them manually</li>
+          </ul>
+          <h6 class="fw-bold mt-3">Other Features</h6>
+          <ul>
+            <li><strong>🖨️ Print</strong> – generates a printable version of the table</li>
+            <li><strong>🖥️ Full Screen</strong> – expands the table to fill the screen for easier data entry</li>
+            <li><strong>Sort by First/Last Name</strong> – reorders students alphabetically</li>
+          </ul>
+          {% if students | selectattr("YearLevelID", "in", [7, 8]) | list | length > 0 %}
+          <h6 class="fw-bold mt-3">Scenarios</h6>
+          <ul>
+            <li>Use the dropdowns to select which scenario a student is assigned to.</li>
+            <li>You can press the number keys <strong>0–4</strong> to quickly select a scenario.</li>
+            <li>Use <strong>Arrow Up</strong> and <strong>Arrow Down</strong> keys to scroll through scenario options.</li>
+            <li>Use <strong>Tab</strong> or <strong>Shift+Tab</strong> to move between dropdowns and checkboxes.</li>
+            <li>If you’re unsure about a scenario, click <strong>“View full descriptions”</strong> above the dropdown to open a detailed explanation.</li>
+          </ul>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="modal fade" id="scenarioModal" tabindex="-1" aria-labelledby="scenarioModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
       <div class="modal-content">
@@ -387,32 +274,30 @@ data-colraw="{{ col }}"
       </div>
     </div>
   </div>
-  <div class="modal fade" id="fullscreenModal" tabindex="-1" aria-labelledby="fullscreenModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content text-center">
-      <div class="modal-header">
-        <h5 class="modal-title" id="fullscreenModalLabel">Full Screen Mode</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-  You have entered full screen mode.<br>
-  Press <strong>Esc</strong> or click below to exit full screen.<br><br>
 
-  <div class="d-flex justify-content-center gap-3">
-    <button class="btn btn-outline-secondary btn-sm" onclick="exitFullScreenViaModal()">Exit Full Screen</button>
-    <button class="btn btn-primary btn-sm" data-bs-dismiss="modal">Continue</button>
-  </div>
-</div>
+  <div class="modal fade" id="fullscreenModal" tabindex="-1" aria-labelledby="fullscreenModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content text-center">
+        <div class="modal-header">
+          <h5 class="modal-title" id="fullscreenModalLabel">Full Screen Mode</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          You have entered full screen mode.<br>
+          Press <strong>Esc</strong> or click below to exit full screen.<br><br>
+          <div class="d-flex justify-content-center gap-3">
+            <button class="btn btn-outline-secondary btn-sm" onclick="exitFullScreenViaModal()">Exit Full Screen</button>
+            <button class="btn btn-primary btn-sm" data-bs-dismiss="modal">Continue</button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
-</div>
-<!-- Sticky horizontal scrollbar pinned to bottom -->
-<div id="horizontal-scrollbar" class="sticky-horizontal-scroll">
-  <div class="scroll-inner-x">
-    <!-- Fake wide content just to create scroll -->
-<div id="scroll-sync-bar" style="height: 1px;"></div>
+
+  <!-- Sticky horizontal scrollbar -->
+  <div id="horizontal-scrollbar" class="sticky-horizontal-scroll">
+    <div class="scroll-inner-x"><div id="scroll-sync-bar" style="height: 1px;"></div></div>
   </div>
-</div>
 </div> <!-- END .page-wrapper -->
 
 <script>
@@ -439,7 +324,6 @@ function exitFullScreenViaModal() {
   const modal = bootstrap.Modal.getInstance(document.getElementById('fullscreenModal'));
   modal?.hide();
 }
-
 
 function submitClassInfo(classId) {
   const className = document.getElementById("edit-class-name").value.trim();
@@ -471,6 +355,7 @@ function submitClassInfo(classId) {
 }
 
 document.addEventListener("DOMContentLoaded", function () {
+  // Checkbox updates + autofill
   document.querySelectorAll('input[type="checkbox"][name="competency"]').forEach(cb => {
     cb.addEventListener("change", function () {
       const nsn = this.dataset.nsn;
@@ -501,6 +386,7 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   });
 
+  // Scenario dropdown updates
   document.querySelectorAll('select[data-scenario-index]').forEach(select => {
     select.addEventListener("change", function () {
       const nsn = this.dataset.nsn;
@@ -520,39 +406,32 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 });
 
+// Fullscreen toggle
 function toggleFullScreen() {
   const scrollInner = document.querySelector(".scroll-table-inner");
   const btn = document.getElementById("fullscreen-btn");
-
   const isNowFull = !document.body.classList.contains("fullscreen-mode");
-
   document.body.classList.toggle("fullscreen-mode", isNowFull);
   scrollInner.classList.toggle("fullscreen", isNowFull);
-
   btn.textContent = isNowFull ? "↩️ Exit Full Screen" : "🖥️ Full Screen";
-
   if (isNowFull) {
     const modal = new bootstrap.Modal(document.getElementById('fullscreenModal'));
     modal.show();
   }
 }
 
+// Bottom scrollbar sync
 document.addEventListener("DOMContentLoaded", function () {
   const tableScroll = document.querySelector(".scroll-table-wrapper");
   const pinnedScroll = document.getElementById("horizontal-scrollbar");
-
   if (pinnedScroll && tableScroll) {
     const inner = pinnedScroll.querySelector(".scroll-inner-x");
-
-    inner.addEventListener("scroll", () => {
-      tableScroll.scrollLeft = inner.scrollLeft;
-    });
-
-    tableScroll.addEventListener("scroll", () => {
-      inner.scrollLeft = tableScroll.scrollLeft;
-    });
+    inner.addEventListener("scroll", () => { tableScroll.scrollLeft = inner.scrollLeft; });
+    tableScroll.addEventListener("scroll", () => { inner.scrollLeft = tableScroll.scrollLeft; });
   }
 });
+
+// Fake wide element to size bottom scrollbar
 document.addEventListener("DOMContentLoaded", function () {
   const studentsTable = document.getElementById("studentsTable");
   const scrollSyncBar = document.getElementById("scroll-sync-bar");
@@ -560,72 +439,56 @@ document.addEventListener("DOMContentLoaded", function () {
     scrollSyncBar.style.width = studentsTable.scrollWidth + "px";
   }
 
-document.querySelectorAll(".mark-all-btn").forEach(btn => {
-  btn.addEventListener("click", function () {
-    const headerLabel = this.closest("th").querySelector(".header-label");
-    const colRaw = this.dataset.colraw;
+  // Mark All confirm flow
+  document.querySelectorAll(".mark-all-btn").forEach(btn => {
+    btn.addEventListener("click", function () {
+      const headerLabel = this.closest("th").querySelector(".header-label");
+      const colRaw = this.dataset.colraw;
 
-    // Clean column name for modal by cloning and stripping button + <br>
-    const tempClone = headerLabel.cloneNode(true);
-    tempClone.querySelectorAll("br")?.forEach(el => el.remove());
-    tempClone.querySelector("button")?.remove();
-    const cleanedColName = tempClone.textContent.trim();
+      const tempClone = headerLabel.cloneNode(true);
+      tempClone.querySelectorAll("br")?.forEach(el => el.remove());
+      tempClone.querySelector("button")?.remove();
+      const cleanedColName = tempClone.textContent.trim();
 
-    // Show clean name in modal
-    document.getElementById("mark-all-column-name").textContent = cleanedColName;
+      document.getElementById("mark-all-column-name").textContent = cleanedColName;
+      const dependent = autofillMap[colRaw] || [];
 
-    const dependent = autofillMap[colRaw] || [];
+      pendingMarkAllCompetency = { displayName: cleanedColName, colRaw: colRaw, dependent: dependent };
 
-    // Save to global
-    pendingMarkAllCompetency = {
-      displayName: cleanedColName,
-      colRaw: colRaw,
-      dependent: dependent
-    };
+      const autofillDiv = document.getElementById("autofill-affected");
+      if (dependent.length > 0) {
+        const list = dependent.map(dep => `<li>${dep.replace(/<br\s*\/?>/gi, " ")}</li>`).join("");
+        autofillDiv.innerHTML = `
+          <div class="alert alert-warning p-2 mt-2">
+            <strong>Note:</strong> This will also mark the following competencies as achieved:
+            <ul class="mb-0">${list}</ul>
+          </div>`;
+      } else {
+        autofillDiv.innerHTML = "";
+      }
 
-    // Inject dependent info into modal
-    const autofillDiv = document.getElementById("autofill-affected");
-    if (dependent.length > 0) {
-const list = dependent
-  .map(dep => `<li>${dep.replace(/<br\s*\/?>/gi, " ")}</li>`)
-  .join("");      autofillDiv.innerHTML = `
-        <div class="alert alert-warning p-2 mt-2">
-          <strong>Note:</strong> This will also mark the following competencies as achieved:
-          <ul class="mb-0">${list}</ul>
-        </div>`;
-    } else {
-      autofillDiv.innerHTML = "";
-    }
+      const modal = new bootstrap.Modal(document.getElementById('markAllConfirmModal'));
+      modal.show();
+    });
+  });
 
-    // Show the modal
-    const modal = new bootstrap.Modal(document.getElementById('markAllConfirmModal'));
-    modal.show();
+  document.getElementById("confirm-mark-all-btn").addEventListener("click", function () {
+    if (!pendingMarkAllCompetency) return;
+    const competency = pendingMarkAllCompetency.colRaw;
+    const checkboxes = document.querySelectorAll(`input[type="checkbox"][name="competency"]`);
+    checkboxes.forEach(cb => {
+      if (cb.dataset.competency?.trim() === competency && !cb.checked) {
+        cb.checked = true;
+        cb.dispatchEvent(new Event("change"));
+      }
+    });
+    pendingMarkAllCompetency = null;
+    const modalEl = document.getElementById('markAllConfirmModal');
+    bootstrap.Modal.getInstance(modalEl)?.hide();
   });
 });
 
-
-
-document.getElementById("confirm-mark-all-btn").addEventListener("click", function () {
-  if (!pendingMarkAllCompetency) return;
-
-const competency = pendingMarkAllCompetency.colRaw;
-const checkboxes = document.querySelectorAll(`input[type="checkbox"][name="competency"]`);
-checkboxes.forEach(cb => {
-  if (cb.dataset.competency?.trim() === competency && !cb.checked) {
-    cb.checked = true;
-    cb.dispatchEvent(new Event("change"));
-  }
-});
-
-  // Clear and hide modal
-  pendingMarkAllCompetency = null;
-  const modalEl = document.getElementById('markAllConfirmModal');
-  const modal = bootstrap.Modal.getInstance(modalEl);
-  modal.hide();
-
-   
-  });
-});
+// Keyboard nav
 document.addEventListener("keydown", function (e) {
   if (e.key === "Escape" && document.body.classList.contains("fullscreen-mode")) {
     document.body.classList.remove("fullscreen-mode");
@@ -633,14 +496,12 @@ document.addEventListener("keydown", function (e) {
     document.getElementById("fullscreen-btn").textContent = "🖥️ Full Screen";
   }
 });
+
 document.addEventListener("keydown", function (e) {
   const active = document.activeElement;
-
   if (!active) return;
-
   const isCheckbox = active.tagName === "INPUT" && active.type === "checkbox";
   const isSelect = active.tagName === "SELECT";
-
   if (!isCheckbox && !isSelect) return;
 
   const row = parseInt(active.dataset.row);
@@ -650,19 +511,19 @@ document.addEventListener("keydown", function (e) {
   const scrollY = window.scrollY;
   let next = null;
 
-  // 1–5 key quick-select for selects
-  if (isSelect && ["0", "1", "2", "3", "4"].includes(e.key)) {
-  const index = parseInt(e.key); // 0 through 4
-  if (index < active.options.length) {
-    active.selectedIndex = index;
-    active.dispatchEvent(new Event("change"));
-    e.preventDefault();
-    return;
+  // 0–4 quick select for selects
+  if (isSelect && ["0","1","2","3","4"].includes(e.key)) {
+    const index = parseInt(e.key);
+    if (index < active.options.length) {
+      active.selectedIndex = index;
+      active.dispatchEvent(new Event("change"));
+      e.preventDefault();
+      return;
+    }
   }
-}
 
   // Arrow up/down for selects
-  if (isSelect && ["ArrowDown", "ArrowUp"].includes(e.key)) {
+  if (isSelect && ["ArrowDown","ArrowUp"].includes(e.key)) {
     e.preventDefault();
     const dir = e.key === "ArrowDown" ? 1 : -1;
     active.selectedIndex = Math.max(0, Math.min(active.options.length - 1, active.selectedIndex + dir));
@@ -670,47 +531,36 @@ document.addEventListener("keydown", function (e) {
     return;
   }
 
-  // SPACE or Y/N or 1/0 for checkboxes
+  // Space / YN10 for checkboxes
   if (isCheckbox && e.key === " ") {
     e.preventDefault();
     active.checked = !active.checked;
     active.dispatchEvent(new Event("change"));
     return;
   }
-
-  if (isCheckbox && ["y", "n", "1", "0"].includes(e.key.toLowerCase())) {
+  if (isCheckbox && ["y","n","1","0"].includes(e.key.toLowerCase())) {
     e.preventDefault();
-    active.checked = ["y", "1"].includes(e.key.toLowerCase());
+    active.checked = ["y","1"].includes(e.key.toLowerCase());
     active.dispatchEvent(new Event("change"));
     return;
   }
 
-  // Tab / Shift+Tab movement
+  // Tab left/right
   if (e.key === "Tab") {
     e.preventDefault();
     const offset = e.shiftKey ? -1 : 1;
-
-    // Loop through columns to find the next focusable input or select
     for (let i = col + offset; offset > 0 ? i < 100 : i >= 0; i += offset) {
       const nextElem = document.querySelector(`[data-row="${row}"][data-col="${i}"]`);
-      if (nextElem) {
-        next = nextElem;
-        break;
-      }
+      if (nextElem) { next = nextElem; break; }
     }
   }
-
-  // Enter / Shift+Enter (up/down)
+  // Enter up/down
   else if (e.key === "Enter") {
     e.preventDefault();
     const offset = e.shiftKey ? -1 : 1;
-
     for (let r = row + offset; r >= 0 && r <= 100; r += offset) {
       const nextElem = document.querySelector(`[data-row="${r}"][data-col="${col}"]`);
-      if (nextElem) {
-        next = nextElem;
-        break;
-      }
+      if (nextElem) { next = nextElem; break; }
     }
   }
 
@@ -720,6 +570,70 @@ document.addEventListener("keydown", function (e) {
   }
 });
 
+// === Achievements export via POST JSON (no giant GET) ===
+document.addEventListener("DOMContentLoaded", () => {
+  const btn = document.getElementById("export-achievements-btn");
+  const statusEl = document.getElementById("export-ach-status");
+  if (!btn) return;
+
+  btn.addEventListener("click", async () => {
+    try {
+      statusEl?.classList.remove("d-none");
+      statusEl.textContent = "Preparing export…";
+
+      const payload = {
+        class_id: {{ class_id|tojson }},
+        term: {{ term|tojson }},
+        year: {{ year|tojson }},
+        rows: {{ students|tojson }}
+      };
+
+      const res = await fetch("{{ url_for('class_bp.export_achievements_excel') }}", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        const body = await res.text();
+        statusEl.textContent = "Export failed.";
+        alert("Export failed: " + body);
+        return;
+      }
+
+      const blob = await res.blob();
+
+      // Try to use filename from Content-Disposition; fallback
+      let filename = "achievements.xlsx";
+      const disp = res.headers.get("Content-Disposition") || res.headers.get("content-disposition");
+      if (disp) {
+        const match = /filename\*=UTF-8''([^;]+)|filename="?([^\";]+)"?/i.exec(disp);
+        if (match) {
+          filename = decodeURIComponent(match[1] || match[2]);
+        }
+      }
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+
+      statusEl.textContent = "Export ready ✔";
+      setTimeout(() => statusEl.classList.add("d-none"), 1500);
+
+      // Close modal
+      bootstrap.Modal.getInstance(document.getElementById('exportModal'))?.hide();
+    } catch (err) {
+      console.error(err);
+      statusEl.textContent = "Export failed.";
+      alert("Export failed. Please try again.");
+    }
+  });
+});
 </script>
 
 {% endblock %}
