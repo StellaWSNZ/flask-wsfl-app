@@ -1444,7 +1444,30 @@ def export_achievements_excel():
         if "YearLevelID" in df.columns:
             df.rename(columns={"YearLevelID": "YearLevel"}, inplace=True)
 
-        # Identity first
+        # --- PATCH: Force column order to match UI ---
+        ui_order_raw = []
+        if request.method == "POST" and request.is_json:
+            ui_order_raw = (payload.get("column_order") or [])
+
+        def _norm_header_for_match(s: str) -> str:
+            s = str(s)
+            s = re.sub(r"<br\s*/?>", " ", s, flags=re.I)
+            return s.strip()
+
+        df_norm_map = {str(c).strip(): c for c in df.columns}
+
+        desired_ach_cols = []
+        for ui_col in ui_order_raw:
+            norm = _norm_header_for_match(ui_col)
+            if norm in df_norm_map:
+                desired_ach_cols.append(df_norm_map[norm])
+
+        id_cols = [c for c in ["LastName", "PreferredName", "YearLevel"] if c in df.columns]
+        remaining = [c for c in df.columns if c not in id_cols + desired_ach_cols]
+        df = df[id_cols + desired_ach_cols + remaining]
+        # --- END PATCH ---
+
+        # Identity first (redundant now but safe)
         id_cols = [c for c in ["LastName", "PreferredName", "YearLevel"] if c in df.columns]
         rest_cols = [c for c in df.columns if c not in id_cols]
         if id_cols:
@@ -1463,14 +1486,11 @@ def export_achievements_excel():
                      .fillna("")
                 )
 
-        # ---------- Write Excel with 2-row header (title + subheaders) ----------
+        # ---------- Write Excel with 2-row header ----------
         bio = io.BytesIO()
         sheet = "Achievements"
 
         def split_header(col_name: str) -> tuple[str, str]:
-            """
-            Return (base, in_parens) from a header like 'Reading Score (Term 2)'.
-            """
             s = str(col_name).strip()
             m = re.match(r"^(.*?)\s*(?:\((.*?)\))?\s*$", s)
             base = (m.group(1) if m else s).strip()
@@ -1480,7 +1500,6 @@ def export_achievements_excel():
         DATA_START_COL = 3  # D; identity are A..C
 
         with pd.ExcelWriter(bio, engine="xlsxwriter") as writer:
-            # Data starts on Excel row 3 (index 2); we craft headers ourselves
             df.to_excel(writer, index=False, header=False, sheet_name=sheet, startrow=2)
             wb = writer.book
             ws = writer.sheets[sheet]
@@ -1520,23 +1539,22 @@ def export_achievements_excel():
             cell_center_fmt = wb.add_format({"valign": "vcenter", "align": "center"})
 
             # Header row heights
-            ws.set_row(0, 120)  # top (rotated) headers
-            ws.set_row(1, 17)   # subheaders
-            # Optional: make data rows taller overall
-            ws.set_default_row(30)
+            ws.set_row(0, 120)
+            ws.set_row(1, 17)
+            ws.set_default_row(17)
 
             # A2:C2 identity headers
             for j, name in enumerate(["LastName", "PreferredName", "YearLevel"]):
                 if j <= last_col:
                     ws.write(1, j, name, id_header_fmt)
 
-            # D1.. base headers (rotated); D2.. subheaders (in-parens)
+            # D1.. base headers; D2.. subheaders
             for j in range(DATA_START_COL, last_col + 1):
                 base, sub = split_header(df.columns[j])
                 ws.write(0, j, base, header_row1_rot)
                 ws.write(1, j, sub, header_row2_h)
 
-            # Column widths & default cell formats
+            # Column widths
             width_map = {"LastName": 16, "PreferredName": 14, "YearLevel": 10}
             narrow_width = 6
             default_identity_width = 12
@@ -1548,7 +1566,7 @@ def export_achievements_excel():
                 width = width_map.get(col, default_identity_width if col in ["LastName","PreferredName","YearLevel"] else narrow_width)
                 ws.set_column(j, j, width, col_fmt)
 
-            # Freeze panes below headers and after identity columns
+            # Freeze panes
             ws.freeze_panes(2, DATA_START_COL)
 
         bio.seek(0)
