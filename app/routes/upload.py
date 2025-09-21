@@ -108,7 +108,7 @@ def classlistupload():
         funders, schools = [], []
         selected_csv = selected_funder = selected_school = selected_school_str = selected_term = selected_year = selected_teacher = selected_class = None
         selected_school = session.get("desc") or ""
-        
+        selected_moe = None 
         with engine.connect() as conn:
             if session.get("user_role") == "FUN":
                 funders = [{"Description": session.get("desc"), "FunderID": session.get("user_id")}]
@@ -153,15 +153,26 @@ def classlistupload():
             session["selected_funder"] = selected_funder
             session["selected_funder"] = selected_funder
 
-            selected_school_str = request.form.get("school") or str(session.get("desc")) + "("+str(session.get("user_id"))+ ")"
-            selected_school = selected_school_str 
-            #print(selected_school_str)
-            moe_number = (
-                int(selected_school_str)
-                if selected_school_str.isdigit()
-                else int(selected_school_str.split('(')[-1].rstrip(')'))
+            selected_school_str = (
+                request.form.get("school")
+                or f"{session.get('desc')} ({session.get('user_id')})"
             )
+            selected_school = selected_school_str
+
+            # Safely extract MOE number; fallback to session user_id if parsing fails
+            try:
+                if selected_school_str.isdigit():
+                    moe_number = int(selected_school_str)
+                else:
+                    # Look for digits inside parentheses
+                    inner = selected_school_str.split("(")[-1].rstrip(")")
+                    moe_number = int(inner)
+            except (ValueError, IndexError):
+                # Fallback to the logged-in user’s id if we can’t parse a number
+                moe_number = int(session.get("user_id"))
+
             session["selected_moe"] = moe_number
+            selected_moe = moe_number
             
             column_mappings_json = request.form.get('column_mappings')
             
@@ -182,7 +193,7 @@ def classlistupload():
                     )
                     schools = [row.School for row in result]
             else:
-                schools = selected_school
+                schools = []
             #print(selected_funder)
             #print(schools)
             if action == "preview" and file and file.filename:
@@ -370,6 +381,8 @@ def classlistupload():
             selected_school=selected_school,
             selected_term=selected_term,
             selected_year=selected_year,
+                selected_moe=selected_moe,            # <-- add this
+
             selected_teacher = selected_teacher,
             selected_class = selected_class,
             selected_csv = selected_csv,
