@@ -155,6 +155,13 @@
                   >
                 </li>
                 {% endif %}
+                <li>
+                  <a
+                    class="dropdown-item py-2"
+                    href="{{ url_for('class_bp.achievement_upload') }}"
+                    >Upload Student Achievements</a
+                  >
+                </li>
               </ul>
             </li>
             {% endif %} {% if user_role == "MOE" %}
@@ -202,6 +209,7 @@
                     >Upload Class List</a
                   >
                 </li>
+
                 {% if session['user_admin'] == 1%}
                 <li>
                   <a
@@ -250,6 +258,13 @@
                   >
                     Class Lookup
                   </a>
+                </li>
+                <li>
+                  <a
+                    class="dropdown-item py-2"
+                    href="{{ url_for('class_bp.achievement_upload') }}"
+                    >Upload Student Achievements</a
+                  >
                 </li>
               </ul>
             </li>
@@ -356,6 +371,13 @@
                   >
                     Class Lookup
                   </a>
+                </li>
+                <li>
+                  <a
+                    class="dropdown-item py-2"
+                    href="{{ url_for('class_bp.achievement_upload') }}"
+                    >Upload Student Achievements</a
+                  >
                 </li>
               </ul>
             </li>

@@ -1,0 +1,428 @@
+{% extends "header.html" %}
+{% block title %}Upload Student Achievements{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+  <!-- Top-of-page banner (shown after reload) -->
+  <div id="pageBanner" class="alert d-none" role="alert" aria-live="polite"></div>
+
+  <div class="row justify-content-center">
+    <div class="col-12 col-lg-10">
+      <div class="card shadow-sm">
+        <div class="card-header">
+          <div class="h5 mb-0">Upload Student Achievements</div>
+          <small class="text-muted">Choose a school, term, and year, pick a class, then upload a CSV or Excel file.</small>
+        </div>
+
+        <div class="card-body">
+          <!-- School / Term / Year -->
+          <form id="filter-form" class="row g-3">
+            <div class="col-12">
+              <label for="schoolSelect" class="form-label">School</label>
+              <select id="schoolSelect" class="form-select" required>
+                <option value="" selected disabled>Loading schools…</option>
+              </select>
+            </div>
+
+            <div class="col-6 col-md-4">
+              <label for="termSelect" class="form-label">Term</label>
+              <select id="termSelect" class="form-select" required>
+                <option value="1">Term 1</option>
+                <option value="2">Term 2</option>
+                <option value="3" selected>Term 3</option>
+                <option value="4">Term 4</option>
+              </select>
+            </div>
+
+            <div class="col-6 col-md-4">
+              <label for="yearSelect" class="form-label">Year</label>
+              <select id="yearSelect" class="form-select" required>
+                {% set cy = current_year or 2025 %}
+                {% for y in [cy, cy-1, cy-2, cy-3, cy-4, cy-5] %}
+                  <option value="{{ y }}" {% if y == cy %}selected{% endif %}>{{ y }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </form>
+
+          <hr class="my-4">
+
+          <!-- Class -->
+          <div id="class-section" class="d-none">
+            <div class="d-flex gap-2 align-items-end">
+              <div class="flex-grow-1">
+                <label for="classSelect" class="form-label">Class</label>
+                <select id="classSelect" class="form-select">
+                  <option value="" selected disabled>Select a class…</option>
+                </select>
+              </div>
+
+              <div class="text-end small text-muted d-none d-md-block" style="min-width: 220px;">
+                Can’t see your class? <a class="link-primary" href="{{ url_for('upload_bp.classlistupload') }}">Upload a class list</a>.
+              </div>
+            </div>
+            <div class="form-text mt-2 d-md-none">
+              Can’t see your class? <a class="link-primary" href="{{ url_for('upload_bp.classlistupload') }}">Upload a class list</a>.
+            </div>
+          </div>
+
+          <div id="no-classes" class="alert alert-info d-none mt-3">
+            No classes found for this School / Term / Year.
+            <a class="btn btn-sm btn-outline-primary ms-2" href="{{ url_for('upload_bp.classlistupload') }}">
+              Upload a class list
+            </a>
+          </div>
+
+          <hr class="my-4">
+
+          <!-- Upload -->
+          <div>
+            <h6 class="mb-2">Upload Student Achievements (CSV or Excel)</h6>
+            <form id="upload-form" class="row g-3" enctype="multipart/form-data">
+              <div class="col-12 col-md-8">
+                <input id="fileInput" name="file" type="file" class="form-control"
+                       accept=".csv, application/vnd.ms-excel, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, .xlsx, .xls, .xlsm" required>
+                <div class="form-text">We’ll parse and preview up to 200 rows below.</div>
+              </div>
+              <div class="col-12 col-md-4 d-grid d-md-flex gap-2">
+                <button class="btn btn-primary" type="submit">Preview file</button>
+                <button class="btn btn-light" type="button" id="clearPreviewBtn">Clear</button>
+              </div>
+            </form>
+
+            <div id="uploadStatus" class="mt-3 d-none"></div>
+
+            <!-- Preview table -->
+            <div id="previewContainer" class="table-responsive mt-3 d-none">
+              <table id="previewTable" class="table table-sm table-striped table-bordered align-middle">
+                <thead></thead>
+                <tbody></tbody>
+              </table>
+              <div id="previewMeta" class="text-muted small"></div>
+            </div>
+
+            <!-- Brief info: canonical fields received + competency count -->
+            <div id="previewInfoBox" class="mt-3 d-none"></div>
+          </div>
+        </div>
+
+        <div class="card-footer d-flex flex-wrap justify-content-end align-items-center gap-2">
+          <button class="btn btn-light" type="button" onclick="window.history.back()">Cancel</button>
+          <button class="btn btn-primary" type="button" id="applyBtn" disabled>Upload to class</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ---------- Utilities ----------
+  function show(el) { el.classList.remove('d-none'); }
+  function hide(el) { el.classList.add('d-none'); }
+  const plural = (n) => n === 1 ? '' : 's';
+  const word = (n, singular, plural) => (n === 1 ? singular : plural);
+  const wasWere = (n) => (n === 1 ? 'was' : 'were');
+  async function readJsonOrText(res) {
+    const raw = await res.text();
+    try { return { ok: res.ok, data: JSON.parse(raw) }; }
+    catch { return { ok: res.ok, data: { ok: false, error: raw } }; }
+  }
+
+  // Show banner from sessionStorage (set after apply)
+  function showBannerFromStorage() {
+    const raw = sessionStorage.getItem('achvUploadBanner');
+    if (!raw) return;
+    sessionStorage.removeItem('achvUploadBanner');
+    try {
+      const { type, html } = JSON.parse(raw);   // expects HTML
+      const el = document.getElementById('pageBanner');
+      el.innerHTML = html || '';
+      el.className = 'alert ' + (
+        type === 'success' ? 'alert-success' :
+        type === 'info'    ? 'alert-info'    :
+                             'alert-danger'
+      );
+      show(el);
+    } catch {}
+  }
+
+  // ---------- Elements ----------
+  const schoolSelect     = document.getElementById('schoolSelect');
+  const termSelect       = document.getElementById('termSelect');
+  const yearSelect       = document.getElementById('yearSelect');
+  const classSection     = document.getElementById('class-section');
+  const classSelect      = document.getElementById('classSelect');
+  const noClassesBox     = document.getElementById('no-classes');
+  const applyBtn         = document.getElementById('applyBtn');
+
+  const uploadForm       = document.getElementById('upload-form');
+  const fileInput        = document.getElementById('fileInput');
+  const uploadStatus     = document.getElementById('uploadStatus');
+  const previewContainer = document.getElementById('previewContainer');
+  const previewTable     = document.getElementById('previewTable');
+  const previewMeta      = document.getElementById('previewMeta');
+  const clearPreviewBtn  = document.getElementById('clearPreviewBtn');
+  const previewInfoBox   = document.getElementById('previewInfoBox');
+
+  const PREVIEW_URL = "{{ url_for('class_bp.preview_upload') }}";
+  const APPLY_URL   = "{{ url_for('class_bp.apply_upload') }}";
+
+  // ---------- State ----------
+  let schoolMap = new Map();
+  let lastPayloadJson = null;
+  let applying = false;
+
+  // ---------- Init ----------
+  document.addEventListener('DOMContentLoaded', async () => {
+    showBannerFromStorage();
+    await loadSchools();
+  });
+
+  // ---------- Loaders ----------
+  async function loadSchools() {
+    try {
+      const res = await fetch('{{ url_for("funder_bp.get_entities") }}?entity_type=School', { credentials: 'same-origin' });
+      const { ok, data } = await readJsonOrText(res);
+      if (!ok) throw new Error(data.error || 'Failed to load schools');
+      const schools = data;
+
+      schoolSelect.innerHTML = '<option value="" selected disabled>Select a school…</option>';
+      schools.forEach(s => {
+        schoolMap.set(String(s.id), s.name);
+        const opt = document.createElement('option');
+        opt.value = s.id; opt.textContent = s.name;
+        schoolSelect.appendChild(opt);
+      });
+    } catch (e) {
+      schoolSelect.innerHTML = '<option value="" disabled selected>Could not load schools</option>';
+      console.error(e);
+    }
+  }
+
+  async function loadClasses() {
+    applyBtn.disabled     = true;
+    classSelect.innerHTML = '<option value="" selected disabled>Loading…</option>';
+    hide(noClassesBox); hide(classSection);
+
+    const moe  = schoolSelect.value;
+    const term = termSelect.value;
+    const year = yearSelect.value;
+    if (!moe || !term || !year) return;
+
+    try {
+      const url = `{{ url_for('class_bp.get_classes_by_school') }}?moe=${encodeURIComponent(moe)}&term=${encodeURIComponent(term)}&year=${encodeURIComponent(year)}`;
+      const res = await fetch(url, { credentials: 'same-origin' });
+      const { ok, data } = await readJsonOrText(res);
+      if (!ok) throw new Error(data.error || 'Failed to load classes');
+      const classes = data;
+
+      classSelect.innerHTML = '<option value="" selected disabled>Select a class…</option>';
+      if (!classes.length) {
+        show(noClassesBox);
+      } else {
+        classes.forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = c.id;
+          opt.textContent = c.teacher ? `${c.name} — ${c.teacher}` : c.name;
+          classSelect.appendChild(opt);
+        });
+        show(classSection);
+        hide(noClassesBox); // ensure blue alert disappears when dropdown appears
+      }
+    } catch (e) {
+      classSelect.innerHTML = '<option value="" selected disabled>Could not load classes</option>';
+      show(noClassesBox);
+      console.error(e);
+    }
+  }
+
+  [schoolSelect, termSelect, yearSelect].forEach(el => el.addEventListener('change', loadClasses));
+
+  classSelect.addEventListener('change', () => {
+    hide(noClassesBox);
+    applyBtn.disabled = !(classSelect.value && lastPayloadJson && lastPayloadJson.length);
+  });
+
+  // ---------- Preview ----------
+  uploadForm.addEventListener('submit', async (evt) => {
+    evt.preventDefault();
+
+    hide(previewContainer); hide(previewInfoBox);
+    uploadStatus.className = 'mt-3 alert alert-secondary';
+    uploadStatus.textContent = 'Uploading and parsing…'; uploadStatus.classList.remove('d-none');
+
+    const file = fileInput.files && fileInput.files[0];
+    if (!file) {
+      uploadStatus.className = 'mt-3 alert alert-warning';
+      uploadStatus.textContent = 'Please choose a file first.';
+      return;
+    }
+    // Size guard (10 MB)
+    if (file.size > 10 * 1024 * 1024) {
+      uploadStatus.className = 'mt-3 alert alert-danger';
+      uploadStatus.textContent = 'File is too large (max 10 MB).';
+      return;
+    }
+
+    const fd = new FormData(); fd.append('file', file);
+
+    try {
+      const res = await fetch(PREVIEW_URL, { method: 'POST', credentials: 'same-origin', body: fd });
+      const { ok, data } = await readJsonOrText(res);
+      if (!ok || !data.ok) throw new Error(data.error || 'Could not parse file');
+
+      renderPreviewTable(data.columns_combined || data.columns, data.rows);
+      previewMeta.textContent = `Showing ${data.sample_rows} of ${data.total_rows} row${plural(data.total_rows)}.`;
+      uploadStatus.className = 'mt-3 alert alert-success';
+      uploadStatus.textContent = 'Preview ready.';
+      previewContainer.classList.remove('d-none');
+
+      renderSmartNote(data);
+      lastPayloadJson = data.payload_json || null;
+      applyBtn.disabled = !(classSelect.value && lastPayloadJson && lastPayloadJson.length);
+
+    } catch (err) {
+      uploadStatus.className = 'mt-3 alert alert-danger';
+      uploadStatus.textContent = err.message || 'Error parsing file.';
+      hide(previewContainer); hide(previewInfoBox);
+      lastPayloadJson = null; applyBtn.disabled = true;
+      console.error(err);
+    }
+  });
+
+  clearPreviewBtn.addEventListener('click', () => {
+    fileInput.value = '';
+    hide(previewContainer); hide(previewInfoBox);
+    uploadStatus.textContent = ''; uploadStatus.className = 'mt-3 d-none';
+    previewTable.querySelector('thead').innerHTML = '';
+    previewTable.querySelector('tbody').innerHTML = '';
+    previewMeta.textContent = '';
+    lastPayloadJson = null; applyBtn.disabled = true;
+  });
+
+  function renderPreviewTable(columns, rows) {
+    const thead = previewTable.querySelector('thead');
+    const tbody = previewTable.querySelector('tbody');
+    thead.innerHTML = ''; tbody.innerHTML = '';
+
+    const trHead = document.createElement('tr');
+    columns.forEach(col => {
+      const th = document.createElement('th');
+      const text = (col === null || col === undefined) ? '' : String(col);
+      th.textContent = text.toLowerCase().startsWith('unnamed') ? '' : text;
+      trHead.appendChild(th);
+    });
+    thead.appendChild(trHead);
+
+    rows.forEach(r => {
+      const tr = document.createElement('tr');
+      r.forEach(cell => {
+        const td = document.createElement('td');
+        td.textContent = cell === null ? '' : String(cell);
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+  }
+
+  // Brief smart note: canonical fields + competency column count
+  function renderSmartNote(data) {
+    const mapping = data.field_mapping || {};
+    const canonOrder = ["NSN", "FirstName", "PreferredName", "LastName", "DateOfBirth", "YearLevel", "Ethnicity"];
+    const received = [...new Set(Object.values(mapping).filter(Boolean))];
+    received.sort((a,b) => canonOrder.indexOf(a) - canonOrder.indexOf(b));
+
+    // Competency columns = total columns - start index (when detected)
+    const compStart = data.competency_starts_at;
+    const colCount  = (data.columns_combined || data.columns || []).length;
+    const compCount = (typeof compStart === 'number' && compStart >= 0) ? Math.max(0, colCount - compStart) : 0;
+
+    let msg = received.length
+      ? `Received columns: <strong>${received.join(", ")}</strong>`
+      : `No recognised non-competency columns detected`;
+
+    if (compCount > 0) msg += ` + <strong>${compCount}</strong> competency column${plural(compCount)}.`;
+    else msg += '.';
+
+    previewInfoBox.className = 'alert alert-info mt-3';
+    previewInfoBox.innerHTML = msg;
+    previewInfoBox.classList.remove('d-none');
+  }
+
+  // ---------- Apply (execute proc) ----------
+  applyBtn.addEventListener('click', async () => {
+    if (applying) return;
+    const classId = classSelect.value;
+    if (!classId) return;
+    if (!lastPayloadJson || !lastPayloadJson.length) {
+      alert('Please preview a file first.');
+      return;
+    }
+
+    const payload = {
+      class_id: classId,
+      json_data: lastPayloadJson
+    };
+
+    // Disable button during submit
+    applying = true;
+    const oldHtml = applyBtn.innerHTML;
+    applyBtn.disabled = true;
+    applyBtn.innerHTML = 'Uploading…';
+
+    try {
+      const res = await fetch(APPLY_URL, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        credentials: 'same-origin',
+        body: JSON.stringify(payload)
+      });
+
+      const { ok, data } = await readJsonOrText(res);
+      if (!ok) throw new Error(data.error || 'Upload failed'); // only HTTP/network is fatal
+
+      // Build banner (with link on partial failures)
+      const validCount      = (data.valid_students || []).length;
+      const unexpectedCount = (data.unexpected_students || []).length;
+      const totalCount      = validCount + unexpectedCount;
+
+      const term = termSelect.value;
+      const year = yearSelect.value;
+      const classUrl = `/Class/${encodeURIComponent(classId)}/${encodeURIComponent(term)}/${encodeURIComponent(year)}`;
+
+      let type, html;
+      if (unexpectedCount === 0) {
+        // success grammar → "1 row was processed" vs "2 rows were processed"
+        type = 'success';
+        html = `${totalCount} ${word(totalCount, 'row', 'rows')} ${wasWere(totalCount)} processed successfully.`;
+      } else {
+        // error grammar + explanation + link
+        type = 'danger';
+        html =
+          `Unable to process file — ${unexpectedCount} ${word(unexpectedCount, 'row', 'rows')} ` +
+          `${wasWere(unexpectedCount)} unsuccessful. ` +
+          `Some uploaded students are not linked to this class, which is usually because an extra student ` +
+          `was included who isn’t on the current class list. ` +
+          `<a href="${classUrl}" class="alert-link">View the class list</a>.`;
+      }
+
+      sessionStorage.setItem('achvUploadBanner', JSON.stringify({ type, html }));
+      window.location.href = window.location.pathname; // reload to show banner
+
+    } catch (err) {
+      sessionStorage.setItem('achvUploadBanner', JSON.stringify({
+        type: 'danger',
+        html: err.message || 'Unexpected error'
+      }));
+      window.location.href = window.location.pathname;
+
+    } finally {
+      // In case navigation fails, restore button
+      applyBtn.disabled = false;
+      applyBtn.innerHTML = oldHtml;
+      applying = false;
+    }
+  });
+</script>
+{% endblock %}

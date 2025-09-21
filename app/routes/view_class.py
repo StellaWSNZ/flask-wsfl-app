@@ -1,5 +1,5 @@
 # app/routes/view_class.py
-from datetime import datetime, timezone, timedelta
+from datetime import date, datetime, timezone, timedelta
 from collections import defaultdict
 import qrcode
 import base64
@@ -1707,3 +1707,527 @@ def export_achievements_pdf():
     except Exception:
         app.logger.exception("export_achievements_pdf failed")
         return jsonify({"success": False, "error": "Export failed. See server logs for details."}), 500
+    
+    
+    
+def _bad(msg, code=400):
+    return jsonify({"ok": False, "error": msg}), code
+
+def _require_int(v, name):
+    try:
+        return int(v)
+    except (TypeError, ValueError):
+        raise ValueError(f"Invalid {name}")
+
+# ---------- 1) GET classes by school / term / year ----------
+@class_bp.route("/class_bp/get_classes_by_school")
+@login_required
+def get_classes_by_school():
+    moe  = request.args.get("moe")
+    term = request.args.get("term")
+    year = request.args.get("year")
+
+    try:
+        if not moe:
+            return _bad("Missing 'moe'")
+        term = _require_int(term, "term")
+        year = _require_int(year, "year")
+    except ValueError as e:
+        return _bad(str(e))
+
+    engine = get_db_engine()
+    try:
+        with engine.begin() as conn:
+            # Stored proc returns: ClassID, ClassName, TeacherName
+            stmt = text("""
+                EXEC [FlaskHelperFunctionsSpecific]
+                @Request = :r,
+                     @MOENumber = :moe,
+                     @Term = :term,
+                     @Year = :year
+            """)
+            rows = conn.execute(stmt, {"r":"AllClassesBySchoolTermYear","moe": moe, "term": term, "year": year}).fetchall()
+
+        out = [
+            {
+                "id": r._mapping["ClassID"],
+                "name": r._mapping["ClassName"],
+                "teacher": r._mapping.get("TeacherName")
+            }
+            for r in rows
+        ]
+        return jsonify(out)
+    except SQLAlchemyError as e:
+        return _bad(f"Database error loading classes: {str(e)}", 500)
+
+# ---------- 2) POST add class (name + teacher) ----------
+@class_bp.route("/class_bp/add_class", methods=["POST"])
+@login_required
+def add_class():
+    data = request.get_json(silent=True) or {}
+    moe   = data.get("moenumber")
+    term  = data.get("term")
+    year  = data.get("year")
+    cname = (data.get("class_name") or "").strip()
+    tname = (data.get("teacher_name") or "").strip()
+
+    # Basic validation
+    try:
+        if not moe:
+            return _bad("Missing 'moenumber'")
+        term = _require_int(term, "term")
+        year = _require_int(year, "year")
+        if not cname:
+            return _bad("Missing 'class_name'")
+        if not tname:
+            return _bad("teacher_name is required")
+    except ValueError as e:
+        return _bad(str(e))
+
+    engine = get_db_engine()
+    try:
+        with engine.begin() as conn:
+            # Use an OUTPUT parameter pattern to get new ClassID
+            # We capture it with a temp table and select it.
+            stmt = text("""
+                EXEC FlaskHelperFunctionsSpecific
+                    @Request = 'AddClass',
+                    @MOENumber = :moe,
+                    @Term = :term,
+                    @CalendarYear = :year,
+                    @ClassName = :cname,
+                    @TeacherName = :tname
+            """)
+            row = conn.execute(stmt, {
+                "moe": moe,
+                "term": term,
+                "year": year,
+                "cname": cname,
+                "tname": tname
+            }).fetchone()
+
+            new_id = row._mapping["NewClassID"] if row else None
+
+        if not new_id:
+            return _bad("Class was not created (no id returned).", 500)
+
+        return jsonify({"ok": True, "class_id": new_id, "name": cname, "teacher": tname})
+    except SQLAlchemyError as e:
+        return _bad(f"Database error adding class: {str(e)}", 500)
+    
+@class_bp.route("/UploadAchievement")
+@login_required
+def achievement_upload():
+    try:
+        return render_template("achievement_upload.html", current_year=date.today().year)
+    except Exception as e:
+        # Print full traceback to console
+        traceback.print_exc()
+        # Optionally, return the traceback in the browser (only in dev!)
+        return f"<pre>{traceback.format_exc()}</pre>", 500
+@class_bp.route("/preview_upload", methods=["POST"])
+@login_required
+def preview_upload():
+    import io, re, csv, traceback, os, json
+    import pandas as pd
+    from flask import jsonify, request
+
+    MAX_PREVIEW_ROWS = 200
+    MAX_PAYLOAD_ROWS = 10000  # safety cap
+
+    def _count_csv_rows(b, encoding="utf-8"):
+        b.seek(0)
+        text = io.TextIOWrapper(b, encoding=encoding, errors="ignore")
+        total = sum(1 for _ in csv.reader(text))
+        try:
+            text.detach()
+        except Exception:
+            pass
+        return max(total - 1, 0)
+
+    def _count_xlsx_rows(b):
+        from openpyxl import load_workbook
+        b.seek(0)
+        ws = load_workbook(b, read_only=True).active
+        return ws.max_row - 1 if ws.max_row else 0
+
+    def _count_xls_rows(b):
+        import xlrd
+        b.seek(0)
+        sh = xlrd.open_workbook(file_contents=b.read()).sheet_by_index(0)
+        return sh.nrows - 1 if sh.nrows else 0
+
+    FIELD_SYNONYMS = {
+        "NSN": {"nsn","studentid","studentnumber","studentno","nznsn"},
+        "FirstName": {"firstname","first","givenname","given"},
+        "LastName": {"lastname","surname","familyname","last"},
+        "PreferredName": {"preferredname","preferred","nickname","prefname"},
+        "DateOfBirth": {"dateofbirth","dob","birthdate","birth","datebirth"},
+        "YearLevel": {"yearlevel","year","grade","yrlevel","yeargroup"},
+        "Ethnicity": {"ethnicity"},
+    }
+    def norm(s):
+        import re as _re
+        return _re.sub(r'[^a-z0-9]+', '', str(s or '').lower())
+
+    try:
+        f = request.files.get("file")
+        if not f or f.filename == "":
+            return jsonify({"ok": False, "error": "No file provided"}), 400
+
+        filename = f.filename.lower()
+        raw = f.read()
+        buf = io.BytesIO(raw)
+
+        # Read file
+        if filename.endswith(".csv"):
+            try:
+                buf.seek(0); df = pd.read_csv(buf)
+                total_rows = _count_csv_rows(io.BytesIO(raw))
+            except UnicodeDecodeError:
+                buf.seek(0); df = pd.read_csv(buf, encoding="latin-1")
+                total_rows = _count_csv_rows(io.BytesIO(raw), encoding="latin-1")
+        elif filename.endswith(".xlsx"):
+            buf.seek(0); df = pd.read_excel(buf, engine="openpyxl")
+            total_rows = _count_xlsx_rows(io.BytesIO(raw))
+        elif filename.endswith(".xls"):
+            buf.seek(0); df = pd.read_excel(buf, engine="xlrd")
+            total_rows = _count_xls_rows(io.BytesIO(raw))
+        else:
+            ctype = f.mimetype or ""
+            if "csv" in ctype:
+                buf.seek(0); df = pd.read_csv(buf)
+                total_rows = _count_csv_rows(io.BytesIO(raw))
+            elif "excel" in ctype:
+                buf.seek(0); df = pd.read_excel(buf, engine="openpyxl")
+                total_rows = _count_xlsx_rows(io.BytesIO(raw))
+            else:
+                return jsonify({"ok": False, "error": "Unsupported file type"}), 400
+
+        df = df.fillna("")
+
+        # Detect “x-y” row that holds the group labels
+        range_pat = re.compile(r'^\s*\d+\s*-\s*\d+\s*$', re.IGNORECASE)
+        first_comp_col_idx = None
+        header_row_idx = None
+        for c_idx in range(df.shape[1]):
+            col_as_str = df.iloc[:, c_idx].astype(str)
+            hits = col_as_str.apply(lambda v: bool(range_pat.match(v)))
+            if hits.any():
+                first_comp_col_idx = c_idx
+                header_row_idx = hits.idxmax()  # row index containing first match
+                break
+
+        # Build combined headers
+        columns_combined = df.columns.astype(str).tolist()
+        if header_row_idx is not None:
+            range_row = df.iloc[header_row_idx, :].astype(str).tolist()
+            combined = []
+            for i, cell in enumerate(range_row):
+                cell_clean = cell.strip()
+                orig_col = str(df.columns[i]).strip()
+                if (first_comp_col_idx is not None and i >= first_comp_col_idx and range_pat.match(cell_clean)):
+                    combined.append(f"{orig_col} ({cell_clean})")
+                else:
+                    if cell_clean.lower().startswith("unnamed"):
+                        combined.append("" if orig_col.lower().startswith("unnamed") else orig_col)
+                    else:
+                        combined.append(cell_clean)
+            columns_combined = combined
+            # data starts after that header row
+            df = df.iloc[header_row_idx + 1:, :].copy()
+            df.columns = columns_combined
+            df = df.reset_index(drop=True)
+        else:
+            columns_combined = [("" if str(h).lower().startswith("unnamed") else str(h)) for h in columns_combined]
+            df.columns = columns_combined
+
+        # Non-competency columns by index threshold
+        if first_comp_col_idx is None:
+            non_comp_names = columns_combined[:]
+            comp_start = None
+        else:
+            non_comp_names = columns_combined[:first_comp_col_idx]
+            comp_start = int(first_comp_col_idx)
+
+        # Map non-competency headers to canonical names
+        field_mapping = {}
+        for h in non_comp_names:
+            n = norm(h)
+            mapped = None
+            if n:
+                for canon, syns in FIELD_SYNONYMS.items():
+                    if n == norm(canon) or any(n == s or s in n or n in s for s in syns):
+                        mapped = canon
+                        break
+            field_mapping[h] = mapped
+
+        # Rename to canonical
+        rename_map = {h: field_mapping[h] for h in non_comp_names if field_mapping[h] and field_mapping[h] != h}
+        original_headers_map = {field_mapping[h]: h for h in rename_map}
+        if rename_map:
+            df.rename(columns=rename_map, inplace=True)
+            field_mapping = {(rename_map.get(k, k)): v for k, v in field_mapping.items()}
+            non_comp_names = [rename_map.get(h, h) for h in non_comp_names]
+
+        # Build preview
+        preview_df = df.head(MAX_PREVIEW_ROWS).copy()
+        columns = list(preview_df.columns)
+        rows = preview_df.astype(object).values.tolist()
+
+        # Build payload for stored proc (cap length)
+        full_records = df.to_dict(orient="records")
+        total_payload = len(full_records)
+        if total_payload > MAX_PAYLOAD_ROWS:
+            full_records = full_records[:MAX_PAYLOAD_ROWS]
+
+        # NOTE: keep as a JSON array; front-end sends this as-is
+        payload_json = full_records
+
+        return jsonify({
+            "ok": True,
+            "columns": columns,
+            "columns_combined": columns,
+            "rows": rows,
+            "total_rows": int(total_rows),
+            "sample_rows": int(len(rows)),
+            "competency_starts_at": comp_start,
+            "non_competency_columns": non_comp_names,
+            "field_mapping": field_mapping,
+            "original_headers_map": original_headers_map,
+            "payload_json": payload_json,
+            "payload_capped": total_payload > len(full_records),
+            "payload_rows": len(full_records),
+        })
+
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"ok": False, "error": str(e)}), 500
+@class_bp.route("/apply_upload", methods=["POST"])
+@login_required
+def apply_upload():
+    """
+    Body:
+      { "class_id": 123, "dry_run": 1, "json_data": [ {...}, ... ] }
+
+    Returns JSON the UI can show:
+      {
+        "ok": true/false,
+        "status": {"ok": true/false, "message": "...", "count": N},
+        "dry_run": 1,
+        "term_context": {...},              # from TERM_CONTEXT
+        "unexpected_students": [...],       # Info = UNEXPECTED_STUDENT
+        "valid_students": [...],            # Info = VALID_STUDENT
+        "competency_rows": [...],           # Info = COMPETENCY_ROWS
+        "scenario_rows": [...],             # Info = SCENARIO_ROWS
+        "merge_preview": []                 # kept for backward UI compatibility
+      }
+    """
+    from flask import request, jsonify
+    import json, traceback
+    import pyodbc  # for error type
+    from datetime import date, datetime
+
+    engine = get_db_engine()
+
+    def _row_to_dict(cols, row):
+        d = {}
+        for k, v in zip(cols, row):
+            # Make dates/datetimes JSON serializable
+            if hasattr(v, "isoformat"):
+                v = v.isoformat()
+            d[k] = v
+        return d
+
+    try:
+        payload  = request.get_json(silent=True) or {}
+        class_id = int(payload.get("class_id") or 0)
+        dry_run  = 1 
+        rows     = payload.get("json_data")
+
+        if not class_id:
+            return jsonify({"ok": False, "error": "Missing class_id"}), 400
+        if not isinstance(rows, list) or not rows:
+            return jsonify({"ok": False, "error": "json_data must be a non-empty array"}), 400
+
+        json_str = json.dumps(rows, ensure_ascii=False)
+
+        # Buckets for proc outputs
+        term_context         = {}
+        unexpected_students  = []
+        valid_students       = []
+        competency_rows      = []
+        scenario_rows        = []
+        merge_preview        = []   # keep for UI compatibility
+        status_rows_raw      = []   # if proc ever returns Ok/Message/Count again
+
+        conn = engine.raw_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                DECLARE @j NVARCHAR(MAX) = ?,
+                        @cid INT         = ?,
+                        @dry BIT         = ?;
+                EXEC dbo.FlaskAchievementUpload
+                     @ClassID=@cid, @JsonData=@j, @DryRun=@dry;
+                """,
+                (json_str, class_id, dry_run)
+            )
+
+            while True:
+                if cursor.description:
+                    cols = [c[0] for c in cursor.description]
+                    rows_rs = cursor.fetchall()
+
+                    # Route by "Info" label when present
+                    if "Info" in cols and rows_rs:
+                        info_idx = cols.index("Info")
+                        info_val = str(rows_rs[0][info_idx] or "")
+
+                        # helper: strip Info key from dicts
+                        def _rows_without_info():
+                            out = []
+                            for r in rows_rs:
+                                d = _row_to_dict(cols, r)
+                                d.pop("Info", None)
+                                out.append(d)
+                            return out
+
+                        if info_val == "TERM_CONTEXT":
+                            # single row expected
+                            d = _row_to_dict(cols, rows_rs[0])
+                            d.pop("Info", None)
+                            term_context = d
+
+                        elif info_val == "UNEXPECTED_STUDENT":
+                            unexpected_students.extend(_rows_without_info())
+
+                        elif info_val == "VALID_STUDENT":
+                            valid_students.extend(_rows_without_info())
+
+                        elif info_val == "COMPETENCY_ROWS":
+                            competency_rows.extend(_rows_without_info())
+
+                        elif info_val == "SCENARIO_ROWS":
+                            scenario_rows.extend(_rows_without_info())
+
+                        else:
+                            # Unknown Info label; ignore or log
+                            pass
+
+                    # Legacy status rows (Ok/Message/Count) if they ever show up
+                    elif {"Ok", "Message"}.issubset(set(cols)):
+                        for r in rows_rs:
+                            d = _row_to_dict(cols, r)
+                            status_rows_raw.append(d)
+
+                    # Old "merge preview" (not emitted by current proc) – keep for safety
+                    elif {"Action", "NSN", "CompetencyID", "YearGroupID"}.issubset(set(cols)):
+                        for r in rows_rs:
+                            d = _row_to_dict(cols, r)
+                            d.pop("Info", None)
+                            merge_preview.append(d)
+
+                if not cursor.nextset():
+                    break
+
+            cursor.close()
+            conn.commit()
+        finally:
+            conn.close()
+
+        # Compute status:
+        # Not OK if there are unexpected students; otherwise OK.
+        if unexpected_students:
+            status_obj = {
+                "ok": False,
+                "message": "Some uploaded students are not linked to this class.",
+                "count": len(unexpected_students)
+            }
+            overall_ok = False
+        else:
+            status_obj = {
+                "ok": True,
+                "message": "Ready to apply.",
+                "count": len(valid_students)
+            }
+            overall_ok = True
+
+        # If the proc DID return Ok/Message/Count, you could override with the last row:
+        if status_rows_raw:
+            last = status_rows_raw[-1]
+            status_obj = {
+                "ok": bool(last.get("Ok")),
+                "message": last.get("Message"),
+                "count": int(last.get("Count") or 0),
+            }
+            overall_ok = status_obj["ok"]
+
+        valid_count      = len(valid_students)
+        unexpected_count = len(unexpected_students)
+        total_count      = valid_count + unexpected_count
+
+        summary = {
+            "success": unexpected_count == 0,  # True when all rows are valid
+            "dry_run": bool(dry_run),
+            "total_rows": total_count,
+            "valid_rows": valid_count,
+            "unexpected_rows": unexpected_count,
+        }
+
+        return jsonify({
+            "ok": overall_ok,                 # keep for compatibility; UI shouldn't throw on False
+            "status": status_obj,
+            "dry_run": dry_run,
+            "term_context": term_context,
+            "unexpected_students": unexpected_students,
+            "valid_students": valid_students,
+            "competency_rows": competency_rows,
+            "scenario_rows": scenario_rows,
+            "merge_preview": merge_preview,
+            "summary": summary,              # <-- new, drives the simple banner
+        })
+
+    except pyodbc.ProgrammingError as e:
+        traceback.print_exc()
+        return jsonify({"ok": False, "error": str(e)}), 500
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+    
+def _count_csv_rows(b, encoding=None):
+    import csv
+    b.seek(0)
+    if encoding:
+        text = io.TextIOWrapper(b, encoding=encoding)
+    else:
+        text = io.TextIOWrapper(b, encoding="utf-8")
+    reader = csv.reader(text)
+    # Count rows (excluding header if any); cheapest is sum(1 for _ in reader) - 1
+    # But we don't know if there's a header; we’ll just return total lines - 1 safely
+    total = sum(1 for _ in reader)
+    # Reset stream position for caller safety
+    try:
+        text.detach()
+    except Exception:
+        pass
+    return max(total - 1, 0)
+
+
+def _count_xlsx_rows(b):
+    b.seek(0)
+    from openpyxl import load_workbook
+    wb = load_workbook(b, read_only=True)
+    ws = wb.active
+    return ws.max_row - 1 if ws.max_row else 0
+
+
+def _count_xls_rows(b):
+    b.seek(0)
+    import xlrd
+    wb = xlrd.open_workbook(file_contents=b.read())
+    sh = wb.sheet_by_index(0)
+    nrows = sh.nrows
+    return nrows - 1 if nrows else 0
