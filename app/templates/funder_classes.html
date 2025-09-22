@@ -101,62 +101,61 @@
 
 {% block scripts %}
 <script>
-  const userRole = "{{ user_role }}";
-  const defaultTerm = "{{ TERM }}";
-  const defaultYear = "{{ YEAR }}";
+  window.addEventListener("DOMContentLoaded", () => {
+    const termEl = document.getElementById("term");
+    const yearEl = document.getElementById("calendaryear");
 
-  function fetchSchools() {
+    // Ensure defaults are selected if empty
+    if (!termEl.value && "{{ TERM }}") termEl.value = "{{ TERM }}";
+    if (!yearEl.value && "{{ YEAR }}") yearEl.value = "{{ YEAR }}";
+
+    // Always fetch schools once term & year are known
+    if (termEl.value && yearEl.value) {
+      fetchSchools();
+    }
+  });
+
+  async function fetchSchools() {
     const term = document.getElementById("term").value;
     const year = document.getElementById("calendaryear").value;
 
-    if (term && year) {
-      let url = "";
+    if (!term || !year) return;
 
-      if (userRole === "PRO") {
-        url = `/get_schools_by_provider?term=${term}&year=${year}`;
-      } else if (userRole === "FUN" || userRole === "ADM") {
-        url = `/get_schools_for_term_year?term=${term}&year=${year}`;
-      } else if (userRole === "GRP") {
-        url = `/get_schools_by_group?term=${term}&year=${year}`;
+    let url = "";
+    if ("{{ user_role }}" === "PRO") {
+      url = `/get_schools_by_provider?term=${term}&year=${year}`;
+    } else if ("{{ user_role }}" === "FUN" || "{{ user_role }}" === "ADM") {
+      url = `/get_schools_for_term_year?term=${term}&year=${year}`;
+    } else if ("{{ user_role }}" === "GRP") {
+      url = `/get_schools_by_group?term=${term}&year=${year}`;
+    }
+
+    try {
+      const res = await fetch(url, { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+
+      const schoolWrapper = document.getElementById("school-wrapper");
+      const schoolSelect  = document.getElementById("moe_number");
+      const findBtn       = document.getElementById("find-btn-wrapper");
+
+      // Reset & populate
+      schoolSelect.innerHTML = '<option value="">Select School</option>';
+      for (const school of data) {
+        const opt = document.createElement("option");
+        opt.value = school.MOENumber;
+        opt.textContent = school.School;
+        schoolSelect.appendChild(opt);
       }
 
-      fetch(url)
-        .then(res => res.json())
-        .then(data => {
-          const schoolWrapper = document.getElementById("school-wrapper");
-          const schoolSelect = document.getElementById("moe_number");
-          const findBtn = document.getElementById("find-btn-wrapper");
-
-          schoolSelect.innerHTML = '<option value="">Select School</option>';
-          data.forEach(school => {
-            const opt = document.createElement("option");
-            opt.value = school.MOENumber;
-            opt.textContent = school.School;
-            schoolSelect.appendChild(opt);
-          });
-
-          schoolWrapper.style.display = "block";
-          findBtn.style.display = "block";
-        });
+      schoolWrapper.style.display = "block";
+      findBtn.style.display = "block";
+    } catch (e) {
+      console.error("Failed to load schools:", e);
     }
   }
 
   document.getElementById("term").addEventListener("change", fetchSchools);
   document.getElementById("calendaryear").addEventListener("change", fetchSchools);
-
-  window.addEventListener("DOMContentLoaded", () => {
-    const termEl = document.getElementById("term");
-    const yearEl = document.getElementById("calendaryear");
-
-    // Ensure values are selected from default if not already set
-    if (!termEl.value && defaultTerm) termEl.value = defaultTerm;
-    if (!yearEl.value && defaultYear) yearEl.value = defaultYear;
-
-    // Trigger fetch if school list is missing or minimal
-    const schoolSelect = document.getElementById("moe_number");
-    if (schoolSelect && schoolSelect.options.length <= 1 && termEl.value && yearEl.value) {
-      fetchSchools();
-    }
-  });
 </script>
 {% endblock %}
