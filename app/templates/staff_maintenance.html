@@ -3,515 +3,341 @@
 {% block content %}
 <div class="container mt-5" style="max-width: 80%;">
 
-  {% if user_role in ["ADM", "FUN","GRP"]  %}
-  <form method="POST" class="mb-4" id="entityForm">
-    <div class="row g-2 align-items-end justify-content-center">
-  
-      <div class="col-md-2">
-        <label for="entity_type" class="form-label">Entity Type</label>
-        <select name="entity_type" id="entity_type" class="form-select" {% if user_role == "PRO" %}readonly disabled{% endif %}>
+{% if user_role in ["ADM", "FUN", "GRP", "PRO"] %}
+<form method="POST" class="mb-4" id="entityForm">
+  <div class="row g-2 align-items-end justify-content-center">
+
+    <!-- Entity Type -->
+    <div class="col-md-3">
+      <label for="entity_type" class="form-label">Entity Type</label>
+      <select name="entity_type" id="entity_type" class="form-select">
+        {# ADM/FUN/GRP: show full set #}
+        {% if user_role != "PRO" %}
           {% if user_role != "GRP" %}
-          <option value="Funder" {% if entity_type == "Funder" %}selected{% endif %}>Funder</option>
+            <option value="Funder"  {{ 'selected' if (entity_type or '') == 'Funder'  else '' }}>Funder</option>
           {% endif %}
           {% if user_role == "GRP" or user_role == "ADM" or has_groups %}
-          <option value="Group" {% if entity_type == "Group" %}selected{% endif %}>Group</option>
-          
+            <option value="Group"   {{ 'selected' if (entity_type or '') == 'Group'   else '' }}>Group</option>
           {% endif %}
-          <option value="Provider" {% if entity_type == "Provider" %}selected{% endif %}>Provider</option>
-
-        </select>
-        {% if user_role == "PRO" %}
-        <input type="hidden" name="entity_type" value="Provider">
+          <option value="Provider"  {{ 'selected' if (entity_type or '') == 'Provider' else '' }}>Provider</option>
+          <option value="School"    {{ 'selected' if (entity_type or '') == 'School'   else '' }}>School</option>
+        {% else %}
+          {# PRO: only Provider/School #}
+          <option value="Provider"  {{ 'selected' if (entity_type or '') == 'Provider' else '' }}>Provider</option>
+          <option value="School"    {{ 'selected' if (entity_type or '') == 'School'   else '' }}>School</option>
         {% endif %}
-      </div>
-  
-      
-  
-      <div class="col-md-5">
-        <label for="entity_id" class="form-label" id="entityLabel">
-          Select {{ entity_type or 'Funder' }}
-        </label>
-        <select name="entity_id" id="entity_id" class="form-select" {% if user_role == "PRO" %}readonly disabled{% endif %}>
-          {% if entity_type == "Funder" %}
-            {% for entity in funder_list %}
-              <option value="{{ entity.id }}" {% if entity.id|string == selected_entity_id|string %}selected{% endif %}>
-                {{ entity.name }}
-              </option>
-            {% endfor %}
-          {% elif entity_type == "Provider" %}
-            {% for entity in provider_list %}
-              <option value="{{ entity.id }}" {% if entity.id|string == selected_entity_id|string %}selected{% endif %}>
-                {{ entity.name }}
-              </option>
-            {% endfor %}
-          {% elif entity_type == "Group" %}
-            {% for entity in group_list %}
-              <option value="{{ entity.id }}" {% if entity.id|string == selected_entity_id|string %}selected{% endif %}>
-                {{ entity.name }}
-              </option>
-            {% endfor %}
-          {% endif %}
-        </select>
-        
-        {% if user_role == "PRO" %}
-        <input type="hidden" name="entity_id" value="{{ selected_funder_id }}">
-        {% endif %}
-      </div>
-  
-      <div class="col-md-2">
-        <button type="submit" class="btn btn-primary w-100">Submit</button>
-      </div>
-  
+      </select>
     </div>
-  </form>
+
+    <!-- Entity ID (populated by /get_entities via JS for ALL roles) -->
+    <div class="col-md-6">
+      <label for="entity_id" class="form-label" id="entityLabel">
+        Select {{ entity_type or (user_role == 'PRO' and 'Provider' or 'Funder') }}
+      </label>
+      <select name="entity_id" id="entity_id" class="form-select">
+        <option disabled selected>Choose an Entity Type first</option>
+      </select>
+    </div>
+
+    <!-- Submit -->
+    <div class="col-md-2">
+      <button type="submit" class="btn btn-primary w-100">Submit</button>
+    </div>
+
+  </div>
+</form>
 {% endif %}
+
 {% if selected_entity_name %}
   <h2 class="mb-4 text-center text-primary">{{ selected_entity_name }} – Staff Maintenance</h2>
-  {%else%}
+{% else %}
   <h2 class="mb-4 text-center text-primary">Staff Maintenance</h2>
-
 {% endif %}
+
 {% if name %}
   <div class="text-center mb-4">
-  <!-- Add New Staff Modal Button -->
-<h6 class="mb-4 text-center text-primary">
-    Are you missing staff?
-    <a href="#" data-bs-toggle="modal" data-bs-target="#addStaffModal"
-      >Click here to add a staff member</a
-    >
-  </h6>
-  
+    <h6 class="mb-4 text-center text-primary">
+      Are you missing staff?
+      <a href="#" data-bs-toggle="modal" data-bs-target="#addStaffModal">Click here to add a staff member</a>
+    </h6>
   </div>
 {% endif %}
-{% if data|length > 0 %}  <div class="row g-4">
-      {% for row in data %} {% set safe_id = row.Email.replace('@',
-    '_').replace('.', '_') %}
-    <div
-      class="modal fade"
-      id="inviteModal_{{ safe_id }}"
-      tabindex="-1"
-      aria-labelledby="inviteLabel_{{ safe_id }}"
-      aria-hidden="true"
-    >
-      <div class="modal-dialog">
-        <div class="modal-content border-0 shadow">
-          <div class="modal-header bg-primary text-white">
-            <h5 class="modal-title" id="inviteLabel_{{ safe_id }}">
-              Invite {{ row.FirstName }} {{ row.Surname }}
-            </h5>
-            <button
-              type="button"
-              class="btn-close btn-close-white"
-              data-bs-dismiss="modal"
-              aria-label="Close"
-            ></button>
-          </div>
-          <div class="modal-body">
-            <p>
-              Inviting a user to the app will send them an email with a unique
-              link to set up their account. <br />
-              Would you like this user to have administrator privileges?
-            </p>
-          </div>
-          <div class="modal-footer">
-            <form method="POST" action="{{ url_for('staff_bp.invite_user') }}">
-              <input type="hidden" name="email" value="{{ row.Email }}" />
-              <input
-                type="hidden"
-                name="firstname"
-                value="{{ row.FirstName }}"
-              />
-              <input type="hidden" name="lastname" value="{{ row.Surname }}" />
 
-              <input type="hidden" name="role" value="{{ row.Role }}" />
-              <input type="hidden" name="admin" value="1" />
-              <button type="submit" class="btn btn-outline-danger">
-                Invite with Privileges
-              </button>
-            </form>
-            <form method="POST" action="{{ url_for('staff_bp.invite_user') }}">
-              <input type="hidden" name="email" value="{{ row.Email }}" />
-              <input
-                type="hidden"
-                name="firstname"
-                value="{{ row.FirstName }}"
-              />
-              <input type="hidden" name="lastname" value="{{ row.Surname }}" />
+{% if data|length > 0 %}
+  <div class="row g-4">
+    {% for row in data %}
+      {% set safe_id = row.Email.replace('@','_').replace('.', '_') %}
 
-              <input type="hidden" name="role" value="{{ row.Role }}" />
-              <input type="hidden" name="admin" value="0" />
-              <button type="submit" class="btn btn-outline-success">
-                Invite without Privileges
-              </button>
-            </form>
+      <!-- Invite Modal -->
+      <div class="modal fade" id="inviteModal_{{ safe_id }}" tabindex="-1" aria-labelledby="inviteLabel_{{ safe_id }}" aria-hidden="true">
+        <div class="modal-dialog">
+          <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-primary text-white">
+              <h5 class="modal-title" id="inviteLabel_{{ safe_id }}">Invite {{ row.FirstName }} {{ row.Surname }}</h5>
+              <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <p>
+                Inviting a user to the app will send them an email with a unique link to set up their account. <br />
+                Would you like this user to have administrator privileges?
+              </p>
+            </div>
+            <div class="modal-footer">
+              <form method="POST" action="{{ url_for('staff_bp.invite_user') }}">
+                <input type="hidden" name="email" value="{{ row.Email }}" />
+                <input type="hidden" name="firstname" value="{{ row.FirstName }}" />
+                <input type="hidden" name="lastname" value="{{ row.Surname }}" />
+                <input type="hidden" name="role" value="{{ row.Role }}" />
+                <input type="hidden" name="admin" value="1" />
+                <button type="submit" class="btn btn-outline-danger">Invite with Privileges</button>
+              </form>
+              <form method="POST" action="{{ url_for('staff_bp.invite_user') }}">
+                <input type="hidden" name="email" value="{{ row.Email }}" />
+                <input type="hidden" name="firstname" value="{{ row.FirstName }}" />
+                <input type="hidden" name="lastname" value="{{ row.Surname }}" />
+                <input type="hidden" name="role" value="{{ row.Role }}" />
+                <input type="hidden" name="admin" value="0" />
+                <button type="submit" class="btn btn-outline-success">Invite without Privileges</button>
+              </form>
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <div class="col-12">
-      <div class="card shadow-sm border-2" style="border-color: #1a427d">
-        <div class="card-body p-4">
-          <div class="row">
-            <div class="col-12 text-center">
-              <h4 class="text-uppercase text-primary fw-bold mb-4">
-                {{ row.FirstName }} {{ row.Surname }}
-              </h4>
+      <!-- Staff Card -->
+      <div class="col-12">
+        <div class="card shadow-sm border-2" style="border-color: #1a427d">
+          <div class="card-body p-4">
+            <div class="row">
+              <div class="col-12 text-center">
+                <h4 class="text-uppercase text-primary fw-bold mb-4">{{ row.FirstName }} {{ row.Surname }}</h4>
+              </div>
             </div>
-          </div>
 
-          <div class="row text-center mb-3">
-            <div class="col-md-6">
-              <h6 class="fw-bold">Staff Details</h6>
+            <div class="row text-center mb-3">
+              <div class="col-md-6">
+                <h6 class="fw-bold">Staff Details</h6>
+              </div>
+              <div class="col-md-6">
+                <h6 class="fw-bold">E-Learning Courses</h6>
+              </div>
             </div>
-            <div class="col-md-6">
-              <h6 class="fw-bold">E-Learning Courses</h6>
-            </div>
-          </div>
 
-          <div class="row g-4">
-            <div class="col-md-3">
-              <p class="mb-1"><strong>Email:</strong> {{ row.Email }}</p>
-              <p class="mb-1">
-                <strong>First Name:</strong> {{ row.FirstName }}
-              </p>
-              <p class="mb-1"><strong>Surname:</strong> {{ row.Surname }}</p>
-            </div>
-            <div class="col-md-3">
-              <p class="mb-1">
-                <strong>Account Enabled:</strong> {% if row.Active == 1
-                %}Enabled{% else %}Disabled{% endif %}
-              </p>
-              {% if row.Active == 1 %}
-              <p class="mb-1">
-                <strong>Administrator Privileges:</strong> {% if row.Admin == 1
-                %}Enabled{% else %}Disabled{% endif %}
-              </p>
-              {% endif %}
-              <p class="mb-1">
-                <strong>Last Self Review:</strong>
-                {% if row.LastSelfReview and row.LastSelfReview|string != "NaT"
-                %} {{ row.LastSelfReview.strftime('%d %B %Y, %H:%M') }} {% else
-                %}N/A{% endif %}
-              </p>
-            </div>
-            <div class="col-md-6">
-              <div class="row row-cols-2 g-2">
-                {% for col in columns if col.startswith("ELearningName_") %} {%
-                set course_id = col.split('_')[1] %}
-                <div class="col">
-                  <div
-                    class="d-flex justify-content-between align-items-center border rounded p-2 bg-light"
-                  >
-                    <div class="flex-grow-1 pe-3">
-                      <small>{{ row[col] }}</small>
+            <div class="row g-4">
+              <div class="col-md-3">
+                <p class="mb-1"><strong>Email:</strong> {{ row.Email }}</p>
+                <p class="mb-1"><strong>First Name:</strong> {{ row.FirstName }}</p>
+                <p class="mb-1"><strong>Surname:</strong> {{ row.Surname }}</p>
+              </div>
+              <div class="col-md-3">
+                <p class="mb-1"><strong>Account Enabled:</strong> {% if row.Active == 1 %}Enabled{% else %}Disabled{% endif %}</p>
+                {% if row.Active == 1 %}
+                  <p class="mb-1"><strong>Administrator Privileges:</strong> {% if row.Admin == 1 %}Enabled{% else %}Disabled{% endif %}</p>
+                {% endif %}
+                <p class="mb-1">
+                  <strong>Last Self Review:</strong>
+                  {% if row.LastSelfReview and row.LastSelfReview|string != "NaT" %}
+                    {{ row.LastSelfReview.strftime('%d %B %Y, %H:%M') }}
+                  {% else %}N/A{% endif %}
+                </p>
+              </div>
+              <div class="col-md-6">
+                <div class="row row-cols-2 g-2">
+                  {% for col in columns if col.startswith("ELearningName_") %}
+                    {% set course_id = col.split('_')[1] %}
+                    <div class="col">
+                      <div class="d-flex justify-content-between align-items-center border rounded p-2 bg-light">
+                        <div class="flex-grow-1 pe-3">
+                          <small>{{ row[col] }}</small>
+                        </div>
+                        <span
+                          class="badge me-3
+                            {% if row['ELearningStatus_' + course_id] == 'Passed' %}bg-success
+                            {% elif row['ELearningStatus_' + course_id] == 'In Progress' %}bg-warning text-dark
+                            {% elif row['ELearningStatus_' + course_id] == 'Cancelled' %}bg-danger
+                            {% elif row['ELearningStatus_' + course_id] == 'Not Started' %}bg-secondary
+                            {% else %}bg-secondary{% endif %}">
+                          {{ row['ELearningStatus_' + course_id] }}
+                        </span>
+                      </div>
                     </div>
-                    <span
-                      class="badge me-3 {% if row['ELearningStatus_' + course_id] == 'Passed' %}bg-success {% elif row['ELearningStatus_' + course_id] == 'In Progress' %}bg-warning text-dark {% elif row['ELearningStatus_' + course_id] == 'Cancelled' %}bg-danger {% elif row['ELearningStatus_' + course_id] == 'Not Started' %}bg-secondary {% else %}bg-secondary{% endif %}"
-                    >
-                      {{ row['ELearningStatus_' + course_id] }}
-                    </span>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+
+            <div class="row mt-4">
+              <div class="col-12">
+                <div class="row g-2">
+                  <div class="col">
+                    <form method="POST" action="{{ url_for('survey_bp.send_survey_reminder') if row.Active == 1 else url_for('survey_bp.email_survey_link') }}">
+                      <input type="hidden" name="email" value="{{ row.Email }}" />
+                      <input type="hidden" name="firstname" value="{{ row.FirstName }}" />
+                      <input type="hidden" name="lastname" value="{{ row.Surname }}" />
+                      <input type="hidden" name="role" value="{{ row.Role }}" />
+                      <input type="hidden" name="user_id" value="{{ row.ID }}" />
+                      <input type="hidden" name="requested_by" value="{{ session['user_firstname'] ~ ' ' ~ session['user_surname'] }}" />
+                      <input type="hidden" name="from_org" value="{{ session['desc']  }}" />
+                      <button type="submit" class="btn btn-sm btn-outline-primary w-100">
+                        {% if row.Active == 1 %}Email Self Review Reminder{% else %}Email Self Review Link{% endif %}
+                      </button>
+                    </form>
+                  </div>
+
+                  <div class="col">
+                    {% if not row.LastSelfReview or row.LastSelfReview|string == "NaT" %}
+                      <button type="button" class="btn btn-sm btn-outline-primary w-100"
+                        data-bs-toggle="popover" data-bs-trigger="focus" data-bs-placement="top"
+                        title="No Self Reviews"
+                        data-bs-content="{{ row.FirstName }} {{ row.Surname }} has not completed a self review yet.">
+                        View Past Self Reviews
+                      </button>
+                    {% else %}
+                      <form method="POST" action="{{ url_for('survey_bp.set_survey_target') }}">
+                        <input type="hidden" name="email" value="{{ row.Email }}">
+                        <input type="hidden" name="firstname" value="{{ row.FirstName }}">
+                        <input type="hidden" name="lastname" value="{{ row.Surname }}">
+                        <button type="submit" class="btn btn-sm btn-outline-primary w-100">View Past Self Reviews</button>
+                      </form>
+                    {% endif %}
+                  </div>
+
+                  <div class="col">
+                    <form method="POST" action="{{ url_for('staff_bp.send_elearning_reminder') }}">
+                      <input type="hidden" name="email" value="{{ row.Email }}" />
+                      <input type="hidden" name="firstname" value="{{ row.FirstName }}" />
+                      <input type="hidden" name="requested_by" value="{{ session['user_firstname'] ~ ' ' ~ session['user_surname'] }}" />
+                      <input type="hidden" name="from_org" value="{{ session['desc'] }}" />
+                      <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
+                      <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
+                      <button type="submit" class="btn btn-sm btn-outline-primary w-100">Email eLearning Reminder</button>
+                    </form>
+                  </div>
+
+                  <div class="col">
+                    <button class="btn btn-sm btn-outline-primary w-100" data-bs-toggle="modal" data-bs-target="#editModal_{{ safe_id }}">
+                      Edit
+                    </button>
+                  </div>
+
+                  {% if row.Active != 1 %}
+                    <div class="col">
+                      <form method="POST" action="{{ url_for('staff_bp.invite_user') }}">
+                        <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
+                        <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
+                        <input type="hidden" name="email" value="{{ row.Email }}" />
+                        <input type="hidden" name="firstname" value="{{ row.FirstName }}">
+                        <input type="hidden" name="admin" value="{{ row.Admin or 0 }}">
+                        <button type="submit" class="btn btn-sm btn-outline-primary w-100">Invite User</button>
+                      </form>
+                    </div>
+                  {% else %}
+                    <div class="col">
+                      <form method="POST" action="{{ url_for('staff_bp.disable_user') }}">
+                        <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
+                        <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
+                        <input type="hidden" name="email" value="{{ row.Email }}" />
+                        <input type="hidden" name="firstname" value="{{ row.FirstName }}">
+                        <input type="hidden" name="admin" value="{{ row.Admin or 0 }}">
+                        <button type="submit" class="btn btn-sm btn-outline-primary w-100">Disable User</button>
+                      </form>
+                    </div>
+                  {% endif %}
+
+                  <div class="col">
+                    <button type="button" class="btn btn-sm btn-outline-primary w-100"
+                      data-bs-toggle="modal" data-bs-target="#hideModal_{{ safe_id }}">
+                      Hide User
+                    </button>
                   </div>
                 </div>
-                {% endfor %}
               </div>
+            </div> <!-- /row -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Hide Modal -->
+      <div class="modal fade" id="hideModal_{{ safe_id }}" tabindex="-1" aria-labelledby="hideLabel_{{ safe_id }}" aria-hidden="true">
+        <div class="modal-dialog">
+          <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-danger text-white">
+              <h5 class="modal-title" id="hideLabel_{{ safe_id }}">Confirm Hide User</h5>
+              <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-          </div>
-
-          <div class="row mt-4">
-            <div class="col-12">
-              <div class="row g-2">
-                <div class="col">
-                  <form
-                    method="POST"
-                    action="{{ url_for('survey_bp.send_survey_reminder') if row.Active == 1 else url_for('survey_bp.email_survey_link') }}"
-                  >
-                    <input type="hidden" name="email" value="{{ row.Email }}" />
-                    <input
-                      type="hidden"
-                      name="firstname"
-                      value="{{ row.FirstName }}"
-                    />
-                    <input
-                      type="hidden"
-                      name="lastname"
-                      value="{{ row.Surname }}"
-                    />
-                    <input type="hidden" name="role" value="{{ row.Role }}" />
-                    <input type="hidden" name="user_id" value="{{ row.ID }}" />
-                    <input
-                      type="hidden"
-                      name="requested_by"
-                      value="{{ session['user_firstname'] ~ ' ' ~ session['user_surname'] }}"
-                    />
-                    <input
-                      type="hidden"
-                      name="from_org"
-                      value="{{ session['desc']  }}"
-                    />
-                    <!-- {{ session['desc']  }} -->
-                    <button
-                      type="submit"
-                      class="btn btn-sm btn-outline-primary w-100"
-                    >
-                      {% if row.Active == 1 %}Email Self Review Reminder{% else
-                      %}Email Self Review Link{% endif %}
-                    </button>
-                  </form>
-                </div>
-                <div class="col">
-                  {% if not row.LastSelfReview or row.LastSelfReview|string == "NaT" %}
-  <!-- This shows the popover -->
-  <button
-    type="button"
-    class="btn btn-sm btn-outline-primary w-100"
-    data-bs-toggle="popover"
-    data-bs-trigger="focus"
-    data-bs-placement="top"
-    title="No Self Reviews"
-    data-bs-content="{{ row.FirstName }} {{ row.Surname }} has not completed a self review yet."
-  >
-    View Past Self Reviews
-  </button>
-{% else %}
-  <form method="POST" action="{{ url_for('survey_bp.set_survey_target') }}">
-    <input type="hidden" name="email" value="{{ row.Email }}">
-    <input type="hidden" name="firstname" value="{{ row.FirstName }}">
-    <input type="hidden" name="lastname" value="{{ row.Surname }}">
-    <button type="submit" class="btn btn-sm btn-outline-primary w-100">
-      View Past Self Reviews
-    </button>
-  </form>
-{% endif %}
-
-                </div>
-                <div class="col">
-<form method="POST" action="{{ url_for('staff_bp.send_elearning_reminder') }}">
-  <input type="hidden" name="email" value="{{ row.Email }}" />
-  <input type="hidden" name="firstname" value="{{ row.FirstName }}" />
-  <input
-    type="hidden"
-    name="requested_by"
-    value="{{ session['user_firstname'] ~ ' ' ~ session['user_surname'] }}"
-  />
-  <input type="hidden" name="from_org" value="{{ session['desc'] }}" />
-   <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
-  <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
-  <button type="submit" class="btn btn-sm btn-outline-primary w-100">
-    Email eLearning Reminder
-  </button>
-</form>
-</div>
-                <div class="col">
-                  <button
-                    class="btn btn-sm btn-outline-primary w-100"
-                    data-bs-toggle="modal"
-                    data-bs-target="#editModal_{{ safe_id }}"
-                  >
-                    Edit
-                  </button>
-                </div>
-                  {% if row.Active != 1 %}
-  <div class="col">
-    <form method="POST" action="{{ url_for('staff_bp.invite_user') }}">
-      <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
-      <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
-      <input type="hidden" name="email" value="{{ row.Email }}" />
-      <input type="hidden" name="firstname" value="{{ row.FirstName }}">
-      <input type="hidden" name="admin" value="{{ row.Admin or 0 }}">
-      <button type="submit" class="btn btn-sm btn-outline-primary w-100">
-        Invite User
-      </button>
-    </form>
-  </div>
-  
-
-{% else %}
-<div class="col">
-<form method="POST" action="{{ url_for('staff_bp.disable_user') }}">
-  <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
-  <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
-  <input type="hidden" name="email" value="{{ row.Email }}" />
-  <input type="hidden" name="firstname" value="{{ row.FirstName }}">
-  <input type="hidden" name="admin" value="{{ row.Admin or 0 }}">
-  <button type="submit" class="btn btn-sm btn-outline-primary w-100">
-    Disable User
-  </button>
-
-</form>
-  </div>
-{% endif %}
-<div class="col">
-    <button
-      type="button"
-      class="btn btn-sm btn-outline-primary w-100"
-      data-bs-toggle="modal"
-      data-bs-target="#hideModal_{{ safe_id }}"
-    >
-      Hide User
-    </button>
-  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        
-      </div>
-    </div>
-    
-
-
-    <!-- MODAL -->
-     <div
-  class="modal fade"
-  id="hideModal_{{ safe_id }}"
-  tabindex="-1"
-  aria-labelledby="hideLabel_{{ safe_id }}"
-  aria-hidden="true"
->
-  <div class="modal-dialog">
-    <div class="modal-content border-0 shadow">
-      <div class="modal-header bg-danger text-white">
-        <h5 class="modal-title" id="hideLabel_{{ safe_id }}">
-          Confirm Hide User
-        </h5>
-        <button
-          type="button"
-          class="btn-close btn-close-white"
-          data-bs-dismiss="modal"
-          aria-label="Close"
-        ></button>
-      </div>
-      <div class="modal-body">
-        <p class="mb-2">
-          Are you sure you want to <strong>hide this user</strong>?<br><br>
-          They will no longer appear in:
-        </p>
-        <ul>
-          <li>Staff Overviews</li>
-          <li>eLearning</li>
-          <li>Self Reviews</li>
-        </ul>
-        <p class="mb-2">
-          This is recommended for staff who no longer work for your organisation.
-        </p>
-        {% if row.Active == 1 %}
-<p class="text-danger fw-bold">
-  This will also <strong>disable their login</strong>.
-</p>
-{% endif %}
-      </div>
-      <div class="modal-footer">
-        <form method="POST" action="{{ url_for('staff_bp.hide_user') }}">
-          <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
-  <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
-          <input type="hidden" name="email" value="{{ row.Email }}" />
-          <button type="submit" class="btn btn-danger">Yes, Hide User</button>
-        </form>
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-          Cancel
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
-
-    <div
-      class="modal fade"
-      id="editModal_{{ safe_id }}"
-      tabindex="-1"
-      aria-labelledby="editLabel_{{ safe_id }}"
-      aria-hidden="true"
-    >
-      <div class="modal-dialog">
-        <div class="modal-content border-0 shadow">
-          <div class="modal-header bg-primary text-white">
-            <h5 class="modal-title" id="editLabel_{{ safe_id }}">
-              Edit Staff Member
-            </h5>
-            <button
-              type="button"
-              class="btn-close btn-close-white"
-              data-bs-dismiss="modal"
-              aria-label="Close"
-            ></button>
-          </div>
-          <form method="POST" action="{{ url_for('staff_bp.update_staff') }}">
             <div class="modal-body">
-              <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
-  <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
-              <input type="hidden" name="user_id" value="{{ row.ID }}" />
-              <div class="mb-3">
-                <label for="firstName_{{ safe_id }}" class="form-label"
-                  >First Name</label
-                >
-                <input
-                  type="text"
-                  class="form-control"
-                  id="firstName_{{ safe_id }}"
-                  name="firstname"
-                  value="{{ row.FirstName }}"
-                  required
-                />
-              </div>
-              <div class="mb-3">
-                <label for="lastName_{{ safe_id }}" class="form-label"
-                  >Last Name</label
-                >
-                <input
-                  type="text"
-                  class="form-control"
-                  id="lastName_{{ safe_id }}"
-                  name="lastname"
-                  value="{{ row.Surname }}"
-                  required
-                />
-              </div>
-              <input type="hidden" name="old_email" value="{{ row.Email }}" />
-
-              <div class="mb-3">
-                <label for="email_{{ safe_id }}" class="form-label"
-                  >Email</label
-                >
-                <input
-                  type="email"
-                  class="form-control"
-                  id="email_{{ safe_id }}"
-                  name="email"
-                  value="{{ row.Email }}"
-                  required
-                />
-              </div>
+              <p class="mb-2">
+                Are you sure you want to <strong>hide this user</strong>?<br><br>
+                They will no longer appear in:
+              </p>
+              <ul>
+                <li>Staff Overviews</li>
+                <li>eLearning</li>
+                <li>Self Reviews</li>
+              </ul>
+              <p class="mb-2">This is recommended for staff who no longer work for your organisation.</p>
               {% if row.Active == 1 %}
-              <div class="form-check mb-3">
-                <input class="form-check-input" type="checkbox" id="admin_{{
-                safe_id }}" name="admin" value="1" {% if row.Admin == 1
-                %}checked{% endif %}>
-                <label class="form-check-label" for="admin_{{ safe_id }}"
-                  >Administrator Privileges</label
-                >
-              </div>
+                <p class="text-danger fw-bold">This will also <strong>disable their login</strong>.</p>
               {% endif %}
             </div>
             <div class="modal-footer">
-              <button type="submit" class="btn btn-primary">
-                Save Changes
-              </button>
-              <button
-                type="button"
-                class="btn btn-secondary"
-                data-bs-dismiss="modal"
-              >
-                Cancel
-              </button>
+              <form method="POST" action="{{ url_for('staff_bp.hide_user') }}">
+                <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
+                <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
+                <input type="hidden" name="email" value="{{ row.Email }}" />
+                <button type="submit" class="btn btn-danger">Yes, Hide User</button>
+              </form>
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
             </div>
-          </form>
+          </div>
         </div>
       </div>
-    </div>
+
+      <!-- Edit Modal -->
+      <div class="modal fade" id="editModal_{{ safe_id }}" tabindex="-1" aria-labelledby="editLabel_{{ safe_id }}" aria-hidden="true">
+        <div class="modal-dialog">
+          <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-primary text-white">
+              <h5 class="modal-title" id="editLabel_{{ safe_id }}">Edit Staff Member</h5>
+              <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{{ url_for('staff_bp.update_staff') }}">
+              <div class="modal-body">
+                <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
+                <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
+                <input type="hidden" name="user_id" value="{{ row.ID }}" />
+                <div class="mb-3">
+                  <label for="firstName_{{ safe_id }}" class="form-label">First Name</label>
+                  <input type="text" class="form-control" id="firstName_{{ safe_id }}" name="firstname" value="{{ row.FirstName }}" required />
+                </div>
+                <div class="mb-3">
+                  <label for="lastName_{{ safe_id }}" class="form-label">Last Name</label>
+                  <input type="text" class="form-control" id="lastName_{{ safe_id }}" name="lastname" value="{{ row.Surname }}" required />
+                </div>
+                <input type="hidden" name="old_email" value="{{ row.Email }}" />
+                <div class="mb-3">
+                  <label for="email_{{ safe_id }}" class="form-label">Email</label>
+                  <input type="email" class="form-control" id="email_{{ safe_id }}" name="email" value="{{ row.Email }}" required />
+                </div>
+                {% if row.Active == 1 %}
+                  <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" id="admin_{{ safe_id }}" name="admin" value="1" {% if row.Admin == 1 %}checked{% endif %}>
+                    <label class="form-check-label" for="admin_{{ safe_id }}">Administrator Privileges</label>
+                  </div>
+                {% endif %}
+              </div>
+              <div class="modal-footer">
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
     {% endfor %}
   </div>
-  {% endif %}
+{% endif %}
 
 {% if hidden_staff and hidden_staff|length > 0 %}
   <div class="card border-primary mt-5">
@@ -523,76 +349,92 @@
         {% for person in hidden_staff %}
           <li class="d-flex justify-content-between align-items-center mb-2">
             <span>{{ person.FirstName }} {{ person.Surname }} ({{ person.Email }})</span>
-              <form method="POST" action="{{ url_for('staff_bp.unhide_user') }}" class="d-inline">
-                <input type="hidden" name="email" value="{{ person.Email }}">
-                <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
-                <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
-                <button type="submit" class="btn btn-sm btn-outline-primary">Unhide</button>
-              </form>
-            
+            <form method="POST" action="{{ url_for('staff_bp.unhide_user') }}" class="d-inline">
+              <input type="hidden" name="email" value="{{ person.Email }}">
+              <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
+              <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
+              <button type="submit" class="btn btn-sm btn-outline-primary">Unhide</button>
+            </form>
           </li>
         {% endfor %}
       </ul>
     </div>
   </div>
-
 {% endif %}
 
-  <!-- Add New Staff Modal -->
-  <div class="modal fade" id="addStaffModal" tabindex="-1" aria-labelledby="addStaffLabel" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <form method="POST" action="{{ url_for('staff_bp.add_staff') }}">
-          <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
-          <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
-          <div class="modal-header bg-primary text-white">
-            <h5 class="modal-title" id="addStaffLabel">Add New Staff</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+<!-- Add New Staff Modal -->
+<div class="modal fade" id="addStaffModal" tabindex="-1" aria-labelledby="addStaffLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST" action="{{ url_for('staff_bp.add_staff') }}">
+        <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
+        <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title" id="addStaffLabel">Add New Staff</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="first_name" class="form-label">First Name</label>
+            <input type="text" class="form-control" name="first_name" required>
           </div>
-          <div class="modal-body">
-  <div class="mb-3">
-    <label for="first_name" class="form-label">First Name</label>
-    <input type="text" class="form-control" name="first_name" required>
-  </div>
-  <div class="mb-3">
-    <label for="last_name" class="form-label">Last Name</label>
-    <input type="text" class="form-control" name="last_name" required>
-  </div>
-  <div class="mb-3">
-    <label for="email" class="form-label">Email</label>
-    <input type="email" class="form-control" name="email" required>
-  </div>
-  <div class="mb-3">
-    <label for="account_status" class="form-label">Account Status</label>
-    <select class="form-select" name="account_status" id="account_status" required>
-      <option value="enable">Enable (send welcome email)</option>
-      <option value="disable">Disable</option>
-    </select>
-  </div>
-  
-  <div class="form-check mb-3" id="admin_checkbox_group">
-    <input class="form-check-input" type="checkbox" name="admin" value="1" id="admin_checkbox">
-    <label class="form-check-label" for="admin_checkbox">
-      Grant Administrator Privileges
-    </label>
-  </div>
-</div>
-          <div class="modal-footer">
-            <button type="submit" class="btn btn-primary">Add Staff</button>
+          <div class="mb-3">
+            <label for="last_name" class="form-label">Last Name</label>
+            <input type="text" class="form-control" name="last_name" required>
           </div>
-        </form>
-      </div>
+          <div class="mb-3">
+            <label for="email" class="form-label">Email</label>
+            <input type="email" class="form-control" name="email" required>
+          </div>
+          <div class="mb-3">
+            <label for="account_status" class="form-label">Account Status</label>
+            <select class="form-select" name="account_status" id="account_status" required>
+              <option value="enable">Enable (send welcome email)</option>
+              <option value="disable">Disable</option>
+            </select>
+          </div>
+          <div class="form-check mb-3" id="admin_checkbox_group">
+            <input class="form-check-input" type="checkbox" name="admin" value="1" id="admin_checkbox">
+            <label class="form-check-label" for="admin_checkbox">Grant Administrator Privileges</label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">Add Staff</button>
+        </div>
+      </form>
     </div>
   </div>
 </div>
+
+</div> <!-- /container -->
+
 <script>
   document.addEventListener("DOMContentLoaded", function () {
     const entityTypeSelector = document.getElementById("entity_type");
     const entityDropdown = document.getElementById("entity_id");
     const entityLabel = document.getElementById("entityLabel");
     const groupWrapper = document.getElementById("groupDropdownWrapper");
-    const userRole = "{{ user_role }}";
-    const selectedEntityID = "{{ selected_entity_id }}";
+
+    // Normalize existing selected values coming from server
+    const initialEntityType = "{{ entity_type|default('', true) }}";
+    const selectedEntityIDRaw = "{{ selected_entity_id|default('', true) }}";
+    const selectedEntityID = (selectedEntityIDRaw && selectedEntityIDRaw !== "None")
+      ? selectedEntityIDRaw.toString()
+      : "";
+
+    // If server hasn't set an entity_type, choose a sensible default per role
+    if (!entityTypeSelector.value) {
+      const role = "{{ user_role }}";
+      if (role === "PRO") {
+        entityTypeSelector.value = "Provider";
+      } else if (role === "FUN") {
+        entityTypeSelector.value = "Funder";
+      } else if (role === "GRP") {
+        entityTypeSelector.value = "Group";
+      } else {
+        entityTypeSelector.value = "Provider";
+      }
+    }
 
     function updateLabelAndDropdown() {
       const selectedType = entityTypeSelector.value;
@@ -600,16 +442,14 @@
       entityDropdown.innerHTML = `<option disabled selected>Loading ${selectedType}s...</option>`;
 
       if (groupWrapper) {
-        if (selectedType === "Group") {
-          groupWrapper.style.display = "block";
-        } else {
-          groupWrapper.style.display = "none";
+        groupWrapper.style.display = (selectedType === "Group") ? "block" : "none";
+        if (selectedType !== "Group") {
           const groupSelect = document.getElementById("group_id");
           if (groupSelect) groupSelect.value = "";
         }
       }
 
-      fetch(`/get_entities?entity_type=${selectedType}`)
+      fetch(`/get_entities?entity_type=${encodeURIComponent(selectedType)}`)
         .then((response) => response.json())
         .then((data) => {
           entityDropdown.innerHTML = `<option disabled>-- Choose a ${selectedType} --</option>`;
@@ -617,11 +457,15 @@
             const option = document.createElement("option");
             option.value = item.id;
             option.textContent = item.name;
-            if (item.id.toString() === selectedEntityID.toString()) {
+            if (selectedEntityID && item.id.toString() === selectedEntityID) {
               option.selected = true;
             }
             entityDropdown.appendChild(option);
           });
+          // If nothing is selected yet and options exist, select first real option
+          if (!entityDropdown.value && entityDropdown.options.length > 1) {
+            entityDropdown.selectedIndex = 1;
+          }
         })
         .catch((err) => {
           console.error(`❌ Failed to load ${selectedType}s`, err);
@@ -629,37 +473,30 @@
         });
     }
 
-    if (
-      userRole !== "PRO" &&
-      entityTypeSelector &&
-      entityDropdown &&
-      entityLabel
-    ) {
-      updateLabelAndDropdown(); // Run on load
+    // Run on load for ALL roles, then on change
+    if (entityTypeSelector && entityDropdown && entityLabel) {
+      updateLabelAndDropdown();
       entityTypeSelector.addEventListener("change", updateLabelAndDropdown);
     }
 
-    // Admin checkbox toggle
+    // Admin checkbox toggle in Add Staff modal
     const accountStatusSelect = document.getElementById("account_status");
     const adminCheckboxGroup = document.getElementById("admin_checkbox_group");
     const adminCheckbox = document.getElementById("admin_checkbox");
 
-    if (accountStatusSelect && adminCheckboxGroup && adminCheckbox) {
-      function toggleAdminCheckbox() {
-        if (accountStatusSelect.value === "enable") {
-          adminCheckboxGroup.style.display = "block";
-        } else {
-          adminCheckboxGroup.style.display = "none";
-          adminCheckbox.checked = false;
-        }
+    function toggleAdminCheckbox() {
+      if (!accountStatusSelect || !adminCheckboxGroup || !adminCheckbox) return;
+      if (accountStatusSelect.value === "enable") {
+        adminCheckboxGroup.style.display = "block";
+      } else {
+        adminCheckboxGroup.style.display = "none";
+        adminCheckbox.checked = false;
       }
-
-      toggleAdminCheckbox(); // Initial run
+    }
+    toggleAdminCheckbox();
+    if (accountStatusSelect) {
       accountStatusSelect.addEventListener("change", toggleAdminCheckbox);
     }
   });
 </script>
-
-
-
 {% endblock %}

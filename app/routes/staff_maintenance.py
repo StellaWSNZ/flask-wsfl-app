@@ -16,16 +16,25 @@ staff_bp = Blueprint("staff_bp", __name__)
 def staff_maintenance():
     try:
         print("📥 /Staff route called")
-        school_list = []
-        user_id = session.get("user_id")
+        user_id   = session.get("user_id")
         user_role = session.get("user_role")
         user_email = session.get("user_email")
-        desc = session.get("desc")
+        desc      = session.get("desc")
         user_admin = session.get("user_admin")
         print(f"🧑 Session info — ID: {user_id}, Role: {user_role}, Admin: {user_admin}, Email: {user_email}, Desc: {desc}")
 
         if not user_role or user_admin != 1:
             abort(403)
+
+        # ── constants / init ────────────────────────────────────────────────
+        ROLE_MAP = {"Funder": "FUN", "Provider": "PRO", "School": "MOE", "Group": "GRP"}
+
+        # form/query params
+        selected_entity_type = (request.form.get("entity_type") or request.args.get("entity_type") or "").strip() or None
+        selected_entity_id   = (request.form.get("entity_id")   or request.args.get("entity_id")   or "").strip() or None
+        print(f"📌 Initial entity_type: {selected_entity_type}, entity_id: {selected_entity_id}")
+
+        # groups info only for header UI (has_groups flag)
         has_groups = False
         group_list = []
 
@@ -39,165 +48,107 @@ def staff_maintenance():
                     text("EXEC FlaskGetGroupsByFunder @FunderID = :fid"),
                     {"fid": user_id}
                 )
-                group_list = [{"id": row.GroupID, "name": row.Description} for row in result]
+                # These columns vary by your proc; adjust if needed
+                group_list = [{"id": row.GroupID if hasattr(row, "GroupID") else row.ID,
+                               "name": row.Description if hasattr(row, "Description") else row.Name}
+                              for row in result]
                 has_groups = len(group_list) > 0
             elif user_role == "GRP":
                 group_list = [{"id": user_id, "name": desc}]
                 has_groups = True
-        selected_entity_type = request.form.get("entity_type") or request.args.get("entity_type")
-        selected_entity_id = request.form.get("entity_id") or request.args.get("entity_id")
-        print(f"📌 Initial entity_type: {selected_entity_type}, entity_id: {selected_entity_id}")
-        if request.method == "POST" or request.args.get("trigger_load") == "1":
-            print("📩 POST received")
-        if not selected_entity_type or not selected_entity_id:
+
+        # ── choose sensible default type per role if none provided ─────────
+        if not selected_entity_type:
             if user_role == "PRO":
-                selected_entity_type = "Provider"  # "Provider" or "School"
-                selected_entity_id = user_id
+                selected_entity_type = "Provider"
             elif user_role == "MOE":
-                selected_entity_type = "School"  # "Provider" or "School"
-                selected_entity_id = user_id
+                selected_entity_type = "School"
             elif user_role == "GRP":
-                selected_entity_type = "Group"  # "Provider" or "School"
-                selected_entity_id = user_id
-            else:
+                selected_entity_type = "Group"
+            elif user_role == "FUN":
                 selected_entity_type = "Funder"
-                selected_entity_id = user_id
+            else:
+                selected_entity_type = "Provider"
+
+        # ── auto-select own entity_id on first load per role/type ──────────
+        # MOE → own School
+        if user_role == "MOE" and selected_entity_type == "School" and not selected_entity_id:
+            selected_entity_id = str(user_id)
+        # PRO → own Provider (optional)
+        if user_role == "PRO" and selected_entity_type == "Provider" and not selected_entity_id:
+            selected_entity_id = str(user_id)
+        # GRP → own Group (optional)
+        if user_role == "GRP" and selected_entity_type == "Group" and not selected_entity_id:
+            selected_entity_id = str(user_id)
+        # FUN → own Funder (your request)
+        if user_role == "FUN" and selected_entity_type == "Funder" and not selected_entity_id:
+            selected_entity_id = str(user_id)
+
         print(f"📌 Final entity_type: {selected_entity_type}, entity_id: {selected_entity_id}")
 
         selected_entity_name = None
-        provider_options = []
-        funder_list = []  # Add this if missing
+        role_type = None
+        target_id = None
         staff_data = pd.DataFrame()
         columns = []
-        name = desc
-        is_admin = user_admin == 1
+        hidden_staff = []
 
         with get_db_engine().connect() as conn:
-            if user_role == "ADM":
-                if selected_entity_id and selected_entity_type:
-                    id_column = f"{selected_entity_type}ID"
-                    result = conn.execute(
-                        text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :id, @Text = :type"),
-                        {"Request": "GetEntityDescription", "id": int(selected_entity_id), "type": selected_entity_type}
-                    )
-                    selected_entity_name = result.scalar()
-                    role_type = "FUN" if selected_entity_type == "Funder" else "PRO"
-                    target_id = int(selected_entity_id)
-                else:
-                    print("⚠️ ADM but missing entity_type/id")
-                    return render_template("staff_maintenance.html",
-                        data=[], columns=[],
-                        user_role=user_role, name=desc,
-                        selected_entity_type=None, selected_entity_id=None,
-                        selected_entity_name=None, provider_options=[]
-                    )
+            # Only resolve and query when both are present
+            if selected_entity_type and selected_entity_id:
+                # Friendly name for header
+                result = conn.execute(
+                    text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :id, @Text = :type"),
+                    {"Request": "GetEntityDescription", "id": int(selected_entity_id), "type": selected_entity_type}
+                )
+                selected_entity_name = result.scalar()
 
-            elif user_role == "FUN":
-                entity_type = selected_entity_type or "Funder"
-                if entity_type == "Funder":
-                    role_type = "FUN"
-                    target_id = int(user_id)
-                    selected_entity_name = desc
-                elif entity_type == "Provider":
-                    providers = conn.execute(
-                        text("EXEC FlaskHelperFunctions @Request = 'ProvidersByFunderID', @Number = :fid"),
-                        {"fid": user_id}
-                    ).fetchall()
-                    provider_options = [{"id": row.id, "name": row.Description} for row in providers]
-
-                    if selected_entity_id:
-                        result = conn.execute(
-                            text("EXEC FlaskHelperFunctions @Request = 'ProviderName', @Number = :fid"),
-                            {"fid": selected_entity_id}
-                        )
-                        selected_entity_name = result.scalar()
-                        role_type = "PRO"
-                        target_id = int(selected_entity_id)
-                    else:
-                        print("⚠️ FUN selected Provider but no provider selected")
-                        return render_template("staff_maintenance.html",
-                            data=[], columns=[],
-                            user_role=user_role, name=desc,
-                            selected_entity_type="Provider", selected_entity_id=None,
-                            selected_entity_name=None, provider_options=provider_options
-                        )
-                else:
-                    return "Invalid entity type", 400
-            elif user_role == "GRP":
-                entity_type = selected_entity_type or "Group"
-                provider_options = []
-                school_list = []
+                # Map long type → short code for procs
+                role_type = ROLE_MAP.get(selected_entity_type, user_role)
                 target_id = int(selected_entity_id)
-                target_id = int(selected_entity_id)
-                if entity_type == "Provider":
-                    role_type = "PRO"
-                    providers = conn.execute(
-                        text("EXEC FlaskHelperFunctions @Request = 'ProvidersByGroupID', @Number = :gid"),
-                        {"gid": user_id}
-                    ).fetchall()
-                    provider_options = [{"id": row.id, "name": row.Description} for row in providers]
-                    result = conn.execute(
-                        text("EXEC FlaskHelperFunctions @Request = 'ProviderName', @Number = :fid"),
-                        {"fid": target_id}
-                    )
-                    selected_entity_name = result.scalar()
 
-                elif entity_type == "School":
-                    role_type = "MOE"
-                    schools = conn.execute(
-                        text("EXEC FlaskHelperFunctions @Request = 'SchoolsByGroupID', @Number = :gid"),
-                        {"gid": user_id}
-                    ).fetchall()
-                    school_list = [{"id": row.id, "name": row.Description} for row in schools]
-                    result = conn.execute(
-                        text("EXEC FlaskHelperFunctions @Request = 'SchoolName', @Number = :fid"),
-                        {"fid": target_id}
-                    )
-                    selected_entity_name = result.scalar()
+                print(f"🧾 Fetching staff for role_type: {role_type}, ID: {target_id}")
+                result = conn.execute(
+                    text("EXEC FlaskGetStaffDetails @RoleType = :role, @ID = :id, @Email = :email"),
+                    {"role": role_type, "id": target_id, "email": user_email}
+                )
+                rows = result.fetchall()
+                staff_data = pd.DataFrame(rows, columns=result.keys())
+                columns = result.keys()
 
-                elif entity_type == "Group":
-                    role_type = "GRP"
-                    selected_entity_name = next((g["name"] for g in group_list if g["id"] == target_id), None)
-                else:
-                    print(f"⚠️ GRP selected invalid entity type: {entity_type}")
-                    return "Invalid entity type", 400
+                # Hidden staff for same target
+                hidden_result = conn.execute(
+                    text("EXEC FlaskGetHiddenStaff @EntityType = :etype, @EntityID = :eid"),
+                    {"etype": role_type, "eid": target_id}
+                )
+                hidden_staff = [dict(row._mapping) for row in hidden_result]
 
-            else:
-                role_type = user_role
-                target_id = int(user_id)
-                selected_entity_name = desc
-
-            print(f"🧾 Fetching staff for role_type: {role_type}, ID: {target_id}")
-            result = conn.execute(
-                text("EXEC FlaskGetStaffDetails @RoleType = :role, @ID = :id, @Email = :email"),
-                {"role": role_type, "id": target_id, "email": user_email}
-            )
-            rows = result.fetchall()
-            staff_data = pd.DataFrame(rows, columns=result.keys())
-            columns = result.keys()
-            # Fetch hidden staff using same role_type and target_id
-            hidden_result = conn.execute(
-                text("EXEC FlaskGetHiddenStaff @EntityType = :etype, @EntityID = :eid"),
-                {"etype": role_type, "eid": target_id}
-            )
-            hidden_staff = [dict(row._mapping) for row in hidden_result]
+        # Render — lists for dropdowns now come from /get_entities via JS
         return render_template(
             "staff_maintenance.html",
+            # selection context
             entity_type=selected_entity_type,
-            selected_funder_id=int(selected_entity_id) if selected_entity_id else None,
             selected_entity_type=selected_entity_type,
             selected_entity_id=selected_entity_id,
             selected_entity_name=selected_entity_name,
-            provider_options=provider_options,
-            school_list=school_list,
+
+            # lists (client fills via /get_entities; keep for template compat)
+            provider_options=[],
+            school_list=[],
             group_list=group_list,
-            funder_list=funder_list,
+            funder_list=[],
+
+            # data
             data=staff_data.to_dict(orient="records"),
             columns=columns,
-            name=name+"'s Staff eLearning",
+
+            # UI/header context
+            name=desc + "'s Staff eLearning",
             user_role=user_role,
-            user_admin=is_admin,
+            user_admin=(user_admin == 1),
             has_groups=has_groups,
+
+            # hidden staff
             hidden_staff=hidden_staff
         )
 
@@ -205,9 +156,7 @@ def staff_maintenance():
         print("❌ Exception in /Staff route:")
         print(traceback.format_exc())
         return "500 Internal Server Error", 500
-   
-
-
+    
 
 
 @staff_bp.route('/update_staff', methods=['POST'])
