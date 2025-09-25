@@ -35,7 +35,7 @@ body, .text-body, .text-dark, .text-muted, .form-label, .form-control {
 .btn-outline-primary {
   color: var(--bs-primary) !important;
   border: 2px solid var(--bs-primary) !important;
-  background-color: transparent !important;
+  background-color: white !important;
   font-weight: 600 !important;
   transition: background-color 0.2s, color 0.2s, border-color 0.2s !important;
 }
@@ -73,3 +73,9 @@ body, .text-body, .text-dark, .text-muted, .form-label, .form-control {
   background-color: #1a427d !important;
 }
 
+thead.custom-header th {
+    background-color: #004080 !important;
+    color: white !important;
+    border-color: #004080 !important;
+    text-align: center;
+  }

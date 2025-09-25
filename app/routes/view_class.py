@@ -2231,3 +2231,290 @@ def _count_xls_rows(b):
     sh = wb.sheet_by_index(0)
     nrows = sh.nrows
     return nrows - 1 if nrows else 0
+
+
+
+def _require_moe_or_adm():
+    role = session.get("user_role")
+    admin = int(session.get("user_admin") or 0)
+    return role == "MOE" or admin == 1
+
+def _json_error(msg, code=400):
+    return jsonify({"ok": False, "error": msg}), code
+
+# ---- page ----
+@class_bp.route("/EditClass")
+@login_required
+def class_students_page():
+    if not _require_moe_or_adm():
+        return _json_error("Forbidden", 403)
+    try:
+        return render_template("class_students.html",
+                               current_year=date.today().year)
+    except Exception:
+        import traceback
+        traceback.print_exc()  # prints the BuildError if url_for fails
+        return "<pre>" + traceback.format_exc() + "</pre>", 500
+# ---- API: classes for a school/term/year ----
+@class_bp.route("/classes_for_term")
+@login_required
+def classes_for_term():
+    if not _require_moe_or_adm():
+        return _json_error("Forbidden", 403)
+
+    try:
+        moe = int(request.args["moe"])       # MOENumber (School ID)
+        term = request.args["term"]
+        year = int(request.args["year"])
+    except Exception:
+        return _json_error("Missing or invalid parameters")
+
+    engine = get_db_engine()
+    with engine.begin() as conn:
+        # You create this proc to list classes by school/term/year
+        rows = conn.execute(
+            text("EXEC FlaskGetClassesForTerm @MOENumber=:m, @Term=:t, @CalendarYear=:y"),
+            {"m": moe, "t": term, "y": year}
+        ).fetchall()
+
+    out = [{"id": r._mapping["ClassID"], "name": r._mapping["ClassName"]} for r in rows]
+    return jsonify(out)
+
+# ---- API: get students in a class ----
+@class_bp.route("/students/<int:class_id>")
+@login_required
+def get_class_students(class_id):
+    if not _require_moe_or_adm():
+        return _json_error("Forbidden", 403)
+
+    engine = get_db_engine()
+    with engine.begin() as conn:
+        rows = conn.execute(
+            text("EXEC FlaskGetClassStudents @ClassID=:cid"),
+            {"cid": class_id}
+        ).fetchall()
+
+    # expected columns from your proc:
+    # NSN, FirstName, PreferredName, LastName, YearLevel, Ethnicity, DateOfBirth
+    out = []
+    for r in rows:
+        m = r._mapping
+        out.append({
+            "NSN": m.get("NSN"),
+            "FirstName": m.get("FirstName"),
+            "PreferredName": m.get("PreferredName"),
+            "LastName": m.get("LastName"),
+            "YearLevel": m.get("YearLevelID"),
+            "Ethnicity": m.get("Ethnicity"),
+            "DateOfBirth": str(m.get("DateOfBirth") or "")[:10],
+            "Deletable": m.get("Deletable")
+        })
+    return jsonify(out)
+from flask import request, jsonify
+from sqlalchemy import text
+import time, traceback
+
+@class_bp.route("/search_students")
+@login_required
+def search_students():
+    q        = (request.args.get("q") or "").strip()
+    moe      = request.args.get("moe", type=int)
+    class_id = request.args.get("class_id", type=int)
+
+    print(f"🔎 /search_students called: q='{q}', moe={moe}, class_id={class_id}")
+
+    if not (moe and q):
+        print("➡️  Missing moe or query → returning empty list")
+        return jsonify([])
+
+    eng = get_db_engine()
+    try:
+        with eng.begin() as conn:
+            print("➡️  Executing stored proc FlaskSearchStudentsForSchool_AllTime…")
+            rows = conn.execute(
+                text(
+                    "EXEC dbo.FlaskSearchStudentsForSchool_AllTime "
+                    "@MOENumber=:moe, @Query=:q, @ClassID=:cid, @Top=:top"
+                ),
+                {"moe": moe, "q": q, "cid": class_id, "top": 500}
+            ).fetchall()
+            print(f"✅ Stored proc returned {len(rows)} rows")
+    except Exception as e:
+        # This will surface any SQL or connection errors
+        import traceback
+        print("💥 DB call failed:", e)
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+    out = []
+    for r in rows:
+        m = r._mapping
+        out.append({
+            "NSN": m.get("NSN"),
+            "FirstName": m.get("FirstName"),
+            "PreferredName": m.get("PreferredName"),
+            "LastName": m.get("LastName"),
+            "DateOfBirth": (str(m.get("DateOfBirth"))[:10] if m.get("DateOfBirth") else ""),
+            "EthnicityID": m.get("EthnicityID"),
+            "Ethnicity": m.get("Ethnicity"),
+            "InClass": bool(m.get("InClass")),
+        })
+
+    print(f"➡️  Returning {len(out)} student records to client")
+    return jsonify(out)
+
+
+# ---- API: add existing student to class ----
+@class_bp.route("/add_student", methods=["POST"])
+@login_required
+def add_student_to_class():
+    if not _require_moe_or_adm():
+        return _json_error("Forbidden", 403)
+
+    data = request.get_json(force=True)
+    nsn = data.get("nsn")
+    class_id = data.get("class_id")
+    year_level = data.get("year_level")
+
+    if not (nsn and class_id):
+        return _json_error("nsn and class_id are required")
+
+    engine = get_db_engine()
+    with engine.begin() as conn:
+        conn.execute(
+            text("EXEC FlaskAddStudentToClass @NSN=:n, @ClassID=:cid, @YearLevelID=:yl"),
+            {"n": nsn, "cid": class_id, "yl": year_level}
+        )
+    return jsonify({"ok": True})
+# ---- API: create new student with PROVIDED NSN, then add to class ----
+@class_bp.route("/create_student_and_add", methods=["POST"])
+@login_required
+def create_student_and_add():
+    if not _require_moe_or_adm():
+        return _json_error("Forbidden", 403)
+
+    d = request.get_json(force=True) or {}
+    class_id   = d.get("class_id")
+    student    = d.get("student") or {}
+    year_level = d.get("year_level")  # optional
+    term       = d.get("term")        # optional (derive from Class if None)
+    year       = d.get("year")        # optional (derive from Class if None)
+
+    # Validate required bits
+    if not class_id:
+        return _json_error("class_id is required")
+    nsn = student.get("NSN")
+    if nsn in (None, "", []):
+        return _json_error("NSN is required and must be numeric")
+    try:
+        nsn = int(str(nsn).strip())
+    except ValueError:
+        return _json_error("NSN must be numeric")
+    if not (student.get("FirstName") and student.get("LastName")):
+        return _json_error("Student FirstName and LastName are required")
+
+    try:
+        eng = get_db_engine()
+        with eng.begin() as conn:
+            row = conn.execute(
+                text("""
+                    DECLARE @NSN BIGINT = :nsn_in;  -- must be provided
+                    EXEC dbo.FlaskCreateStudentAddToClassAndSeed 
+                         @NSN              = @NSN OUTPUT,
+                         @FirstName        = :fn,
+                         @LastName         = :ln,
+                         @PreferredName    = :pn,
+                         @DateOfBirth      = :dob,
+                         @EthnicityID      = :eth,
+                         @ClassID          = :cid,
+                         @CalendarYear     = :yr,
+                         @Term             = :term,
+                         @YearLevelID      = :yl,
+                         @SeedScenarios    = 1,
+                         @SeedCompetencies = 1;
+                    SELECT @NSN AS NSN;
+                """),
+                {
+                    "nsn_in": nsn,
+                    "fn":     (student.get("FirstName") or "").strip(),
+                    "ln":     (student.get("LastName") or "").strip(),
+                    "pn":     (student.get("PreferredName") or None),
+                    "dob":    (student.get("DateOfBirth") or None),
+                    "eth":    (student.get("EthnicityID") or None),
+                    "cid":    class_id,
+                    "yr":     year,      # can be None → derived from Class by proc
+                    "term":   term,      # can be None → derived from Class by proc
+                    "yl":     (year_level or None),
+                }
+            ).fetchone()
+
+            out_nsn = row._mapping.get("NSN")
+
+        return jsonify({"ok": True, "nsn": out_nsn})
+
+    except Exception as e:
+        import traceback
+        print("💥 create_student_and_add failed:", e)
+        traceback.print_exc()
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+# ---- API: update student info (modal save) ----
+@class_bp.route("/update_student", methods=["POST"])
+@login_required
+def update_student():
+    if not _require_moe_or_adm():
+        return _json_error("Forbidden", 403)
+
+    d = request.get_json(force=True)
+    # expects NSN + updated fields (FirstName, LastName, PreferredName, EthnicityID)
+    engine = get_db_engine()
+    with engine.begin() as conn:
+        conn.execute(
+            text("""
+                EXEC FlaskUpdateStudent
+                    @NSN=:nsn,
+                    @FirstName=:fn,
+                    @LastName=:ln,
+                    @PreferredName=:pn,
+                    @EthnicityID=:eth
+            """),
+            {
+                "nsn": d.get("NSN"),
+                "fn": d.get("FirstName"),
+                "ln": d.get("LastName"),
+                "pn": d.get("PreferredName"),
+                "eth": d.get("EthnicityID"),
+            }
+        )
+    return jsonify({"ok": True})
+
+# ---- API: remove student from class ----
+@class_bp.route("/remove_from_class", methods=["POST"])
+@login_required
+def remove_from_class():
+    if not _require_moe_or_adm():
+        return _json_error("Forbidden", 403)
+
+    d = request.get_json(force=True)
+    nsn = d.get("nsn")
+    class_id = d.get("class_id")
+    if not (nsn and class_id):
+        return _json_error("nsn and class_id are required")
+
+    engine = get_db_engine()
+    with engine.begin() as conn:
+        conn.execute(
+            text("EXEC FlaskRemoveStudentFromClass @NSN=:n, @ClassID=:cid, @PerformedByEmail=:em"),
+            {"n": nsn, "cid": class_id, "em": session.get("user_email")}
+        )
+    return jsonify({"ok": True})
+
+# ---- API: ethnicity dropdown for edit modal ----
+@class_bp.route("/ethnicities")
+@login_required
+def ethnicities():
+    engine = get_db_engine()
+    with engine.begin() as conn:
+        rows = conn.execute(text("EXEC FlaskHelperFunctions @Request='EthnicityDropdown'")).fetchall()
+    return jsonify([{"id": r._mapping["EthnicityID"], "desc": r._mapping["Description"]} for r in rows])

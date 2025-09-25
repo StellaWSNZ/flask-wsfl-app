@@ -192,7 +192,14 @@
                     Reporting
                   </a>
                 </li>
-
+                <li>
+                  <a
+                    class="dropdown-item py-2"
+                    href="{{ url_for('class_bp.class_students_page') }}"
+                  >
+                    Edit Class Lists
+                  </a>
+                </li>
                 {%endif%}
                 <li>
                   <a
@@ -342,6 +349,14 @@
                     href="{{ url_for('students_bp.student_search_page') }}"
                   >
                     Edit Student Record
+                  </a>
+                </li>
+                <li>
+                  <a
+                    class="dropdown-item py-2"
+                    href="{{ url_for('class_bp.class_students_page') }}"
+                  >
+                    Edit Class Lists
                   </a>
                 </li>
                 <hr class="dropdown-divider" />

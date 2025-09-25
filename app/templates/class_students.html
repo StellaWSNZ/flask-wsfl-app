@@ -1,0 +1,899 @@
+{% extends "header.html" %} {% block title %}Edit Class List{% endblock %}
+{% block content %}
+
+<!-- (If your base layout doesn't already include it) Bootstrap Icons -->
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css"
+/>
+
+<!-- Expose real route URLs from Flask so JS doesn't guess paths -->
+<div
+  id="routes"
+  data-classes-for-term="{{ url_for('class_bp.classes_for_term') }}"
+  data-students-url-template="{{ url_for('class_bp.get_class_students', class_id=0) }}"
+  data-search-students="{{ url_for('class_bp.search_students') }}"
+  data-update-student="{{ url_for('class_bp.update_student') }}"
+  data-remove-from-class="{{ url_for('class_bp.remove_from_class') }}"
+  data-create-student-and-add="{{ url_for('class_bp.create_student_and_add') }}"
+  data-get-entities="{{ url_for('funder_bp.get_entities') }}?entity_type=School"
+  data-ethnicities="{{ url_for('class_bp.ethnicities') }}"
+></div>
+
+<style>
+  .info-pill {
+    --size: 1.25rem;
+    width: var(--size);
+    height: var(--size);
+    background: #fff; /* white background */
+    color: var(--bs-primary); /* blue icon */
+    border: 1px solid var(--bs-primary);
+    border-radius: 50%;
+    display: inline-grid;
+    place-items: center;
+    line-height: 1;
+  }
+  .info-pill i {
+    font-size: 0.9rem;
+  }
+</style>
+
+<div class="container my-4">
+  <h2 class="text-center text-primary mb-4">Edit Class List</h2>
+
+  <!-- Filters -->
+  <div class="row g-3 mb-3">
+    <div class="col-md-4">
+      <label class="form-label">School</label>
+      <select id="school-select" class="form-select"></select>
+    </div>
+    <div class="col-md-2">
+      <label class="form-label">Term</label>
+      <select id="term-select" class="form-select">
+        <option value="1">Term 1</option>
+        <option value="2">Term 2</option>
+        <option value="3">Term 3</option>
+        <option value="4">Term 4</option>
+      </select>
+    </div>
+    <div class="col-md-2">
+  <label class="form-label">Year</label>
+  <select id="year-input" class="form-select">
+    {% for y in [2024, 2025, 2026] %}
+      <option value="{{ y }}" {{ 'selected' if current_year == y else '' }}>{{ y }}</option>
+    {% endfor %}
+  </select>
+</div>
+
+    <div class="col-md-4">
+      <label class="form-label">Class</label>
+      <select id="class-select" class="form-select"></select>
+    </div>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <h5 class="mb-0">Students</h5>
+
+    <div class="d-flex align-items-center gap-2">
+      <label class="small text-muted mb-0 me-1">Sort:</label>
+      <select id="sort-field" class="form-select form-select-sm w-auto">
+        <option value="FirstName">First name</option>
+        <option value="PreferredName">Preferred name</option>
+        <option value="LastName">Last name</option>
+        <option value="DateOfBirth">Date of birth</option>
+        <option value="YearLevel">Year level</option>
+      </select>
+      <select id="sort-dir" class="form-select form-select-sm w-auto">
+        <option value="asc">Ascending</option>
+        <option value="desc">Descending</option>
+      </select>
+
+      <button
+        id="add-student-btn"
+        class="btn btn-sm btn-success"
+        data-bs-toggle="modal"
+        data-bs-target="#addStudentModal"
+      >
+        Add Student
+      </button>
+    </div>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-bordered table-hover align-middle">
+      <thead class="custom-header">
+        <tr>
+          <th>NSN</th>
+          <th>First Name</th>
+          <th>Preferred Name</th>
+          <th>Last Name</th>
+          <th>Year Level</th>
+          <th>Ethnicity</th>
+          <th>Date of Birth</th>
+          <th style="width: 160px">
+            Actions
+            <button
+              type="button"
+              class="btn btn-link p-0 align-baseline ms-1"
+              data-bs-toggle="tooltip"
+              data-bs-placement="top"
+              title="You can delete a student only if they have NO competencies marked achieved within this term’s dates, or they are enrolled in more than one class for the same year/term."
+              aria-label="Deletion rules"
+            >
+              <span class="info-pill"><i class="bi bi-info-lg"></i></span>
+            </button>
+          </th>
+        </tr>
+      </thead>
+      <tbody id="student-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Edit Student Modal -->
+<div class="modal fade" id="editStudentModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content border-0">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title">Edit Student</h5>
+        <button
+          type="button"
+          class="btn-close btn-close-white"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <div id="edit-modal-alert-host" class="mb-2"></div>
+        <form id="edit-student-form">
+          <input type="hidden" id="edit-nsn" />
+          <div class="mb-3">
+            <label class="form-label">First Name</label>
+            <input
+              type="text"
+              class="form-control"
+              id="edit-first-name"
+              required
+            />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Last Name</label>
+            <input
+              type="text"
+              class="form-control"
+              id="edit-last-name"
+              required
+            />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Preferred Name</label>
+            <input type="text" class="form-control" id="edit-preferred-name" />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Ethnicity</label>
+            <select class="form-select" id="edit-ethnicity"></select>
+          </div>
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div
+  class="modal fade"
+  id="deleteStudentModal"
+  tabindex="-1"
+  aria-hidden="true"
+>
+  <div class="modal-dialog">
+    <div class="modal-content border-0">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title">Remove from Class</h5>
+        <button
+          type="button"
+          class="btn-close btn-close-white"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <div id="delete-modal-alert-host" class="mb-2"></div>
+        Are you sure you want to remove this student from this class?
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">
+          Cancel
+        </button>
+        <button id="confirm-delete-btn" class="btn btn-danger">Remove</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Student Modal -->
+<div class="modal fade" id="addStudentModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content border-0">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title">Add Student to Class</h5>
+        <button
+          type="button"
+          class="btn-close btn-close-white"
+          data-bs-dismiss="modal"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <div id="add-modal-alert-host" class="mb-2"></div>
+
+        <!-- Search Existing -->
+        <div class="mb-3">
+          <label class="form-label">Search by NSN or name</label>
+          <div class="input-group">
+            <input
+              id="search-q"
+              class="form-control"
+              placeholder="NSN, first, last, or preferred name"
+            />
+            <button
+              id="search-btn"
+              class="btn btn-outline-secondary"
+              type="button"
+            >
+              Search
+            </button>
+          </div>
+        </div>
+        <div id="search-results" class="mb-4"></div>
+
+        <hr class="my-3" />
+
+        <!-- Create New Student -->
+        <h6>Create New Student</h6>
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label">NSN (required)</label>
+            <input
+              id="new-nsn"
+              class="form-control"
+              placeholder="numeric only"
+              required
+            />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">First Name</label>
+            <input id="new-first" class="form-control" required />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Last Name</label>
+            <input id="new-last" class="form-control" required />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Preferred Name</label>
+            <input id="new-pref" class="form-control" />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">DOB</label>
+            <input id="new-dob" type="date" class="form-control" />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Ethnicity</label>
+            <select id="new-eth" class="form-select"></select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Year Level</label>
+            <input
+              id="new-yearlevel"
+              type="number"
+              min="0"
+              max="13"
+              class="form-control"
+              placeholder="e.g., 4"
+            />
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="create-and-add-btn" class="btn btn-success">
+          Create & Add
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const $school = document.getElementById("school-select");
+  const $term = document.getElementById("term-select");
+  const $year = document.getElementById("year-input");
+  const $class = document.getElementById("class-select");
+  const $tbody = document.getElementById("student-tbody");
+
+  const $sortField = document.getElementById("sort-field");
+  const $sortDir = document.getElementById("sort-dir");
+
+  const routesEl = document.getElementById("routes");
+  const URL_CLASSES_FOR_TERM = routesEl.dataset.classesForTerm;
+  const URL_STUDENTS_URL_TEMPLATE = routesEl.dataset.studentsUrlTemplate;
+  const URL_SEARCH_STUDENTS = routesEl.dataset.searchStudents;
+  const URL_UPDATE_STUDENT = routesEl.dataset.updateStudent;
+  const URL_REMOVE_FROM_CLASS = routesEl.dataset.removeFromClass;
+  const URL_CREATE_AND_ADD = routesEl.dataset.createStudentAndAdd;
+  const URL_GET_ENTITIES = routesEl.dataset.getEntities;
+  const URL_ETHNICITIES = routesEl.dataset.ethnicities;
+
+  function studentsUrl(classId) {
+    return URL_STUDENTS_URL_TEMPLATE.replace(/0$/, String(classId));
+  }
+
+  let currentClassId = null;
+  let pendingDeleteNSN = null;
+  let _studentsCache = [];
+
+  /* ---------- Tooltip initializer (the missing piece) ---------- */
+  function initTooltips(scope = document) {
+    const els = Array.from(
+      scope.querySelectorAll('[data-bs-toggle="tooltip"]')
+    );
+    els.forEach((el) =>
+      bootstrap.Tooltip.getOrCreateInstance(el, {
+        container: "body",
+        trigger: "hover focus",
+      })
+    );
+  }
+
+  // Alerts inside modals
+  function showModalAlert(
+    modalId,
+    type,
+    message,
+    { timeout = 4000, scroll = true } = {}
+  ) {
+    const modal = document.querySelector(modalId);
+    if (!modal) return;
+    const host =
+      modalId === "#addStudentModal"
+        ? modal.querySelector("#add-modal-alert-host")
+        : modalId === "#editStudentModal"
+        ? modal.querySelector("#edit-modal-alert-host")
+        : modalId === "#deleteStudentModal"
+        ? modal.querySelector("#delete-modal-alert-host")
+        : null;
+    if (!host) return;
+
+    const id = "al_" + Math.random().toString(36).slice(2, 9);
+    host.insertAdjacentHTML(
+      "beforeend",
+      `<div id="${id}" class="alert alert-${type} alert-dismissible fade show" role="alert">
+         ${escapeHtml(message)}
+         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+       </div>`
+    );
+    const el = document.getElementById(id);
+    if (scroll && el)
+      el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    if (timeout > 0)
+      setTimeout(
+        () => bootstrap.Alert.getOrCreateInstance(el)?.close(),
+        timeout
+      );
+  }
+
+  /* ---------- Wire events first, then load data ---------- */
+  document.addEventListener("DOMContentLoaded", () => {
+    wireEvents();
+    initTooltips(); // header tooltip active now
+
+    loadSchools().catch((err) => console.error("loadSchools failed:", err));
+    loadEthnicities().catch((err) =>
+      console.error("loadEthnicities failed:", err)
+    );
+  });
+
+  function debounce(fn, ms = 350) {
+    let t;
+    return (...a) => {
+      clearTimeout(t);
+      t = setTimeout(() => fn(...a), ms);
+    };
+  }
+
+  function wireEvents() {
+    $school.addEventListener("change", loadClasses);
+    $term.addEventListener("change", loadClasses);
+    $year.addEventListener("change", loadClasses);
+    $year.addEventListener("input", debounce(loadClasses, 400));
+
+    $class.addEventListener("change", () => {
+      currentClassId = parseInt($class.value, 10);
+      loadStudents();
+    });
+
+    $sortField.addEventListener("change", renderStudentsSorted);
+    $sortDir.addEventListener("change", renderStudentsSorted);
+
+    document.getElementById("search-btn").addEventListener("click", doSearch);
+    document
+      .getElementById("create-and-add-btn")
+      .addEventListener("click", createAndAdd);
+    document
+      .getElementById("edit-student-form")
+      .addEventListener("submit", saveEdit);
+    document
+      .getElementById("confirm-delete-btn")
+      .addEventListener("click", confirmDelete);
+  }
+
+  /* ---------- Loads ---------- */
+  async function loadSchools() {
+    const r = await fetch(URL_GET_ENTITIES, { credentials: "same-origin" });
+    if (!r.ok) return;
+    const rows = await r.json();
+    $school.innerHTML = rows
+      .map((e) => `<option value="${e.id}">${e.name}</option>`)
+      .join("");
+    if ($school.value) await loadClasses();
+  }
+
+  async function loadClasses() {
+    try {
+      $class.innerHTML = "";
+      $tbody.innerHTML = "";
+
+      const qs = new URLSearchParams({
+        moe: $school.value,
+        term: $term.value,
+        year: $year.value,
+      });
+      const url = `${URL_CLASSES_FOR_TERM}?${qs.toString()}`;
+      const r = await fetch(url, { credentials: "same-origin" });
+      if (!r.ok) return;
+
+      const rows = await r.json();
+      $class.innerHTML = rows
+        .map((e) => `<option value="${e.id}">${e.name}</option>`)
+        .join("");
+      if ($class.value) {
+        currentClassId = parseInt($class.value, 10);
+        await loadStudents();
+      }
+    } catch (err) {
+      console.error("loadClasses error:", err);
+    }
+  }
+
+  async function loadStudents() {
+    if (!currentClassId) return;
+    const r = await fetch(studentsUrl(currentClassId), {
+      credentials: "same-origin",
+    });
+    if (!r.ok) return;
+    const rows = await r.json();
+    _studentsCache = rows || [];
+    renderStudentsSorted();
+  }
+
+  /* ---------- Sorting ---------- */
+  const collator = new Intl.Collator("en", {
+    sensitivity: "base",
+    numeric: true,
+  });
+  const cmpStrings = (a, b) =>
+    collator.compare((a || "").trim(), (b || "").trim());
+  const toNumber = (x) => {
+    const n = Number(x);
+    return Number.isFinite(n) ? n : null;
+  };
+  const toDate = (x) => {
+    const t = x ? Date.parse(x) : NaN;
+    return Number.isFinite(t) ? t : null;
+  };
+  function nullsLastCompare(va, vb) {
+    const aNull = va == null,
+      bNull = vb == null;
+    if (aNull && bNull) return 0;
+    if (aNull) return 1;
+    if (bNull) return -1;
+    return 0;
+  }
+  function getComparator() {
+    const field = $sortField.value;
+    const dir = $sortDir.value === "desc" ? -1 : 1;
+    return (a, b) => {
+      let va,
+        vb,
+        prim = 0;
+      switch (field) {
+        case "FirstName":
+          prim = cmpStrings(a.FirstName, b.FirstName);
+          break;
+        case "PreferredName":
+          prim = cmpStrings(a.PreferredName, b.PreferredName);
+          break;
+        case "LastName":
+          prim = cmpStrings(a.LastName, b.LastName);
+          break;
+        case "YearLevel":
+          va = toNumber(a.YearLevel);
+          vb = toNumber(b.YearLevel);
+          {
+            const nl = nullsLastCompare(va, vb);
+            prim = nl !== 0 ? nl : va === vb ? 0 : va < vb ? -1 : 1;
+          }
+          break;
+        case "DateOfBirth":
+          va = toDate(a.DateOfBirth);
+          vb = toDate(b.DateOfBirth);
+          {
+            const nl = nullsLastCompare(va, vb);
+            prim = nl !== 0 ? nl : va === vb ? 0 : va < vb ? -1 : 1;
+          }
+          break;
+      }
+      if (prim !== 0) return prim * dir;
+      const tb1 = cmpStrings(a.LastName, b.LastName);
+      if (tb1) return tb1 * dir;
+      const tb2 = cmpStrings(a.FirstName, b.FirstName);
+      if (tb2) return tb2 * dir;
+      const na = toNumber(a.NSN),
+        nb = toNumber(b.NSN);
+      if (na != null && nb != null && na !== nb) return na < nb ? -1 : 1;
+      return 0;
+    };
+  }
+  function renderStudentsSorted() {
+    const rows = [..._studentsCache].sort(getComparator());
+    $tbody.innerHTML = rows.map(trStudent).join("");
+    initTooltips($tbody); // re-enable tooltips after render (this fixes the hover issue)
+  }
+
+  /* ---------- Row render ---------- */
+  function trStudent(s) {
+    const dob = s.DateOfBirth || "";
+    const yl = s.YearLevel ?? "";
+    const eth = s.Ethnicity || "";
+
+    // Hide Delete when Deletable is 1 / "1" / true (per your request)
+    const hideDelete =
+      s.Deletable === 1 || s.Deletable === "1" || s.Deletable === true;
+
+    return `
+      <tr data-nsn="${s.NSN}">
+        <td>${s.NSN ?? ""}</td>
+        <td>${escapeHtml(s.FirstName || "")}</td>
+        <td>${escapeHtml(s.PreferredName || "")}</td>
+        <td>${escapeHtml(s.LastName || "")}</td>
+        <td>${yl}</td>
+        <td>${escapeHtml(eth)}</td>
+        <td>${dob}</td>
+        <td>
+          <button class="btn btn-sm btn-primary me-2"
+            onclick="openEdit('${s.NSN}',
+              '${escapeAttr(s.FirstName || "")}',
+              '${escapeAttr(s.LastName || "")}',
+              '${escapeAttr(s.PreferredName || "")}',
+              '${escapeAttr(s.Ethnicity || "")}')">Edit</button>
+
+          ${
+            hideDelete
+              ? ""
+              : `
+            <button class="btn btn-sm btn-outline-danger" onclick="openDelete('${s.NSN}')">Delete</button>
+          `
+          }
+        </td>
+      </tr>`;
+  }
+
+  /* ---------- Edit ---------- */
+  function openEdit(nsn, first, last, pref, eth) {
+    document.getElementById("edit-nsn").value = nsn;
+    document.getElementById("edit-first-name").value = first;
+    document.getElementById("edit-last-name").value = last;
+    document.getElementById("edit-preferred-name").value = pref;
+
+    const sel = document.getElementById("edit-ethnicity");
+    for (const opt of sel.options)
+      if (opt.textContent.trim() === (eth || "").trim()) {
+        sel.value = opt.value;
+        break;
+      }
+    new bootstrap.Modal(document.getElementById("editStudentModal")).show();
+  }
+
+  async function saveEdit(ev) {
+    ev.preventDefault();
+    const payload = {
+      NSN: document.getElementById("edit-nsn").value,
+      FirstName: document.getElementById("edit-first-name").value,
+      LastName: document.getElementById("edit-last-name").value,
+      PreferredName: document.getElementById("edit-preferred-name").value,
+      EthnicityID: document.getElementById("edit-ethnicity").value || null,
+    };
+    try {
+      const resp = await fetch(URL_UPDATE_STUDENT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify(payload),
+      });
+      if (!resp.ok) {
+        showModalAlert(
+          "#editStudentModal",
+          "danger",
+          "Failed to update student."
+        );
+        return;
+      }
+      await loadStudents();
+      showModalAlert("#editStudentModal", "success", "Student updated.", {
+        timeout: 2000,
+      });
+      setTimeout(
+        () =>
+          bootstrap.Modal.getInstance(
+            document.getElementById("editStudentModal")
+          )?.hide(),
+        600
+      );
+    } catch {
+      showModalAlert(
+        "#editStudentModal",
+        "danger",
+        "Network error while updating student."
+      );
+    }
+  }
+
+  /* ---------- Delete ---------- */
+  function openDelete(nsn) {
+    pendingDeleteNSN = nsn;
+    new bootstrap.Modal(document.getElementById("deleteStudentModal")).show();
+  }
+  async function confirmDelete() {
+    if (!pendingDeleteNSN || !currentClassId) return;
+    const payload = { nsn: pendingDeleteNSN, class_id: currentClassId };
+    try {
+      const resp = await fetch(URL_REMOVE_FROM_CLASS, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify(payload),
+      });
+      if (!resp.ok) {
+        showModalAlert(
+          "#deleteStudentModal",
+          "danger",
+          "Failed to remove student from class."
+        );
+        return;
+      }
+      await loadStudents();
+      showModalAlert(
+        "#deleteStudentModal",
+        "success",
+        "Student removed from class.",
+        { timeout: 1500 }
+      );
+      setTimeout(
+        () =>
+          bootstrap.Modal.getInstance(
+            document.getElementById("deleteStudentModal")
+          )?.hide(),
+        600
+      );
+      pendingDeleteNSN = null;
+    } catch {
+      showModalAlert(
+        "#deleteStudentModal",
+        "danger",
+        "Network error while removing student."
+      );
+    }
+  }
+
+  /* ---------- Search & Add Existing ---------- */
+  async function doSearch() {
+    const q = document.getElementById("search-q").value.trim();
+    const moe = document.getElementById("school-select").value;
+    const cid = document.getElementById("class-select").value;
+    const $results = document.getElementById("search-results");
+    $results.innerHTML = "Searching...";
+
+    const url = `${URL_SEARCH_STUDENTS}?${new URLSearchParams({
+      q,
+      moe,
+      class_id: cid,
+    }).toString()}`;
+    try {
+      const r = await fetch(url, { credentials: "same-origin" });
+      if (!r.ok) {
+        $results.innerHTML = "";
+        showModalAlert("#addStudentModal", "danger", "Search failed.");
+        return;
+      }
+      const rows = await r.json();
+      if (!rows.length) {
+        $results.innerHTML = '<div class="text-muted">No results.</div>';
+        showModalAlert(
+          "#addStudentModal",
+          "warning",
+          "No students matched your search.",
+          { timeout: 2500, scroll: false }
+        );
+        return;
+      }
+      showModalAlert(
+        "#addStudentModal",
+        "info",
+        `Found ${rows.length} result(s).`,
+        { timeout: 2000, scroll: false }
+      );
+      $results.innerHTML = `
+        <table class="table table-sm align-middle">
+          <thead><tr><th>NSN</th><th>Name</th><th>DOB</th><th>Ethnicity</th><th></th></tr></thead>
+          <tbody>
+            ${rows
+              .map(
+                (s) => `
+              <tr>
+                <td>${s.NSN ?? ""}</td>
+                <td>${escapeHtml(s.FirstName || "")} ${escapeHtml(
+                  s.LastName || ""
+                )}</td>
+                <td>${s.DateOfBirth || ""}</td>
+                <td>${escapeHtml(s.Ethnicity || "")}</td>
+                <td>
+                  ${
+                    s.InClass
+                      ? '<button class="btn btn-sm btn-secondary" disabled>Already in class</button>'
+                      : `<button class="btn btn-sm btn-success" onclick="addExisting('${s.NSN}')">Add</button>`
+                  }
+                </td>
+              </tr>`
+              )
+              .join("")}
+          </tbody>
+        </table>`;
+    } catch {
+      $results.innerHTML = "";
+      showModalAlert(
+        "#addStudentModal",
+        "danger",
+        "Network error during search."
+      );
+    }
+  }
+
+  async function addExisting(nsn) {
+    if (!currentClassId) {
+      showModalAlert("#addStudentModal", "warning", "Pick a class first.");
+      return;
+    }
+    const yl = prompt("Year level for this class (e.g., 4):", "");
+    const payload = { nsn, class_id: currentClassId, year_level: yl || null };
+    try {
+      const resp = await fetch(
+        "{{ url_for('class_bp.add_student_to_class') }}",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify(payload),
+        }
+      );
+      if (!resp.ok) {
+        showModalAlert(
+          "#addStudentModal",
+          "danger",
+          "Failed to add student to class."
+        );
+        return;
+      }
+      await loadStudents();
+      showModalAlert("#addStudentModal", "success", "Student added to class.", {
+        timeout: 1500,
+      });
+    } catch {
+      showModalAlert(
+        "#addStudentModal",
+        "danger",
+        "Network error while adding student."
+      );
+    }
+  }
+
+  /* ---------- Create & Add ---------- */
+  async function createAndAdd() {
+    if (!currentClassId) {
+      showModalAlert("#addStudentModal", "warning", "Pick a class first.");
+      return;
+    }
+
+    const nsnRaw = (document.getElementById("new-nsn").value || "").trim();
+    if (!/^\d+$/.test(nsnRaw)) {
+      showModalAlert(
+        "#addStudentModal",
+        "warning",
+        "NSN is required and must be numeric."
+      );
+      return;
+    }
+
+    const payload = {
+      class_id: currentClassId,
+      year_level: document.getElementById("new-yearlevel").value || null,
+      student: {
+        NSN: parseInt(nsnRaw, 10),
+        FirstName: document.getElementById("new-first").value.trim(),
+        LastName: document.getElementById("new-last").value.trim(),
+        PreferredName: document.getElementById("new-pref").value.trim(),
+        DateOfBirth: document.getElementById("new-dob").value || null,
+        EthnicityID: document.getElementById("new-eth").value || null,
+      },
+    };
+
+    try {
+      const resp = await fetch(URL_CREATE_AND_ADD, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify(payload),
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok || data.ok === false) {
+        showModalAlert(
+          "#addStudentModal",
+          "danger",
+          data.error || "Failed to create/add student."
+        );
+        return;
+      }
+
+      [
+        "new-nsn",
+        "new-first",
+        "new-last",
+        "new-pref",
+        "new-dob",
+        "new-yearlevel",
+      ].forEach((id) => (document.getElementById(id).value = ""));
+      await loadStudents();
+      showModalAlert(
+        "#addStudentModal",
+        "success",
+        "Student created and added to class.",
+        { timeout: 1800 }
+      );
+    } catch {
+      showModalAlert(
+        "#addStudentModal",
+        "danger",
+        "Network error while creating/adding student."
+      );
+    }
+  }
+
+  /* ---------- utils ---------- */
+  function escapeHtml(s) {
+    return String(s).replace(
+      /[&<>"']/g,
+      (m) =>
+        ({
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&#39;",
+        }[m])
+    );
+  }
+  function escapeAttr(s) {
+    return String(s).replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
+</script>
+
+{% endblock %}
