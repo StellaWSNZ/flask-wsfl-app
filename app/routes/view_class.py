@@ -2363,29 +2363,63 @@ def search_students():
     print(f"➡️  Returning {len(out)} student records to client")
     return jsonify(out)
 
-
 # ---- API: add existing student to class ----
 @class_bp.route("/add_student", methods=["POST"])
 @login_required
 def add_student_to_class():
+    # who + where
+    try:
+        from flask_login import current_user
+        uid = getattr(current_user, "id", None)
+        uemail = getattr(current_user, "email", None)
+    except Exception:
+        uid = uemail = None
+
     if not _require_moe_or_adm():
         return _json_error("Forbidden", 403)
 
-    data = request.get_json(force=True)
+    # --- Parse body without consuming the stream ---
+    # get_data() defaults cache=True, so get_json() can still read it.
+    raw = request.get_data(as_text=True)
+
+    data = request.get_json(silent=True)
+    if data is None and raw:
+        # Fallback: try manual JSON load (handles wrong Content-Type)
+        import json
+        try:
+            data = json.loads(raw)
+        except Exception as e:
+            return _json_error("Invalid JSON", 400)
+    elif data is None:
+        return _json_error("Invalid JSON", 400)
+
+
     nsn = data.get("nsn")
     class_id = data.get("class_id")
     year_level = data.get("year_level")
 
+    # normalize year_level: empty string -> None
+    if year_level in ("", None):
+        year_level = None
+
+   
+
     if not (nsn and class_id):
         return _json_error("nsn and class_id are required")
 
-    engine = get_db_engine()
-    with engine.begin() as conn:
-        conn.execute(
-            text("EXEC FlaskAddStudentToClass @NSN=:n, @ClassID=:cid, @YearLevelID=:yl"),
-            {"n": nsn, "cid": class_id, "yl": year_level}
-        )
-    return jsonify({"ok": True})
+    try:
+        engine = get_db_engine()
+        sql = "EXEC FlaskAddStudentToClass @NSN=:n, @ClassID=:cid, @YearLevelID=:yl"
+        params = {"n": nsn, "cid": class_id, "yl": year_level}
+
+        with engine.begin() as conn:
+            conn.execute(text(sql), params)
+
+        return jsonify({"ok": True})
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return _json_error("Failed to add student to class", 500)
 # ---- API: create new student with PROVIDED NSN, then add to class ----
 @class_bp.route("/create_student_and_add", methods=["POST"])
 @login_required
