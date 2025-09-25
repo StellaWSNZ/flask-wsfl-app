@@ -2237,7 +2237,7 @@ def _count_xls_rows(b):
 def _require_moe_or_adm():
     role = session.get("user_role")
     admin = int(session.get("user_admin") or 0)
-    return role == "MOE" or admin == 1
+    return (role == "MOE" and admin == 1)or role == "ADM"
 
 def _json_error(msg, code=400):
     return jsonify({"ok": False, "error": msg}), code
