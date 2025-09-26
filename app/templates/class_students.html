@@ -225,6 +225,22 @@
 
   function studentsUrl(classId){ return URL_STUDENTS_URL_TEMPLATE.replace(/0$/, String(classId)); }
 
+  // 🔧 Helper: disable/enable a button with spinner
+  function setButtonBusy(btn, busy, idleLabel = "Create & Add"){
+    if (!btn) return;
+    if (busy) {
+      if (btn.disabled) return;              // already busy
+      btn.disabled = true;
+      btn.dataset.prevHtml = btn.innerHTML;  // remember original
+      btn.innerHTML =
+        '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Working…';
+    } else {
+      btn.disabled = false;
+      btn.innerHTML = btn.dataset.prevHtml || idleLabel;
+      delete btn.dataset.prevHtml;
+    }
+  }
+
   let currentClassId   = null;
   let pendingDeleteNSN = null;
   let pendingAddNSN    = null;
@@ -238,26 +254,37 @@
   }
 
   /* Alerts inside modals */
-  function showModalAlert(modalId, type, message, {timeout=4000, scroll=true} = {}){
-    const modal = document.querySelector(modalId); if (!modal) return;
-    const host =
-      modalId === "#addStudentModal"     ? modal.querySelector("#add-modal-alert-host") :
-      modalId === "#editStudentModal"    ? modal.querySelector("#edit-modal-alert-host") :
-      modalId === "#deleteStudentModal"  ? modal.querySelector("#delete-modal-alert-host") :
-      modalId === "#yearLevelModal"      ? modal.querySelector("#yearlevel-modal-alert-host") :
-      null;
-    if (!host) return;
+  function showModalAlert(modalId, type, message, opts = {}) {
+  const modal = document.querySelector(modalId); 
+  if (!modal) return;
 
-    const id = "al_" + Math.random().toString(36).slice(2, 9);
-    host.insertAdjacentHTML("beforeend",
-      `<div id="${id}" class="alert alert-${type} alert-dismissible fade show" role="alert">
-         ${escapeHtml(message)}
-         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-       </div>`);
-    const el = document.getElementById(id);
-    if (scroll && el) el.scrollIntoView({behavior:"smooth", block:"nearest"});
-    if (timeout > 0) setTimeout(() => bootstrap.Alert.getOrCreateInstance(el)?.close(), timeout);
-  }
+  const host =
+    modalId === "#addStudentModal"    ? modal.querySelector("#add-modal-alert-host") :
+    modalId === "#editStudentModal"   ? modal.querySelector("#edit-modal-alert-host") :
+    modalId === "#deleteStudentModal" ? modal.querySelector("#delete-modal-alert-host") :
+    modalId === "#yearLevelModal"     ? modal.querySelector("#yearlevel-modal-alert-host") :
+    null;
+  if (!host) return;
+
+  // Destructure options with sensible defaults
+  const {
+    timeout = (type === "success" || type === "info" ? 4000 : 0),
+    scroll  = true,
+  } = opts;
+
+  const id = "al_" + Math.random().toString(36).slice(2, 9);
+  host.insertAdjacentHTML(
+    "beforeend",
+    `<div id="${id}" class="alert alert-${type} alert-dismissible fade show" role="alert">
+       ${escapeHtml(message)}
+       <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+     </div>`
+  );
+
+  const el = document.getElementById(id);
+  if (scroll && el) el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  if (timeout > 0) setTimeout(() => bootstrap.Alert.getOrCreateInstance(el)?.close(), timeout);
+}
 
   /* Re-run the search (only if the user has a query typed) */
   function rerunSearchIfRelevant(){
@@ -408,10 +435,10 @@
               '${escapeAttr(s.Ethnicity || "")}')">Edit</button>
 
           ${ canDelete
-              ? `<button class="btn btn-sm btn-outline-danger" onclick="openDelete('${s.NSN}')">Delete</button>`
-              : `<button class="btn btn-sm btn-outline-danger" disabled
-                   data-bs-toggle="tooltip"
-                   title="Cannot delete: this is the student's only class for this year/term and they have activity in the term window.">Delete</button>`
+              ? `<button class=\"btn btn-sm btn-outline-danger\" onclick=\"openDelete('${s.NSN}')\">Delete</button>`
+              : `<button class=\"btn btn-sm btn-outline-danger\" disabled
+                   data-bs-toggle=\"tooltip\"
+                   title=\"Cannot delete: this is the student's only class for this year/term and they have activity in the term window.\">Delete</button>`
           }
         </td>
       </tr>`;
@@ -581,45 +608,86 @@
     }
   }
 
-  /* Create & Add */
+  /* Create & Add — disable button on click, strict success check + friendly errors */
   async function createAndAdd(){
-    if (!currentClassId){ showModalAlert("#addStudentModal","warning","Pick a class first."); return; }
+    const btn = document.getElementById("create-and-add-btn");
+    if (btn?.disabled) return; // guard against double-clicks
+
+    if (!currentClassId){
+      showModalAlert("#addStudentModal","warning","Pick a class first.");
+      return;
+    }
+
     const nsnRaw = (document.getElementById("new-nsn").value || "").trim();
-    if (!/^\d+$/.test(nsnRaw)){ showModalAlert("#addStudentModal","warning","NSN is required and must be numeric."); return; }
+    if (!/^\d+$/.test(nsnRaw)){
+      showModalAlert("#addStudentModal","warning","NSN is required and must be numeric.");
+      return;
+    }
+
+    // Year level optional; validate if present
+    const ylRaw = (document.getElementById("new-yearlevel").value || "").trim();
+    const ylNum = ylRaw === "" ? null : Number(ylRaw);
+    if (ylRaw !== "" && (!Number.isFinite(ylNum) || ylNum < 0 || ylNum > 13)){
+      showModalAlert("#addStudentModal","warning","Year level must be between 0 and 13.");
+      document.getElementById("new-yearlevel").focus();
+      return;
+    }
+
+    const ethRaw = document.getElementById("new-eth").value;
+    const ethId  = (ethRaw === "" || ethRaw == null) ? null : Number(ethRaw);
 
     const payload = {
       class_id: currentClassId,
-      year_level: document.getElementById("new-yearlevel").value || null,
+      year_level: ylNum,
       student: {
         NSN: parseInt(nsnRaw, 10),
-        FirstName: document.getElementById("new-first").value.trim(),
-        LastName: document.getElementById("new-last").value.trim(),
-        PreferredName: document.getElementById("new-pref").value.trim(),
-        DateOfBirth: document.getElementById("new-dob").value || null,
-        EthnicityID: document.getElementById("new-eth").value || null,
-      },
+        FirstName: (document.getElementById("new-first").value || "").trim(),
+        LastName:  (document.getElementById("new-last").value  || "").trim(),
+        PreferredName: (document.getElementById("new-pref").value || "").trim(),
+        DateOfBirth: (document.getElementById("new-dob").value  || null),
+        EthnicityID: Number.isFinite(ethId) ? ethId : null
+      }
     };
+
+    setButtonBusy(btn, true);   // 🔒 disable + spinner
 
     try{
       const resp = await fetch(URL_CREATE_AND_ADD, {
-        method:"POST", headers:{ "Content-Type":"application/json" }, credentials:"same-origin", body: JSON.stringify(payload)
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        credentials:"same-origin",
+        body: JSON.stringify(payload)
       });
-      const data = await resp.json().catch(()=>({}));
-      if (!resp.ok || data.ok === false){
-        showModalAlert("#addStudentModal","danger", data.error || "Failed to create/add student.");
+
+      const bodyText = await resp.text();
+      let data = null; try { data = bodyText ? JSON.parse(bodyText) : null; } catch {}
+
+      if (!resp.ok || !data || data.ok !== true){
+        const msg = (data && data.error)
+          ? data.error
+          : (bodyText || `HTTP ${resp.status}`);
+        showModalAlert("#addStudentModal","danger", msg);
         return;
       }
-      ["new-nsn","new-first","new-last","new-pref","new-dob","new-yearlevel"].forEach(id => document.getElementById(id).value="");
+
+      // Clear inputs on success
+      ["new-nsn","new-first","new-last","new-pref","new-dob","new-yearlevel"].forEach(id => {
+        const el = document.getElementById(id); if (el) el.value = "";
+      });
       await loadStudents();
       rerunSearchIfRelevant();  // refresh search list after create+add
-      showModalAlert("#addStudentModal","success","Student created and added to class.",{timeout:1800});
-    } catch {
+      showModalAlert("#addStudentModal","success","Student created and added to class.");
+
+    } catch (e){
+      console.error("Network/JS error in createAndAdd:", e);
       showModalAlert("#addStudentModal","danger","Network error while creating/adding student.");
+    } finally {
+      setButtonBusy(btn, false); // 🔓 always re-enable
     }
   }
 
   /* utils */
-  function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[m])); }
+  function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[m])); }
   function escapeAttr(s){ return String(s).replace(/"/g,"&quot;").replace(/'/g,"&#39;"); }
 </script>
 

@@ -2420,21 +2420,68 @@ def add_student_to_class():
         import traceback
         traceback.print_exc()
         return _json_error("Failed to add student to class", 500)
-# ---- API: create new student with PROVIDED NSN, then add to class ----
+
+import re
+from flask import jsonify, current_app, session
+from sqlalchemy import text
+from sqlalchemy.exc import DBAPIError
+
+
+def friendly_sql_error(exc: Exception) -> tuple[int, str, int | None]:
+    """
+    Returns (http_status, user_message, sql_error_number) for a DB exception.
+    Works with pyodbc/SQL Server via SQLAlchemy.
+    """
+    raw = str(getattr(exc, "orig", exc))
+
+    # Best-effort extract of SQL Server native error number:
+    # e.g. "... (50010) (SQLExecDirectW)"
+    m = re.search(r"\((\d{5,7})\)\s*\(SQL", raw)  # preferred
+    code = int(m.group(1)) if m else None
+    if code is None:
+        # Fallback: grab a 4–7 digit number if present anywhere
+        m2 = re.search(r"\b(\d{4,7})\b", raw)
+        code = int(m2.group(1)) if m2 else None
+
+    MAP = {
+        50001: (400, "NSN must be numeric."),
+        50002: (400, "First name and last name are required."),
+        50003: (400, "That class could not be found."),
+        50004: (400, "That class is missing its year/term setup."),
+        50006: (500, "We couldn't save the student record. Please try again."),
+        50007: (500, "We couldn't add the student to the class. Please try again."),
+        50008: (409, "Another user updated this student at the same time. Please try again."),
+        50010: (409, "That NSN already exists. Use Search → Add to put them into this class."),
+    }
+    if code in MAP:
+        http, msg = MAP[code]
+        return http, msg, code
+
+    # Common SQL Server duplicate key
+    if code in (2627, 2601):
+        return 409, "A record with this key already exists.", code
+
+    # Uncommittable transaction (3930) message text
+    if "cannot be committed and cannot support operations" in raw:
+        return 500, "We hit a database error and rolled back your changes. Please try again.", code
+
+    # Fallback
+    return 500, "Something went wrong saving this student. Please try again.", code
+
+
 @class_bp.route("/create_student_and_add", methods=["POST"])
 @login_required
 def create_student_and_add():
     if not _require_moe_or_adm():
         return _json_error("Forbidden", 403)
 
-    d = request.get_json(force=True) or {}
+    d = request.get_json(silent=True) or {}
     class_id   = d.get("class_id")
     student    = d.get("student") or {}
-    year_level = d.get("year_level")  # optional
-    term       = d.get("term")        # optional (derive from Class if None)
-    year       = d.get("year")        # optional (derive from Class if None)
+    year_level = d.get("year_level")
+    term_in    = d.get("term")   # may be None; proc can derive
+    year_in    = d.get("year")   # may be None; proc can derive
 
-    # Validate required bits
     if not class_id:
         return _json_error("class_id is required")
     nsn = student.get("NSN")
@@ -2447,52 +2494,48 @@ def create_student_and_add():
     if not (student.get("FirstName") and student.get("LastName")):
         return _json_error("Student FirstName and LastName are required")
 
+    first = (student.get("FirstName") or "").strip()
+    last  = (student.get("LastName")  or "").strip()
+    pref  = (student.get("PreferredName") or None)
+    dob   = (student.get("DateOfBirth") or None)
+    eth   = (student.get("EthnicityID") or None)
+    yl    = (year_level if year_level not in ("", None) else None)
+    term  = None if term_in in ("", None) else str(term_in)
+    year  = year_in  # pass through (None is fine)
+
+    eng = get_db_engine()
     try:
-        eng = get_db_engine()
         with eng.begin() as conn:
-            row = conn.execute(
-                text("""
-                    DECLARE @NSN BIGINT = :nsn_in;  -- must be provided
-                    EXEC dbo.FlaskCreateStudentAddToClassAndSeed 
-                         @NSN              = @NSN OUTPUT,
-                         @FirstName        = :fn,
-                         @LastName         = :ln,
-                         @PreferredName    = :pn,
-                         @DateOfBirth      = :dob,
-                         @EthnicityID      = :eth,
-                         @ClassID          = :cid,
-                         @CalendarYear     = :yr,
-                         @Term             = :term,
-                         @YearLevelID      = :yl,
-                         @SeedScenarios    = 1,
-                         @SeedCompetencies = 1;
-                    SELECT @NSN AS NSN;
-                """),
-                {
-                    "nsn_in": nsn,
-                    "fn":     (student.get("FirstName") or "").strip(),
-                    "ln":     (student.get("LastName") or "").strip(),
-                    "pn":     (student.get("PreferredName") or None),
-                    "dob":    (student.get("DateOfBirth") or None),
-                    "eth":    (student.get("EthnicityID") or None),
-                    "cid":    class_id,
-                    "yr":     year,      # can be None → derived from Class by proc
-                    "term":   term,      # can be None → derived from Class by proc
-                    "yl":     (year_level or None),
-                }
-            ).fetchone()
+            # Optional: stamp session context for SQL audit triggers
+            try:
+                from flask_login import current_user
+                acting = getattr(current_user, "email", None) or session.get("user_email") or "flaskuser"
+                conn.exec_driver_sql(
+                    "EXEC sys.sp_set_session_context @key=N'wsfl_user', @value=?",
+                    (acting,)
+                )
+            except Exception:
+                pass
 
-            out_nsn = row._mapping.get("NSN")
+            conn.exec_driver_sql("""
+                SET NOCOUNT ON;
+                DECLARE @NSN BIGINT = ?;
+                EXEC dbo.FlaskCreateStudentAddToClassAndSeed
+                     @NSN=@NSN OUTPUT,
+                     @FirstName=?, @LastName=?, @PreferredName=?, @DateOfBirth=?, @EthnicityID=?,
+                     @ClassID=?, @CalendarYear=?, @Term=?, @YearLevelID=?,
+                     @SeedScenarios=1, @SeedCompetencies=1;
+            """, (nsn, first, last, pref, dob, eth, class_id, year, term, yl))
 
-        return jsonify({"ok": True, "nsn": out_nsn})
+        return jsonify({"ok": True, "nsn": nsn, "class_id": class_id})
 
+    except DBAPIError as e:
+        status, friendly, sql_code = friendly_sql_error(e)
+        current_app.logger.exception("create_student_and_add failed (sql=%s)", sql_code)
+        return jsonify({"ok": False, "error": friendly, "sql_error": sql_code}), status
     except Exception as e:
-        import traceback
-        print("💥 create_student_and_add failed:", e)
-        traceback.print_exc()
-        return jsonify({"ok": False, "error": str(e)}), 500
-
-
+        current_app.logger.exception("create_student_and_add failed (non-DB)")
+        return jsonify({"ok": False, "error": "Unexpected error. Please try again."}), 500
 # ---- API: update student info (modal save) ----
 @class_bp.route("/update_student", methods=["POST"])
 @login_required
