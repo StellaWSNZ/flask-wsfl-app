@@ -2042,7 +2042,7 @@ def apply_upload():
     try:
         payload  = request.get_json(silent=True) or {}
         class_id = int(payload.get("class_id") or 0)
-        dry_run  = 1 
+        dry_run  = 0 
         rows     = payload.get("json_data")
 
         if not class_id:
