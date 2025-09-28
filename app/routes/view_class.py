@@ -1903,7 +1903,7 @@ def preview_upload():
                 total_rows = _count_xlsx_rows(io.BytesIO(raw))
             else:
                 return jsonify({"ok": False, "error": "Unsupported file type"}), 400
-
+        total_rows = total_rows - 1
         df = df.fillna("")
 
         # Detect “x-y” row that holds the group labels
