@@ -12,6 +12,7 @@ import os, re, ssl, smtplib, bcrypt, time
 from email.message import EmailMessage
 from sqlalchemy import create_engine, text
 from dotenv import load_dotenv
+from html import escape as html_escape  # for safe HTML
 
 # =====================================================
 # .env and constants
@@ -31,7 +32,7 @@ DEBUG_SEND           = False
 DEBUG_ROUTE_TO       = "stellajanemcgann@gmail.com"
 DEBUG_SUBJECT_PREFIX = "[TEST] "
 SEND_DELAY_SEC       = 0.7
-CC_EMAILS            =["Funding@watersafety.org.nz"]
+CC_EMAILS            = ["Funding@watersafety.org.nz"]
 CC_ON_DEBUG          = False
 
 SUBJECT        = "WSFL database access - your login + instructions"
@@ -53,7 +54,8 @@ engine = create_engine(DB_URL, connect_args={"TrustServerCertificate": "yes"})
 # Helpers
 # =====================================================
 def smart_title(name: str) -> str:
-    if not name: return ""
+    if not name:
+        return ""
     def cap_piece(p): return p[:1].upper() + p[1:].lower()
     parts = []
     for token in name.split(" "):
@@ -109,37 +111,49 @@ def build_plain_body(actual_email, first_name, school_name,
         f"{SIGN_OFF_NAME}\n"
         f"{SIGN_OFF_TITLE}\n"
     )
+
 def build_message(email, first_name, school_name, temp_pw):
     to_addr = DEBUG_ROUTE_TO if DEBUG_SEND else email
     cc_list = CC_EMAILS if (not DEBUG_SEND or CC_ON_DEBUG) else []
     subject = (DEBUG_SUBJECT_PREFIX if DEBUG_SEND else "") + SUBJECT
 
+    # ----- Plain text (unchanged) -----
+    plain = build_plain_body(
+        email, first_name, school_name,
+        debug=DEBUG_SEND, cc_list=cc_list, temp_pw=temp_pw
+    )
+
+    # ----- Prepare HTML safely (no complex expressions inside braces) -----
+    debug_banner_html = (
+        f"<p style='color:#b00;font-weight:600;margin:0 0 12px;'>(TEST to {DEBUG_ROUTE_TO}; intended To: {email})</p>"
+        if DEBUG_SEND else ""
+    )
+    safe_plain = html_escape(plain).replace("\r\n", "\n")
+    html_core = safe_plain.replace("\n\n", "</p><p>").replace("\n", "<br>")
+
+    html_parts = [
+        "<html><body style='margin:0;padding:0;background:#fff;'>",
+        "<div style=\"font-family:Segoe UI, Arial, Helvetica, sans-serif; font-size:14px; "
+        "line-height:1.5; color:#222; padding:16px;\">",
+        debug_banner_html,
+        "<p>", html_core, "</p>",
+        "</div></body></html>"
+    ]
+    html = "".join(html_parts)
+
+    # ----- Build message -----
     msg = EmailMessage()
     msg["Subject"] = subject
     msg["From"]    = f"{FROM_NAME} <{FROM_EMAIL}>"
     msg["To"]      = to_addr
-    if cc_list: msg["Cc"] = ", ".join(cc_list)
-    if REPLY_TO: msg["Reply-To"] = REPLY_TO
-    if DEBUG_SEND: msg["X-Intended-To"] = email
+    if cc_list:
+        msg["Cc"] = ", ".join(cc_list)
+    if REPLY_TO:
+        msg["Reply-To"] = REPLY_TO
+    if DEBUG_SEND:
+        msg["X-Intended-To"] = email
 
-    # plain text (unchanged – can’t style)
-    plain = build_plain_body(email, first_name, school_name,
-                             debug=DEBUG_SEND, cc_list=cc_list, temp_pw=temp_pw)
     msg.set_content(plain)
-
-    # ✅ styled HTML (no <pre>, sets fonts)
-    html = f"""\
-<html>
-  <body style="margin:0;padding:0;background:#fff;">
-    <div style="font-family:Segoe UI, Arial, Helvetica, sans-serif;
-                font-size:14px; line-height:1.5; color:#222; padding:16px;">
-      {"<p style='color:#b00;font-weight:600;margin:0 0 12px;'>(TEST to " + DEBUG_ROUTE_TO + f"; intended To: {email})</p>" if DEBUG_SEND else ""}
-      {build_plain_body(email, first_name, school_name, debug=False, cc_list=cc_list, temp_pw=temp_pw)
-          .replace("&","&amp;").replace("<","&lt;").replace(">","&gt;")
-          .replace("\n\n","</p><p>").replace("\n","<br>")}
-    </div>
-  </body>
-</html>"""
     msg.add_alternative(html, subtype="html")
     return msg
 
@@ -160,7 +174,7 @@ def create_user_and_send(first_name, surname, email, moe_number):
     hashed  = bcrypt.hashpw(temp_pw.encode(), bcrypt.gensalt()).decode()
 
     with engine.begin() as conn:
-        # call stored procedure
+        # Upsert via stored proc
         conn.execute(
             text("EXEC dbo.AddOrUpdateSchoolUser "
                  "@FirstName=:first, @Surname=:sur, "
@@ -169,9 +183,9 @@ def create_user_and_send(first_name, surname, email, moe_number):
              "email": email, "moe": moe_number, "hash": hashed}
         )
 
-        # fetch school name for email body
+        # School name via helper SP (you confirmed @Number is correct)
         school = conn.execute(
-            text("EXEC FlaskHelperFunctions @Request = 'SchoolName', @Number = :m"),
+            text("EXEC FlaskHelperFunctions @Request='SchoolName', @Number=:m"),
             {"m": moe_number}
         ).scalar() or ""
 
