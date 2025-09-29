@@ -49,7 +49,7 @@ def add_user():
     # GET: populate school dropdown
     with engine.begin() as conn:
         schools = conn.execute(
-            text("EXEC FlaskHelperFunctions @Request = 'SchoolDropdown'")
+            text("EXEC FlaskHelperFunctions @Request = 'SchoolDropdownAll'")
         ).fetchall()
 
     # Expect a template at templates/add_user.html
