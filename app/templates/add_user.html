@@ -1,0 +1,33 @@
+{% extends "header.html" %} {% block title %}Add School User{% endblock %} {%
+block content %}
+<div class="container mt-4">
+  <h2>Add a School User</h2>
+
+  <form method="post" class="row g-3">
+    <div class="col-md-4">
+      <label class="form-label">First Name</label>
+      <input name="first_name" class="form-control" required />
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">Surname</label>
+      <input name="surname" class="form-control" required />
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">Email</label>
+      <input name="email" type="email" class="form-control" required />
+    </div>
+    <div class="col-12">
+      <label class="form-label">School</label>
+      <select name="moe_number" class="form-select" required>
+        <option value="">Select a school…</option>
+        {% for moe,name in schools %}
+        <option value="{{ moe }}">{{ name }} ({{ moe }})</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-12">
+      <button class="btn btn-primary">Create User &amp; Send Email</button>
+    </div>
+  </form>
+</div>
+{% endblock %}
