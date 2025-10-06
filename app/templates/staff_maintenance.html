@@ -11,7 +11,6 @@
     <div class="col-md-3">
       <label for="entity_type" class="form-label">Entity Type</label>
       <select name="entity_type" id="entity_type" class="form-select">
-        {# ADM/FUN/GRP: show full set #}
         {% if user_role != "PRO" %}
           {% if user_role != "GRP" %}
             <option value="Funder"  {{ 'selected' if (entity_type or '') == 'Funder'  else '' }}>Funder</option>
@@ -22,7 +21,6 @@
           <option value="Provider"  {{ 'selected' if (entity_type or '') == 'Provider' else '' }}>Provider</option>
           <option value="School"    {{ 'selected' if (entity_type or '') == 'School'   else '' }}>School</option>
         {% else %}
-          {# PRO: only Provider/School #}
           <option value="Provider"  {{ 'selected' if (entity_type or '') == 'Provider' else '' }}>Provider</option>
           <option value="School"    {{ 'selected' if (entity_type or '') == 'School'   else '' }}>School</option>
         {% endif %}
@@ -47,13 +45,30 @@
   </div>
 </form>
 {% endif %}
-
+{% if user_role == "FUN" %}
+<div id="missingSchoolWrapper"
+     class="alert alert-info mx-auto text-center py-2 mb-3"
+     style="display:none; max-width: 500px;">
+  <i class="bi bi-info-circle me-2"></i>
+  Are you missing a school?
+  <a href="#" data-bs-toggle="modal" data-bs-target="#missingSchoolModal" class="alert-link">Click here</a>
+  to add one.
+</div>
+{% endif %}
 {% if selected_entity_name %}
   <h2 class="mb-4 text-center text-primary">{{ selected_entity_name }} – Staff Maintenance</h2>
 {% else %}
   <h2 class="mb-4 text-center text-primary">Staff Maintenance</h2>
 {% endif %}
 
+{# ===================== NEW: Missing School link (FUN + School) ===================== #}
+{% set _user_role = user_role or "" %}
+{% set _user_id   = session.get('user_id') %}
+{% set _funder_id = selected_entity_id if (entity_type == 'Funder') else session.get('funder_id') %}
+
+
+
+{# ===================== EXISTING "Add Staff" link (unchanged) ===================== #}
 {% if name %}
   <div class="text-center mb-4">
     <h6 class="mb-4 text-center text-primary">
@@ -63,6 +78,7 @@
   </div>
 {% endif %}
 
+{# ===================== YOUR EXISTING STAFF LIST CARDS/MODALS ===================== #}
 {% if data|length > 0 %}
   <div class="row g-4">
     {% for row in data %}
@@ -362,7 +378,7 @@
   </div>
 {% endif %}
 
-<!-- Add New Staff Modal -->
+{# ===================== Add New Staff Modal (unchanged) ===================== #}
 <div class="modal fade" id="addStaffModal" tabindex="-1" aria-labelledby="addStaffLabel" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
@@ -406,9 +422,91 @@
   </div>
 </div>
 
+{# ===================== NEW: Missing School Modal ===================== #}
+<div class="modal fade" id="missingSchoolModal" tabindex="-1" aria-labelledby="missingSchoolLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title" id="missingSchoolLabel">Assign School to Funder</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <form id="missingSchoolForm">
+        <div class="modal-body">
+          <div id="ms_alert" class="alert d-none" role="alert"></div>
+
+
+          <div class="mb-3">
+            <label class="form-label">School</label>
+            <select class="form-select" id="ms_school" required>
+              <option value="" selected disabled>Loading schools…</option>
+            </select>
+            <div class="form-text">
+  If you can’t find a school, contact support via the
+  <a href="{{ url_for('feedback_bp.feedback') }}" class="link-primary" target="_blank" rel="noopener">feedback form</a>.
+</div>
+          </div>
+          <div class="mb-3">
+  <label class="form-label">Provider</label>
+  <select class="form-select" id="ms_provider" required>
+    <option value="" selected disabled>Loading providers…</option>
+  </select>
+  <div class="form-text">Choose which Provider will deliver at the school.</div>
+</div>
+          <div class="row g-2">
+            <div class="col-md-6">
+              <label class="form-label">Term</label>
+              <select class="form-select" id="ms_term" required>
+                <option value="" disabled selected>Choose…</option>
+                <option value="1">Term 1</option>
+                <option value="2">Term 2</option>
+                <option value="3">Term 3</option>
+                <option value="4">Term 4</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Calendar Year</label>
+              <input type="number" class="form-control" id="ms_year" min="2000" max="2100"
+                     value="{{ current_year or 2025 }}" required>
+            </div>
+          </div>
+
+          <input type="hidden" id="ms_funderid"
+                 value="{{ selected_entity_id if (entity_type == 'Funder') else session.get('funder_id') }}">
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button class="btn btn-primary" type="submit">Add to Funder</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 </div> <!-- /container -->
 
 <script>
+
+   function showModalAlert(type, msg) {
+    // type: 'success' | 'danger' | 'warning' | 'info'
+    const el = document.getElementById('ms_alert');
+    if (!el) return;
+    el.className = `alert alert-${type} alert-dismissible fade show`;
+    el.innerHTML = `
+      <div>${msg}</div>
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    `;
+  }
+
+  // Helper: clear/hide the alert
+  function clearModalAlert() {
+    const el = document.getElementById('ms_alert');
+    if (!el) return;
+    el.className = 'alert d-none';
+    el.innerHTML = '';
+  }
+
   document.addEventListener("DOMContentLoaded", function () {
     const entityTypeSelector = document.getElementById("entity_type");
     const entityDropdown = document.getElementById("entity_id");
@@ -462,10 +560,10 @@
             }
             entityDropdown.appendChild(option);
           });
-          // If nothing is selected yet and options exist, select first real option
           if (!entityDropdown.value && entityDropdown.options.length > 1) {
             entityDropdown.selectedIndex = 1;
           }
+          toggleMissingSchoolLink();  // recalc visibility after options load
         })
         .catch((err) => {
           console.error(`❌ Failed to load ${selectedType}s`, err);
@@ -473,17 +571,28 @@
         });
     }
 
+    // ---- NEW: show the "missing school" link for FUN + School ----
+    const wrapper = document.getElementById("missingSchoolWrapper");
+    function toggleMissingSchoolLink() {
+      const selectedType = entityTypeSelector ? entityTypeSelector.value : "";
+      const role = "{{ user_role or '' }}";
+      const shouldShow = (role === "FUN" && selectedType === "School");
+      if (wrapper) wrapper.style.display = shouldShow ? "block" : "none";
+    }
+
     // Run on load for ALL roles, then on change
     if (entityTypeSelector && entityDropdown && entityLabel) {
       updateLabelAndDropdown();
-      entityTypeSelector.addEventListener("change", updateLabelAndDropdown);
+      entityTypeSelector.addEventListener("change", function() {
+        updateLabelAndDropdown();
+        toggleMissingSchoolLink();
+      });
     }
 
-    // Admin checkbox toggle in Add Staff modal
+    // Admin checkbox toggle in Add Staff modal (existing behaviour)
     const accountStatusSelect = document.getElementById("account_status");
     const adminCheckboxGroup = document.getElementById("admin_checkbox_group");
     const adminCheckbox = document.getElementById("admin_checkbox");
-
     function toggleAdminCheckbox() {
       if (!accountStatusSelect || !adminCheckboxGroup || !adminCheckbox) return;
       if (accountStatusSelect.value === "enable") {
@@ -497,6 +606,82 @@
     if (accountStatusSelect) {
       accountStatusSelect.addEventListener("change", toggleAdminCheckbox);
     }
+
+    // ====== Missing School Modal logic ======
+    
+  const modalEl = document.getElementById('missingSchoolModal');
+  modalEl?.addEventListener('show.bs.modal', () => {
+    // ---- Load schools (existing) ----
+    const selSchool = document.getElementById('ms_school');
+    selSchool.innerHTML = '<option value="" selected disabled>Loading schools…</option>';
+    const userId = "{{ user_id or session.get('user_id') }}";
+    fetch(`/helper?request=FilterSchoolID&number=${encodeURIComponent(userId)}`)
+      .then(r => r.ok ? r.json() : Promise.reject(r))
+      .then(list => {
+        selSchool.innerHTML = '<option value="" disabled selected>Choose a school…</option>';
+        (list || []).forEach(item => {
+          const opt = document.createElement('option');
+          opt.value = item.id;          // MoeNumber
+          opt.textContent = item.name;  // School name
+          selSchool.appendChild(opt);
+        });
+      })
+      .catch(() => selSchool.innerHTML = '<option value="" disabled selected>Failed to load schools</option>');
+
+    // ---- Load providers for this funder (NEW) ----
+    const selProv  = document.getElementById('ms_provider');
+    const funderId = document.getElementById('ms_funderid')?.value;
+    if (selProv && funderId) {
+      selProv.innerHTML = '<option value="" selected disabled>Loading providers…</option>';
+      fetch(`/helper?request=ProvidersByFunderID&number=${encodeURIComponent(funderId)}`)
+        .then(r => r.ok ? r.json() : Promise.reject(r))
+        .then(list => {
+          selProv.innerHTML = '<option value="" disabled selected>Choose a provider…</option>';
+          (list || []).forEach(item => {
+            const opt = document.createElement('option');
+            opt.value = item.id;         // ProviderID
+            opt.textContent = item.name; // Description
+            selProv.appendChild(opt);
+          });
+        })
+        .catch(() => selProv.innerHTML = '<option value="" disabled selected>Failed to load providers</option>');
+    }
+  });
+
+    // POST insert to SchoolFunder
+    const msForm = document.getElementById('missingSchoolForm');
+  msForm?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const MoeNumber  = document.getElementById('ms_school').value;
+    const Term       = document.getElementById('ms_term').value;
+    const Year       = document.getElementById('ms_year').value;
+    const FunderID   = document.getElementById('ms_funderid').value;
+    const ProviderID = document.getElementById('ms_provider') ? document.getElementById('ms_provider').value : null;
+
+    fetch('/add_school_to_funder', {   // <-- ensure this matches your Flask route
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        MoeNumber: Number(MoeNumber),
+        Term: Number(Term),
+        CalendarYear: Number(Year),
+        FunderID: Number(FunderID),
+        ProviderID: ProviderID ? Number(ProviderID) : null
+      })
+    })
+    .then(r => r.json())
+    .then(resp => {
+      if (resp.ok) {
+        const bsModal = bootstrap.Modal.getInstance(document.getElementById('missingSchoolModal'));
+        bsModal?.hide();
+        alert("School added to funder successfully.");
+      } else {
+        alert(resp.error || "Insert failed.");
+      }
+    })
+    .catch(() => alert("Insert failed."));
+  });
+
   });
 </script>
 {% endblock %}

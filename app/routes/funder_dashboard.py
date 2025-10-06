@@ -414,7 +414,23 @@ def get_entities():
     #print(f"✅ Final entities being returned = {entities}\n")
     return jsonify(entities)
 
-    
+
+@funder_bp.get("/providers")
+@login_required
+def providers_by_funder():
+    funder_id = request.args.get("funder_id", type=int)
+    if not funder_id:
+        return jsonify([]), 400
+
+    engine = get_db_engine()
+    with engine.begin() as conn:
+        rows = conn.execute(
+            text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :FunderID"),
+            {"Request": "ProvidersByFunder", "FunderID": funder_id}
+        ).mappings().all()
+
+    return jsonify([{"id": r["ProviderID"], "name": r["Description"]} for r in rows])
+  
 @funder_bp.route('/FullOverview', methods=['GET', 'POST'])
 @login_required
 def admin_dashboard():

@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="container mt-5">
- <h2 class="text-center text-primary mb-4">Upload Class List</h2>
+  <h2 class="text-center text-primary mb-4">Upload Class List</h2>
 
   <form id="upload-form" action="{{ url_for('upload_bp.classlistupload') }}" method="post" enctype="multipart/form-data" class="row g-3">
     <!-- Funder -->
@@ -13,30 +13,54 @@
       <select id="funder" name="funder" class="form-select" required>
         <option value="">Select a funder</option>
         {% for funder in funders %}
-          <option value="{{ funder.FunderID }}" {% if selected_funder == funder.FunderID %}selected{% endif %}>{{ funder.Description }}</option>
+          <option value="{{ funder.FunderID }}"
+                  {% if selected_funder == funder.FunderID %}selected{% endif %}>
+            {{ funder.Description }}
+          </option>
         {% endfor %}
       </select>
     </div>
 
+    {# Provider (FUN + MOE only) #}
+    {% if user_role in ['FUN', 'MOE'] %}
+    <div class="col-md-6">
+      <label for="provider" class="form-label">Provider</label>
+      <select id="provider" name="provider" class="form-select" required>
+        <option value="">Select a provider</option>
+        {# Optional server-preload #}
+        {% if providers %}
+          {% for p in providers %}
+            <option value="{{ p.ProviderID }}"
+                    {% if selected_provider == p.ProviderID %}selected{% endif %}>
+              {{ p.ProviderName }}
+            </option>
+          {% endfor %}
+        {% endif %}
+      </select>
+    </div>
+    {% endif %}
+
     <!-- School -->
     <div class="col-md-6">
-  <label class="form-label">School</label>
-  {% if user_role == 'MOE' %}
-  <input type="text" class="form-control-plaintext"
-         value="{{ selected_school or '—' }}" readonly aria-readonly="true">
-
-  <!-- IMPORTANT: include " ({{ selected_moe }})" so the backend parse works -->
-  <input type="hidden" id="school_hidden" name="school"
-         value="{% if selected_school %}{{ selected_school }}{% endif %}{% if selected_moe %} ({{ selected_moe }}){% endif %}">
-{% else %}
-    <select class="form-select" id="school" name="school" required>
-      <option selected disabled value="">Select a school</option>
-      {% for name in schools %}
-        <option value="{{ name }}" {% if selected_school == name %}selected{% endif %}>{{ name }}</option>
-      {% endfor %}
-    </select>
-  {% endif %}
-</div>
+      <label class="form-label">School</label>
+      {% if user_role == 'MOE' %}
+        <input type="text" class="form-control-plaintext"
+              value="{{ selected_school or '—' }}" readonly aria-readonly="true">
+        <!-- IMPORTANT: include " ({{ selected_moe }})" so the backend parse works -->
+        <input type="hidden" id="school_hidden" name="school"
+              value="{% if selected_school %}{{ selected_school }}{% endif %}{% if selected_moe %} ({{ selected_moe }}){% endif %}">
+      {% else %}
+        <select class="form-select" id="school" name="school" required>
+          <option selected disabled value="">Select a school</option>
+          {% for name in schools %}
+            <option value="{{ name }}"
+                    {% if selected_school == name %}selected{% endif %}>
+              {{ name }}
+            </option>
+          {% endfor %}
+        </select>
+      {% endif %}
+    </div>
 
     <!-- Term -->
     <div class="col-md-2">
@@ -225,94 +249,143 @@
 
 {% block scripts %}
 <script>
-  document.addEventListener("DOMContentLoaded", () => {
-    const userRole = "{{ user_role|e }}";
+document.addEventListener("DOMContentLoaded", () => {
+  const userRole = "{{ user_role|e }}";
+  const funderSel = document.getElementById("funder");
+  const providerSel = document.getElementById("provider");
 
-    // Funders -> school dropdown (skip for MOE to avoid wiping the locked school)
-    document.getElementById("funder")?.addEventListener("change", function () {
-      if (userRole === "MOE") return;
+  async function loadProvidersForFunder(funderId) {
+    if (!providerSel) return; // not visible for non FUN/MOE
+    providerSel.innerHTML = '<option value="">Loading providers…</option>';
+    providerSel.disabled = true;
 
-      fetch(`/get_schools_for_funder?funder_id=${this.value}`)
-        .then((res) => res.json())
-        .then((data) => {
-          const schoolDropdown = document.getElementById("school");
-          if (!schoolDropdown) return;
-          schoolDropdown.innerHTML = '<option value="">Select a school</option>';
-          data.forEach((s) => {
-            const option = document.createElement("option");
-            option.value = s;
-            option.textContent = s;
-            schoolDropdown.appendChild(option);
-          });
-        });
-    });
+    try {
+      const url = "{{ url_for('funder_bp.get_entities') }}"
+                + `?entity=provider&funder_id=${encodeURIComponent(funderId)}`;
+      const res = await fetch(url, { headers: { "Accept": "application/json" } });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const payload = await res.json();
+      const providers = payload.providers || [];
 
-    // ----- Column mapping persistence -----
-    const selects = document.querySelectorAll('select[name^="map_"]');
-    const stored = localStorage.getItem("column_mappings");
-    if (stored) {
-      const map = JSON.parse(stored);
-      selects.forEach((s) => {
-        const key = s.getAttribute("data-remember");
-        if (map[key]) s.value = map[key];
+      providerSel.innerHTML = '<option value="">Select a provider</option>';
+      providers.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.ProviderID;
+        opt.textContent = p.ProviderName;
+        providerSel.appendChild(opt);
       });
+
+      const selectedProvider = "{{ selected_provider or '' }}";
+      if (selectedProvider) providerSel.value = selectedProvider;
+
+      providerSel.disabled = false;
+    } catch (e) {
+      providerSel.innerHTML = '<option value="">(Failed to load providers)</option>';
+      providerSel.disabled = false;
+      console.error("Provider load failed:", e);
+    }
+  }
+
+  // Funders -> school dropdown (skip for MOE to avoid wiping the locked school)
+  document.getElementById("funder")?.addEventListener("change", function () {
+    if (userRole === "MOE") {
+      // MOE: still allow provider reload when funder changes
+      if (providerSel && this.value) loadProvidersForFunder(this.value);
+      return;
     }
 
-    function updateMappingOptions() {
-      const used = Array.from(selects).map(s => s.value).filter(Boolean);
-      selects.forEach(select => {
-        const current = select.value;
-        Array.from(select.options).forEach(opt => {
-          if (!opt.value || opt.value === current) return;
-          opt.disabled = used.includes(opt.value);
+    // Non-MOE: refresh schools for this funder
+    fetch(`/get_schools_for_funder?funder_id=${this.value}`)
+      .then((res) => res.json())
+      .then((data) => {
+        const schoolDropdown = document.getElementById("school");
+        if (!schoolDropdown) return;
+        schoolDropdown.innerHTML = '<option value="">Select a school</option>';
+        data.forEach((s) => {
+          const option = document.createElement("option");
+          option.value = s;
+          option.textContent = s;
+          schoolDropdown.appendChild(option);
         });
       });
-    }
-    selects.forEach(s => s.addEventListener("change", updateMappingOptions));
-    updateMappingOptions();
 
-    document.getElementById("upload-form").addEventListener("submit", () => {
-      const mapping = {};
-      selects.forEach(s => {
-        const col = s.name.replace("map_", "");
-        if (s.value) mapping[col] = s.value;
-      });
-      document.getElementById("column_mappings").value = JSON.stringify(mapping);
-      localStorage.setItem("column_mappings", JSON.stringify(mapping));
-    });
-
-    // Show preview button only when a file is chosen
-    const fileInput = document.getElementById("csv_file");
-    const previewContainer = document.getElementById("preview-button-container");
-    fileInput.addEventListener("change", () => {
-      previewContainer.style.display = fileInput.files.length > 0 ? "block" : "none";
-    });
-
-    // Validate required mapped columns before server-side validation step
-    const validateButton = document.getElementById("validate-button");
-    if (validateButton) {
-      validateButton.addEventListener("click", (e) => {
-        const mappings = {};
-        selects.forEach(s => {
-          const col = s.name.replace("map_", "");
-          mappings[s.value] = col;
-        });
-
-        const hasNSN = mappings.hasOwnProperty("NSN");
-        const hasLastName = mappings.hasOwnProperty("LastName");
-        const hasFirstOrPreferred = mappings.hasOwnProperty("FirstName") || mappings.hasOwnProperty("PreferredName");
-
-        if (!(hasNSN && hasLastName && hasFirstOrPreferred)) {
-          e.preventDefault();
-          const modal = new bootstrap.Modal(document.getElementById("validationErrorModal"));
-          modal.show();
-        } else {
-          document.getElementById("validate-button").style.display = "none";
-          const postButtons = document.getElementById("post-validate-buttons");
-          if (postButtons) postButtons.style.display = "flex";
-        }
-      });
+    // FUN: also load providers for the selected funder
+    if (['FUN','MOE'].includes(userRole) && providerSel && this.value) {
+      loadProvidersForFunder(this.value);
     }
   });
+
+  // On load: if funder already selected, populate providers for FUN/MOE
+  if (funderSel && providerSel && ['FUN','MOE'].includes(userRole) && funderSel.value) {
+    loadProvidersForFunder(funderSel.value);
+  }
+
+  // ----- Column mapping persistence -----
+  const selects = document.querySelectorAll('select[name^="map_"]');
+  const stored = localStorage.getItem("column_mappings");
+  if (stored) {
+    const map = JSON.parse(stored);
+    selects.forEach((s) => {
+      const key = s.getAttribute("data-remember");
+      if (map[key]) s.value = map[key];
+    });
+  }
+
+  function updateMappingOptions() {
+    const used = Array.from(selects).map(s => s.value).filter(Boolean);
+    selects.forEach(select => {
+      const current = select.value;
+      Array.from(select.options).forEach(opt => {
+        if (!opt.value || opt.value === current) return;
+        opt.disabled = used.includes(opt.value);
+      });
+    });
+  }
+  selects.forEach(s => s.addEventListener("change", updateMappingOptions));
+  updateMappingOptions();
+
+  document.getElementById("upload-form").addEventListener("submit", () => {
+    const mapping = {};
+    selects.forEach(s => {
+      const col = s.name.replace("map_", "");
+      if (s.value) mapping[col] = s.value;
+    });
+    document.getElementById("column_mappings").value = JSON.stringify(mapping);
+    localStorage.setItem("column_mappings", JSON.stringify(mapping));
+  });
+
+  // Show preview button only when a file is chosen
+  const fileInput = document.getElementById("csv_file");
+  const previewContainer = document.getElementById("preview-button-container");
+  fileInput.addEventListener("change", () => {
+    previewContainer.style.display = fileInput.files.length > 0 ? "block" : "none";
+  });
+
+  // Validate required mapped columns before server-side validation step
+  const validateButton = document.getElementById("validate-button");
+  if (validateButton) {
+    validateButton.addEventListener("click", (e) => {
+      const mappings = {};
+      selects.forEach(s => {
+        const col = s.name.replace("map_", "");
+        mappings[s.value] = col;
+      });
+
+      const hasNSN = mappings.hasOwnProperty("NSN");
+      const hasLastName = mappings.hasOwnProperty("LastName");
+      const hasFirstOrPreferred = mappings.hasOwnProperty("FirstName") || mappings.hasOwnProperty("PreferredName");
+
+      if (!(hasNSN && hasLastName && hasFirstOrPreferred)) {
+        e.preventDefault();
+        const modal = new bootstrap.Modal(document.getElementById("validationErrorModal"));
+        modal.show();
+      } else {
+        document.getElementById("validate-button").style.display = "none";
+        const postButtons = document.getElementById("post-validate-buttons");
+        if (postButtons) postButtons.style.display = "flex";
+      }
+    });
+  }
+});
 </script>
 {% endblock %}
