@@ -156,7 +156,7 @@ def helper():
                 {"req": "ProvidersByFunderID", "num": int(number)}
             )
             for row in result:
-                pid  = getattr(row, "id", getattr(row, "ID", None))
+                pid  = getattr(row, "id", getattr(row, "id", None))
                 desc = getattr(row, "Description", getattr(row, "Name", None))
                 if pid is not None and desc:
                     out.append({"id": int(pid), "name": desc})
