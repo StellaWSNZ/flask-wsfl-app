@@ -4,16 +4,7 @@
 {% block content %}
 <div class="container mt-5" style="max-width: 95%;">
 
-  <!-- 🔄 Loading Spinner -->
-  <div id="loadingSpinner" style="
-    display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background-color: rgba(255,255,255,0.75); z-index: 9999; text-align: center; padding-top: 20%;
-  ">
-    <div class="spinner-border text-primary" role="status" style="width:3rem;height:3rem;">
-      <span class="visually-hidden">Loading...</span>
-    </div>
-    <p class="mt-2">Loading, please wait...</p>
-  </div>
+
 
   <h2 class="text-center text-primary mb-4">{{ title }}</h2>
 
@@ -35,12 +26,8 @@
 
       <div class="col-md-5">
         <label for="entity_id" class="form-label" id="entityLabel">Select</label>
-        <select name="entity_id" id="entity_id" class="form-select">
-          <option value="">-- Choose a {{ entity_type or 'Funder' }} --</option>
-          {# Initial server-provided list for current entity_type #}
-          {% for e in entity_list %}
-            <option value="{{ e.id }}" {% if e.id == selected_entity_id %}selected{% endif %}>{{ e.name }}</option>
-          {% endfor %}
+        <select name="entity_id" id="entity_id" class="form-select" disabled>
+          <option value="">-- Choose an Entity Type first --</option>
         </select>
       </div>
 
@@ -237,35 +224,69 @@ document.addEventListener("DOMContentLoaded", function () {
   const entityTypeSel = document.getElementById("entity_type");
   const entityIdSel   = document.getElementById("entity_id");
   const label         = document.getElementById("entityLabel");
+  const spinner       = document.getElementById("loadingSpinner");
+  const submitBtn     = document.querySelector('#entityForm button[type="submit"]');
 
-  function loadEntities(type) {
-    if (!entityIdSel) return;
+  function showSpinner(on) { if (spinner) spinner.style.display = on ? "block" : "none"; }
+  function setDisabled(on) {
+    if (entityIdSel) entityIdSel.disabled = on;
+    if (submitBtn)   submitBtn.disabled   = on;
+  }
+  function makeOpt(text, value, selected=false) {
+    const o = document.createElement("option");
+    o.textContent = text; o.value = value ?? ""; if (selected) o.selected = true; return o;
+  }
+
+  async function loadEntities(type) {
+    if (!entityIdSel || !type) return;
     label.textContent = `Select ${type}`;
-    entityIdSel.innerHTML = `<option value="">Loading ${type}s...</option>`;
+    entityIdSel.replaceChildren(makeOpt(`Loading ${type}s...`, ""));
+    setDisabled(true); showSpinner(true);
+
+    try {
+      // Adjust to your endpoint; expects JSON like: [{ id, name }]
+      const url = "{{ url_for('funder_bp.get_entities') }}?entity_type=" + encodeURIComponent(type);
+      const res = await fetch(url, { headers: { "Accept": "application/json" } });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const list = Array.isArray(data) ? data : (data.entities || []);
+
+      entityIdSel.replaceChildren(makeOpt(`-- Choose a ${type} --`, ""));
+      for (const item of list) {
+        const id   = item.id   ?? item.ProviderID ?? item.FunderID ?? item.GroupID;
+        const name = item.name ?? item.ProviderName ?? item.Description ?? item.GroupName;
+        if (!id || !name) continue;
+        entityIdSel.appendChild(makeOpt(name, id));
+      }
+
+      setDisabled(false);
+    } catch (err) {
+      console.error("Error loading entities:", err);
+      entityIdSel.replaceChildren(makeOpt(`Error loading ${type}s`, ""));
+      setDisabled(false);
+    } finally {
+      showSpinner(false);
+    }
+  }
+
+  // Initial state: disabled until a type is picked
+  if (entityIdSel) {
     entityIdSel.disabled = true;
-
-    fetch(`/get_entities?entity_type=${encodeURIComponent(type)}`)
-      .then(r => r.json())
-      .then(data => {
-        entityIdSel.innerHTML = `<option value="">-- Choose a ${type} --</option>`;
-        data.forEach(item => {
-          const opt = document.createElement("option");
-          opt.value = item.id;
-          opt.textContent = item.name;
-          entityIdSel.appendChild(opt);
-        });
-        entityIdSel.disabled = false;
-      })
-      .catch(err => {
-        console.error("Error loading entities:", err);
-        entityIdSel.innerHTML = `<option value="">Error loading ${type}s</option>`;
-      });
+    entityIdSel.innerHTML = '<option value="">-- Choose an Entity Type first --</option>';
   }
 
-  if (entityTypeSel) {
-    entityTypeSel.addEventListener("change", function () { loadEntities(this.value); });
-    if (entityTypeSel.value) loadEntities(entityTypeSel.value);
-  }
+  // When the user picks a type, load via AJAX
+  entityTypeSel?.addEventListener("change", function () {
+    if (!this.value) {
+      entityIdSel.disabled = true;
+      entityIdSel.innerHTML = '<option value="">-- Choose an Entity Type first --</option>';
+      return;
+    }
+    loadEntities(this.value);
+  });
+
+  // Optional: if the page arrives with a preselected type, load it
+  if (entityTypeSel?.value) loadEntities(entityTypeSel.value);
 
   // Bootstrap tooltips
   const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));

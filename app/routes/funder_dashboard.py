@@ -12,6 +12,26 @@ import sys
 from collections import defaultdict
 from datetime import datetime
 funder_bp = Blueprint("funder_bp", __name__)
+def compute_has_groups(engine, user_role, user_id):
+    """Return True if the current user should see 'Provider Group' in the type dropdown."""
+    try:
+        if user_role == "GRP":
+            ge = session.get("group_entities", {})
+            return bool(ge.get("GRP"))
+        with engine.begin() as conn:
+            if user_role == "FUN":
+                row = conn.execute(
+                    text("EXEC FlaskGetGroupsByFunder @FunderID = :fid"),
+                    {"fid": user_id}
+                ).fetchone()
+                return bool(row)
+            if user_role == "ADM":
+                row = conn.execute(text("EXEC FlaskGetAllGroups")).fetchone()
+                return bool(row)
+        return False
+    except Exception:
+        # Fail-safe: don't break page if proc is missing
+        return False
 
 @funder_bp.route('/Overview', methods=["GET", "POST"])
 @login_required
@@ -20,46 +40,52 @@ def funder_dashboard():
         abort(403)
 
     try:
-        engine = get_db_engine()
+        engine    = get_db_engine()
         user_role = session.get("user_role")
-        is_admin  = session.get("user_admin") == 1
-        user_id   = session.get("user_id")  # same as funder_id for FUN, provider_id for PRO, etc.
+        user_id   = session.get("user_id")  # funder_id for FUN, provider_id for PRO, etc.
 
-        # Persisted selection
+        # Persisted selection (type only; entity list loads via AJAX)
         entity_type = request.form.get("entity_type") or session.get("entity_type") or "Funder"
         session["entity_type"] = entity_type
         entity_id_val = request.form.get("entity_id")
 
-        # ----- Special MOE view -----
+        # ---------- Special MOE view ----------
         if user_role == "MOE":
-            user_email    = session.get("user_email") or "unknown@example.com"
-            school_id     = session.get("user_id")
+            school_id     = user_id
             selected_year = int(request.form.get("year", session.get("nearest_year", 2024)))
             selected_term = int(request.form.get("term", session.get("nearest_term", 1)))
 
             with engine.begin() as conn:
-                # Main class summary for the chosen year/term
                 class_df = pd.read_sql(
-                    text("EXEC FlaskHelperFunctionsSpecific @Request = :Request, @MOENumber = :SchoolID, @Term = :Term, @Year = :Year"),
+                    text("""
+                        EXEC FlaskHelperFunctionsSpecific
+                             @Request   = :Request,
+                             @MOENumber = :SchoolID,
+                             @Term      = :Term,
+                             @Year      = :Year
+                    """),
                     conn,
                     params={"Request": "SchoolSummary", "SchoolID": school_id,
                             "Term": selected_term, "Year": selected_year}
                 )
-                # All options so dropdowns are populated
                 class_df_all = pd.read_sql(
-                    text("EXEC FlaskHelperFunctionsSpecific @Request = :Request, @MOENumber = :SchoolID, @Term = :Term, @Year = :Year"),
+                    text("""
+                        EXEC FlaskHelperFunctionsSpecific
+                             @Request   = :Request,
+                             @MOENumber = :SchoolID,
+                             @Term      = :Term,
+                             @Year      = :Year
+                    """),
                     conn,
                     params={"Request": "SchoolSummary", "SchoolID": school_id,
                             "Term": None, "Year": None}
                 )
-                # Staff list
                 staff_df = pd.read_sql(
                     text("EXEC [FlaskHelperFunctions] @Request = :r, @Number = :sid"),
                     conn,
                     params={"r": "SchoolStaff", "sid": school_id}
                 )
 
-            # Normalize columns we rely on (class_df + class_df_all)
             def normalize(df):
                 if df is None or df.empty:
                     return pd.DataFrame(columns=[
@@ -85,7 +111,6 @@ def funder_dashboard():
             class_df     = normalize(class_df)
             class_df_all = normalize(class_df_all)
 
-            # Dropdown options (from all data)
             def uniq_sorted(df, col, reverse=False):
                 if df.empty or col not in df.columns: return []
                 vals = pd.Series(df[col]).dropna().unique().tolist()
@@ -94,7 +119,7 @@ def funder_dashboard():
                     try: out.append(int(v))
                     except: continue
                 return sorted(out, reverse=reverse)
-            print(class_df_all)
+
             available_years = uniq_sorted(class_df_all, "CalendarYear", reverse=True)
             available_terms = uniq_sorted(class_df_all, "Term", reverse=False)
 
@@ -110,63 +135,10 @@ def funder_dashboard():
                 no_classes=class_df.empty,
             )
 
-        # ----- Build dropdown lists for current entity_type -----
-        all_funders, all_providers, all_groups = [], [], []
+        # ---------- has_groups (no server-side entity lists) ----------
+        has_groups = compute_has_groups(engine, user_role, user_id)
 
-        with engine.begin() as conn:
-            if user_role == "ADM":
-                # Funders
-                funders_result = list(conn.execute(text("EXEC FlaskHelperFunctions 'AllFunders'")))
-                all_funders = [{"id": r._mapping["id"], "name": r._mapping["Description"]} for r in funders_result]
-                # Providers
-                providers_result = list(conn.execute(text("EXEC FlaskHelperFunctions 'AllProviders'")))
-                all_providers = [{"id": r._mapping["id"], "name": r._mapping["Description"]} for r in providers_result]
-                # Groups (if any)
-                groups_result = list(conn.execute(text("EXEC FlaskGetAllGroups")))
-                all_groups = [{"id": r._mapping["ID"], "name": r._mapping["Name"]} for r in groups_result]
-            elif user_role == "FUN":
-                # Only own funder
-                funders_result = list(conn.execute(text("EXEC FlaskHelperFunctions :Request"), {"Request": "FunderDropdown"}))
-                all_funders = [
-                    {"id": r._mapping["FunderID"], "name": r._mapping["Description"]}
-                    for r in funders_result if r._mapping["FunderID"] == user_id
-                ]
-                # Providers for that funder
-                providers_result = list(conn.execute(
-                    text("EXEC FlaskHelperFunctions :Request, :Number"),
-                    {"Request": "ProvidersByFunder", "Number": user_id}
-                ))
-                all_providers = [{"id": r._mapping["ProviderID"], "name": r._mapping["Description"]} for r in providers_result]
-                # Groups belonging to funder
-                groups_result = list(conn.execute(
-                    text("EXEC FlaskGetGroupsByFunder @FunderID = :fid"), {"fid": user_id}
-                ))
-                all_groups = [{"id": r._mapping["GroupID"], "name": r._mapping["Description"]} for r in groups_result]
-            elif user_role == "PRO":
-                # Self only
-                providers_result = list(conn.execute(text("EXEC FlaskHelperFunctions :Request"), {"Request": "ProviderDropdown"}))
-                all_providers = [
-                    {"id": r._mapping["ProviderID"], "name": r._mapping["Description"]}
-                    for r in providers_result if r._mapping["ProviderID"] == user_id
-                ]
-            elif user_role == "GRP":
-                # From session cache (set at login)
-                ge = session.get("group_entities", {})
-                # Commonly stored as {"PRO":[{id,name},...], "GRP":[{id,name},...]}
-                all_providers = [{"id": e["id"], "name": e.get("name") or e.get("desc")} for e in ge.get("PRO", [])]
-                all_groups    = [{"id": e["id"], "name": e.get("name") or e.get("desc")} for e in ge.get("GRP", [])]
-
-        has_groups = (len(all_groups) > 0)
-
-        # Current list for the dropdown in the template
-        if entity_type == "Provider":
-            entity_list = all_providers
-        elif entity_type == "Group":
-            entity_list = all_groups
-        else:
-            entity_list = all_funders
-
-        # ----- Persist selected entity_id -----
+        # ---------- Resolve selected entity ----------
         selected_entity_id = None
         if entity_id_val and str(entity_id_val).isdigit():
             selected_entity_id = int(entity_id_val)
@@ -174,11 +146,10 @@ def funder_dashboard():
         elif session.get("selected_entity_id"):
             selected_entity_id = session["selected_entity_id"]
         else:
-            # Default to self where applicable
             if user_role == "PRO" and entity_type == "Provider":
                 selected_entity_id = user_id
 
-        # If nothing picked yet, just render the shell
+        # If nothing picked yet: render shell
         if not selected_entity_id:
             return render_template(
                 "overview.html",
@@ -186,34 +157,32 @@ def funder_dashboard():
                 selected_year=None, selected_term=None,
                 available_years=[], available_terms=[],
                 no_eLearning=True, no_schools=True,
-                summary_string=None, user_role=user_role,
-                entity_list=entity_list,
+                summary_string=None,
+                user_role=user_role,
                 selected_entity_id=None,
                 entity_type=entity_type,
                 title="Overview",
                 has_groups=has_groups
             )
 
-        # Resolve description for title/summary
-        entity_desc = next((x["name"] for x in entity_list if int(x["id"]) == int(selected_entity_id)), session.get("desc"))
-
-        # ----- Choose procs by entity_type -----
-        # Adjust these names if your stored procedures differ.
+        # ---------- Choose procs by entity_type ----------
         if entity_type == "Provider" or user_role == "PRO":
-            proc_summary    = "FlaskGetSchoolSummaryByProvider"
-            id_param_name   = "ProviderID"
-            proc_elearning  = "FlaskGetProvidereLearningStatus"
+            proc_summary   = "FlaskGetSchoolSummaryByProvider"
+            id_param_name  = "ProviderID"
+            proc_elearning = "FlaskGetProvidereLearningStatus"
+            name_proc_sql  = "EXEC FlaskGetNameByProviderID @ProviderID = :id"
         elif entity_type == "Group":
-            # If you don't have these group procs yet, swap to your actual names.
-            proc_summary    = "FlaskGetSchoolSummaryByGroup"
-            id_param_name   = "GroupID"
-            proc_elearning  = "FlaskGetGroupeLearningStatus"
+            proc_summary   = "FlaskGetSchoolSummaryByGroup"
+            id_param_name  = "GroupID"
+            proc_elearning = "FlaskGetGroupeLearningStatus"
+            name_proc_sql  = "EXEC FlaskGetNameByGroupID @GroupID = :id"
         else:
-            proc_summary    = "FlaskGetSchoolSummaryByFunder"
-            id_param_name   = "FunderID"
-            proc_elearning  = "FlaskGetFundereLearningStatus"
+            proc_summary   = "FlaskGetSchoolSummaryByFunder"
+            id_param_name  = "FunderID"
+            proc_elearning = "FlaskGetFundereLearningStatus"
+            name_proc_sql  = "EXEC FlaskGetNameByFunderID @FunderID = :id"
 
-        # ----- Pull data -----
+        # ---------- Pull data ----------
         with engine.begin() as conn:
             eLearning_df = pd.read_sql(
                 text(f"EXEC {proc_elearning} @{id_param_name} = :id_val, @Email = :email"),
@@ -230,11 +199,15 @@ def funder_dashboard():
                     "Email": session.get("user_email") or "unknown@example.com"
                 }
             )
+            try:
+                name_row = conn.execute(text(name_proc_sql), {"id": selected_entity_id}).fetchone()
+                entity_desc = (name_row and list(name_row)[0]) or session.get("desc")
+            except Exception:
+                entity_desc = session.get("desc")
 
         available_years = sorted(school_df_all.get("CalendarYear", pd.Series(dtype=int)).dropna().unique(), reverse=True)
         available_terms = sorted(school_df_all.get("Term", pd.Series(dtype=int)).dropna().unique())
 
-        # Pick nearest if not posted
         selected_year = int(request.form.get("year", session.get("nearest_year", available_years[0] if available_years else 2025)))
         selected_term = int(request.form.get("term", session.get("nearest_term", available_terms[0] if available_terms else 1)))
 
@@ -244,7 +217,6 @@ def funder_dashboard():
         total_students = school_df.get("TotalStudents", pd.Series(dtype=int)).fillna(0).astype(int).sum() if not school_df.empty else 0
         total_schools  = school_df.get("SchoolName", pd.Series(dtype=object)).nunique() if not school_df.empty else 0
 
-        # Clean columns for display
         school_df = school_df.drop(columns=["TotalStudents", "CalendarYear", "Term"], errors="ignore")
         school_df = school_df.rename(columns={
             "SchoolName":   "School",
@@ -258,8 +230,8 @@ def funder_dashboard():
             f"<strong>{total_schools}</strong> school{'s' if total_schools != 1 else ''} "
             f"in <strong>Term {selected_term}</strong>, <strong>{selected_year}</strong>."
         )
-        print(session.get("desc"))
-        page_title = f"{entity_desc or session.get('desc') or ''} Overview"
+
+        page_title = f"{(entity_desc or session.get('desc') or '').strip()} Overview".strip() or "Overview"
 
         return render_template(
             "overview.html",
@@ -273,14 +245,13 @@ def funder_dashboard():
             no_schools=school_df.empty,
             summary_string=summary_string,
             user_role=user_role,
-            entity_list=entity_list,
             selected_entity_id=selected_entity_id,
             entity_type=entity_type,
             title=page_title,
             has_groups=has_groups
         )
 
-    except Exception as e:
+    except Exception:
         traceback.print_exc()
         return "Internal Server Error", 500
 
