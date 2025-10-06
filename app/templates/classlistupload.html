@@ -63,7 +63,7 @@
     </div>
 
     <!-- Term -->
-    <div class="col-md-2">
+    <div class="col-md-3">
       <label for="term" class="form-label">Term</label>
       <select class="form-select" id="term" name="term" required>
         {% set default_term = selected_term if selected_term else '2' %}
@@ -74,7 +74,7 @@
     </div>
 
     <!-- Year -->
-    <div class="col-md-1">
+    <div class="col-md-3">
       <label for="year" class="form-label">Year</label>
       <select class="form-select" id="year" name="year" required>
         {% set default_year = selected_year if selected_year else 2025 %}
@@ -100,14 +100,16 @@
       <label for="csv_file" class="form-label">Upload CSV File</label>
       <input type="file" class="form-control" id="csv_file" name="csv_file" accept=".csv, .xls, .xlsx, .xlsm" {% if not preview_data %}required{% endif %}>
     </div>
-
-    <div class="form-check">
-      <input class="form-check-input" type="checkbox" id="no_headers" name="no_headers" {% if request.form.get('no_headers') %}checked{% endif %}>
-      <label class="form-check-label" for="no_headers">
-        File has no headers
-      </label>
-    </div>
-
+<div class="col-md-3 d-flex align-items-center">
+  <div class="form-check mb-0">
+    <input class="form-check-input me-2" type="checkbox" id="no_headers" name="no_headers"
+           {% if request.form.get('no_headers') %}checked{% endif %}>
+    <label class="form-check-label mb-0" for="no_headers">
+      File has no headers
+    </label>
+  </div>
+</div>
+   
     <input type="hidden" id="column_mappings" name="column_mappings">
 
     <div class="col-12 d-flex gap-3" id="action-button-container">
@@ -250,68 +252,72 @@
 {% block scripts %}
 <script>
 document.addEventListener("DOMContentLoaded", () => {
-  const userRole = "{{ user_role|e }}";
-  const funderSel = document.getElementById("funder");
-  const providerSel = document.getElementById("provider");
+  const userRole         = "{{ user_role|e }}";
+  const funderSel        = document.getElementById("funder");
+  const providerSel      = document.getElementById("provider");
+  const selectedProvider = "{{ selected_provider or '' }}";
 
   async function loadProvidersForFunder(funderId) {
-    if (!providerSel) return; // not visible for non FUN/MOE
+    if (!providerSel || !funderId) return; // not visible for non FUN/MOE or no funder
     providerSel.innerHTML = '<option value="">Loading providers…</option>';
     providerSel.disabled = true;
 
     try {
-      const url = "{{ url_for('funder_bp.get_entities') }}"
-                + `?entity=provider&funder_id=${encodeURIComponent(funderId)}`;
+      const url = "{{ url_for('funder_bp.providers_by_funder') }}"
+                + `?funder_id=${encodeURIComponent(funderId)}`;
       const res = await fetch(url, { headers: { "Accept": "application/json" } });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const payload = await res.json();
-      const providers = payload.providers || [];
+
+      /** expects: [{ id, name }] */
+      let items = await res.json();
+      if (!Array.isArray(items)) items = [];
 
       providerSel.innerHTML = '<option value="">Select a provider</option>';
-      providers.forEach(p => {
+      for (const p of items) {
+        if (!p || !p.id || !p.name) continue;
         const opt = document.createElement('option');
-        opt.value = p.ProviderID;
-        opt.textContent = p.ProviderName;
+        opt.value = p.id;
+        opt.textContent = p.name;
         providerSel.appendChild(opt);
-      });
+      }
 
-      const selectedProvider = "{{ selected_provider or '' }}";
       if (selectedProvider) providerSel.value = selectedProvider;
-
       providerSel.disabled = false;
     } catch (e) {
+      console.error("Provider load failed:", e);
       providerSel.innerHTML = '<option value="">(Failed to load providers)</option>';
       providerSel.disabled = false;
-      console.error("Provider load failed:", e);
     }
   }
 
   // Funders -> school dropdown (skip for MOE to avoid wiping the locked school)
-  document.getElementById("funder")?.addEventListener("change", function () {
+  funderSel?.addEventListener("change", function () {
+    const fid = this.value;
+
     if (userRole === "MOE") {
-      // MOE: still allow provider reload when funder changes
-      if (providerSel && this.value) loadProvidersForFunder(this.value);
+      if (providerSel && fid) loadProvidersForFunder(fid);
       return;
     }
 
     // Non-MOE: refresh schools for this funder
-    fetch(`/get_schools_for_funder?funder_id=${this.value}`)
+    fetch(`/get_schools_for_funder?funder_id=${encodeURIComponent(fid)}`)
       .then((res) => res.json())
       .then((data) => {
         const schoolDropdown = document.getElementById("school");
         if (!schoolDropdown) return;
         schoolDropdown.innerHTML = '<option value="">Select a school</option>';
-        data.forEach((s) => {
+        (data || []).forEach((s) => {
           const option = document.createElement("option");
           option.value = s;
           option.textContent = s;
           schoolDropdown.appendChild(option);
         });
-      });
+      })
+      .catch(err => console.error("School load failed:", err));
 
-    // FUN: also load providers for the selected funder
-    if (['FUN','MOE'].includes(userRole) && providerSel && this.value) {
-      loadProvidersForFunder(this.value);
+    // FUN/MOE: also load providers for the selected funder
+    if (['FUN','MOE'].includes(userRole) && providerSel && fid) {
+      loadProvidersForFunder(fid);
     }
   });
 
@@ -371,9 +377,11 @@ document.addEventListener("DOMContentLoaded", () => {
         mappings[s.value] = col;
       });
 
-      const hasNSN = mappings.hasOwnProperty("NSN");
-      const hasLastName = mappings.hasOwnProperty("LastName");
-      const hasFirstOrPreferred = mappings.hasOwnProperty("FirstName") || mappings.hasOwnProperty("PreferredName");
+      const hasNSN = Object.prototype.hasOwnProperty.call(mappings, "NSN");
+      const hasLastName = Object.prototype.hasOwnProperty.call(mappings, "LastName");
+      const hasFirstOrPreferred =
+        Object.prototype.hasOwnProperty.call(mappings, "FirstName") ||
+        Object.prototype.hasOwnProperty.call(mappings, "PreferredName");
 
       if (!(hasNSN && hasLastName && hasFirstOrPreferred)) {
         e.preventDefault();
@@ -388,4 +396,5 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 </script>
+
 {% endblock %}
