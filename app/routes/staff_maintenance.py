@@ -378,6 +378,8 @@ def add_staff():
             selected_role = "PRO"
         elif entity_type == "Funder":
             selected_role = "FUN"
+        elif entity_type == "School":
+            selected_role = "FUN"
         else:
             selected_role = session.get("user_role")
         hashed_pw = None
