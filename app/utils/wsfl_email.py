@@ -93,7 +93,7 @@ def build_plain_body(actual_email, first_name, school_name,
         f"Login details\n"
         f"    • Sign in: {LOGIN_URL}\n"
         f"    • Username: {actual_email}\n"
-        f"    • Temporary password: your lowercase surname (keep punctuation such as apostrophes and hyphens)\n\n"
+        f"    • Temporary password: your lowercase surname (keep punctuation such as apostrophes and hyphens) followed immediately by your school's MOE number (no spaces).\n\n"
         f"Getting started\n"
         f"    • Check all classes are present and correct (Step 1).\n"
         f"    • Check staff access is up to date-add/remove as needed (Step 2).\n"
