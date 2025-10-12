@@ -94,30 +94,47 @@ def normalize_date_string(s):
     # Replace any non-alphanumeric character (like em dash, slash, unicode junk) with "-"
     s = re.sub(r"[^\w]", "-", s)
     return s
+
+
 @upload_bp.route('/ClassUpload', methods=['GET', 'POST'])
 @login_required
 def classlistupload():
     try:
-        validated=False
-        if session.get("user_role") not in ["ADM", "FUN", "MOE","PRO","GRP"]:
+        validated = False
+        if session.get("user_role") not in ["ADM", "FUN", "MOE", "PRO", "GRP"]:
             flash("You don’t have permission to access the class upload page.", "danger")
-            return redirect(url_for("home_bp.home"))  # or whatever landing page is suitable
+            return redirect(url_for("home_bp.home"))
+
         engine = get_db_engine()
         preview_data = None
-        original_columns = [] 
-        funders, schools = [], []
-        selected_csv = selected_funder = selected_school = selected_school_str = selected_term = selected_year = selected_teacher = selected_class = None
+        original_columns = []
+
+        # NEW: providers list + selected_provider
+        funders, schools, providers = [], [], []
+        selected_csv = None
+        selected_funder = selected_school = selected_school_str = None
+        selected_term = selected_year = selected_teacher = selected_class = None
+        selected_provider = None  # <--- NEW
+
         selected_school = session.get("desc") or ""
-        selected_moe = None 
+        selected_moe = None
+
         with engine.connect() as conn:
             if session.get("user_role") == "FUN":
                 funders = [{"Description": session.get("desc"), "FunderID": session.get("user_id")}]
+
             elif session.get("user_role") == "PRO":
+                # PRO users: funders supporting this provider
                 result = conn.execute(
                     text("EXEC FlaskHelperFunctions :Request, @Number=:Number"),
                     {"Request": "GetFunderByProvider", "Number": session.get("user_id")}
                 )
                 funders = [dict(row._mapping) for row in result]
+
+                # PRO users: provider is themselves (useful default)
+                providers = [{"Description": session.get("desc"), "ProviderID": session.get("user_id")}]
+                selected_provider = session.get("user_id")
+
             elif session.get("user_role") == "GRP":
                 stmt = text("""
                     EXEC FlaskHelperFunctionsSpecific 
@@ -125,33 +142,45 @@ def classlistupload():
                         @ProviderIDs = :ProviderIDs, 
                         @RawFUNIDs = :RawFUNIDs
                 """)
-
                 provider_ids = ",".join(str(e["id"]) for e in session.get("group_entities", {}).get("PRO", []))
                 raw_fun_ids = ",".join(str(e["id"]) for e in session.get("group_entities", {}).get("FUN", []))
-
-                result = conn.execute(stmt, {
-                    "ProviderIDs": provider_ids,
-                    "RawFUNIDs": raw_fun_ids
-                })
+                result = conn.execute(stmt, {"ProviderIDs": provider_ids, "RawFUNIDs": raw_fun_ids})
                 funders = [dict(row._mapping) for row in result]
+
+                # Optionally populate providers from the group as well (if your SP exists)
+                if provider_ids:
+                    try:
+                        # Replace request name with your actual one if different:
+                        prov_res = conn.execute(
+                            text("EXEC FlaskHelperFunctionsSpecific @Request='ProviderDropdownFromIDs', @ProviderIDs=:ProviderIDs"),
+                            {"ProviderIDs": provider_ids}
+                        )
+                        providers = [dict(row._mapping) for row in prov_res]
+                    except Exception:
+                        pass  # If SP not available, omit providers here
+
             else:
                 result = conn.execute(text("EXEC FlaskHelperFunctions :Request"), {"Request": "FunderDropdown"})
                 funders = [dict(row._mapping) for row in result]
 
         if request.method == 'POST':
             action = request.form.get('action')  # 'preview' or 'validate'
+
             selected_funder = request.form.get('funder')
-            
             selected_term = request.form.get('term')
             selected_year = request.form.get('year')
             selected_teacher = request.form.get('teachername')
             selected_class = request.form.get('classname')
+
+            # NEW: capture provider from form (may be None if not shown)
+            selected_provider = request.form.get('provider')
+
             session["selected_class"] = selected_class
             session["selected_teacher"] = selected_teacher
             session["selected_year"] = selected_year
             session["selected_term"] = selected_term
             session["selected_funder"] = selected_funder
-            session["selected_funder"] = selected_funder
+            session["selected_provider"] = selected_provider  # <--- NEW
 
             selected_school_str = (
                 request.form.get("school")
@@ -159,23 +188,20 @@ def classlistupload():
             )
             selected_school = selected_school_str
 
-            # Safely extract MOE number; fallback to session user_id if parsing fails
+            # Parse MOE number
             try:
                 if selected_school_str.isdigit():
                     moe_number = int(selected_school_str)
                 else:
-                    # Look for digits inside parentheses
                     inner = selected_school_str.split("(")[-1].rstrip(")")
                     moe_number = int(inner)
             except (ValueError, IndexError):
-                # Fallback to the logged-in user’s id if we can’t parse a number
                 moe_number = int(session.get("user_id"))
-
             session["selected_moe"] = moe_number
             selected_moe = moe_number
-            
+
             column_mappings_json = request.form.get('column_mappings')
-            
+
             file = request.files.get('csv_file')
             selected_csv = file if file and file.filename else None
 
@@ -183,8 +209,11 @@ def classlistupload():
                 selected_funder = int(selected_funder)
             if selected_year and selected_year.isdigit():
                 selected_year = int(selected_year)
+            # NEW: normalise selected_provider type
+            if selected_provider and str(selected_provider).isdigit():
+                selected_provider = int(selected_provider)
 
-            # Populate school dropdown
+            # Populate school dropdown (unchanged)
             if selected_funder and session.get("user_role") != "MOE":
                 with engine.connect() as conn:
                     result = conn.execute(
@@ -194,8 +223,20 @@ def classlistupload():
                     schools = [row.School for row in result]
             else:
                 schools = []
-            #print(selected_funder)
-            #print(schools)
+
+            # NEW: Populate providers when a funder is chosen (for ADM/FUN/MOE/GRP users)
+            if selected_funder and session.get("user_role") in ["ADM", "FUN", "MOE", "GRP"]:
+                try:
+                    with engine.connect() as conn:
+                        # Replace with your actual SP if different
+                        prov_res = conn.execute(
+                            text("EXEC FlaskHelperFunctionsSpecific @Request='ProvidersByFunder', @Number=:Number"),
+                            {"Number": selected_funder}
+                        )
+                        providers = [dict(row._mapping) for row in prov_res]
+                except Exception:
+                    pass
+
             if action == "preview" and file and file.filename:
                 
                 filename = file.filename.lower()
@@ -378,6 +419,7 @@ def classlistupload():
             funders=funders,
             schools=schools,
             selected_funder=selected_funder,
+            selected_provider =selected_provider,
             selected_school=selected_school,
             selected_term=selected_term,
             selected_year=selected_year,

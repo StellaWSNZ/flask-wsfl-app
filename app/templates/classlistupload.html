@@ -30,10 +30,10 @@
         {# Optional server-preload #}
         {% if providers %}
           {% for p in providers %}
-            <option value="{{ p.ProviderID }}"
-                    {% if selected_provider == p.ProviderID %}selected{% endif %}>
-              {{ p.ProviderName }}
-            </option>
+          <option value="{{ p.ProviderID }}"
+          {% if selected_provider|string == p.ProviderID|string %}selected{% endif %}>
+    {{ p.ProviderName or p.Description }}
+  </option>
           {% endfor %}
         {% endif %}
       </select>
