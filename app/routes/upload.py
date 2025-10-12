@@ -637,117 +637,88 @@ def classlistdownload_csv():
         mimetype='text/csv'
     )
     
-    
 @upload_bp.route('/submitclass', methods=['POST'])
 @login_required
 def submitclass():
     engine = get_db_engine()
     try:
-        funder_id = session.get("selected_funder")
+        funder_id  = session.get("selected_funder")
         moe_number = session.get("selected_moe")
-        term = session.get("selected_term")
-        year = session.get("selected_year")
-        teacher = session.get("selected_teacher")
-        classname = session.get("selected_class")
+        term       = session.get("selected_term")
+        year       = session.get("selected_year")
+        teacher    = session.get("selected_teacher")
+        classname  = session.get("selected_class")
         preview_data = session.get("preview_data")
-        missing = []
+        selected_provider = session.get("selected_provider")  # <-- NEW
 
-        if not funder_id:
-            missing.append("funder_id")
-        if not moe_number:
-            missing.append("moe_number")
-        if not term:
-            missing.append("term")
-        if not year:
-            missing.append("year")
-        if not teacher:
-            missing.append("teacher")
-        if not classname:
-            missing.append("classname")
-        if not preview_data:
-            missing.append("preview_data")
-        
-        # DEBUG: Print all values
-        #print("🔍 funder_id:", funder_id)
-        #print("🔍 moe_number:", moe_number)
-        #print("🔍 term:", term)
-        #print("🔍 year:", year)
-        #print("🔍 teacher:", teacher)
-        #print("🔍 classname:", classname)
-        #print("🔍 preview_data sample:", preview_data[:1])
+        missing = []
+        if not funder_id:   missing.append("funder_id")
+        if not moe_number:  missing.append("moe_number")
+        if not term:        missing.append("term")
+        if not year:        missing.append("year")
+        if not teacher:     missing.append("teacher")
+        if not classname:   missing.append("classname")
+        if not preview_data:missing.append("preview_data")
+
+        # Provider requirement by role (adjust to your policy)
+        user_role = session.get("user_role")
+        roles_require_provider = {"FUN", "GRP"}  # e.g. FUN/GRP must choose provider
+        if user_role in roles_require_provider and not selected_provider:
+            missing.append("provider")
 
         if missing:
             flash(f"Missing required data to submit class list: {', '.join(missing)}", "danger")
             return redirect(url_for("upload_bp.classlistupload"))
-   
-                
-        for row in preview_data:
-            for k, v in row.items():
-                if isinstance(v, str):
-                    row[k] = remove_macrons(v)
-        for row in preview_data:
-            for k, v in row.items():
-                if isinstance(v, str):
-                    row[k] = remove_macrons(v)
-        input_json = json.dumps(preview_data)
-        
-        #print("🔍 Final JSON birthdate values before submit:")
-        #for i, row in enumerate(preview_data[:3]):
-        #    print(f"Row {i+1} Birthdate:", row.get("Birthdate"))
-                
 
-        #print(input_json)
+        # Clean strings once (deduped loop)
+        for row in preview_data:
+            for k, v in row.items():
+                if isinstance(v, str):
+                    row[k] = remove_macrons(v)
+
+        input_json = json.dumps(preview_data)
+
+        # Normalise types
+        try:
+            term = int(term)
+        except: pass
+        try:
+            year = int(year)
+        except: pass
+        # ProviderID can be None (NULL) for ADM/MOE (optional)
+        if selected_provider is not None and str(selected_provider).isdigit():
+            selected_provider = int(selected_provider)
+        else:
+            selected_provider = None
+
         with engine.begin() as conn:
-            if session.get("user_role") == "PRO":
-                conn.execute(
-                    text("""
-                        EXEC FlaskInsertClassList
-                            @FunderID = :FunderID,
-                            @MOENumber = :MOENumber,
-                            @Term = :Term,
-                            @CalendarYear = :CalendarYear,
-                            @TeacherName = :TeacherName,
-                            @ClassName = :ClassName,
-                            @InputJSON = :InputJSON,
-                            @Email = :email,
-                            @ProviderID = :ProviderID
-                    """),
-                    {
-                        "FunderID": funder_id,
-                        "MOENumber": moe_number,
-                        "Term": term,
-                        "CalendarYear": year,
-                        "TeacherName": teacher,
-                        "ClassName": classname,
-                        "InputJSON": input_json,
-                        "email": session["user_email"],
-                        "ProviderID": session.get("user_id")  # or however ProviderID is stored
-                    }
-                )
-            else:
-                conn.execute(
-                    text("""
-                        EXEC FlaskInsertClassList
-                            @FunderID = :FunderID,
-                            @MOENumber = :MOENumber,
-                            @Term = :Term,
-                            @CalendarYear = :CalendarYear,
-                            @TeacherName = :TeacherName,
-                            @ClassName = :ClassName,
-                            @InputJSON = :InputJSON,
-                            @Email = :email
-                    """),
-                    {
-                        "FunderID": funder_id,
-                        "MOENumber": moe_number,
-                        "Term": term,
-                        "CalendarYear": year,
-                        "TeacherName": teacher,
-                        "ClassName": classname,
-                        "InputJSON": input_json,
-                        "email": session["user_email"]
-                    }
-                )
+            # Always pass ProviderID (may be NULL)  <-- KEY CHANGE
+            conn.execute(
+                text("""
+                    EXEC FlaskInsertClassList
+                        @FunderID     = :FunderID,
+                        @MOENumber    = :MOENumber,
+                        @Term         = :Term,
+                        @CalendarYear = :CalendarYear,
+                        @TeacherName  = :TeacherName,
+                        @ClassName    = :ClassName,
+                        @InputJSON    = :InputJSON,
+                        @Email        = :Email,
+                        @ProviderID   = :ProviderID
+                """),
+                {
+                    "FunderID": funder_id,
+                    "MOENumber": moe_number,
+                    "Term": term,
+                    "CalendarYear": year,
+                    "TeacherName": teacher,
+                    "ClassName": classname,
+                    "InputJSON": input_json,
+                    "Email": session.get("user_email"),
+                    "ProviderID": selected_provider  # None -> SQL NULL
+                }
+            )
+
         flash("✅ Class submitted successfully!", "success")
 
     except Exception as e:
