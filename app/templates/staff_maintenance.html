@@ -529,7 +529,9 @@
         entityTypeSelector.value = "Funder";
       } else if (role === "GRP") {
         entityTypeSelector.value = "Group";
-      } else {
+      }  else if (role === "MOE") {
+        entityTypeSelector.value = "School";
+      }else {
         entityTypeSelector.value = "Provider";
       }
     }

@@ -256,7 +256,7 @@
   /* Alerts inside modals */
   function showModalAlert(modalId, type, message, opts = {}) {
   const modal = document.querySelector(modalId); 
-  if (!modal) return;
+  if (!modal) return; 
 
   const host =
     modalId === "#addStudentModal"    ? modal.querySelector("#add-modal-alert-host") :

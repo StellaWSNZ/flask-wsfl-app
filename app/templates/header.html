@@ -2,7 +2,9 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>{% block title %} {% endblock %}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{% block title %}{% endblock %}</title>
+
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" />
     <link
       href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
@@ -13,7 +15,6 @@
       href="https://cdn.jsdelivr.net/npm/bootstrap-select@1.14.0-beta2/dist/css/bootstrap-select.min.css"
     />
     <script src="https://cdn.jsdelivr.net/npm/bootstrap-select@1.14.0-beta2/dist/js/bootstrap-select.min.js"></script>
-
     <link
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css"
@@ -23,6 +24,7 @@
       rel="stylesheet"
       href="{{ url_for('static', filename='css/custom.css') }}"
     />
+
     <style>
       body {
         background-image: url("{{ url_for('static', filename='background.svg') }}");
@@ -35,17 +37,18 @@
     {% block head %}{% endblock %}
   </head>
 
-  <body class="">
+  <body>
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg navbar-dark custom-navbar py-2">
       <div class="container-fluid">
         <a
           class="navbar-brand d-flex align-items-center"
           href="{{ url_for('home_bp.home') }}"
+          aria-label="Home"
         >
           <img
             src="{{ url_for('static', filename='LightLogo.png') }}"
-            alt="Logo"
+            alt="Water Skills for Life — Home"
             class="img-fluid"
             style="height: 40px; margin-right: 12px"
           />
@@ -62,8 +65,8 @@
         >
           <span class="navbar-toggler-icon"></span>
         </button>
-        {% if user_role in ["ADM", "PRO", "MOE", "FUN","GRP"] %}
 
+        {% if user_role in ["ADM", "PRO", "MOE", "FUN", "GRP"] %}
         <div class="collapse navbar-collapse mt-2 mt-lg-0" id="navbarNav">
           <ul class="navbar-nav ms-auto align-items-lg-center">
             <li class="nav-item">
@@ -73,9 +76,11 @@
                 >Dashboard</a
               >
             </li>
+
             {% if user_role == "GRP" %}
             <li class="nav-item dropdown">
               <a
+                id="grpToolsToggle"
                 class="nav-link dropdown-toggle"
                 href="#"
                 role="button"
@@ -84,22 +89,23 @@
               >
                 Provider Tools
               </a>
-              <ul class="dropdown-menu dropdown-menu-end">
+              <ul
+                class="dropdown-menu dropdown-menu-end"
+                aria-labelledby="grpToolsToggle"
+              >
                 <li>
                   <a
                     class="dropdown-item py-2"
                     href="{{ url_for('funder_bp.funder_dashboard') }}"
+                    >Overview</a
                   >
-                    Overview
-                  </a>
                 </li>
                 <li>
                   <a
                     class="dropdown-item py-2"
                     href="{{ url_for('report_bp.new_reports') }}"
+                    >Reporting</a
                   >
-                    Reporting
-                  </a>
                 </li>
                 <li>
                   <a
@@ -110,9 +116,10 @@
                 </li>
               </ul>
             </li>
-            {% endif %} {% if user_role == "FUN"%}
+            {% endif %} {% if user_role == "FUN" %}
             <li class="nav-item dropdown">
               <a
+                id="funToolsToggle"
                 class="nav-link dropdown-toggle"
                 href="#"
                 role="button"
@@ -121,16 +128,19 @@
               >
                 Funder Tools
               </a>
-              <ul class="dropdown-menu dropdown-menu-end">
-                {% if session['user_admin'] == 1%}
+              <ul
+                class="dropdown-menu dropdown-menu-end"
+                aria-labelledby="funToolsToggle"
+              >
+                {% if session['user_admin'] == 1 %}
                 <li>
                   <a
                     class="dropdown-item py-2"
                     href="{{ url_for('funder_bp.funder_dashboard') }}"
-                    >Overview
-                  </a>
+                    >Overview</a
+                  >
                 </li>
-                {%endif%}
+                {% endif %}
                 <li>
                   <a
                     class="dropdown-item py-2"
@@ -138,7 +148,6 @@
                     >Reporting</a
                   >
                 </li>
-
                 <li>
                   <a
                     class="dropdown-item py-2"
@@ -146,7 +155,7 @@
                     >Class Lookup</a
                   >
                 </li>
-                {% if session['user_admin'] == 1%}
+                {% if session['user_admin'] == 1 %}
                 <li>
                   <a
                     class="dropdown-item py-2"
@@ -167,6 +176,7 @@
             {% endif %} {% if user_role == "MOE" %}
             <li class="nav-item dropdown">
               <a
+                id="moeToolsToggle"
                 class="nav-link dropdown-toggle {% if 'school' in request.path or 'classlistupload' in request.path %}active{% endif %}"
                 href="#"
                 role="button"
@@ -175,39 +185,39 @@
               >
                 School Tools
               </a>
-              <ul class="dropdown-menu dropdown-menu-end">
-                {% if session['user_admin'] == 1%}
+              <ul
+                class="dropdown-menu dropdown-menu-end"
+                aria-labelledby="moeToolsToggle"
+              >
+                {% if session['user_admin'] == 1 %}
                 <li>
                   <a
                     class="dropdown-item py-2"
                     href="{{ url_for('funder_bp.funder_dashboard') }}"
-                    >Overview
-                  </a>
+                    >Overview</a
+                  >
                 </li>
                 <li>
                   <a
                     class="dropdown-item py-2"
                     href="{{ url_for('report_bp.new_reports') }}"
+                    >Reporting</a
                   >
-                    Reporting
-                  </a>
                 </li>
                 <li>
                   <a
                     class="dropdown-item py-2"
                     href="{{ url_for('class_bp.class_students_page') }}"
+                    >Edit Class Lists</a
                   >
-                    Edit Class Lists
-                  </a>
                 </li>
-                {%endif%}
+                {% endif %}
                 <li>
                   <a
                     class="dropdown-item py-2"
                     href="{% if user_role == 'ADM' %}{{ url_for('class_bp.funder_classes') }}{% else %}{{ url_for('class_bp.moe_classes') }}{% endif %}"
+                    >Class Lookup</a
                   >
-                    Class Lookup
-                  </a>
                 </li>
                 <li>
                   <a
@@ -216,15 +226,13 @@
                     >Upload Class List</a
                   >
                 </li>
-
-                {% if session['user_admin'] == 1%}
+                {% if session['user_admin'] == 1 %}
                 <li>
                   <a
                     class="dropdown-item py-2"
                     href="{{ url_for('students_bp.student_search_page') }}"
+                    >Edit Student Record</a
                   >
-                    Edit Student Record
-                  </a>
                 </li>
                 {% endif %}
               </ul>
@@ -232,6 +240,7 @@
             {% endif %} {% if user_role == "PRO" %}
             <li class="nav-item dropdown">
               <a
+                id="proToolsToggle"
                 class="nav-link dropdown-toggle {% if 'reporting' in request.path or 'provider_classes' in request.path %}active{% endif %}"
                 href="#"
                 role="button"
@@ -240,31 +249,32 @@
               >
                 Provider Tools
               </a>
-              <ul class="dropdown-menu dropdown-menu-end">
-                {% if session['user_admin'] == 1%}
+              <ul
+                class="dropdown-menu dropdown-menu-end"
+                aria-labelledby="proToolsToggle"
+              >
+                {% if session['user_admin'] == 1 %}
                 <li>
                   <a
                     class="dropdown-item py-2"
                     href="{{ url_for('funder_bp.funder_dashboard') }}"
-                    >Overview
-                  </a>
+                    >Overview</a
+                  >
                 </li>
-                {%endif%}
+                {% endif %}
                 <li>
                   <a
                     class="dropdown-item py-2"
                     href="{{ url_for('report_bp.new_reports') }}"
+                    >Reporting</a
                   >
-                    Reporting
-                  </a>
                 </li>
                 <li>
                   <a
                     class="dropdown-item py-2"
                     href="{{ url_for('class_bp.provider_classes') }}"
+                    >Class Lookup</a
                   >
-                    Class Lookup
-                  </a>
                 </li>
                 <li>
                   <a
@@ -275,10 +285,11 @@
                 </li>
               </ul>
             </li>
-            {%endif%} {% if user_role == "ADM" and user_email !=
+            {% endif %} {% if user_role == "ADM" and user_email !=
             "megan@watersafety.org.nz" %}
             <li class="nav-item dropdown">
               <a
+                id="admToolsToggle"
                 class="nav-link dropdown-toggle {% if 'reporting' in request.path or 'classlistupload' in request.path or 'funder_classes' in request.path %}active{% endif %}"
                 href="#"
                 role="button"
@@ -287,113 +298,108 @@
               >
                 Admin Tools
               </a>
-              <ul class="dropdown-menu dropdown-menu-end">
-                <!-- 📊 Reports & Dashboards -->
-                <h6 class="dropdown-header">Reports & Dashboards</h6>
+              <ul
+                class="dropdown-menu dropdown-menu-end"
+                aria-labelledby="admToolsToggle"
+              >
+                <li class="dropdown-header" role="presentation">
+                  Reports &amp; Dashboards
+                </li>
                 <li>
                   <a
                     class="dropdown-item py-2"
                     href="{{ url_for('report_bp.new_reports') }}"
+                    >Reporting</a
                   >
-                    Reporting
-                  </a>
                 </li>
                 <li>
                   <a
                     class="dropdown-item py-2"
                     href="{{ url_for('funder_bp.funder_dashboard') }}"
+                    >Overview by Entity</a
                   >
-                    Overview by Entity
-                  </a>
                 </li>
                 <li>
                   <a
                     class="dropdown-item py-2"
                     href="{{ url_for('funder_bp.admin_dashboard') }}"
+                    >Overview</a
                   >
-                    Overview
-                  </a>
                 </li>
 
-                <hr class="dropdown-divider" />
+                <li role="separator"><hr class="dropdown-divider" /></li>
 
-                <!-- 🏫 Entity & User Management -->
-                <h6 class="dropdown-header">Entity & User Management</h6>
+                <li class="dropdown-header" role="presentation">
+                  Entity &amp; User Management
+                </li>
                 <li>
                   <a
                     class="dropdown-item py-2"
                     href="{{ url_for('admin_bp.admin_user_entities') }}"
+                    >Edit User Entity</a
                   >
-                    Edit User Entity
-                  </a>
                 </li>
                 <li>
                   <a
                     class="dropdown-item py-2"
                     href="{{ url_for('add_user.add_user') }}"
+                    >Add Teacher</a
                   >
-                    Add Teacher
-                  </a>
                 </li>
                 <li>
                   <a
                     class="dropdown-item py-2"
                     href="{{ url_for('admin_bp.provider_maintenance') }}"
+                    >Provider Maintenance</a
                   >
-                    Provider Maintenance
-                  </a>
                 </li>
                 <li>
                   <a
                     class="dropdown-item py-2"
                     href="{{ url_for('admin_bp.provider_maintenance') }}"
+                    >Edit School Type</a
                   >
-                    Edit School Type
-                  </a>
                 </li>
                 <li>
                   <a
                     class="dropdown-item py-2"
                     href="{{ url_for('students_bp.student_search_page') }}"
+                    >Edit Student Record</a
                   >
-                    Edit Student Record
-                  </a>
                 </li>
                 <li>
                   <a
                     class="dropdown-item py-2"
                     href="{{ url_for('class_bp.class_students_page') }}"
+                    >Edit Class Lists</a
                   >
-                    Edit Class Lists
-                  </a>
                 </li>
-                <hr class="dropdown-divider" />
 
-                <!-- 📁 Data Uploads & Lookup -->
-                <h6 class="dropdown-header">Data Uploads & Lookup</h6>
+                <li role="separator"><hr class="dropdown-divider" /></li>
+
+                <li class="dropdown-header" role="presentation">
+                  Data Uploads &amp; Lookup
+                </li>
                 <li>
                   <a
                     class="dropdown-item py-2"
                     href="{{ url_for('upload_bp.classlistupload') }}"
+                    >Upload Class List</a
                   >
-                    Upload Class List
-                  </a>
                 </li>
                 <li>
                   <a
                     class="dropdown-item py-2"
                     href="{{ url_for('eLearning_bp.admin_eLearning_upload') }}"
+                    >Upload eLearning Excel</a
                   >
-                    Upload eLearning Excel
-                  </a>
                 </li>
                 <li>
                   <a
                     class="dropdown-item py-2"
                     href="{{ url_for('class_bp.funder_classes') }}"
+                    >Class Lookup</a
                   >
-                    Class Lookup
-                  </a>
                 </li>
                 <li>
                   <a
@@ -408,6 +414,7 @@
             "megan@watersafety.org.nz" %}
             <li class="nav-item dropdown">
               <a
+                id="admToolsMeganToggle"
                 class="nav-link dropdown-toggle {% if 'reporting' in request.path or 'classlistupload' in request.path or 'funder_classes' in request.path %}active{% endif %}"
                 href="#"
                 role="button"
@@ -416,91 +423,51 @@
               >
                 Admin Tools
               </a>
-              <ul class="dropdown-menu dropdown-menu-end">
+              <ul
+                class="dropdown-menu dropdown-menu-end"
+                aria-labelledby="admToolsMeganToggle"
+              >
                 <li>
                   <a
                     class="dropdown-item py-2"
                     href="{{ url_for('report_bp.new_reports') }}"
-                  >
-                    Reporting
-                  </a>
-                </li>
-                <!-- <li>
-                  <a
-                    class="dropdown-item py-2"
-                    href="{{ url_for('admin_bp.provider_maintenance') }}"
-                    >Provider Maintenance</a
+                    >Reporting</a
                   >
                 </li>
-                <li>
-                  <a
-                    class="dropdown-item py-2"
-                    href="{{ url_for('upload_bp.classlistupload') }}"
-                  >
-                    Upload Class List
-                  </a>
-                </li>
-                <li>
-                  <a
-                    class="dropdown-item py-2"
-                    href="{{ url_for('class_bp.funder_classes') }}"
-                  >
-                    Class Lookup
-                  </a>
-                </li>
-
-                <li>
-                  <a
-                    class="dropdown-item py-2"
-                    href="{{ url_for('eLearning_bp.admin_eLearning_upload') }}"
-                  >
-                    Upload eLearning Excel
-                  </a>
-                </li>
-                <li>
-                  <a
-                    class="dropdown-item py-2"
-                    href="{{ url_for('students_bp.student_search_page') }}"
-                  >
-                    Edit Student Record
-                  </a>
-                </li>
-              -->
                 <li>
                   <a
                     class="dropdown-item py-2"
                     href="{{ url_for('funder_bp.funder_dashboard') }}"
-                    >Overview by Entity
-                  </a>
+                    >Overview by Entity</a
+                  >
                 </li>
                 <li>
                   <a
                     class="dropdown-item py-2"
                     href="{{ url_for('funder_bp.admin_dashboard') }}"
-                    >Overview
-                  </a>
+                    >Overview</a
+                  >
                 </li>
                 <li>
                   <a
                     class="dropdown-item py-2"
                     href="{{ url_for('survey_bp.survey_by_routename', routename='ExternalReview') }}"
+                    >Complete an External Review</a
                   >
-                    Complete an External Review
-                  </a>
                 </li>
                 <li>
                   <a
                     class="dropdown-item py-2"
                     href="{{ url_for('survey_bp.list_my_surveys') }}"
+                    >View Past Forms</a
                   >
-                    View Past Forms
-                  </a>
                 </li>
               </ul>
             </li>
-            {% endif %} {% if user_email != "megan@watersafety.org.nz"%}
+            {% endif %} {% if user_email != "megan@watersafety.org.nz" %}
             <li class="nav-item dropdown mt-2 mt-lg-0 me-2">
               <a
+                id="formsToggle"
                 class="nav-link dropdown-toggle"
                 href="#"
                 role="button"
@@ -509,73 +476,63 @@
               >
                 <i class="bi bi-ui-checks me-1"></i> Forms
               </a>
-              <ul class="dropdown-menu dropdown-menu-end">
+              <ul
+                class="dropdown-menu dropdown-menu-end"
+                aria-labelledby="formsToggle"
+              >
                 <li>
                   <a
                     class="dropdown-item py-2"
                     href="{{ url_for('survey_bp.survey_by_routename', routename='SelfReview') }}"
+                    >Complete a Self Review</a
                   >
-                    Complete a Self Review
-                  </a>
                 </li>
-                {% if user_role == "ADM"%}
+                {% if user_role == "ADM" %}
                 <li>
                   <a
                     class="dropdown-item py-2"
                     href="{{ url_for('survey_bp.survey_by_routename', routename='ExternalReview') }}"
+                    >Complete an External Review</a
                   >
-                    Complete an External Review
-                  </a>
                 </li>
-                {%endif%} {% if user_role in ["FUN" ,"ADM"]%}
+                {% endif %} {% if user_role in ["FUN", "ADM"] %}
                 <li>
                   <a
                     class="dropdown-item py-2"
                     href="{{ url_for('survey_bp.survey_by_routename', routename='TeacherAssessment') }}"
+                    >Complete a Teacher Assessment</a
                   >
-                    Complete a Teacher Assessment
-                  </a>
                 </li>
-                {%endif%}{% if user_admin == 1 %}
+                {% endif %} {% if user_admin == 1 %}
                 <li>
                   <a
                     class="dropdown-item py-2"
                     href="{{ url_for('survey_bp.staff_survey_admin') }}"
+                    >View Staff Forms</a
                   >
-                    View Staff Forms
-                  </a>
                 </li>
-                {%endif%}
+                {% endif %}
                 <li>
                   <a
                     class="dropdown-item py-2"
                     href="{{ url_for('survey_bp.list_my_surveys') }}"
+                    >View Past Forms</a
                   >
-                    View Past Forms
-                  </a>
                 </li>
-                <li><hr class="dropdown-divider" /></li>
+                <li role="separator"><hr class="dropdown-divider" /></li>
                 <li>
                   <a
                     class="dropdown-item py-2"
                     href="{{ url_for('feedback_bp.feedback') }}"
+                    >Report an Issue / Submit Feedback</a
                   >
-                    Report an Issue / Submit Feedback
-                  </a>
                 </li>
-                <!-- <li>
-                  <a
-                    class="dropdown-item py-2"
-                    href="{{ url_for('survey_bp.survey_by_routename', routename='Feedback') }}"
-                  >
-                    Testing Feedback
-                  </a>
-                </li> -->
               </ul>
             </li>
-            {% endif %} {% if session['user_admin'] == 1%}
+            {% endif %} {% if session['user_admin'] == 1 %}
             <li class="nav-item dropdown mt-2 mt-lg-0 me-2">
               <a
+                id="staffToggle"
                 class="nav-link dropdown-toggle"
                 href="#"
                 role="button"
@@ -584,61 +541,49 @@
               >
                 <i class="bi bi-people-fill me-1"></i> Staff
               </a>
-              <ul class="dropdown-menu dropdown-menu-end">
-                {% if user_email != "megan@watersafety.org.nz"%}
+              <ul
+                class="dropdown-menu dropdown-menu-end"
+                aria-labelledby="staffToggle"
+              >
+                {% if user_email != "megan@watersafety.org.nz" %}
                 <li>
                   <a
                     class="dropdown-item py-2"
                     href="{{ url_for('staff_bp.staff_maintenance') }}"
+                    >Manage My Staff</a
                   >
-                    Manage My Staff
-                  </a>
                 </li>
                 {% endif %} {% if user_role != "MOE" %}
                 <li>
                   <a
                     class="dropdown-item py-2"
                     href="{{ url_for('survey_bp.staff_survey_admin') }}"
+                    >View Staff Forms</a
                   >
-                    View Staff Forms
-                  </a>
                 </li>
                 <li>
                   <a
                     class="dropdown-item py-2"
                     href="{{ url_for('staff_bp.staff_eLearning') }}"
+                    >View All eLearnings</a
                   >
-                    View All eLearnings
-                  </a>
                 </li>
                 {% endif %}
               </ul>
             </li>
-            {% if user_email != "megan@watersafety.org.nz"%}
+            {% endif %} {% if user_email != "megan@watersafety.org.nz" %}
             <li class="nav-item mt-2 mt-lg-0 me-2">
               <a
                 href="{{ url_for('eLearning_bp.eLearning_guide') }}"
                 class="nav-link"
-              >
-                eLearning
-              </a>
-            </li>
-            <li class="nav-item mt-2 mt-lg-0 me-2">
-              <a href="{{ url_for('admin_bp.create_user') }}" class="nav-link">
-                <i class="bi bi-person-plus me-1"></i> Create User
-              </a>
-            </li>
-            <li class="nav-item mt-2 mt-lg-0 me-2">
-              <a
-                class="nav-link"
-                href="{{ url_for('upload_bp.classlistupload') }}"
-                >Upload Class List</a
+                >eLearning</a
               >
             </li>
-            {% endif %} {% endif %}
-            <!--{% if user_email in ["emma@dgss.co.nz",
-            "kin@clmnz.co.nz","leanne.stocks@ccc.govt.nz","fun_admin@example.com","pro_admin_1@example.com","clair.muirhead@qldc.govt.nz"]
-            %}
+            <li class="nav-item mt-2 mt-lg-0 me-2">
+              <a href="{{ url_for('admin_bp.create_user') }}" class="nav-link"
+                ><i class="bi bi-person-plus me-1"></i> Create User</a
+              >
+            </li>
             <li class="nav-item mt-2 mt-lg-0 me-2">
               <a
                 class="nav-link"
@@ -646,7 +591,8 @@
                 >Upload Class List</a
               >
             </li>
-            {% endif %}-->
+            {% endif %}
+
             <li class="nav-item mt-2 mt-lg-0 me-2">
               <a
                 href="{{ url_for('admin_bp.profile') }}"
