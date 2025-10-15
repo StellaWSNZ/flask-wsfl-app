@@ -4,8 +4,6 @@
 {% block content %}
 <div class="container mt-5" style="max-width: 95%;">
 
-
-
   <h2 class="text-center text-primary mb-4">{{ title }}</h2>
 
   {% if user_role == "ADM" or (user_role in ["FUN","PRO","GRP"] and user_admin == 1) %}
@@ -98,49 +96,123 @@
             </div>
           </div>
 
-          <div class="table-responsive">
-            <table class="table table-bordered text-center align-middle">
-              <thead class="table-light">
-                <tr>
-                  <th>Staff</th>
-                  {% for module in eLearning[0].keys() if module not in ['Name','RespondentID'] %}
-                    <th>{{ module }}</th>
-                  {% endfor %}
-                </tr>
-              </thead>
-              <tbody>
-                {% for row in eLearning %}
-                <tr>
-                  <td>{{ row["Name"] }}</td>
-                  {% for key, val in row.items() if key not in ["Name","RespondentID"] %}
-                  <td>
-                    {% set status = val|string %}
-                    {% if key == "Latest Self Review" and val %}
-                      <a href="{{ url_for('survey_bp.view_my_survey_response', respondent_id=row['RespondentID']) }}" style="text-decoration:none;">
-                        <span class="badge bg-light text-dark" style="font-size:0.8rem;">
+          <!-- Desktop / tablet view -->
+          <div class="d-none d-sm-block">
+            <div class="table-responsive">
+              <table class="table table-bordered text-center align-middle" id="elearnTable">
+                <thead class="table-light">
+                  <tr>
+                    <th>Staff</th>
+                    {% for module in eLearning[0].keys() if module not in ['Name','RespondentID'] %}
+                      <th>{{ module }}</th>
+                    {% endfor %}
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in eLearning %}
+                  <tr>
+                    <td>{{ row["Name"] }}</td>
+                    {% for key, val in row.items() if key not in ["Name","RespondentID"] %}
+                    <td>
+                      {% set status = val|string %}
+                      {% if key == "Latest Self Review" and val %}
+                        <a href="{{ url_for('survey_bp.view_my_survey_response', respondent_id=row['RespondentID']) }}" class="text-decoration-none">
+                          <span class="badge bg-light text-dark badge-tap">{{ status }}</span>
+                          <span class="visually-hidden">Open self review for {{ row['Name'] }}</span>
+                        </a>
+                      {% else %}
+                        {% set s = status|lower %}
+                        <span class="badge badge-tap
+                          {% if s in ['passed','completed'] %} bg-success
+                          {% elif s == 'cancelled' %} bg-danger
+                          {% elif s == 'in progress' %} bg-warning text-dark
+                          {% elif s in ['not started','enrolled','not enrolled'] %} bg-secondary
+                          {% else %} bg-light text-dark {% endif %}">
                           {{ status }}
                         </span>
-                      </a>
-                    {% else %}
-                      {% if status in ['Passed','Completed'] %}
-                        <span class="badge bg-success" style="font-size:0.8rem;">{{ status }}</span>
-                      {% elif status == 'Cancelled' %}
-                        <span class="badge bg-danger" style="font-size:0.8rem;">{{ status }}</span>
-                      {% elif status == 'In Progress' %}
-                        <span class="badge bg-warning text-dark" style="font-size:0.8rem;">{{ status }}</span>
-                      {% elif status in ['Not Started','Enrolled','Not Enrolled'] %}
-                        <span class="badge bg-secondary" style="font-size:0.8rem;">{{ status }}</span>
-                      {% else %}
-                        <span class="badge bg-light text-dark" style="font-size:0.8rem;">{{ status }}</span>
                       {% endif %}
-                    {% endif %}
-                  </td>
+                    </td>
+                    {% endfor %}
+                  </tr>
                   {% endfor %}
-                </tr>
-                {% endfor %}
-              </tbody>
-            </table>
+                </tbody>
+              </table>
+            </div>
           </div>
+
+          <!-- Phone view -->
+          <div class="d-sm-none" id="staffCards">
+            {% for row in eLearning %}
+              {# statuses (lowercased, space-separated) #}
+              {% set statuses_str = row.items()
+                | selectattr('0','ne','Name')
+                | selectattr('0','ne','RespondentID')
+                | map(attribute='1')
+                | map('string')
+                | map('lower')
+                | join(' ')
+              %}
+
+              {# number of completed modules #}
+              {% set completed_count = row.items()
+                | selectattr('0','ne','Name')
+                | selectattr('0','ne','RespondentID')
+                | map(attribute='1')
+                | map('string')
+                | map('lower')
+                | select('in',['passed','completed'])
+                | list
+                | length
+              %}
+
+              <div class="card shadow-sm mb-2 staff-card"
+                   data-name="{{ (row['Name'] or '')|lower }}"
+                   data-has-review="{{ 1 if row.get('Latest Self Review') else 0 }}"
+                   data-statuses="{{ statuses_str }}"
+                   data-completed="{{ completed_count }}">
+                <div class="card-body">
+                  <div class="d-flex justify-content-between align-items-start gap-2">
+                    <div>
+                      <strong class="staff-name">{{ row["Name"] }}</strong>
+                      <div class="small text-muted">Tap a status to view</div>
+                    </div>
+                    <div class="text-nowrap">
+                      <span class="badge bg-primary-subtle text-primary-emphasis">{{ completed_count }}</span>
+                      <span class="small text-muted">done</span>
+                    </div>
+                  </div>
+
+                  <div class="mt-2 mobile-grid">
+                    {% for key, val in row.items() if key not in ["Name","RespondentID"] %}
+                      <div class="mobile-grid-row">
+                        <div class="mobile-grid-label">{{ key }}</div>
+                        <div class="mobile-grid-value">
+                          {% set status = val|string %}
+                          {% if key == "Latest Self Review" and val %}
+                            <a href="{{ url_for('survey_bp.view_my_survey_response', respondent_id=row['RespondentID']) }}" class="text-decoration-none">
+                              <span class="badge bg-light text-dark badge-tap">{{ status }}</span>
+                              <span class="visually-hidden">Open self review for {{ row['Name'] }}</span>
+                            </a>
+                          {% else %}
+                            {% set s = status|lower %}
+                            <span class="badge badge-tap
+                              {% if s in ['passed','completed'] %} bg-success
+                              {% elif s == 'cancelled' %} bg-danger
+                              {% elif s == 'in progress' %} bg-warning text-dark
+                              {% elif s in ['not started','enrolled','not enrolled'] %} bg-secondary
+                              {% else %} bg-light text-dark {% endif %}">
+                              {{ status }}
+                            </span>
+                          {% endif %}
+                        </div>
+                      </div>
+                    {% endfor %}
+                  </div>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+
           {% else %}
           <div class="alert alert-warning mb-0">No eLearning data available.</div>
           {% endif %}
@@ -177,35 +249,77 @@
           </form>
 
           {% if schools and not no_schools %}
-          <div class="table-responsive">
-            <table class="table table-bordered text-center align-middle">
-              <thead class="table-light">
-                <tr>
-                  {% for col in schools[0].keys() %}
-                    <th>
-                      {{ col.replace('_',' ') }}
-                      {% if col == 'Classes Edited' %}
-                        <i class="bi bi-info-circle-fill text-primary ms-1" data-bs-toggle="tooltip" data-bs-placement="top"
-                           title="This is calculated by counting classes where at least 85% of students were edited."></i>
-                      {% endif %}
-                    </th>
-                  {% endfor %}
-                </tr>
-              </thead>
-              <tbody>
-                {% for row in schools %}
-                  <tr>
-                    {% for val in row.values() %}
-                      <td>{{ val }}</td>
-                    {% endfor %}
-                  </tr>
-                {% endfor %}
-              </tbody>
-            </table>
+
+  {# figure out columns & a primary title field for the card header #}
+  {% set cols = schools[0].keys()|list %}
+  {% set primary_key = 'School' if 'School' in cols else ('Provider' if 'Provider' in cols else cols[0]) %}
+
+  <!-- Desktop / tablet table -->
+  <div class="d-none d-sm-block">
+    <div class="table-responsive">
+      <table class="table table-bordered text-center align-middle">
+        <thead class="table-light">
+          <tr>
+            {% for col in cols %}
+              <th>
+                {{ col.replace('_',' ') }}
+                {% if col == 'Classes Edited' %}
+                  <i class="bi bi-info-circle-fill text-primary ms-1"
+                     data-bs-toggle="tooltip" data-bs-placement="top"
+                     title="This is calculated by counting classes where at least 85% of students were edited."></i>
+                {% endif %}
+              </th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in schools %}
+            <tr>
+              {% for col in cols %}
+                <td>{{ row[col] }}</td>
+              {% endfor %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Phone cards -->
+  <div class="d-sm-none" id="schoolCards">
+    {% for row in schools %}
+      <div class="card shadow-sm mb-2">
+        <div class="card-body">
+          <strong class="d-block mb-2">{{ row[primary_key] }}</strong>
+
+          <div class="mobile-grid">
+            {% for col in cols %}
+              {% if col != primary_key %}
+                <div class="mobile-grid-row">
+                  <div class="mobile-grid-label">
+                    {{ col.replace('_',' ') }}
+                    {% if col == 'Classes Edited' %}
+                      <i class="bi bi-info-circle-fill text-primary ms-1"
+                         data-bs-toggle="tooltip" data-bs-placement="top"
+                         title="This is calculated by counting classes where at least 85% of students were edited."></i>
+                    {% endif %}
+                  </div>
+                  <div class="mobile-grid-value">
+                    {{ row[col] }}
+                  </div>
+                </div>
+              {% endif %}
+            {% endfor %}
           </div>
-          {% else %}
-          <div class="alert alert-warning mb-0">No school summary data for the selected term and year.</div>
-          {% endif %}
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+
+{% else %}
+  <div class="alert alert-warning mb-0">No school summary data for the selected term and year.</div>
+{% endif %}
+
         </div>
       </div>
     </div>
@@ -218,6 +332,20 @@
   </div>
   {% endif %}
 </div>
+
+<style>
+  /* Larger tap area for badges on touch */
+  .badge-tap { display: inline-block; padding: .6rem .7rem; font-size: .9rem; border-radius: .8rem; }
+  /* Mobile cards: tidy label:value rows */
+  @media (max-width: 575.98px) {
+    .mobile-grid { display: grid; grid-auto-rows: minmax(38px, auto); row-gap: .25rem; }
+    .mobile-grid-row { display: grid; grid-template-columns: 1fr auto; align-items: center; padding: .35rem .5rem; background: #f8f9fa; border-radius: .5rem; }
+    .mobile-grid-label { font-size: .85rem; color: #6c757d; padding-right: .75rem; }
+    .mobile-grid-value { justify-self: end; }
+    .staff-name { font-size: 1.05rem; }
+  }
+  .badge.bg-warning.text-dark { border: 1px solid rgba(0,0,0,.15); }
+</style>
 
 <script>
 document.addEventListener("DOMContentLoaded", function () {
@@ -244,7 +372,6 @@ document.addEventListener("DOMContentLoaded", function () {
     setDisabled(true); showSpinner(true);
 
     try {
-      // Adjust to your endpoint; expects JSON like: [{ id, name }]
       const url = "{{ url_for('funder_bp.get_entities') }}?entity_type=" + encodeURIComponent(type);
       const res = await fetch(url, { headers: { "Accept": "application/json" } });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -269,13 +396,11 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
-  // Initial state: disabled until a type is picked
   if (entityIdSel) {
     entityIdSel.disabled = true;
     entityIdSel.innerHTML = '<option value="">-- Choose an Entity Type first --</option>';
   }
 
-  // When the user picks a type, load via AJAX
   entityTypeSel?.addEventListener("change", function () {
     if (!this.value) {
       entityIdSel.disabled = true;
@@ -285,16 +410,14 @@ document.addEventListener("DOMContentLoaded", function () {
     loadEntities(this.value);
   });
 
-  // Optional: if the page arrives with a preselected type, load it
   if (entityTypeSel?.value) loadEntities(entityTypeSel.value);
 
-  // Bootstrap tooltips
   const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
   tooltipTriggerList.forEach(el => new bootstrap.Tooltip(el));
 });
 </script>
 
-<!-- 🔎 Client-side filters/sorting for eLearning table -->
+<!-- 🔎 Client-side filters/sorting for both table & cards -->
 <script>
 (function () {
   function debounce(fn, ms) {
@@ -309,98 +432,105 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   document.addEventListener('DOMContentLoaded', function () {
-    const table = document.querySelector('.card-body table.table');
-    if (!table) return;
+    const table       = document.getElementById('elearnTable');
+    const tbody       = table?.querySelector('tbody');
+    const tableRows   = tbody ? Array.from(tbody.querySelectorAll('tr')) : [];
+    const cardList    = document.getElementById('staffCards');
+    const cards       = cardList ? Array.from(cardList.querySelectorAll('.staff-card')) : [];
 
-    const tbody = table.querySelector('tbody');
-    const rows = Array.from(tbody.querySelectorAll('tr'));
+    const filterName   = document.getElementById('filterName');
+    const filterReview = document.getElementById('filterReview');
+    const filterStatus = document.getElementById('filterStatus');
+    const sortBy       = document.getElementById('sortBy');
 
-    const nameColIdx = 0; // "Staff" column
-    const selfReviewColIdx = headerIndexByText(table, 'Latest Self Review');
+    const nameColIdx = 0;
+    const selfReviewColIdx = table ? headerIndexByText(table, 'Latest Self Review') : -1;
 
-    const filterName    = document.getElementById('filterName');
-    const filterReview  = document.getElementById('filterReview');
-    const filterStatus  = document.getElementById('filterStatus');
-    const sortBy        = document.getElementById('sortBy');
-
-    function rowMeta(tr) {
+    function metaFromRow(tr) {
       const tds = tr.querySelectorAll('td');
       const name = (tds[nameColIdx]?.textContent || '').trim().toLowerCase();
-
       let hasSelfReview = false;
       if (selfReviewColIdx >= 0) {
         const cell = tds[selfReviewColIdx];
         hasSelfReview = !!(cell && cell.querySelector('a'));
       }
-
-      let completedCount = 0;
+      let completed = 0;
       const good = new Set(['passed','completed']);
       tds.forEach((td, idx) => {
         if (idx === nameColIdx || idx === selfReviewColIdx) return;
         const txt = (td.textContent || '').trim().toLowerCase();
-        if (good.has(txt)) completedCount += 1;
+        if (good.has(txt)) completed += 1;
       });
-
-      return { name, hasSelfReview, completedCount, tds };
+      const statusesText = Array.from(tds).map(td => (td.textContent || '').trim().toLowerCase()).join(' ');
+      return { name, hasSelfReview, completed, statusesText };
     }
 
-    const cache = new Map();
-    rows.forEach(tr => cache.set(tr, rowMeta(tr)));
+    function metaFromCard(card) {
+      const name  = (card.dataset.name || '').trim();
+      const hasSelfReview = card.dataset.hasReview === '1';
+      const statusesText  = (card.dataset.statuses || '');
+      const completed     = parseInt(card.dataset.completed || '0', 10) || 0;
+      return { name, hasSelfReview, completed, statusesText };
+    }
 
-    function rowMatchesFilters(meta) {
+    const rowCache  = new Map(tableRows.map(tr => [tr, metaFromRow(tr)]));
+    const cardCache = new Map(cards.map(c => [c, metaFromCard(c)]));
+
+    function matches(meta) {
       const q = (filterName?.value || '').trim().toLowerCase();
       if (q && !meta.name.includes(q)) return false;
 
-      const rv = filterReview?.value || 'any';
+      const rv = (filterReview?.value || 'any');
       if (rv === 'has' && !meta.hasSelfReview) return false;
       if (rv === 'none' && meta.hasSelfReview) return false;
 
-      const sel = (filterStatus?.value || 'any');
-      if (sel && sel !== 'any') {
-        let anyMatch = false;
-        meta.tds.forEach((td, idx) => {
-          if (idx === nameColIdx) return;
-          const text = (td.textContent || '').trim().toLowerCase();
-          if (text === sel.toLowerCase()) anyMatch = true;
-        });
-        if (!anyMatch) return false;
+      const sel = (filterStatus?.value || 'any').toLowerCase();
+      if (sel !== 'any') {
+        // require at least one exact token match
+        const tokens = new Set(meta.statusesText.split(/\s+/));
+        if (!tokens.has(sel)) return false;
       }
       return true;
     }
 
     function applyFilters() {
-      rows.forEach(tr => {
-        const meta = cache.get(tr);
-        tr.style.display = rowMatchesFilters(meta) ? '' : 'none';
-      });
+      tableRows.forEach(tr => { tr.style.display = matches(rowCache.get(tr)) ? '' : 'none'; });
+      cards.forEach(c => { c.style.display = matches(cardCache.get(c)) ? '' : 'none'; });
     }
 
     function applySort() {
-      const visibleRows = rows.filter(tr => tr.style.display !== 'none');
       const mode = (sortBy?.value || 'none');
-
       if (mode === 'none') return;
 
-      const decorated = visibleRows.map((tr) => {
-        const meta = cache.get(tr);
-        return { tr, name: meta.name, completed: meta.completedCount };
-      });
-
-      if (mode === 'mostCompleted') {
-        decorated.sort((a, b) => b.completed - a.completed || a.name.localeCompare(b.name));
-      } else if (mode === 'leastCompleted') {
-        decorated.sort((a, b) => a.completed - b.completed || a.name.localeCompare(b.name));
-      } else if (mode === 'nameAZ') {
-        decorated.sort((a, b) => a.name.localeCompare(b.name));
-      } else if (mode === 'nameZA') {
-        decorated.sort((a, b) => b.name.localeCompare(a.name));
+      if (tbody) {
+        const visibleRows = tableRows.filter(tr => tr.style.display !== 'none');
+        const decorated = visibleRows.map(tr => ({ tr, ...rowCache.get(tr) }));
+        if (mode === 'mostCompleted') decorated.sort((a,b)=> b.completed - a.completed || a.name.localeCompare(b.name));
+        if (mode === 'leastCompleted') decorated.sort((a,b)=> a.completed - b.completed || a.name.localeCompare(b.name));
+        if (mode === 'nameAZ')        decorated.sort((a,b)=> a.name.localeCompare(b.name));
+        if (mode === 'nameZA')        decorated.sort((a,b)=> b.name.localeCompare(a.name));
+        decorated.forEach(({tr}) => tbody.appendChild(tr));
       }
 
-      decorated.forEach(({ tr }) => tbody.appendChild(tr));
+      if (cardList) {
+        const visibleCards = cards.filter(c => c.style.display !== 'none');
+        const decorated = visibleCards.map(c => ({ c, ...cardCache.get(c) }));
+        if (mode === 'mostCompleted') decorated.sort((a,b)=> b.completed - a.completed || a.name.localeCompare(b.name));
+        if (mode === 'leastCompleted') decorated.sort((a,b)=> a.completed - b.completed || a.name.localeCompare(b.name));
+        if (mode === 'nameAZ')        decorated.sort((a,b)=> a.name.localeCompare(b.name));
+        if (mode === 'nameZA')        decorated.sort((a,b)=> b.name.localeCompare(a.name));
+        decorated.forEach(({c}) => cardList.appendChild(c));
+      }
     }
 
     const run = () => { applyFilters(); applySort(); };
     const runDebounced = debounce(run, 150);
+
+    if (filterName) {
+      filterName.setAttribute('inputmode','search');
+      filterName.setAttribute('autocomplete','off');
+      filterName.setAttribute('aria-label','Search staff by name');
+    }
 
     filterName?.addEventListener('input', runDebounced);
     filterReview?.addEventListener('change', run);
