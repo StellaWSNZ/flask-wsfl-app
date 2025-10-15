@@ -70,4 +70,31 @@ content %}
   </div>
   {% endif %}
 </div>
+<style>
+  @media (max-width: 767.98px) {
+    .container {
+      max-width: 95% !important; /* make it nearly full-width on phones */
+      padding-left: 0.75rem !important;
+      padding-right: 0.75rem !important;
+    }
+
+    .accordion-button {
+      font-size: 1rem; /* slightly smaller text for titles */
+      padding: 0.75rem 1rem; /* reduce vertical padding */
+    }
+
+    .accordion-body {
+      padding: 0.75rem; /* tighten body spacing */
+    }
+
+    video {
+      border-radius: 6px;
+    }
+
+    .btn {
+      padding: 0.45rem 0.75rem; /* make buttons more compact */
+      font-size: 0.9rem;
+    }
+  }
+</style>
 {% endblock %}
