@@ -579,6 +579,7 @@
                 >eLearning</a
               >
             </li>
+
             <li class="nav-item mt-2 mt-lg-0 me-2">
               <a href="{{ url_for('admin_bp.create_user') }}" class="nav-link"
                 ><i class="bi bi-person-plus me-1"></i> Create User</a
@@ -591,8 +592,17 @@
                 >Upload Class List</a
               >
             </li>
-            {% endif %}
+            {% endif %} {% if user_admin == 1 %}
+            <li class="nav-item mt-2 mt-lg-0 me-2">
+              <a
+                href="{{ url_for('instructions_bp.instructions_me') }}"
+                class="btn btn-outline-light btn-sm d-flex align-items-center"
+              >
+                Help
+              </a>
+            </li>
 
+            {%endif%}
             <li class="nav-item mt-2 mt-lg-0 me-2">
               <a
                 href="{{ url_for('admin_bp.profile') }}"

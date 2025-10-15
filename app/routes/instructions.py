@@ -182,8 +182,3 @@ def instructions_for_code(role_code):
         user_role=user_role,
     )
 
-
-# ---------- Health check / ping ----------
-@instructions_bp.route("/__instructions_ping")
-def __instructions_ping():
-    return "instructions blueprint is active"
