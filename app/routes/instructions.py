@@ -179,3 +179,7 @@ def instructions_for_code(role_code):
         items=items,
         user_role=user_role,
     )
+
+@instructions_bp.route("/__instructions_ping")
+def __instructions_ping():
+    return "instructions blueprint is active"

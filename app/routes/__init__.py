@@ -31,7 +31,6 @@ def register_routes(app):
     app.register_blueprint(funder_bp)
     app.register_blueprint(user_bp)
     app.register_blueprint(instructions_bp)  
-    print(app.url_map)
     
     @app.errorhandler(Exception)
     def handle_error(e):
