@@ -51,45 +51,78 @@
           {% endif %}
 
           {% if classes %}
-          <div class="table-responsive">
-            <table class="table table-bordered text-center align-middle">
-              <thead class="custom-header">
-                <tr>
-                  <th>Class Name</th>
-                  <th>Teacher</th>
-                  <th>Class Size</th>
-                  <th>Year Levels</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for row in classes %}
-                <tr>
-                  <td>{{ row["Class Name"] }}</td>
-                  <td>{{ row["Teacher"] }}</td>
-                  <td>{{ row["ClassSize"] }}</td>
-                  <td>{{ row["DistinctYearLevels"] }}</td>
-                </tr>
-                {% endfor %}
-              </tbody>
-            </table>
+  <!-- Desktop / tablet -->
+  <div class="d-none d-sm-block">
+    <div class="table-responsive">
+      <table class="table table-bordered text-center align-middle">
+        <thead class="custom-header">
+          <tr>
+            <th>Class Name</th>
+            <th>Teacher</th>
+            <th>Class Size</th>
+            <th>Year Levels</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in classes %}
+          <tr>
+            <td>{{ row["Class Name"] }}</td>
+            <td>{{ row["Teacher"] }}</td>
+            <td>{{ row["ClassSize"] }}</td>
+            <td>{{ row["DistinctYearLevels"] }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Phone cards -->
+  {% set title_key = 'Class Name' %}
+  <div class="d-sm-none" id="classCards">
+    {% for row in classes %}
+      <div class="card shadow-sm mb-2">
+        <div class="card-body">
+          <strong class="d-block mb-2">{{ row[title_key] }}</strong>
+          <div class="mobile-grid">
+            <div class="mobile-grid-row">
+              <div class="mobile-grid-label">Teacher</div>
+              <div class="mobile-grid-value">{{ row["Teacher"] }}</div>
+            </div>
+            <div class="mobile-grid-row">
+              <div class="mobile-grid-label">Class Size</div>
+              <div class="mobile-grid-value">{{ row["ClassSize"] }}</div>
+            </div>
+            <div class="mobile-grid-row">
+              <div class="mobile-grid-label">Year Levels</div>
+              <div class="mobile-grid-value">{{ row["DistinctYearLevels"] }}</div>
+            </div>
           </div>
-          {% else %}
-          <div class="alert alert-warning mb-0">
-            No class data found for Term {{ selected_term }} in {{ selected_year }}.
-          </div>
-          {% endif %}
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="alert alert-warning mb-0">
+    No class data found for Term {{ selected_term }} in {{ selected_year }}.
+  </div>
+{% endif %}
         </div>
       </div>
     </div>
 
     <!-- Right: School Staff -->
-    <div class="col-md-6">
-      <div class="card shadow-sm">
-        <div class="card-header bg-primary text-white">
-          <h5 class="mb-0">School Staff</h5>
-        </div>
-        <div class="card-body">
-          {% if staff %}
+    <!-- Right: School Staff -->
+<div class="col-md-6">
+  <div class="card shadow-sm">
+    <div class="card-header bg-primary text-white">
+      <h5 class="mb-0">School Staff</h5>
+    </div>
+    <div class="card-body">
+      {% if staff %}
+
+        {# Desktop / tablet table #}
+        <div class="d-none d-sm-block">
           <div class="table-responsive">
             <table class="table table-bordered text-center align-middle">
               <thead class="custom-header">
@@ -104,7 +137,14 @@
                 {% for person in staff %}
                 <tr>
                   <td>{{ person["FirstName"] }} {{ person["Surname"] }}</td>
-                  <td>{{ person["Email"] }}</td>
+                  <td>
+                    {% set email = person["Email"] %}
+                    {% if email %}
+                      <a href="mailto:{% raw %}{{{% endraw %} email {% raw %}}}{% endraw %}">{{ email }}</a>
+                    {% else %}
+                      —
+                    {% endif %}
+                  </td>
                   <td>
                     {% if person["Access"] == "Administrator privileges" %}
                       <span class="badge bg-success">Yes</span>
@@ -124,12 +164,88 @@
               </tbody>
             </table>
           </div>
-          {% else %}
-          <div class="alert alert-info mb-0">No staff records found.</div>
-          {% endif %}
         </div>
-      </div>
+
+        {# Phone cards #}
+        <div class="d-sm-none" id="staffCards">
+          {% for person in staff %}
+            {% set full_name = (person["FirstName"] ~ " " ~ person["Surname"]).strip() %}
+            {% set email = person["Email"] %}
+            {% set is_admin = (person["Access"] == "Administrator privileges") %}
+            {% set is_active = (person["Status"] == "Active") %}
+
+            <div class="card shadow-sm mb-2">
+              <div class="card-body">
+                <strong class="d-block mb-1">{{ full_name }}</strong>
+
+                <div class="mobile-grid">
+                  <div class="mobile-grid-row">
+                    <div class="mobile-grid-label">Email</div>
+                    <div class="mobile-grid-value">
+                      {% if email %}
+                        <a href="mailto:{% raw %}{{{% endraw %} email {% raw %}}}{% endraw %}">{{ email }}</a>
+                      {% else %}
+                        <span class="text-muted">—</span>
+                      {% endif %}
+                    </div>
+                  </div>
+
+                  <div class="mobile-grid-row">
+                    <div class="mobile-grid-label">Admin</div>
+                    <div class="mobile-grid-value">
+                      {% if is_admin %}
+                        <span class="badge bg-success badge-tap">Yes</span>
+                      {% else %}
+                        <span class="badge bg-secondary badge-tap">No</span>
+                      {% endif %}
+                    </div>
+                  </div>
+
+                  <div class="mobile-grid-row">
+                    <div class="mobile-grid-label">Status</div>
+                    <div class="mobile-grid-value">
+                      {% if is_active %}
+                        <span class="badge bg-success badge-tap">Active</span>
+                      {% else %}
+                        <span class="badge bg-danger badge-tap">Inactive</span>
+                      {% endif %}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+
+      {% else %}
+        <div class="alert alert-info mb-0">No staff records found.</div>
+      {% endif %}
     </div>
   </div>
 </div>
+
+  </div>
+</div>
+<style>
+
+  .mobile-grid-value a {
+  display: inline-block;
+  max-width: 100%;
+  word-break: break-all;       /* ✅ breaks long addresses like user@example.com */
+  overflow-wrap: anywhere;     /* modern browser support for wrapping long words */
+  white-space: normal;         /* ensures wrapping instead of single-line overflow */
+  text-decoration: none;       /* optional: cleaner look */
+  color: #0d6efd;              /* Bootstrap link color */
+}
+
+  .badge-tap { display:inline-block; padding:.6rem .7rem; font-size:.9rem; border-radius:.8rem; }
+  @media (max-width:575.98px){
+    .mobile-grid{ display:grid; grid-auto-rows:minmax(38px,auto); row-gap:.25rem; }
+    .mobile-grid-row{ display:grid; grid-template-columns:1fr auto; align-items:center; padding:.35rem .5rem; background:#f8f9fa; border-radius:.5rem; }
+    .mobile-grid-label{ font-size:.85rem; color:#6c757d; padding-right:.75rem; }
+    .mobile-grid-value{ justify-self:end; }
+    .staff-name{ font-size:1.05rem; }
+  }
+  .badge.bg-warning.text-dark{ border:1px solid rgba(0,0,0,.15); }
+</style>
 {% endblock %}
