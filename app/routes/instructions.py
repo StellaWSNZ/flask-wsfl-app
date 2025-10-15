@@ -1,4 +1,4 @@
-# app/routes/instructions.py
+# app/routes/Instructions.py
 from pathlib import Path
 
 from flask import (
@@ -45,7 +45,7 @@ PDF_EXT = ".pdf"
 
 def _discover_items_for_role(role_code: str):
     """
-    Scan static/instructions/<ROLE_CODE>/ and pair files by prefix (stem).
+    Scan static/Instructions/<ROLE_CODE>/ and pair files by prefix (stem).
     Returns: list[dict(title, video_url|None, pdf_url|None)]
     """
     static_root = Path(current_app.static_folder)  # e.g. .../static
@@ -98,7 +98,7 @@ def _discover_items_for_role(role_code: str):
 
 # ---------- Routes ----------
 
-@instructions_bp.route("/instructions")
+@instructions_bp.route("/Instructions")
 @login_required
 def instructions_me():
     """
@@ -119,15 +119,15 @@ def instructions_me():
     abort(403)
 
 
-@instructions_bp.route("/instructions/<label>")
+@instructions_bp.route("/Instructions/<label>")
 @login_required
 def instructions_for_label(label):
     """
     Pretty label URLs:
-      /instructions/Provider
-      /instructions/Funder
-      /instructions/School
-      /instructions/ProviderGroup
+      /Instructions/Provider
+      /Instructions/Funder
+      /Instructions/School
+      /Instructions/ProviderGroup
     Map to internal codes: PRO, FUN, MOE, GRP
     """
     role_code = _label_to_role(label)
@@ -155,8 +155,8 @@ def instructions_for_label(label):
     )
 
 
-# Optional: keep old /instructions/PRO working (back-compat). Comment out if not needed.
-@instructions_bp.route("/instructions/code/<role_code>")
+# Optional: keep old /Instructions/PRO working (back-compat). Comment out if not needed.
+@instructions_bp.route("/Instructions/code/<role_code>")
 @login_required
 def instructions_for_code(role_code):
     role = (role_code or "").upper()
