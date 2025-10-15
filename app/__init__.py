@@ -71,26 +71,26 @@ def create_app():
     # 🔐 Redirect Unauthenticated Users
     # -----------------------------
     @app.before_request
-def require_login():
-    # ✅ allow health-check without login
-    if request.path == "/__instructions_ping":
-        return  # allow
+    def require_login():
+        # ✅ allow health-check without login
+        if request.path == "/__instructions_ping":
+            return  # allow
 
-    allowed_routes = {
-        "auth_bp.login",
-        "auth_bp.logout",
-        "auth_bp.forgot_password",
-        "auth_bp.reset_password",
-        "survey_bp.survey_invite_token",
-        "survey_bp.guest_survey_by_id",
-        "survey_bp.submit_survey",
-        "static",
-    }
+        allowed_routes = {
+            "auth_bp.login",
+            "auth_bp.logout",
+            "auth_bp.forgot_password",
+            "auth_bp.reset_password",
+            "survey_bp.survey_invite_token",
+            "survey_bp.guest_survey_by_id",
+            "survey_bp.submit_survey",
+            "static",
+        }
 
-    # ✅ robust guard: endpoint may be None for some 404/static cases
-    if not session.get("logged_in") and not session.get("guest_user"):
-        if request.endpoint is None or request.endpoint not in allowed_routes:
-            return redirect(url_for("auth_bp.login", next=request.url))
+        # ✅ robust guard: endpoint may be None for some 404/static cases
+        if not session.get("logged_in") and not session.get("guest_user"):
+            if request.endpoint is None or request.endpoint not in allowed_routes:
+                return redirect(url_for("auth_bp.login", next=request.url))
 
     # -----------------------------
     # 📦 Inject User Info into Templates
