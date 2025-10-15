@@ -14,6 +14,8 @@ from app.routes.funder_dashboard import funder_bp
 from app.routes.eLearning import eLearning_bp
 from app.routes.feedback import feedback_bp
 from app.routes.add_user import user_bp 
+from app.routes.instructions import instructions_bp
+
 def register_routes(app):
     app.register_blueprint(auth_bp, url_prefix="/auth")  # So /auth/login is the login page
     app.register_blueprint(home_bp)                      # Leave this without a prefix
@@ -28,6 +30,7 @@ def register_routes(app):
     app.register_blueprint(staff_bp)
     app.register_blueprint(funder_bp)
     app.register_blueprint(user_bp)
+    app.register_blueprint(instructions_bp)  
 
     
     @app.errorhandler(Exception)

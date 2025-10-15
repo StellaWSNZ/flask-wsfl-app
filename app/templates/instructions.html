@@ -1,0 +1,73 @@
+{% extends "header.html" %} {% block title %}Instructions{% endblock %} {% block
+content %}
+<div class="container mt-5" style="max-width: 70%">
+  <h2 class="mb-4 text-center text-primary">
+    Working Instructions - {{ role_label }}
+  </h2>
+
+  {% if items|length == 0 %}
+  <div class="alert alert-warning text-center" role="alert">
+    No instructions found for <strong>{{ role_label }}</strong>.<br />
+    Place files under <code>static/instructions/{{ role_code }}/</code> (e.g.
+    <em>“Staff Maintenance.mp4”</em> and <em>“Staff Maintenance.pdf”</em>).
+  </div>
+  {% else %}
+  <div class="accordion" id="instAccordion">
+    {% for item in items %} {% set cid = "c" ~ loop.index %} {% set hid = "h" ~
+    loop.index %}
+    <div class="accordion-item border-2" style="border-color: #1a427d">
+      <h2 class="accordion-header" id="{{ hid }}">
+        <button
+          class="accordion-button {% if not loop.first %}collapsed{% endif %}"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#{{ cid }}"
+          aria-expanded="{{ 'true' if loop.first else 'false' }}"
+          aria-controls="{{ cid }}"
+        >
+          {{ item.title }}
+        </button>
+      </h2>
+      <div
+        id="{{ cid }}"
+        class="accordion-collapse collapse {% if loop.first %}show{% endif %}"
+        aria-labelledby="{{ hid }}"
+        data-bs-parent="#instAccordion"
+      >
+        <div class="accordion-body">
+          {% if item.video_url %}
+          <div class="ratio ratio-16x9 mb-3">
+            <video controls preload="metadata" style="border-radius: 8px">
+              <source src="{{ item.video_url }}" type="video/mp4" />
+              Your browser does not support the video tag.
+            </video>
+          </div>
+          {% else %}
+          <p class="text-muted">No video available for this topic.</p>
+          {% endif %}
+
+          <div class="d-flex gap-2">
+            {% if item.pdf_url %}
+            <a class="btn btn-primary" href="{{ item.pdf_url }}" download>
+              <i class="bi bi-file-earmark-arrow-down"></i> Download PDF
+            </a>
+            <a
+              class="btn btn-outline-primary"
+              href="{{ item.pdf_url }}"
+              target="_blank"
+              rel="noopener"
+            >
+              <i class="bi bi-box-arrow-up-right"></i> Open PDF
+            </a>
+            {% else %}
+            <span class="badge bg-secondary">No PDF</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
