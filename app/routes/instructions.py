@@ -1,6 +1,5 @@
-# app/routes/Instructions.py
+# app/routes/instructions.py
 from pathlib import Path
-
 from flask import (
     Blueprint,
     render_template,
@@ -12,6 +11,7 @@ from flask import (
 )
 from app.routes.auth import login_required
 
+# Create the blueprint
 instructions_bp = Blueprint("instructions_bp", __name__)
 
 # Internal folder/role codes (do NOT change your static folder names)
@@ -45,7 +45,7 @@ PDF_EXT = ".pdf"
 
 def _discover_items_for_role(role_code: str):
     """
-    Scan static/Instructions/<ROLE_CODE>/ and pair files by prefix (stem).
+    Scan static/instructions/<ROLE_CODE>/ and pair files by prefix (stem).
     Returns: list[dict(title, video_url|None, pdf_url|None)]
     """
     static_root = Path(current_app.static_folder)  # e.g. .../static
@@ -98,7 +98,7 @@ def _discover_items_for_role(role_code: str):
 
 # ---------- Routes ----------
 
-@instructions_bp.route("/Instructions")
+@instructions_bp.route("/instructions")
 @login_required
 def instructions_me():
     """
@@ -119,15 +119,15 @@ def instructions_me():
     abort(403)
 
 
-@instructions_bp.route("/Instructions/<label>")
+@instructions_bp.route("/instructions/<label>")
 @login_required
 def instructions_for_label(label):
     """
     Pretty label URLs:
-      /Instructions/Provider
-      /Instructions/Funder
-      /Instructions/School
-      /Instructions/ProviderGroup
+      /instructions/provider
+      /instructions/funder
+      /instructions/school
+      /instructions/providergroup
     Map to internal codes: PRO, FUN, MOE, GRP
     """
     role_code = _label_to_role(label)
@@ -155,8 +155,8 @@ def instructions_for_label(label):
     )
 
 
-# Optional: keep old /Instructions/PRO working (back-compat). Comment out if not needed.
-@instructions_bp.route("/Instructions/code/<role_code>")
+# Optional: keep old /instructions/code/PRO working (back-compat)
+@instructions_bp.route("/instructions/code/<role_code>")
 @login_required
 def instructions_for_code(role_code):
     role = (role_code or "").upper()
@@ -180,6 +180,8 @@ def instructions_for_code(role_code):
         user_role=user_role,
     )
 
+
+# ---------- Health check / ping ----------
 @instructions_bp.route("/__instructions_ping")
 def __instructions_ping():
     return "instructions blueprint is active"
