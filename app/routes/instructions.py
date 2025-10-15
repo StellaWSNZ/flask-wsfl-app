@@ -106,6 +106,8 @@ def instructions_me():
     Non-admins go to their role only.
     Admins default to Funder (change DEFAULT_ADMIN_LABEL if you prefer).
     """
+    
+    print("*")
     user_role = (session.get("user_role") or "").upper()
 
     if user_role in ALLOWED_ROLES:
