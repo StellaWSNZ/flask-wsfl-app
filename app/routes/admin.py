@@ -24,168 +24,45 @@ def create_user():
 
     engine = get_db_engine()
     user_role = session.get("user_role")
-    user_id = session.get("user_id")
-    desc = session.get("desc")
+    user_id   = session.get("user_id")
+    desc      = session.get("desc")
 
-    print(f"📌 user_role: {user_role}, user_id: {user_id}")
+    # Defaults for template (lists stay empty; JS will populate selects)
+    funder = None
+    funders, providers, schools, groups = [], [], [], []
+    only_own_staff_or_empty = False  # no longer computed; keep constant or remove from template
 
-    # Always use lists for collections // CHANGED
-    providers: list = []
-    schools: list = []
-    groups: list = []
-    funders: list = []          # CHANGED: list instead of None
-    funder = None               # single funder object is fine
-    only_own_staff_or_empty = False
-
+    # Keep only what you truly need for header/banners
     try:
-        with engine.connect() as conn:
-            if user_role == "FUN":
-                print("🔍 Loading providers and schools for FUNDER...")
-                providers = list(conn.execute(
-                    text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :fid"),
-                    {"Request": "ProvidersByFunderID", "fid": user_id}
-                ).fetchall())
-
-                schools = list(conn.execute(
-                    text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :fid"),
-                    {"Request": "SchoolsByFunderID", "fid": user_id}
-                ).fetchall())
-
+        if user_role == "FUN":
+            # Optional: only if your header needs specific funder fields not in session
+            with engine.connect() as conn:
                 funder = conn.execute(
                     text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :fid"),
                     {"Request": "FunderByID", "fid": user_id}
                 ).fetchone()
-
-                only_own_staff_or_empty = (
-                    len(providers) == 0 or
-                    (len(providers) == 1 and (providers[0].Description or '').strip().lower() == "own staff")
-                )
-                print(f"ℹ️ only_own_staff_or_empty: {only_own_staff_or_empty}")
-
-            elif user_role == "ADM":
-                print("🔍 Loading all data for ADMIN...")
-                providers = list(conn.execute(
-                    text("EXEC FlaskHelperFunctions @Request = :Request"),
-                    {"Request": "AllProviders"}
-                ).fetchall())
-                schools = list(conn.execute(
-                    text("EXEC FlaskHelperFunctions @Request = :Request"),
-                    {"Request": "AllSchools"}
-                ).fetchall())
-                funders = list(conn.execute(
-                    text("EXEC FlaskHelperFunctions @Request = :Request"),
-                    {"Request": "AllFunders"}
-                ).fetchall())
-                groups = list(conn.execute(
-                    text("EXEC FlaskHelperFunctions @Request = :Request"),
-                    {"Request": "AllGroups"}
-                ).fetchall())
-
-            elif user_role == "MOE":
-                print("🔍 Loading school for MOE...")
-                schools = list(conn.execute(
-                    text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :moe"),
-                    {"Request": "SchoolByMOENumber", "moe": user_id}
-                ).fetchall())
-
-            elif user_role == "PRO":
-                print("🔍 Loading schools and provider for PROVIDER...")
-                schools = list(conn.execute(
-                    text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :pid"),
-                    {"Request": "SchoolsByProvider", "pid": user_id}
-                ).fetchall())
-
-                # Always a list // CHANGED
-                row = conn.execute(
-                    text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :pid"),
-                    {"Request": "ProviderByID", "pid": user_id}
-                ).fetchone()
-                providers = [row] if row else []
-
-            elif user_role == "GRP":
-                groups = [{"id": user_id, "Description": desc}]
-                print("🔍 Loading schools and providers for GRP...")
-                group_entities = session.get("group_entities", {})
-                provider_ids = [str(e["id"]) for e in group_entities.get("PRO", [])]
-                funder_ids = [str(e["id"]) for e in group_entities.get("FUN", [])]
-                print(f"🧮 group_entities: {group_entities}")
-                print(f"🧾 provider_ids: {provider_ids}")
-                print(f"🧾 funder_ids: {funder_ids}")
-
-                schools = []
-                providers = []
-
-                if provider_ids:
-                    csv_providers = ",".join(provider_ids)
-                    print(f"📤 Fetching schools for providers: {csv_providers}")
-                    schools_result = conn.execute(
-                        text("EXEC FlaskSchoolsByGroupProviders :ProviderList"),
-                        {"ProviderList": csv_providers}
-                    ).fetchall()
-                    print(f"✅ Got {len(schools_result)} schools (providers)")
-
-                    providers_result = conn.execute(
-                        text("EXEC FlaskProvidersByIDList :ProviderList"),
-                        {"ProviderList": csv_providers}
-                    ).fetchall()
-                    print(f"✅ Got {len(providers_result)} providers")
-
-                    # Normalize to dicts // CHANGED
-                    schools += [{"description": s[0], "id": s[1], "provider_id": s[2]} for s in schools_result]
-                    providers = [{"id": p[0], "Description": p[1]} for p in providers_result]
-
-                if funder_ids:
-                    csv_funders = ",".join(funder_ids)
-                    print(f"📤 Fetching schools for funders: {csv_funders}")
-                    funder_schools = conn.execute(
-                        text("EXEC FlaskSchoolsByGroupFunders :FunderList"),
-                        {"FunderList": csv_funders}
-                    ).fetchall()
-                    print(f"✅ Got {len(funder_schools)} funder schools")
-
-                    # Normalize to dicts (assumes same first two cols: description, id) // CHANGED
-                    schools_from_funders = [
-                        {"description": fs[0], "id": fs[1], "provider_id": fs[2] if len(fs) > 2 else None}
-                        for fs in funder_schools
-                    ]
-                    schools += schools_from_funders
-
-                    # Deduplicate by 'id' on dicts // CHANGED
-                    seen = set()
-                    dedup = []
-                    for s in schools:
-                        sid = s.get("id")
-                        if sid not in seen:
-                            seen.add(sid)
-                            dedup.append(s)
-                    schools = dedup
-                    print(f"🧼 Deduplicated to {len(schools)} total schools")
-
     except Exception:
-        print("❌ Error during role-specific DB calls")
         traceback.print_exc()
         flash("An error occurred while loading data.", "danger")
 
-    # POST handling
+    # Handle create on POST (unchanged except for selected_id handling)
     if request.method == "POST":
-        print("📥 POST request received")
-        email = request.form.get("email")
-        firstname = request.form.get("firstname")
-        surname = request.form.get("surname")
-        send_email = request.form.get("send_email") == "on"
-        admin = 1 if request.form.get("admin") == "1" else 0
-        hashed_pw = None
+        email        = request.form.get("email")
+        firstname    = request.form.get("firstname")
+        surname      = request.form.get("surname")
+        send_email   = request.form.get("send_email") == "on"
+        admin_flag   = 1 if request.form.get("admin") == "1" else 0
         selected_role = request.form.get("selected_role")
         selected_id_raw = request.form.get("selected_id")
 
-        def to_int(v):  # CHANGED
+        def to_int(v):
             try:
                 return int(v)
             except (TypeError, ValueError):
                 return None
 
         selected_id = to_int(selected_id_raw)
-        print(f"🧾 Creating user: {email}, Role: {selected_role}, ID: {selected_id}")
+        hashed_pw = None  # you’re creating invite-only users; keep None if SP supports it
 
         try:
             with engine.begin() as conn:
@@ -196,7 +73,6 @@ def create_user():
 
                 if existing:
                     flash("⚠️ Email already exists.", "warning")
-                    print("⚠️ Email already exists")
                 else:
                     conn.execute(
                         text("""
@@ -214,46 +90,42 @@ def create_user():
                             "email": email,
                             "hash": hashed_pw,
                             "role": selected_role,
-                            "id": selected_id,     # CHANGED alignment
+                            "id": selected_id,
                             "firstname": firstname,
                             "surname": surname,
-                            "admin": admin,
+                            "admin": admin_flag,
                             "active": 1
                         }
                     )
                     flash(f"✅ User {email} created.", "success")
-                    print(f"✅ Created user: {email}")
 
                     if send_email:
-                        print("📧 Sending setup email...")
+                        # Ensure `mail` is imported from your app
                         send_account_setup_email(
                             mail=mail,
                             recipient_email=email,
                             first_name=firstname,
                             role=selected_role,
-                            is_admin=admin,
+                            is_admin=admin_flag,
                             invited_by_name=f"{session.get('user_firstname')} {session.get('user_surname')}",
                             inviter_desc=desc
                         )
         except Exception:
-            print("❌ Error during user creation")
             traceback.print_exc()
             flash("Failed to create user due to an internal error.", "danger")
-
-    # Remove fragile len() prints (they caused 500s when None) // CHANGED
-    print(f"Counts → schools:{len(schools)}, providers:{len(providers)}, groups:{len(groups)}, funders:{len(funders)}")
 
     return render_template(
         "create_user.html",
         user_role=user_role,
         name=desc,
-        funder=funder,
-        funders=funders,           # always a list
-        providers=providers,       # always a list
-        schools=schools,           # always a list
-        groups=groups,             # always a list
+        funder=funder,                 # optional; remove if your template doesn’t use it
+        funders=funders,               # now always empty; JS fills
+        providers=providers,           # now always empty; JS fills
+        schools=schools,               # now always empty; JS fills
+        groups=groups,                 # now always empty; JS fills
         only_own_staff_or_empty=only_own_staff_or_empty
     )
+    
 
 
 

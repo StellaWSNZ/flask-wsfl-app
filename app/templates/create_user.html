@@ -1,8 +1,9 @@
 {% extends "header.html" %}
 {% block title %}Create User{% endblock %}
+
 {% block content %}
 <div class="row justify-content-center">
-  <div class="col-10">
+  <div class="col-12 col-lg-10">
     {% if user_role == 'MOE' %}
       <div class="alert alert-info">
         You are creating a <strong>school user</strong> for <strong>{{ name }}</strong>.
@@ -16,39 +17,41 @@
         {% endif %}
       </div>
     {% endif %}
-  </div>
-</div>
 
-<div class="row justify-content-center">
-  <div class="col-10">
-    <div class="card">
+    <div class="card shadow-sm">
       <div class="card-header bg-secondary text-white">Create New User</div>
       <div class="card-body">
-        
 
-        <form method="POST">
+        <form method="POST" novalidate>
+          <!-- Email / Names -->
           <div class="mb-3">
-            <label class="form-label">Email</label>
-            <input type="email" name="email" class="form-control" required value="{{ request.form.email }}" />
+            <label for="email" class="form-label">Email</label>
+            <input id="email" type="email" name="email" class="form-control" required value="{{ request.form.email }}" autocomplete="off" />
           </div>
 
-          <div class="mb-3">
-            <label class="form-label">First Name</label>
-            <input type="text" name="firstname" class="form-control" required value="{{ request.form.firstname }}" />
+          <div class="row g-2">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label for="firstname" class="form-label">First Name</label>
+                <input id="firstname" type="text" name="firstname" class="form-control" required value="{{ request.form.firstname }}" />
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label for="surname" class="form-label">Surname</label>
+                <input id="surname" type="text" name="surname" class="form-control" required value="{{ request.form.surname }}" />
+              </div>
+            </div>
           </div>
 
+          <!-- Role -->
           <div class="mb-3">
-            <label class="form-label">Surname</label>
-            <input type="text" name="surname" class="form-control" required value="{{ request.form.surname }}" />
-          </div>
-
-          <div class="mb-3">
-            <label class="form-label">Select Role</label>
+            <label for="selected_role" class="form-label">Select Role</label>
             <select name="selected_role" id="selected_role" class="form-select" required>
               {% if user_role == 'MOE' %}
                 <option value="MOE" selected>School</option>
               {% else %}
-                <option disabled selected value="">Assign a role...</option>
+                <option disabled {% if not request.form.selected_role %}selected{% endif %} value="">Assign a role...</option>
                 {% if user_role in ['ADM', 'FUN', 'PRO', 'MOE', 'GRP'] %}
                   <option value="MOE" {% if request.form.selected_role == 'MOE' %}selected{% endif %}>School</option>
                 {% endif %}
@@ -67,154 +70,258 @@
               {% endif %}
             </select>
           </div>
+
+          <!-- Group -->
           {% if user_role in ['ADM', 'GRP'] %}
-          <div class="mb-3" id="group-section" style="display: none;">
-            <label class="form-label">Select Group</label>
+          <div class="mb-3" id="group-section" style="display:none;">
+            <label for="group-id" class="form-label">Select Group</label>
             <select id="group-id" name="group" class="form-select">
               {% for g in groups %}
-                <option value="{{ g.id }}">{{ g.Description }}</option>
-              {% endfor %} 
-            </select>
-          </div>
-          {% endif %}
-          {% if user_role in ['ADM', 'FUN'] %}
-          <div class="mb-3" id="funder-section" style="display: none;">
-            <label class="form-label">Select Funder</label>
-            <select id="funder-id" name="funder" class="form-select">
-              {% if user_role == 'ADM' %}
-                {% for f in funders %}
-                  <option value="{{ f.id }}">{{ f.Description }}</option>
-                {% endfor %}
-              {% else %}
-                <option value="{{ funder.id }}">{{ funder.Description }}</option>
-              {% endif %}
-            </select>
-          </div>
-          {% endif %}
-
-          {% if user_role in ['ADM', 'FUN', 'PRO', 'GRP'] %}
-          <div class="mb-3" id="provider-section" style="display: none;">
-            <label class="form-label">Select Provider</label>
-            <select id="provider-id" name="provider" class="form-select">
-              {% if user_role != 'PRO' %}
-                {% for p in providers %}
-                  <option value="{{ p.id }}">{{ p.Description }}</option>
-                {% endfor %}
-              {% else %}
-                <option value="{{ provider.id }}">{{ provider.Description }}</option>
-              {% endif %}
-            </select>
-          </div>
-          {% endif %}
-
-          {% if user_role in ['ADM', 'FUN', 'PRO', 'MOE', 'GRP'] %}
-          <div class="mb-3" id="school-section" style="display: none;">
-            <label class="form-label">Select School</label>
-            <select id="school-id" name="school" class="form-select">
-              {% for s in schools %}
-                <option value="{{ s.id }}"
-                  {% if s.id|string == request.form.get('selected_id') or (user_role == 'MOE' and loop.first) %}selected{% endif %}>{{ s.description }}</option>
+                <option value="{{ g.id }}" {% if request.form.get('selected_id') == g.id|string %}selected{% endif %}>{{ g.Description }}</option>
               {% endfor %}
             </select>
           </div>
           {% endif %}
 
-          <input type="hidden" name="selected_id" id="selected_id" value="{{ request.form.get('selected_id', selected_id_default) }}" />
+          <!-- Funder -->
+          {% if user_role in ['ADM', 'FUN'] %}
+          <div class="mb-3" id="funder-section" style="display:none;">
+            <label for="funder-id" class="form-label">Select Funder</label>
+            <select id="funder-id" name="funder" class="form-select">
+              {% if user_role == 'ADM' %}
+                {% for f in funders %}
+                  <option value="{{ f.id }}" {% if request.form.get('selected_id') == f.id|string %}selected{% endif %}>{{ f.Description }}</option>
+                {% endfor %}
+              {% else %}
+                {% if funder %}
+                  <option value="{{ funder.id }}" selected>{{ funder.Description }}</option>
+                {% endif %}
+              {% endif %}
+            </select>
+          </div>
+          {% endif %}
 
+          <!-- Provider -->
+          {% if user_role in ['ADM', 'FUN', 'PRO', 'GRP'] %}
+          <div class="mb-3" id="provider-section" style="display:none;">
+            <label for="provider-id" class="form-label">Select Provider</label>
+            <select id="provider-id" name="provider" class="form-select">
+              {% if user_role != 'PRO' %}
+                {% for p in providers %}
+                  <option value="{{ p.id }}" {% if request.form.get('selected_id') == p.id|string %}selected{% endif %}>{{ p.Description }}</option>
+                {% endfor %}
+              {% else %}
+                {% if providers and providers|length > 0 %}
+                  <option value="{{ providers[0].id }}" selected>{{ providers[0].Description }}</option>
+                {% endif %}
+              {% endif %}
+            </select>
+          </div>
+          {% endif %}
+
+          <!-- School -->
+          {% if user_role in ['ADM', 'FUN', 'PRO', 'MOE', 'GRP'] %}
+          <div class="mb-3" id="school-section" style="display:none;">
+            <label for="school-id" class="form-label">Select School</label>
+            <select id="school-id" name="school" class="form-select">
+              {% for s in schools %}
+                <option value="{{ s.id }}"
+                  {% if s.id|string == request.form.get('selected_id') or (user_role == 'MOE' and loop.first) %}selected{% endif %}>
+                  {{ s.description }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+          {% endif %}
+
+          <!-- Hidden field used by the server to know which entity was chosen -->
+          <input type="hidden" name="selected_id" id="selected_id"
+                 value="{{ request.form.get('selected_id', selected_id_default) }}" />
+
+          <!-- Admin -->
           <div class="form-check mb-3" id="admin-checkbox-section">
             <input class="form-check-input" type="checkbox" value="1" name="admin" id="adminCheck"
-              {% if request.form.admin or request.form.selected_role == 'ADM' %}checked{% endif %} />
+              {% if request.form.admin or request.form.selected_role == 'ADM' %}checked{% endif %}/>
             <label class="form-check-label" for="adminCheck">Administrator Permissions</label>
           </div>
 
+          <!-- Send email -->
           <div class="form-check mb-3">
-            <input class="form-check-input" type="checkbox" name="send_email" id="sendEmail" {% if request.form.send_email %}checked{% endif %} />
+            <input class="form-check-input" type="checkbox" name="send_email" id="sendEmail"
+              {% if request.form.send_email %}checked{% endif %}/>
             <label class="form-check-label" for="sendEmail">Send confirmation email to user</label>
           </div>
 
           <button type="submit" class="btn btn-success">Create User</button>
         </form>
+
       </div>
     </div>
   </div>
 </div>
+
+<style>
+  @media (max-width: 767.98px) {
+    .card-body { padding: 0.875rem; }
+    #selected_role { font-size: 0.95rem; }
+  }
+</style>
 {% endblock %}
+
 {% block scripts %}
 <script>
-  document.addEventListener("DOMContentLoaded", function () {
-    const roleSelect = document.getElementById("selected_role");
-    const funderSection = document.getElementById("funder-section");
-    const providerSection = document.getElementById("provider-section");
-    const schoolSection = document.getElementById("school-section");
-    const groupSection = document.getElementById("group-section");
-    const selectedIdInput = document.getElementById("selected_id");
-    const adminCheckboxSection = document.getElementById("admin-checkbox-section");
-    const adminCheckbox = document.getElementById("adminCheck");
+document.addEventListener("DOMContentLoaded", function () {
+  const roleSelect      = document.getElementById("selected_role");
 
-    const funderDropdown = document.getElementById("funder-id");
-    const providerDropdown = document.getElementById("provider-id");
-    const schoolDropdown = document.getElementById("school-id");
-    const groupDropdown = document.getElementById("group-id");
+  const funderSection   = document.getElementById("funder-section");
+  const providerSection = document.getElementById("provider-section");
+  const schoolSection   = document.getElementById("school-section");
+  const groupSection    = document.getElementById("group-section");
 
-    function updateSelectedId() {
-      if (roleSelect?.value === "FUN" && funderDropdown) {
-        selectedIdInput.value = funderDropdown.value;
-      } else if (roleSelect?.value === "PRO" && providerDropdown) {
-        selectedIdInput.value = providerDropdown.value;
-      } else if (roleSelect?.value === "MOE" && schoolDropdown) {
-        selectedIdInput.value = schoolDropdown.value;
-      } else if (roleSelect?.value === "GRP" && groupDropdown) {
-        selectedIdInput.value = groupDropdown.value;
-      } else {
-        selectedIdInput.value = "";
-      }
-    }
+  const funderSelect    = document.getElementById("funder-id");
+  const providerSelect  = document.getElementById("provider-id");
+  const schoolSelect    = document.getElementById("school-id");
+  const groupSelect     = document.getElementById("group-id");
 
-    function updateAdminCheckboxVisibility() {
-      if (roleSelect?.value === "ADM") {
-        if (adminCheckboxSection) adminCheckboxSection.style.display = "none";
-        if (adminCheckbox) adminCheckbox.checked = true;
-      } else {
-        if (adminCheckboxSection) adminCheckboxSection.style.display = "block";
-      }
-    }
+  const selectedIdInput = document.getElementById("selected_id");
+  const adminWrap       = document.getElementById("admin-checkbox-section");
+  const adminCheckbox   = document.getElementById("adminCheck");
 
-    function toggleSectionsByRole(role) {
-      const sections = [
-        { section: funderSection, dropdown: funderDropdown },
-        { section: providerSection, dropdown: providerDropdown },
-        { section: schoolSection, dropdown: schoolDropdown },
-        { section: groupSection, dropdown: groupDropdown }
-      ];
-
-      sections.forEach(({ section, dropdown }) => {
-        if (!section || !dropdown) return;
-        const show =
-          (role === "FUN" && section === funderSection) ||
-          (role === "PRO" && section === providerSection) ||
-          (role === "MOE" && section === schoolSection) ||
-          (role === "GRP" && section === groupSection);
-
-        section.style.display = show ? "block" : "none";
-        dropdown.disabled = !show;
-      });
-    }
-
-    if (roleSelect) {
-      roleSelect.addEventListener("change", function () {
-        toggleSectionsByRole(this.value);
-        updateSelectedId();
-        updateAdminCheckboxVisibility();
-      });
-
-      toggleSectionsByRole(roleSelect.value);
-      updateSelectedId();
-      updateAdminCheckboxVisibility();
-    }
-
-    [funderDropdown, providerDropdown, schoolDropdown, groupDropdown].forEach((dropdown) => {
-      if (dropdown) dropdown.addEventListener("change", updateSelectedId);
+  // --- Helper: show/hide sections by role
+  function toggleSectionsByRole(role) {
+    const map = {
+      "FUN": funderSection,
+      "PRO": providerSection,
+      "MOE": schoolSection,
+      "GRP": groupSection,
+      "ADM": null
+    };
+    // hide all
+    [funderSection, providerSection, schoolSection, groupSection].forEach(sec => {
+      if (sec) sec.style.display = "none";
     });
-  });
+    // show current
+    const sec = map[role];
+    if (sec) sec.style.display = "block";
+  }
+
+  // --- Helper: sync hidden selected_id with visible select based on role
+  function updateSelectedId() {
+    const role = roleSelect?.value;
+    if      (role === "FUN" && funderSelect)    selectedIdInput.value = funderSelect.value || "";
+    else if (role === "PRO" && providerSelect)  selectedIdInput.value = providerSelect.value || "";
+    else if (role === "MOE" && schoolSelect)    selectedIdInput.value = schoolSelect.value || "";
+    else if (role === "GRP" && groupSelect)     selectedIdInput.value = groupSelect.value || "";
+    else if (role === "ADM")                    selectedIdInput.value = ""; // no target entity
+    else                                        selectedIdInput.value = "";
+  }
+
+  // --- Helper: toggle Admin checkbox for ADM role
+  function updateAdminCheckboxVisibility() {
+    if (roleSelect?.value === "ADM") {
+      if (adminWrap)    adminWrap.style.display = "none";
+      if (adminCheckbox) adminCheckbox.checked  = true;
+    } else {
+      if (adminWrap)    adminWrap.style.display = "block";
+    }
+  }
+
+  // --- Helper: build <option> element
+  function opt(v, t, selValue) {
+    const o = document.createElement("option");
+    o.value = String(v ?? "");
+    o.textContent = String(t ?? "");
+    if (selValue != null && String(selValue) === String(v)) o.selected = true;
+    return o;
+  }
+
+  // --- Fetch & fill a select from get_entities
+  async function loadEntities(entityType, targetSelect, extraParams = {}, selectedValue = null) {
+    if (!targetSelect) return;
+
+    const url = new URL("{{ url_for('funder_bp.get_entities') }}", window.location.origin);
+    url.searchParams.set("entity_type", entityType);
+    for (const [k, v] of Object.entries(extraParams)) {
+      if (v != null && v !== "") url.searchParams.set(k, v);
+    }
+
+    targetSelect.innerHTML = "";
+    targetSelect.appendChild(opt("", "Loading…"));
+    targetSelect.disabled = true;
+
+    try {
+      const res  = await fetch(url, { headers: { "Accept": "application/json" } });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const list = Array.isArray(data) ? data : (data.entities || []);
+
+      targetSelect.innerHTML = "";
+      for (const item of list) {
+        const id = item.id ?? item.ProviderID ?? item.FunderID ?? item.GroupID ?? item.SchoolID;
+        const name = item.name ?? item.Description ?? item.ProviderName ?? item.GroupName ?? item.SchoolName ?? item.description;
+        if (id == null || !name) continue;
+        targetSelect.appendChild(opt(id, name, selectedValue));
+      }
+
+      targetSelect.disabled = false;
+
+      // If nothing selected by server/form, set first item (if any)
+      if (!targetSelect.value && targetSelect.options.length > 0) {
+        targetSelect.selectedIndex = 0;
+      }
+    } catch (err) {
+      console.error("loadEntities failed:", err);
+      targetSelect.innerHTML = "";
+      targetSelect.appendChild(opt("", "Error loading"));
+      targetSelect.disabled = false;
+    }
+  }
+
+  // --- When role changes: show section, fetch list, sync selected_id, admin state
+  async function onRoleChange() {
+    const role = roleSelect?.value;
+
+    toggleSectionsByRole(role);
+    updateAdminCheckboxVisibility();
+
+    // You can pass filters your API supports in extraParams (examples commented)
+    if (role === "FUN") {
+      await loadEntities("Funder", funderSelect, {}, "{{ request.form.get('selected_id') }}");
+    } else if (role === "PRO") {
+      await loadEntities("Provider", providerSelect, {
+        // funder_id: funderSelect?.value,
+        // group_id:  groupSelect?.value,
+      }, "{{ request.form.get('selected_id') }}");
+    } else if (role === "MOE") {
+      await loadEntities("School", schoolSelect, {
+        // provider_id: providerSelect?.value,
+        // funder_id:   funderSelect?.value,
+      }, "{{ request.form.get('selected_id') }}");
+    } else if (role === "GRP") {
+      await loadEntities("Group", groupSelect, {}, "{{ request.form.get('selected_id') }}");
+    }
+
+    updateSelectedId();
+  }
+
+  // Wire listeners
+  roleSelect?.addEventListener("change", onRoleChange);
+  funderSelect?.addEventListener("change", updateSelectedId);
+  providerSelect?.addEventListener("change", updateSelectedId);
+  schoolSelect?.addEventListener("change", updateSelectedId);
+  groupSelect?.addEventListener("change", updateSelectedId);
+
+  // Initial paint:
+  // 1) If the server pre-populated lists, we just show the right section and sync IDs.
+  // 2) If you want to ALWAYS refresh from API on load, set forceAjax = true.
+  const forceAjax = false;
+  if (forceAjax) {
+    onRoleChange();
+  } else {
+    toggleSectionsByRole(roleSelect?.value);
+    updateAdminCheckboxVisibility();
+    updateSelectedId();
+  }
+});
 </script>
 {% endblock %}
