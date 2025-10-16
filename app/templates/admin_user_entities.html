@@ -7,6 +7,58 @@
     border-color: #004080 !important;
     text-align: center;
   }
+
+  /* Mobile card look */
+  .user-card {
+    border: 1px solid #e9ecef;
+    border-radius: 0.75rem;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  }
+  .user-card .label {
+    color: #6c757d;
+    font-size: 0.9rem;
+  }
+  .truncate-email {
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .badge-role {
+    background: #0d6efd1a;
+    color: #0d6efd;
+  }
+  .badge-entity {
+    background: #1987541a;
+    color: #198754;
+  }
+
+  .user-card {
+    border: 1px solid #e0e0e0;
+  }
+
+  .truncate-email {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.9rem;
+    color: #333;
+  }
+
+  .badge-role {
+    background-color: #0d6efd1a;
+    color: #0d6efd;
+  }
+  .badge-entity {
+    background-color: #1987541a;
+    color: #198754;
+  }
+
+  .modal-dialog {
+    /* move the modal down by navbar height + iOS safe area + a bit of spacing */
+    margin-top: calc(var(--navbar-h) + env(safe-area-inset-top, 0px) + 0.5rem);
+  }
 </style>
 
 <div class="container mt-4">
@@ -45,20 +97,24 @@
   >
     Start typing or filter by role to view results.
   </div>
-
-  <div class="table-responsive" id="userTableWrapper" style="display: none">
-    <table class="table table-bordered table-hover" id="userTable">
-      <thead class="custom-header">
-        <tr>
-          <th>Name</th>
-          <th>Email</th>
-          <th>Role</th>
-          <th>Entity</th>
-          <th scope="col"><span class="visually-hidden">Actions</span></th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
+  <div class="d-none d-sm-block">
+    <div class="table-responsive" id="userTableWrapper" style="display: none">
+      <table class="table table-bordered table-hover" id="userTable">
+        <thead class="custom-header">
+          <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Role</th>
+            <th>Entity</th>
+            <th scope="col"><span class="visually-hidden">Actions</span></th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="d-sm-none" id="userCardsWrapper" style="display: none">
+    <div id="userCards" class="mt-2"></div>
   </div>
 </div>
 
@@ -139,6 +195,8 @@
     const emptyMsg = document.getElementById("emptyMessage");
     const tableWrapper = document.getElementById("userTableWrapper");
     const tbody = document.querySelector("#userTable tbody");
+    const cardsWrapper = document.getElementById("userCardsWrapper");
+    const cardsHost = document.getElementById("userCards");
     const filterControls = document.getElementById("filterControls");
 
     fetch("/get_users")
@@ -146,37 +204,83 @@
       .then((data) => {
         allUsers = data;
         populateRoleFilter(allUsers);
-        renderTable(allUsers);
         filterControls.style.display = "flex";
         applyFilters();
       });
 
+    function renderViews(users) {
+      // shared loading/empty handling
+      const hasData = users.length > 0;
+      loading.style.display = "none";
+      emptyMsg.style.display = hasData ? "none" : "block";
+
+      // render each view
+      renderTable(users);
+      renderCards(users);
+
+      tableWrapper.style.display = hasData ? "block" : "none";
+      cardsWrapper.style.display = hasData ? "block" : "none";
+    }
+
     function renderTable(users) {
-      loading.style.display = "block";
-      emptyMsg.style.display = "none";
-      tableWrapper.style.display = "none";
       tbody.innerHTML = "";
-      const fragment = document.createDocumentFragment();
-      users.forEach((user) => {
+      const frag = document.createDocumentFragment();
+      users.forEach((u) => {
         const tr = document.createElement("tr");
         tr.innerHTML = `
-          <td>${user.FirstName} ${user.Surname}</td>
-          <td>${user.Email}</td>
-          <td>${user.DisplayRole}</td>
-          <td>${user.EntityName || "-"}</td>
-          <td>
-            <button class="btn btn-sm btn-primary" onclick="editUser('${
-              user.Email
-            }')" title="Edit">
-  <i class="bi bi-pencil-fill"></i>
-</button>
-          </td>`;
-        fragment.appendChild(tr);
+        <td>${u.FirstName} ${u.Surname}</td>
+        <td>${u.Email}</td>
+        <td>${u.DisplayRole || "-"}</td>
+        <td>${u.EntityName || "-"}</td>
+        <td>
+          <button class="btn btn-sm btn-primary" onclick="editUser('${
+            u.Email
+          }')" title="Edit">
+            <i class="bi bi-pencil-fill"></i>
+          </button>
+        </td>`;
+        frag.appendChild(tr);
       });
-      tbody.appendChild(fragment);
-      loading.style.display = "none";
-      tableWrapper.style.display = users.length > 0 ? "block" : "none";
-      emptyMsg.style.display = users.length === 0 ? "block" : "none";
+      tbody.appendChild(frag);
+    }
+
+    function renderCards(users) {
+      cardsHost.innerHTML = "";
+      const frag = document.createDocumentFragment();
+
+      users.forEach((u) => {
+        const div = document.createElement("div");
+        div.className = "user-card p-3 mb-2 bg-white rounded shadow-sm";
+
+        div.innerHTML = `
+      <div class="fw-semibold mb-1">${u.FirstName} ${u.Surname || ""}</div>
+
+      <div class="d-flex align-items-center mb-2">
+        <span class="text-muted me-1 small">Email:</span>
+        <span class="truncate-email flex-grow-1">${u.Email}</span>
+      </div>
+
+      <div class="d-flex flex-wrap gap-2 mb-2">
+        <span class="badge rounded-pill badge-role">${
+          u.DisplayRole || "-"
+        }</span>
+        <span class="badge rounded-pill badge-entity">${
+          u.EntityName || "-"
+        }</span>
+      </div>
+
+      <div class="text-end">
+        <button class="btn btn-sm btn-primary" onclick="editUser('${
+          u.Email
+        }')" title="Edit">
+          <i class="bi bi-pencil-fill me-1"></i>Edit
+        </button>
+      </div>
+    `;
+        frag.appendChild(div);
+      });
+
+      cardsHost.appendChild(frag);
     }
 
     function populateRoleFilter(users) {
@@ -190,22 +294,28 @@
     }
 
     function applyFilters() {
-      const searchTerm = searchInput.value.toLowerCase();
-      const selectedRole = roleFilter.value;
+      loading.style.display = "block";
+      emptyMsg.style.display = "none";
+      tableWrapper.style.display = "none";
+      cardsWrapper.style.display = "none";
+
+      const term = (searchInput.value || "").toLowerCase();
+      const role = roleFilter.value;
+
       const filtered = allUsers.filter((u) => {
         const matchesSearch =
-          (u.FirstName && u.FirstName.toLowerCase().includes(searchTerm)) ||
-          (u.Surname && u.Surname.toLowerCase().includes(searchTerm)) ||
-          (u.Email && u.Email.toLowerCase().includes(searchTerm));
-        const matchesRole =
-          selectedRole === "" || u.DisplayRole === selectedRole;
+          (u.FirstName && u.FirstName.toLowerCase().includes(term)) ||
+          (u.Surname && u.Surname.toLowerCase().includes(term)) ||
+          (u.Email && u.Email.toLowerCase().includes(term));
+        const matchesRole = role === "" || u.DisplayRole === role;
         return matchesSearch && matchesRole;
       });
-      renderTable(filtered);
+
+      renderViews(filtered);
     }
 
     searchInput.addEventListener("input", () => {
-      if (debounceTimer) clearTimeout(debounceTimer);
+      clearTimeout(debounceTimer);
       debounceTimer = setTimeout(applyFilters, 300);
     });
     roleFilter.addEventListener("change", applyFilters);

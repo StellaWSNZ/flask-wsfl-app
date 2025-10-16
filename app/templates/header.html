@@ -36,6 +36,15 @@
     />
 
     <style>
+      html, body { height: 100%; }
+
+/* Make the main content fill the remaining viewport beneath the fixed nav */
+main {
+  min-height: calc(100vh - var(--navbar-h) - env(safe-area-inset-top, 0px));
+  display: flex;            /* optional, nice for stacking children */
+  flex-direction: column;   /* optional */
+}
+
       /* Background image */
       body {
         background-image: url("{{ url_for('static', filename='background.svg') }}");
@@ -90,6 +99,8 @@
           width: auto;
         }
       }
+
+      
     </style>
 
     {% block head %}{% endblock %}
@@ -100,7 +111,7 @@
     <nav
       class="navbar navbar-expand-lg navbar-dark custom-navbar py-2 fixed-top"
     >
-      <div class="container-fluid">
+      <div class="container-fluid px-0">
         <a
           class="navbar-brand d-flex align-items-center"
           href="{{ url_for('home_bp.home') }}"
