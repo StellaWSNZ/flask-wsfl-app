@@ -147,8 +147,8 @@ def provider_portrait_with_target(
 
     # pick the bar series key + legend label
     bar_series = (bar_series or "ly").lower()
-    if mode == "provider" and bar_series == "ly":
-        bar_series = "ytd"  # provider LY usually not present
+    if mode in ("provider", "funder", "school") and bar_series == "ly":
+        bar_series = "ytd"
     BAR_KEY = RATE_LY_KEY if bar_series == "ly" else RATE_YTD_KEY
     legend_label = f"{mode.title()} Rate ({bar_series.upper()})"
 
