@@ -738,7 +738,7 @@ def send_elearning_reminder():
         email = request.form["email"]
         firstname = request.form["firstname"]
         requested_by = request.form["requested_by"]
-        from_org = request.form["from_org"]
+        from_org = request.form["from_org"] or "WSNZ"
 
         # Query course status
         engine = get_db_engine()
