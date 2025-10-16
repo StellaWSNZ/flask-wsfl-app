@@ -690,55 +690,153 @@ def assign_kaiako_staff():
     except Exception as e:
         print(f"❌ Error during DB execution: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
-    
-    
+
+from math import ceil
+from user_agents import parse as ua_parse  # pip install pyyaml ua-parser user-agents
+
+
+# Optional: response compression (network win)
+# from flask_compress import Compress
+# Compress(app)
+try:
+    from user_agents import parse as ua_parse
+    def is_mobile_request(req):
+        ua = ua_parse(req.headers.get("User-Agent", ""))
+        return ua.is_mobile or ua.is_tablet
+except Exception:
+    def is_mobile_request(req):  # fallback
+        return False
+
 @admin_bp.route("/SchoolType", methods=["GET", "POST"])
 @login_required
 def edit_school_type():
     if session.get("user_role") != "ADM":
         abort(403)
+
     engine = get_db_engine()
-    school_data, school_types = [], []
+
+    # ------- POST (PRG: update then redirect) -------
+    if request.method == "POST":
+        moenumber = request.form.get("moenumber")
+        new_type  = request.form.get("schooltype")
+
+        q        = (request.form.get("search_term") or "").strip()
+        sort_by  = (request.form.get("sort_by") or "schoolname").lower()
+        sort_dir = (request.form.get("sort_direction") or "asc").lower()
+        # page from querystring, not form; default 1
+        try:
+            page = int(request.args.get("page", 1))
+            page = 1 if page < 1 else page
+        except Exception:
+            page = 1
+
+        with engine.begin() as conn:
+            conn.execute(
+                text("""
+                    EXEC FlaskSchoolTypeChanger
+                        @Request = 'UpdateSchoolType',
+                        @MOENumber = :moe,
+                        @SchoolTypeID = :stype
+                """),
+                {"moe": moenumber, "stype": new_type},
+            )
+        flash("School type updated successfully.", "success")
+
+        return redirect(url_for("admin_bp.edit_school_type",
+                                q=q, sort_by=sort_by, dir=sort_dir, page=page))
+
+    # ------- GET (paged list) -------
+    q        = (request.args.get("q") or "").strip()
+    sort_by  = (request.args.get("sort_by") or "schoolname").lower()
+    sort_dir = (request.args.get("dir") or "asc").lower()
+    try:
+        page = int(request.args.get("page", 1))
+        page = 1 if page < 1 else page
+    except Exception:
+        page = 1
+    page_size = 50
+
+    if sort_by not in ("schoolname", "moe"):
+        sort_by = "schoolname"
+    if sort_dir not in ("asc", "desc"):
+        sort_dir = "asc"
 
     with engine.begin() as conn:
-        # Dropdown options
+        # Dropdown
         school_types = conn.execute(
             text("EXEC FlaskSchoolTypeChanger @Request = 'GetSchoolTypeDropdown'")
-        ).fetchall()
+        ).mappings().all()
 
-        # Handle update
-        if request.method == "POST":
-            moenumber = request.form.get("moenumber")
-            new_type = request.form.get("schooltype")
+        # Use exec_driver_sql so we can consume multiple result sets via cursor.nextset()
+        # Parameter order must match the EXEC statement’s placeholders.
+        # Note: In exec_driver_sql, use ? style for parameters with pyodbc.
+        exec_sql = """
+            SET NOCOUNT ON;
+            EXEC FlaskSchoolTypeChanger
+                @Request=?,
+                @Search=?,
+                @SortBy=?,
+                @SortDir=?,
+                @Page=?,
+                @PageSize=?;
+        """
+        # Execute and get the DBAPI cursor
+        res = conn.exec_driver_sql(exec_sql, (
+            "GetSchoolDirectoryPaged", q, sort_by, sort_dir, page, page_size
+        ))
+        cursor = res.cursor
 
-            conn.execute(
-                text("EXEC FlaskSchoolTypeChanger @Request = 'UpdateSchoolType', @MOENumber = :moe, @SchoolTypeID = :stype"),
-                {"moe": moenumber, "stype": new_type}
-            )
-            flash("School type updated successfully.", "success")
+        # First result set: page rows
+        cols = [d[0] for d in cursor.description] if cursor.description else []
+        rows = cursor.fetchall() if cursor.description else []
+        # Convert to dicts (like .mappings())
+        school_data = [dict(zip(cols, r)) for r in rows]
 
-        # Get schools
-        school_data = conn.execute(
-            text("EXEC FlaskSchoolTypeChanger @Request = 'GetSchoolDirectory'")
-        ).fetchall()
-        
-        glossary = conn.execute(
-            text("EXEC FlaskSchoolTypeChanger @Request = 'GetGlossary'")
-        ).fetchall()
-        search_term = request.form.get("search_term", "")
-        sort_by = request.form.get("sort_by", "")
-        sort_direction = request.form.get("sort_direction", "")
+        # Second result set: TotalRows (one row, one column)
+        total_rows = 0
+        if cursor.nextset():
+            if cursor.description:  # should be one column named TotalRows
+                cols2 = [d[0] for d in cursor.description]
+                row2  = cursor.fetchone()
+                if row2 is not None:
+                    rec = dict(zip(cols2, row2))
+                    # column might be 'TotalRows' (expected); guard anyway
+                    total_rows = int(rec.get("TotalRows", 0) or 0)
+
+        pages = max(1, ceil(total_rows / page_size)) if total_rows else 1
+
     return render_template(
         "edit_school_type.html",
+        is_mobile=is_mobile_request(request),
         school_data=school_data,
         school_types=school_types,
-        glossary=glossary,
-        search_term=search_term,
+        glossary=None,  # lazy-loaded via JSON endpoint
+        search_term=q,
         sort_by=sort_by,
-        sort_direction=sort_direction
+        sort_direction=sort_dir,
+        page=page,
+        pages=pages,
+        page_size=page_size,
+        total_rows=total_rows,
     )
-    
-    
+# --- Glossary lazy-load JSON endpoint ----------------------------------------
+@admin_bp.route("/SchoolType/glossary.json", methods=["GET"])
+@login_required
+def school_type_glossary_json():
+    if session.get("user_role") != "ADM":
+        abort(403)
+
+    engine = get_db_engine()
+    with engine.begin() as conn:
+        rows = conn.execute(
+            text("EXEC FlaskSchoolTypeChanger @Request = 'GetGlossary'")
+        ).mappings().all()
+    # Return only needed fields
+    return jsonify([
+        {"SchoolType": r.get("SchoolType"), "Definition": r.get("Definition")}
+        for r in rows
+    ])
+
 @admin_bp.route("/EditUser")
 @login_required
 def admin_user_entities():

@@ -1,5 +1,6 @@
 {% extends "header.html" %}
 {% block title %}Edit School Type{% endblock %}
+
 {% block content %}
 <style>
   thead.custom-header th {
@@ -8,67 +9,203 @@
     border-color: #004080 !important;
     text-align: center;
   }
+  /* Mobile niceties */
+  @media (max-width: 575.98px) {
+    #searchBar { width: 100%; }
+    .btn-group-mobile .btn { flex: 1 1 auto; }
+    .card .muted-label { color: #6c757d; font-size: .9rem; }
+    .card .sticky-actions { position: sticky; bottom: 0; background: #fff; padding-top: .5rem; }
+  }
 </style>
 
 <div class="container mt-4">
-  <!-- 🏷️ Title -->
+  <!-- Title -->
   <h3 class="mb-4 text-center text-primary">School Type Editor</h3>
 
-  <!-- 🔍 Search input and sort/glossary buttons -->
-  <div class="d-flex flex-column align-items-center mb-3">
-    <!-- Search input -->
-    <input type="text" id="schoolSearch" class="form-control mb-2" placeholder="Search by School Name or MOENumber" style="max-width: 670px;">
+  <!-- Search + Sort controls (GET to keep it light) -->
+  <form method="get" class="d-flex flex-column align-items-center mb-3 gap-2">
+    <input
+      id="searchBar"
+      type="text"
+      name="q"
+      value="{{ search_term }}"
+      class="form-control"
+      placeholder="Search by School Name or MOENumber"
+      style="max-width: 670px;"
+    />
+    <div class="d-flex flex-wrap justify-content-center gap-2 w-100 btn-group-mobile" style="max-width: 670px;">
+      <a class="btn btn-sm btn-outline-secondary"
+         href="{{ url_for(request.endpoint, q=search_term, sort_by='schoolname', dir='asc',  page=1) }}">
+        School Name A–Z ↑
+      </a>
+      <a class="btn btn-sm btn-outline-secondary"
+         href="{{ url_for(request.endpoint, q=search_term, sort_by='schoolname', dir='desc', page=1) }}">
+        School Name Z–A ↓
+      </a>
+      <a class="btn btn-sm btn-outline-secondary"
+         href="{{ url_for(request.endpoint, q=search_term, sort_by='moe',        dir='asc',  page=1) }}">
+        MOENumber ↑
+      </a>
+      <a class="btn btn-sm btn-outline-secondary"
+         href="{{ url_for(request.endpoint, q=search_term, sort_by='moe',        dir='desc', page=1) }}">
+        MOENumber ↓
+      </a>
 
-    <!-- Button group with same width -->
-    <div class="d-flex flex-wrap justify-content-center gap-2 w-100" style="max-width: 670px;">
-      <button class="btn btn-sm btn-outline-secondary" onclick="sortTable('schoolname', true)">School Name A–Z ↑</button>
-      <button class="btn btn-sm btn-outline-secondary" onclick="sortTable('schoolname', false)">School Name Z–A ↓</button>
-      <button class="btn btn-sm btn-outline-secondary" onclick="sortTable('moe', true)">MOENumber ↑</button>
-      <button class="btn btn-sm btn-outline-secondary" onclick="sortTable('moe', false)">MOENumber ↓</button>
-      <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#glossaryModal">View Glossary</button>
+      <button type="button" id="openGlossary" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#glossaryModal">
+        View Glossary
+      </button>
     </div>
-  </div>
+    <!-- Keep current sort/dir on manual search submit -->
+    <input type="hidden" name="sort_by" value="{{ sort_by }}">
+    <input type="hidden" name="dir"     value="{{ sort_direction }}">
+    <div class="d-flex gap-2">
+      <button class="btn btn-primary">Search</button>
+      <a class="btn btn-outline-secondary"
+         href="{{ url_for(request.endpoint, q='', sort_by='schoolname', dir='asc', page=1) }}">Reset</a>
+    </div>
+  </form>
 
-  <!-- 🏫 School table -->
-  <table class="table table-bordered table-hover align-middle">
-    <thead class="custom-header">
-      <tr>
-        <th>School Name</th>
-        <th>MOENumber</th>
-        <th>Current School Type</th>
-        <th>Change School Type</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for school in school_data %}
-      <tr data-school="{{ school.SchoolName | lower }}" data-moe="{{ school.MOENumber }}">
-        <td>{{ school.SchoolName }}</td>
-        <td>{{ school.MOENumber }}</td>
-        <td>{{ school.Description or "Not set" }}</td>
-        <td>
-          <form method="POST" class="d-flex align-items-center gap-2">
-            <input type="hidden" name="moenumber" value="{{ school.MOENumber }}">
-            <input type="hidden" name="search_term" id="searchTermInput" value="">
-            <input type="hidden" name="sort_by" id="sortByInput" value="">
-            <input type="hidden" name="sort_direction" id="sortDirectionInput" value="">
-            <select name="schooltype" class="form-select form-select-sm w-auto">
-              {% for type in school_types %}
-              <option value="{{ type.SchoolTypeID }}"
-                {% if school.SchoolTypeID == type.SchoolTypeID %}selected{% endif %}>
-                {{ type.Description }}
-              </option>
-              {% endfor %}
-            </select>
-            <button type="submit" class="btn btn-sm btn-primary">Update</button>
-          </form>
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  {% if not school_data %}
+    <div class="alert alert-info text-center">No schools found.</div>
+  {% else %}
+
+  {% if is_mobile %}
+  <!-- ============ MOBILE CARDS ============ -->
+  <div id="mobileCards">
+    {% for school in school_data %}
+    <div class="card shadow-sm mb-3">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span class="fw-semibold">{{ school.SchoolName }}</span>
+        <small class="text-muted">MOE {{ school.MOENumber }}</small>
+      </div>
+
+      <div class="card-body">
+        <div class="mb-2">
+          <div class="muted-label">Current School Type</div>
+          <div class="fw-medium">{{ school.Description or "Not set" }}</div>
+        </div>
+
+        <hr class="my-2">
+
+        <form method="POST">
+          <input type="hidden" name="moenumber" value="{{ school.MOENumber }}">
+          <input type="hidden" name="search_term" value="{{ search_term }}">
+          <input type="hidden" name="sort_by"      value="{{ sort_by }}">
+          <input type="hidden" name="sort_direction" value="{{ sort_direction }}">
+
+          <label class="form-label mt-2">Change School Type</label>
+          <select name="schooltype" class="form-select form-select-sm mb-2">
+            {% for type in school_types %}
+            <option value="{{ type.SchoolTypeID }}"
+              {% if school.SchoolTypeID == type.SchoolTypeID %}selected{% endif %}>
+              {{ type.Description }}
+            </option>
+            {% endfor %}
+          </select>
+
+          <div class="sticky-actions">
+            <button type="submit" class="btn btn-primary w-100">Update</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <!-- ============ DESKTOP/TABLET TABLE ============ -->
+  <div class="table-responsive">
+    <table class="table table-bordered table-hover align-middle">
+      <thead class="custom-header">
+        <tr>
+          <th>School Name</th>
+          <th>MOENumber</th>
+          <th>Current School Type</th>
+          <th>Change School Type</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for school in school_data %}
+        <tr>
+          <td>{{ school.SchoolName }}</td>
+          <td>{{ school.MOENumber }}</td>
+          <td>{{ school.Description or "Not set" }}</td>
+          <td>
+            <form method="POST" class="d-flex align-items-center gap-2">
+              <input type="hidden" name="moenumber" value="{{ school.MOENumber }}">
+              <input type="hidden" name="search_term" value="{{ search_term }}">
+              <input type="hidden" name="sort_by"      value="{{ sort_by }}">
+              <input type="hidden" name="sort_direction" value="{{ sort_direction }}">
+              <select name="schooltype" class="form-select form-select-sm w-auto">
+                {% for type in school_types %}
+                <option value="{{ type.SchoolTypeID }}"
+                  {% if school.SchoolTypeID == type.SchoolTypeID %}selected{% endif %}>
+                  {{ type.Description }}
+                </option>
+                {% endfor %}
+              </select>
+              <button type="submit" class="btn btn-sm btn-primary">Update</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  <!-- ============ PAGER ============ -->
+  <nav aria-label="pager" class="mt-4">
+  <ul class="pagination justify-content-center shadow-sm rounded-3 overflow-hidden" style="max-width:420px;margin:auto;">
+    <!-- Prev -->
+    <li class="page-item {% if page<=1 %}disabled{% endif %}">
+      <a class="page-link d-flex align-items-center gap-1 px-3"
+         href="{{ url_for(request.endpoint, q=search_term, sort_by=sort_by, dir=sort_direction, page=page-1) }}">
+        <i class="bi bi-chevron-left"></i> Prev
+      </a>
+    </li>
+
+    <!-- Info (center) -->
+    <li class="page-item disabled flex-fill">
+      <span class="page-link text-center bg-light fw-semibold">
+        Page {{ page }} / {{ pages }} &nbsp;
+        <small class="text-muted">({{ total_rows }} total)</small>
+      </span>
+    </li>
+
+    <!-- Next -->
+    <li class="page-item {% if page>=pages %}disabled{% endif %}">
+      <a class="page-link d-flex align-items-center gap-1 px-3"
+         href="{{ url_for(request.endpoint, q=search_term, sort_by=sort_by, dir=sort_direction, page=page+1) }}">
+        Next <i class="bi bi-chevron-right"></i>
+      </a>
+    </li>
+  </ul>
+</nav>
+
+<style>
+  .pagination .page-link {
+    border: none;
+    color: #004080;
+    background-color: #fff;
+    transition: all 0.15s ease-in-out;
+  }
+  .pagination .page-link:hover {
+    background-color: #e6f0ff;
+    color: #003060;
+  }
+  .pagination .page-item.disabled .page-link {
+    color: #adb5bd;
+    background-color: #f8f9fa;
+  }
+
+  .modal-backdrop.show { z-index: 2050 !important; }
+  .modal.show          { z-index: 2060 !important; }
+</style>
+
+  {% endif %}
 </div>
 
-<!-- 📘 Glossary Modal -->
+<!-- 📘 Glossary Modal (lazy-loaded) -->
 <div class="modal fade" id="glossaryModal" tabindex="-1" aria-labelledby="glossaryModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-scrollable">
     <div class="modal-content">
@@ -76,25 +213,8 @@
         <h5 class="modal-title" id="glossaryModalLabel">School Type Glossary</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <div class="modal-body">
-        <div class="table-responsive">
-          <table class="table table-bordered align-middle">
-            <thead class="table-light text-center">
-              <tr>
-                <th style="width: 30%;">School Type</th>
-                <th>Definition</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for type in glossary %}
-              <tr>
-                <td class="fw-semibold text-nowrap text-primary">{{ type.SchoolType }}</td>
-                <td>{{ type.Definition }}</td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
+      <div class="modal-body" id="glossaryBody">
+        <div class="text-center py-3">Loading…</div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
@@ -103,67 +223,66 @@
   </div>
 </div>
 
-<!-- 🔍 JavaScript: search, sort, preserve state -->
-<script>
-document.getElementById('schoolSearch').addEventListener( 'input', function () {
-  const search = this.value.trim().toLowerCase();
-  const rows = document.querySelectorAll('table tbody tr');
+<!-- JS: single delegated submit + glossary lazy-load -->
+<script defer>
+document.addEventListener('DOMContentLoaded', () => {
+  // Single delegated submit listener:
+  document.addEventListener('submit', (ev) => {
+    const form = ev.target.closest('form');
+    if (!form || !form.querySelector('[name="moenumber"]')) return;
 
-  rows.forEach(row => {
-    const schoolName = row.dataset.school;
-    const moe = row.dataset.moe;
+    // Make sure hidden fields are present (defensive)
+    const ensure = (name, val) => {
+      let el = form.querySelector(`[name="${name}"]`);
+      if (!el) {
+        el = document.createElement('input');
+        el.type = 'hidden';
+        el.name = name;
+        form.appendChild(el);
+      }
+      el.value = val;
+    };
 
-    row.style.display = (!search || schoolName.includes(search) || moe.includes(search)) ? '' : 'none';
+    const q   = new URLSearchParams(window.location.search).get('q')   || '{{ search_term }}';
+    const sby = new URLSearchParams(window.location.search).get('sort_by') || '{{ sort_by }}';
+    const dir = new URLSearchParams(window.location.search).get('dir') || '{{ sort_direction }}';
+
+    ensure('search_term', q);
+    ensure('sort_by', sby);
+    ensure('sort_direction', dir);
   });
-});
 
-function sortTable(by, ascending = true) {
-  sessionStorage.setItem('sortBy', by);
-  sessionStorage.setItem('sortDirection', ascending ? 'asc' : 'desc');
+  // Lazy-load glossary when modal opens for the first time
+  const btn   = document.getElementById('openGlossary');
+  const body  = document.getElementById('glossaryBody');
+  let loaded  = false;
 
-  const tbody = document.querySelector("table tbody");
-  const rows = Array.from(tbody.querySelectorAll("tr"));
-
-  rows.sort((a, b) => {
-    const valA = by === 'schoolname' ? a.dataset.school : a.dataset.moe;
-    const valB = by === 'schoolname' ? b.dataset.school : b.dataset.moe;
-    return ascending
-      ? valA.localeCompare(valB, undefined, { numeric: true })
-      : valB.localeCompare(valA, undefined, { numeric: true });
+  btn?.addEventListener('click', async () => {
+    if (loaded) return;
+    try {
+      const res = await fetch('{{ url_for("admin_bp.school_type_glossary_json") }}', { cache: 'no-store' });
+      const data = await res.json();
+      body.innerHTML = `
+        <div class="table-responsive">
+          <table class="table table-bordered align-middle">
+            <thead class="table-light text-center">
+              <tr><th style="width:30%;">School Type</th><th>Definition</th></tr>
+            </thead>
+            <tbody>
+              ${data.map(row => `
+                <tr>
+                  <td class="fw-semibold text-primary">${row.SchoolType ?? ''}</td>
+                  <td>${row.Definition ?? ''}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>`;
+      loaded = true;
+    } catch (e) {
+      body.innerHTML = `<div class="text-danger">Failed to load glossary.</div>`;
+    }
   });
-
-  rows.forEach(row => tbody.appendChild(row));
-}
-
-document.querySelectorAll('form').forEach(form => {
-  form.addEventListener('submit', function () {
-    const searchInput = document.getElementById('schoolSearch');
-    const sortBy = sessionStorage.getItem('sortBy') || '';
-    const sortDir = sessionStorage.getItem('sortDirection') || '';
-
-    form.querySelector('[name="search_term"]').value = searchInput.value;
-    form.querySelector('[name="sort_by"]').value = sortBy;
-    form.querySelector('[name="sort_direction"]').value = sortDir;
-  });
-});
-
-window.addEventListener('DOMContentLoaded', () => {
-  const searchTerm = "{{ search_term | default('', true) }}";
-  const sortBy = "{{ sort_by | default('', true) }}";
-  const sortDirection = "{{ sort_direction | default('', true) }}";
-
-  document.getElementById('schoolSearch').value = searchTerm;
-  sessionStorage.setItem('sortBy', sortBy);
-  sessionStorage.setItem('sortDirection', sortDirection);
-
-  if (sortBy && sortDirection) {
-    sortTable(sortBy, sortDirection === "asc");
-  }
-
-  if (searchTerm) {
-    document.getElementById('schoolSearch').dispatchEvent(new Event('input'));
-  }
 });
 </script>
-
 {% endblock %}
