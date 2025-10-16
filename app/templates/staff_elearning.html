@@ -10,9 +10,7 @@
       <form method="GET" id="filterForm" class="w-100">
         <div class="d-flex flex-wrap justify-content-center align-items-end gap-1">
 
-          {# ----- Entity Type picker ----- #}
           {% if user_role == "GRP" %}
-            {# Force Group for GRP users #}
             <input type="hidden" name="entity_type" value="Group">
           {% elif user_role != "PRO" %}
             <div class="col-md-4">
@@ -27,7 +25,6 @@
             <input type="hidden" name="entity_type" value="Provider">
           {% endif %}
 
-          {# ----- Entity picker ----- #}
           {% if user_role in ["ADM","FUN","PRO"] %}
             <div class="col-md-6">
               <label for="entity_id" class="form-label" id="entityLabel">Select {{ selected_entity_type or "Entity" }}</label>
@@ -46,26 +43,18 @@
               <button type="submit" class="btn btn-primary w-100">View</button>
             </div>
           {% elif user_role == "GRP" %}
-            {# GRP: If they belong to only one group, just hide and submit it.
-               If your backend sends multiple groups, you can render a select here instead. #}
             <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
             <div class="col-md-12 text-center">
               <button type="submit" class="btn btn-primary">View My Group</button>
             </div>
           {% endif %}
-
         </div>
       </form>
     </div>
   </div>
 
-  {# ------ Results remain unchanged ------ #}
-  <!-- (keep your results/cards section exactly as you have it) -->
-<!-- 🔽 Results -->
-{% set count = staff_eLearning_data|length %}
-{% if count > 0 %}
- 
-
+  {% set count = staff_eLearning_data|length %}
+  {% if count > 0 %}
   <div class="row">
     {% for email, details in staff_eLearning_data.items() %}
     <div class="col-12 mb-4">
@@ -77,32 +66,33 @@
 
           <p class="text-center mb-4"><strong>Email:</strong> {{ details.Email }}</p>
 
-          <!-- Active Courses (limited to course_ids order) -->
+          <!-- Active Courses -->
           <div class="row row-cols-2 g-2">
-            {% set any_active = false %}
             {% for cid in course_ids %}
               {% set course = details.Courses.get(cid) %}
-              {% if course %}{% set any_active = true %}
+              {% if course %}
               <div class="col">
-                <div class="border rounded p-2 bg-light d-flex justify-content-between align-items-center">
-                  <small class="pe-2">{{ course.CourseName }}</small>
+                <div class="border rounded p-2 bg-light d-flex 
+                            flex-column flex-sm-row 
+                            align-items-start align-items-sm-center 
+                            justify-content-between gap-1">
+                  <small class="pe-sm-2">{{ course.CourseName }}</small>
                   <span class="badge 
                     {% if course.Status == 'Passed' %}bg-success
                     {% elif course.Status == 'In Progress' %}bg-warning text-dark
                     {% elif course.Status == 'Cancelled' %}bg-danger
                     {% elif course.Status == 'Not Started' %}bg-secondary
-                    {% else %}bg-light text-dark{% endif %}">
+                    {% else %}bg-light text-dark{% endif %}
+                    align-self-start align-self-sm-auto">
                     {{ course.Status }}
                   </span>
                 </div>
               </div>
               {% endif %}
             {% endfor %}
-
-            
           </div>
 
-          <!-- Extra (non-active) courses -->
+          <!-- Extra Courses -->
           {% set extra_courses = [] %}
           {% for cid, course in details.Courses.items() %}
             {% if cid not in course_ids and course.Status not in ['Not Enrolled', 'Not Started'] %}
@@ -116,14 +106,18 @@
             <div class="row row-cols-2 g-2">
               {% for course in extra_courses %}
               <div class="col">
-                <div class="border rounded p-2 bg-white d-flex justify-content-between align-items-center">
-                  <small class="pe-2">{{ course.CourseName }}</small>
+                <div class="border rounded p-2 bg-white d-flex 
+                            flex-column flex-sm-row 
+                            align-items-start align-items-sm-center 
+                            justify-content-between gap-1">
+                  <small class="pe-sm-2">{{ course.CourseName }}</small>
                   <span class="badge 
                     {% if course.Status == 'Passed' %}bg-success
                     {% elif course.Status == 'In Progress' %}bg-warning text-dark
                     {% elif course.Status == 'Cancelled' %}bg-danger
                     {% elif course.Status == 'Not Started' %}bg-secondary
-                    {% else %}bg-light text-dark{% endif %}">
+                    {% else %}bg-light text-dark{% endif %}
+                    align-self-start align-self-sm-auto">
                     {{ course.Status }}
                   </span>
                 </div>
@@ -132,20 +126,18 @@
             </div>
           </div>
           {% endif %}
-
         </div>
       </div>
     </div>
     {% endfor %}
   </div>
-
-{% else %}
+  {% else %}
   <div class="d-flex justify-content-center">
     <div class="alert alert-warning text-center w-100" style="max-width: 600px;">
       No eLearning data found for this selection.
     </div>
   </div>
-{% endif %}
+  {% endif %}
 </div>
 
 <script>
@@ -157,7 +149,7 @@
     const userRole         = "{{ user_role }}";
 
     function loadEntities(selectedType) {
-      if (!entityIdSelect) return;         // GRP path may not have a select
+      if (!entityIdSelect) return;
       if (!selectedType) {
         entityLabel && (entityLabel.textContent = "Select Entity");
         entityIdSelect.innerHTML = '<option value="">-- Choose an entity --</option>';
@@ -185,7 +177,6 @@
         });
     }
 
-    // ADM/FUN initial load
     if (userRole !== "GRP" && entityTypeSelect && entityIdSelect) {
       loadEntities(entityTypeSelect.value);
       entityTypeSelect.addEventListener("change", function () {
