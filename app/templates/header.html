@@ -37,6 +37,12 @@
     />
 
     <style>
+      /* page content already uses padding-top; add anchor + modal safety */
+html { scroll-padding-top: calc(var(--navbar-h) + env(safe-area-inset-top, 0px)); }
+
+/* BS5 lets us control modal top margin with a var */
+.modal { --bs-modal-margin: calc(var(--navbar-h) + 1rem); }
+
       html, body { height: 100%; }
 
       /* Reserve space for navbar */
@@ -712,6 +718,7 @@
         {% endif %}
       </div>
     </nav>
+<div id="nav-spacer" style="height: var(--navbar-h);"></div>
 
     <!-- Main Content -->
     <main class="container-fluid px-2 py-4">
@@ -744,23 +751,28 @@
 
     <!-- Update --navbar-h on load/resize/collapse -->
     <script>
-      (function () {
-        const nav =
-          document.querySelector(".navbar.fixed-top, .navbar.sticky-top") ||
-          document.querySelector(".navbar");
-        if (!nav) return;
+  (function () {
+    const nav = document.querySelector('.navbar.fixed-top, .navbar.sticky-top') || document.querySelector('.navbar');
+    if (!nav) return;
 
-        function setNavbarHeightVar() {
-          const h = nav.getBoundingClientRect().height || 56;
-          document.documentElement.style.setProperty("--navbar-h", `${h}px`);
-        }
+    const setNavbarHeightVar = () => {
+      const h = Math.ceil(nav.getBoundingClientRect().height || 56);
+      document.documentElement.style.setProperty('--navbar-h', `${h}px`);
+    };
 
-        window.addEventListener("load", setNavbarHeightVar, { passive: true });
-        window.addEventListener("resize", setNavbarHeightVar, { passive: true });
-        document.addEventListener("shown.bs.collapse", setNavbarHeightVar);
-        document.addEventListener("hidden.bs.collapse", setNavbarHeightVar);
-      })();
-    </script>
+    // run early & often
+    setNavbarHeightVar();
+    window.addEventListener('load', setNavbarHeightVar, { passive: true });
+    window.addEventListener('resize', setNavbarHeightVar, { passive: true });
+    document.addEventListener('shown.bs.collapse', setNavbarHeightVar);
+    document.addEventListener('hidden.bs.collapse', setNavbarHeightVar);
+
+    // watch for height changes (e.g., wrapping text, dynamic menus)
+    const mo = new ResizeObserver(setNavbarHeightVar);
+    mo.observe(nav);
+  })();
+</script>
+
 
     {% block scripts %}{% endblock %}
   </body>
