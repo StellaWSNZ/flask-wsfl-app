@@ -68,7 +68,6 @@ select option { white-space: normal; word-break: break-word; }
 /* Sticky toggle at top of phone view */
 .mob-stuck { position: sticky; top: calc(var(--navbar-h, 56px) + 8px); z-index: 5; }
 
-
 @media (max-width: 767.98px) {
   .mob-row {
     display: flex;
@@ -96,6 +95,8 @@ select option { white-space: normal; word-break: break-word; }
   @supports (-webkit-touch-callout: none) {
     .mob-row .form-select { width: -webkit-fill-available; }
   }
+  /* Optional: compact buttons in mobile competency header */
+  #mob-competency-view .btn { padding: .25rem .5rem; }
 }
 </style>
 
@@ -529,138 +530,27 @@ document.addEventListener("DOMContentLoaded", function () {
     scrollSyncBar.style.width = studentsTable.scrollWidth + "px";
   }
 
-  // Mark All confirm flow
+  // ===== Desktop header "Mark All" — now uses unified confirm flow =====
   document.querySelectorAll(".mark-all-btn").forEach(btn => {
     btn.addEventListener("click", function () {
       const headerLabel = this.closest("th").querySelector(".header-label");
       const colRaw = this.dataset.colraw;
 
-      const tempClone = headerLabel.cloneNode(true);
-      tempClone.querySelectorAll("br")?.forEach(el => el.remove());
-      tempClone.querySelector("button")?.remove();
-      const cleanedColName = tempClone.textContent.trim();
+      // Clean display name (strip <br> and button)
+      const temp = headerLabel.cloneNode(true);
+      temp.querySelectorAll("br")?.forEach(el => el.remove());
+      temp.querySelector("button")?.remove();
+      const displayName = temp.textContent.trim();
 
-      document.getElementById("mark-all-column-name").textContent = cleanedColName;
-      const dependent = autofillMap[colRaw] || [];
-
-      pendingMarkAllCompetency = { displayName: cleanedColName, colRaw: colRaw, dependent: dependent };
-
-      const autofillDiv = document.getElementById("autofill-affected");
-      if (dependent.length > 0) {
-        const list = dependent.map(dep => `<li>${dep.replace(/<br\s*\/?>/gi, " ")}</li>`).join("");
-        autofillDiv.innerHTML = `
-          <div class="alert alert-warning p-2 mt-2">
-            <strong>Note:</strong> This will also mark the following competencies as achieved:
-            <ul class="mb-0">${list}</ul>
-          </div>`;
-      } else {
-        autofillDiv.innerHTML = "";
-      }
-
-      const modal = new bootstrap.Modal(document.getElementById('markAllConfirmModal'));
-      modal.show();
+      const dependents = autofillMap[colRaw] || [];
+      openMarkAllConfirm({
+        source: 'desktop-mark',
+        displayName,
+        colRaw,
+        dependents
+      });
     });
   });
-
-  document.getElementById("confirm-mark-all-btn").addEventListener("click", function () {
-    if (!pendingMarkAllCompetency) return;
-    const competency = pendingMarkAllCompetency.colRaw;
-    const checkboxes = document.querySelectorAll(`input[type="checkbox"][name="competency"]`);
-    checkboxes.forEach(cb => {
-      if (cb.dataset.competency?.trim() === competency && !cb.checked) {
-        cb.checked = true;
-        cb.dispatchEvent(new Event("change"));
-      }
-    });
-    pendingMarkAllCompetency = null;
-    const modalEl = document.getElementById('markAllConfirmModal');
-    bootstrap.Modal.getInstance(modalEl)?.hide();
-  });
-});
-
-let pendingMarkAllCompetency = null;
-
-// Keyboard nav (desktop)
-document.addEventListener("keydown", function (e) {
-  if (e.key === "Escape" && document.body.classList.contains("fullscreen-mode")) {
-    document.body.classList.remove("fullscreen-mode");
-    document.querySelector(".scroll-table-inner")?.classList.remove("fullscreen");
-    const fsBtn = document.getElementById("fullscreen-btn");
-    if (fsBtn) fsBtn.textContent = "🖥️ Full Screen";
-  }
-});
-
-document.addEventListener("keydown", function (e) {
-  const active = document.activeElement;
-  if (!active) return;
-  const isCheckbox = active.tagName === "INPUT" && active.type === "checkbox";
-  const isSelect = active.tagName === "SELECT";
-  if (!isCheckbox && !isSelect) return;
-
-  const row = parseInt(active.dataset.row);
-  const col = parseInt(active.dataset.col);
-  if (isNaN(row) || isNaN(col)) return;
-
-  const scrollY = window.scrollY;
-  let next = null;
-
-  // 0–4 quick select for selects
-  if (isSelect && ["0","1","2","3","4"].includes(e.key)) {
-    const index = parseInt(e.key);
-    if (index < active.options.length) {
-      active.selectedIndex = index;
-      active.dispatchEvent(new Event("change"));
-      e.preventDefault();
-      return;
-    }
-  }
-
-  // Arrow up/down for selects
-  if (isSelect && ["ArrowDown","ArrowUp"].includes(e.key)) {
-    e.preventDefault();
-    const dir = e.key === "ArrowDown" ? 1 : -1;
-    active.selectedIndex = Math.max(0, Math.min(active.options.length - 1, active.selectedIndex + dir));
-    active.dispatchEvent(new Event("change"));
-    return;
-  }
-
-  // Space / YN10 for checkboxes
-  if (isCheckbox && e.key === " ") {
-    e.preventDefault();
-    active.checked = !active.checked;
-    active.dispatchEvent(new Event("change"));
-    return;
-  }
-  if (isCheckbox && ["y","n","1","0"].includes(e.key.toLowerCase())) {
-    e.preventDefault();
-    active.checked = ["y","1"].includes(e.key.toLowerCase());
-    active.dispatchEvent(new Event("change"));
-    return;
-  }
-
-  // Tab left/right
-  if (e.key === "Tab") {
-    e.preventDefault();
-    const offset = e.shiftKey ? -1 : 1;
-    for (let i = col + offset; offset > 0 ? i < 100 : i >= 0; i += offset) {
-      const nextElem = document.querySelector(`[data-row="${row}"][data-col="${i}"]`);
-      if (nextElem) { next = nextElem; break; }
-    }
-  }
-  // Enter up/down
-  else if (e.key === "Enter") {
-    e.preventDefault();
-    const offset = e.shiftKey ? -1 : 1;
-    for (let r = row + offset; r >= 0 && r <= 100; r += offset) {
-      const nextElem = document.querySelector(`[data-row="${r}"][data-col="${col}"]`);
-      if (nextElem) { next = nextElem; break; }
-    }
-  }
-
-  if (next) {
-    next.focus();
-    window.scrollTo({ top: scrollY });
-  }
 });
 
 // === Achievements export via POST JSON (no giant GET) ===
@@ -836,9 +726,17 @@ function renderCompetency(rawCol) {
   const scenarioMode = isScenarioCol(rawCol);
 
   let html = `
-    <div class="p-3 border-bottom">
+    <div class="p-3 border-bottom d-flex flex-column gap-2">
       <div class="h6 mb-0">${rawCol}</div>
-      <div class="mob-subtle">${_students.length} student(s)</div>
+      <div class="d-flex align-items-center justify-content-between">
+        <div class="mob-subtle">${_students.length} student(s)</div>
+        ${scenarioMode ? '' : `
+          <div class="d-flex gap-2">
+            <button id="mobMarkAllBtn"  type="button" class="btn btn-sm btn-outline-success">Mark all</button>
+            <button id="mobClearAllBtn" type="button" class="btn btn-sm btn-outline-secondary">Clear all</button>
+          </div>
+        `}
+      </div>
     </div>
     <div>`;
 
@@ -852,17 +750,17 @@ function renderCompetency(rawCol) {
       <div>`;
 
     if (scenarioMode) {
-  html += `
-    <select class="form-select form-select-sm scenario-select"
-            data-type="scenario"
-            data-nsn="${s.NSN}"
-            data-header="${rawCol}">
-      ${_scenarios.map(sc => `
-        <option value="${sc.ScenarioID}" ${val == String(sc.ScenarioID) ? 'selected' : ''}>
-          ${sc.HTMLScenario}
-        </option>`).join('')}
-    </select>`;
-} else {
+      html += `
+        <select class="form-select form-select-sm scenario-select"
+                data-type="scenario"
+                data-nsn="${s.NSN}"
+                data-header="${rawCol}">
+          ${_scenarios.map(sc => `
+            <option value="${sc.ScenarioID}" ${val == String(sc.ScenarioID) ? 'selected' : ''}>
+              ${sc.HTMLScenario}
+            </option>`).join('')}
+        </select>`;
+    } else {
       html += `<input type="checkbox"
                      class="form-check-input ms-2"
                      data-type="checkbox"
@@ -906,6 +804,33 @@ function renderCompetency(rawCol) {
       } catch(e){ alert('Update failed'); console.error(e); }
     });
   });
+
+  // --- Mobile "Mark all" / "Clear all" (hidden for scenario columns)
+  if (!scenarioMode) {
+    const markBtn  = document.getElementById('mobMarkAllBtn');
+    const clearBtn = document.getElementById('mobClearAllBtn');
+
+    const displayName = rawCol.replace(/<br\s*\/?>/gi, ' ').trim();
+    const dependents  = _autofill[rawCol] || [];
+
+    markBtn?.addEventListener('click', () => {
+      openMarkAllConfirm({
+        source: 'mobile-mark',
+        displayName,
+        colRaw: rawCol,
+        dependents
+      });
+    });
+
+    clearBtn?.addEventListener('click', () => {
+      openMarkAllConfirm({
+        source: 'mobile-clear',
+        displayName: `Clear ${displayName}`,
+        colRaw: rawCol,
+        dependents: [] // clearing doesn't cascade
+      });
+    });
+  }
 }
 
 /* View switch */
@@ -930,6 +855,71 @@ compSel?.addEventListener('change', e => renderCompetency(e.target.value));
 if (_students.length) renderStudent(0);
 if (_compCols.length) renderCompetency(_compCols[0]);
 
+/* ===== Unified Mark-All confirm flow (desktop + mobile) ===== */
+let pendingMarkAllAction = null;
+
+function openMarkAllConfirm({ source, displayName, colRaw, dependents }) {
+  // Modal title/body fill
+  document.getElementById("mark-all-column-name").textContent = displayName;
+
+  const autofillDiv = document.getElementById("autofill-affected");
+  if (dependents && dependents.length) {
+    const list = dependents.map(d => `<li>${d.replace(/<br\s*\/?>/gi, ' ')}</li>`).join('');
+    autofillDiv.innerHTML = `
+      <div class="alert alert-warning p-2 mt-2">
+        <strong>Note:</strong> This will also mark the following competencies as achieved:
+        <ul class="mb-0">${list}</ul>
+      </div>`;
+  } else {
+    autofillDiv.innerHTML = "";
+  }
+
+  pendingMarkAllAction = { source, colRaw };
+  new bootstrap.Modal(document.getElementById('markAllConfirmModal')).show();
+}
+
+document.getElementById("confirm-mark-all-btn").addEventListener("click", function () {
+  if (!pendingMarkAllAction) return;
+
+  const { source, colRaw } = pendingMarkAllAction;
+
+  // helper to safely build selector for data-header="...":
+  const headerSelector = (raw) => `[data-header="${String(raw).replace(/"/g, '\\"')}"]`;
+
+  if (source === 'desktop-mark') {
+    // Desktop: tick all checkboxes in that column in the big table
+    document.querySelectorAll(`input[type="checkbox"][name="competency"]`).forEach(cb => {
+      if (cb.dataset.competency?.trim() === colRaw && !cb.checked) {
+        cb.checked = true;
+        cb.dispatchEvent(new Event("change"));
+      }
+    });
+  }
+
+  if (source === 'mobile-mark') {
+    // Mobile: tick all checkboxes for this competency inside the mobile list
+    compList.querySelectorAll(`input[type="checkbox"]${headerSelector(colRaw)}`).forEach(cb => {
+      if (!cb.checked) {
+        cb.checked = true;
+        cb.dispatchEvent(new Event("change"));
+      }
+    });
+  }
+
+  if (source === 'mobile-clear') {
+    // Mobile: untick all checkboxes for this competency
+    compList.querySelectorAll(`input[type="checkbox"]${headerSelector(colRaw)}`).forEach(cb => {
+      if (cb.checked) {
+        cb.checked = false;
+        cb.dispatchEvent(new Event("change"));
+      }
+    });
+  }
+
+  pendingMarkAllAction = null;
+  bootstrap.Modal.getInstance(document.getElementById('markAllConfirmModal'))?.hide();
+});
+
 /* ===== Device-aware Help modal ===== */
 function isPhone() { return window.matchMedia('(max-width: 767.98px)').matches; }
 
@@ -938,6 +928,7 @@ const helpPhoneHTML = `
   <ul>
     <li>Use the toggle at the top to switch between <strong>By Student</strong> and <strong>By Competency</strong>.</li>
     <li>Tap checkboxes to mark achievements. Scenario dropdowns let you select a scenario.</li>
+    <li>Use <strong>Mark all / Clear all</strong> in the By Competency header to quickly update the whole list.</li>
     <li>Long lists scroll vertically. The big grid is hidden on mobile to make it easier.</li>
   </ul>
   <h6 class="fw-bold mt-3">Other</h6>
@@ -978,6 +969,89 @@ document.getElementById('helpModal').addEventListener('show.bs.modal', () => {
 window.addEventListener('resize', () => {
   if (document.getElementById('helpModal')?.classList.contains('show')) {
     helpBody.innerHTML = isPhone() ? helpPhoneHTML : helpDesktopHTML;
+  }
+});
+
+/* ===== Keyboard nav (desktop) ===== */
+document.addEventListener("keydown", function (e) {
+  if (e.key === "Escape" && document.body.classList.contains("fullscreen-mode")) {
+    document.body.classList.remove("fullscreen-mode");
+    document.querySelector(".scroll-table-inner")?.classList.remove("fullscreen");
+    const fsBtn = document.getElementById("fullscreen-btn");
+    if (fsBtn) fsBtn.textContent = "🖥️ Full Screen";
+  }
+});
+
+document.addEventListener("keydown", function (e) {
+  const active = document.activeElement;
+  if (!active) return;
+  const isCheckbox = active.tagName === "INPUT" && active.type === "checkbox";
+  const isSelect = active.tagName === "SELECT";
+  if (!isCheckbox && !isSelect) return;
+
+  const row = parseInt(active.dataset.row);
+  const col = parseInt(active.dataset.col);
+  if (isNaN(row) || isNaN(col)) return;
+
+  const scrollY = window.scrollY;
+  let next = null;
+
+  // 0–4 quick select for selects
+  if (isSelect && ["0","1","2","3","4"].includes(e.key)) {
+    const index = parseInt(e.key);
+    if (index < active.options.length) {
+      active.selectedIndex = index;
+      active.dispatchEvent(new Event("change"));
+      e.preventDefault();
+      return;
+    }
+  }
+
+  // Arrow up/down for selects
+  if (isSelect && ["ArrowDown","ArrowUp"].includes(e.key)) {
+    e.preventDefault();
+    const dir = e.key === "ArrowDown" ? 1 : -1;
+    active.selectedIndex = Math.max(0, Math.min(active.options.length - 1, active.selectedIndex + dir));
+    active.dispatchEvent(new Event("change"));
+    return;
+  }
+
+  // Space / YN10 for checkboxes
+  if (isCheckbox && e.key === " ") {
+    e.preventDefault();
+    active.checked = !active.checked;
+    active.dispatchEvent(new Event("change"));
+    return;
+  }
+  if (isCheckbox && ["y","n","1","0"].includes(e.key.toLowerCase())) {
+    e.preventDefault();
+    active.checked = ["y","1"].includes(e.key.toLowerCase());
+    active.dispatchEvent(new Event("change"));
+    return;
+  }
+
+  // Tab left/right
+  if (e.key === "Tab") {
+    e.preventDefault();
+    const offset = e.shiftKey ? -1 : 1;
+    for (let i = col + offset; offset > 0 ? i < 100 : i >= 0; i += offset) {
+      const nextElem = document.querySelector(`[data-row="${row}"][data-col="${i}"]`);
+      if (nextElem) { next = nextElem; break; }
+    }
+  }
+  // Enter up/down
+  else if (e.key === "Enter") {
+    e.preventDefault();
+    const offset = e.shiftKey ? -1 : 1;
+    for (let r = row + offset; r >= 0 && r <= 100; r += offset) {
+      const nextElem = document.querySelector(`[data-row="${r}"][data-col="${col}"]`);
+      if (nextElem) { next = nextElem; break; }
+    }
+  }
+
+  if (next) {
+    next.focus();
+    window.scrollTo({ top: scrollY });
   }
 });
 </script>
