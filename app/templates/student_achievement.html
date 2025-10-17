@@ -3,6 +3,7 @@
 
 {% block content %}
 <style>
+/* ---------- Desktop layout (unchanged) ---------- */
 html, body {
   height: 100%;
   margin: 0;
@@ -42,6 +43,60 @@ select option { white-space: normal; word-break: break-word; }
 .list-group-item { border: none; }
 .sticky-horizontal-scroll { position: sticky; bottom: 0; z-index: 20; overflow-x: auto; background: white; border-top: 1px solid #dee2e6; }
 .scroll-inner-x { width: max-content; }
+
+/* ---------- Mobile layer (new) ---------- */
+#mobile-views { display: none; }
+#desktop-table { display: block; }
+
+@media (max-width: 767.98px) {
+  /* Hide desktop grid, show mobile UI */
+  #desktop-table { display: none !important; }
+  #mobile-views { display: block; }
+
+  /* Let the page scroll normally on phones */
+  html, body { overflow: auto; height: auto; }
+  .page-wrapper { height: auto; }
+}
+
+/* Mobile cards/rows */
+.mob-card { border:1px solid #e9ecef; border-radius:.75rem; background:#fff; box-shadow:0 1px 2px rgba(0,0,0,.04); }
+.mob-row { display:flex; justify-content:space-between; align-items:center; padding:.5rem .75rem; border-bottom:1px dashed #eef2f6; gap:.75rem; }
+.mob-row:last-child{ border-bottom:none; }
+.mob-label { font-size:.95rem; }
+.mob-subtle { color:#6c757d; font-size:.875rem; }
+
+/* Sticky toggle at top of phone view */
+.mob-stuck { position: sticky; top: calc(var(--navbar-h, 56px) + 8px); z-index: 5; }
+
+
+@media (max-width: 767.98px) {
+  .mob-row {
+    display: flex;
+    flex-direction: column;     /* label on top, control below */
+    align-items: stretch;
+    gap: .35rem;
+    padding: .6rem .75rem;
+    border-bottom: 1px dashed #eef2f6;
+  }
+  .mob-row .mob-label {
+    line-height: 1.25;
+    word-break: break-word;
+  }
+  .mob-row .form-select {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    padding: .4rem .6rem;
+    font-size: .95rem;
+    line-height: 1.2;
+  }
+  /* iOS Safari quirk: ensure full width */
+  @supports (-webkit-touch-callout: none) {
+    .mob-row .form-select { width: -webkit-fill-available; }
+  }
+}
 </style>
 
 <div class="page-wrapper d-flex flex-column">
@@ -82,7 +137,10 @@ select option { white-space: normal; word-break: break-word; }
            class="btn btn-sm btn-outline-secondary {% if order_by == 'first' %}active{% endif %}">Sort by First Name</a>
         <a href="{{ url_for('class_bp.view_class', class_id=class_id, term=term, year=year, filter=filter_type, order_by='last') }}"
            class="btn btn-sm btn-outline-secondary {% if order_by == 'last' %}active{% endif %}">Sort by Last Name</a>
-        <button id="fullscreen-btn" class="btn btn-sm btn-outline-secondary" onclick="toggleFullScreen()">🖥️ Full Screen</button>
+
+        <!-- Hidden on phones, shown on md+ -->
+        <button id="fullscreen-btn" class="btn btn-sm btn-outline-secondary d-none d-md-inline-flex" onclick="toggleFullScreen()">🖥️ Full Screen</button>
+
         <a class="btn btn-sm btn-outline-secondary"
            href="{{ url_for('class_bp.print_class_view', class_id=class_id, term=term, year=year, filter=filter_type, order_by=order_by) }}"
            target="_blank">🖨️ Print</a>
@@ -119,194 +177,225 @@ select option { white-space: normal; word-break: break-word; }
     </div>
   </div>
 
-  <!-- Scrollable Table -->
-  <div class="scroll-table-wrapper">
-    <div class="scroll-table-inner">
-      <table id="studentsTable" class="table table-sm">
-        <thead>
-          <tr>
-            <th class="col-0">Last Name</th>
-            <th class="col-1">Preferred Name</th>
-            <th class="col-2">Year Level</th>
-            {% for col in columns[3:] %}
-              {% set normalized_col = col|replace('&lt;br&gt;', '<br>') %}
-              <th>
-                <div class="mark-all-wrapper">
-                  <div class="header-label text-center">
-                    {{ col|safe }}
-                    {% if "Scenario" not in col %}
-                      <br>
-                      <button type="button"
-                              class="btn btn-xs btn-outline-success mt-1 mark-all-btn"
-                              data-colraw="{{ col }}"
-                              data-competencyid="{{ competency_id_map[normalized_col] if normalized_col in competency_id_map else '' }}">
-                        Mark All
-                      </button>
-                    {% elif "Scenario" in col and "Selected" in col %}
-                      <br>
-                      <a href="#" class="small" data-bs-toggle="modal" data-bs-target="#scenarioModal">View full descriptions</a>
-                    {% endif %}
-                  </div>
-                </div>
-              </th>
-            {% endfor %}
-          </tr>
-        </thead>
-        <tbody>
-          {% for student in students %}
-            {% set row_index = loop.index0 %}
+  <!-- DESKTOP: Scrollable Table (unchanged, just wrapped) -->
+  <div id="desktop-table">
+    <div class="scroll-table-wrapper">
+      <div class="scroll-table-inner">
+        <table id="studentsTable" class="table table-sm">
+          <thead>
             <tr>
-              <td class="col-0">{{ student.LastName }}</td>
-              <td class="col-1">{{ student.PreferredName }}</td>
-              <td class="col-2">{{ student.YearLevelID }}</td>
+              <th class="col-0">Last Name</th>
+              <th class="col-1">Preferred Name</th>
+              <th class="col-2">Year Level</th>
               {% for col in columns[3:] %}
-                {% set val = student[col]|default('')|string|trim %}
-                {% set unescaped_col = col|replace('&lt;br&gt;', '<br>') %}
-                <td>
-                  {% if col in ["Scenario One - Selected <br>(7-8)", "Scenario Two - Selected <br>(7-8)"] %}
-                    <select class="form-control"
-                            data-nsn="{{ student.NSN }}"
-                            data-header="{{ col }}"
-                            data-scenario-index="{{ 1 if 'Scenario One' in col else 2 }}"
-                            data-row="{{ row_index }}"
-                            data-col="{{ loop.index0 }}">
-                      {% for scenario in scenarios %}
-                        <option value="{{ scenario.ScenarioID }}" {% if val == scenario.ScenarioID|string %}selected{% endif %}>
-                          {{ scenario.HTMLScenario | safe }}
-                        </option>
-                      {% endfor %}
-                    </select>
-                  {% else %}
-                    <input type="checkbox"
-                           tabindex="0"
-                           data-row="{{ row_index }}"
-                           data-col="{{ loop.index0 }}"
-                           name="competency"
-                           data-nsn="{{ student.NSN }}"
-                           data-competency="{{ col }}"
-                           data-competencyid="{{ competency_id_map[unescaped_col]['CompetencyID'] if unescaped_col in competency_id_map else '' }}"
-                           data-yeargroupid="{{ competency_id_map[unescaped_col]['YearGroupID'] if unescaped_col in competency_id_map else '' }}"
-                           {% if val in ["Y", "1", 1] %}checked{% endif %} />
-                  {% endif %}
-                </td>
+                {% set normalized_col = col|replace('&lt;br&gt;', '<br>') %}
+                <th>
+                  <div class="mark-all-wrapper">
+                    <div class="header-label text-center">
+                      {{ col|safe }}
+                      {% if "Scenario" not in col %}
+                        <br>
+                        <button type="button"
+                                class="btn btn-xs btn-outline-success mt-1 mark-all-btn"
+                                data-colraw="{{ col }}"
+                                data-competencyid="{{ competency_id_map[normalized_col] if normalized_col in competency_id_map else '' }}">
+                          Mark All
+                        </button>
+                      {% elif "Scenario" in col and "Selected" in col %}
+                        <br>
+                        <a href="#" class="small" data-bs-toggle="modal" data-bs-target="#scenarioModal">View full descriptions</a>
+                      {% endif %}
+                    </div>
+                  </div>
+                </th>
               {% endfor %}
             </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- Modals (Mark All, Help, Scenarios, Fullscreen) -->
-  <div class="modal fade" id="markAllConfirmModal" tabindex="-1" aria-labelledby="markAllConfirmLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content text-center">
-        <div class="modal-header">
-          <h5 class="modal-title" id="markAllConfirmLabel">Confirm Mark All</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          This will mark all checkboxes in the <strong><span id="mark-all-column-name">selected column</span></strong> as achieved.<br>
-          <div id="autofill-affected" class="mt-2 text-start"></div>
-          Are you sure you want to continue?
-        </div>
-        <div class="modal-footer justify-content-center">
-          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
-          <button id="confirm-mark-all-btn" type="button" class="btn btn-success btn-sm">Yes, mark all</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="modal fade" id="helpModal" tabindex="-1" aria-labelledby="helpModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="helpModalLabel">Help & Keyboard Shortcuts</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body small">
-          <h6 class="fw-bold">Keyboard Navigation</h6>
-          <ul>
-            <li><strong>Tab</strong>/<strong>Shift+Tab</strong> – move sideways between checkboxes</li>
-            <li><strong>Enter</strong>/<strong>Shift+Enter</strong> – move down/up between rows</li>
-            <li><strong>Space</strong> – toggle a checkbox</li>
-            <li>You can also <strong>click checkboxes</strong> to toggle them manually</li>
-          </ul>
-          <h6 class="fw-bold mt-3">Other Features</h6>
-          <ul>
-            <li><strong>🖨️ Print</strong> – generates a printable version of the table</li>
-            <li><strong>🖥️ Full Screen</strong> – expands the table to fill the screen for easier data entry</li>
-            <li><strong>Sort by First/Last Name</strong> – reorders students alphabetically</li>
-          </ul>
-          {% if students | selectattr("YearLevelID", "in", [7, 8]) | list | length > 0 %}
-          <h6 class="fw-bold mt-3">Scenarios</h6>
-          <ul>
-            <li>Use the dropdowns to select which scenario a student is assigned to.</li>
-            <li>You can press the number keys <strong>0–4</strong> to quickly select a scenario.</li>
-            <li>Use <strong>Arrow Up</strong> and <strong>Arrow Down</strong> keys to scroll through scenario options.</li>
-            <li>Use <strong>Tab</strong> or <strong>Shift+Tab</strong> to move between dropdowns and checkboxes.</li>
-            <li>If you’re unsure about a scenario, click <strong>“View full descriptions”</strong> above the dropdown to open a detailed explanation.</li>
-          </ul>
-          {% endif %}
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="modal fade" id="scenarioModal" tabindex="-1" aria-labelledby="scenarioModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="scenarioModalLabel">Scenario Descriptions</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <ul class="list-group">
-            {% for s in scenarios %}
-            <li class="list-group-item">
-              <strong>Scenario {{ s.ScenarioID }}: {{ s.HTMLScenario | safe }}</strong>
-              <p class="mb-0">{{ s.Description }}</p>
-            </li>
+          </thead>
+          <tbody>
+            {% for student in students %}
+              {% set row_index = loop.index0 %}
+              <tr>
+                <td class="col-0">{{ student.LastName }}</td>
+                <td class="col-1">{{ student.PreferredName }}</td>
+                <td class="col-2">{{ student.YearLevelID }}</td>
+                {% for col in columns[3:] %}
+                  {% set val = student[col]|default('')|string|trim %}
+                  {% set unescaped_col = col|replace('&lt;br&gt;', '<br>') %}
+                  <td>
+                    {% if col in ["Scenario One - Selected <br>(7-8)", "Scenario Two - Selected <br>(7-8)"] %}
+                      <select class="form-control"
+                              data-nsn="{{ student.NSN }}"
+                              data-header="{{ col }}"
+                              data-scenario-index="{{ 1 if 'Scenario One' in col else 2 }}"
+                              data-row="{{ row_index }}"
+                              data-col="{{ loop.index0 }}">
+                        {% for scenario in scenarios %}
+                          <option value="{{ scenario.ScenarioID }}" {% if val == scenario.ScenarioID|string %}selected{% endif %}>
+                            {{ scenario.HTMLScenario | safe }}
+                          </option>
+                        {% endfor %}
+                      </select>
+                    {% else %}
+                      <input type="checkbox"
+                            tabindex="0"
+                            data-row="{{ row_index }}"
+                            data-col="{{ loop.index0 }}"
+                            name="competency"
+                            data-nsn="{{ student.NSN }}"
+                            data-competency="{{ col }}"
+                            data-competencyid="{{ competency_id_map[unescaped_col]['CompetencyID'] if unescaped_col in competency_id_map else '' }}"
+                            data-yeargroupid="{{ competency_id_map[unescaped_col]['YearGroupID'] if unescaped_col in competency_id_map else '' }}"
+                            {% if val in ["Y", "1", 1] %}checked{% endif %} />
+                    {% endif %}
+                  </td>
+                {% endfor %}
+              </tr>
             {% endfor %}
-          </ul>
-        </div>
+          </tbody>
+        </table>
       </div>
     </div>
-  </div>
 
-  <div class="modal fade" id="fullscreenModal" tabindex="-1" aria-labelledby="fullscreenModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content text-center">
-        <div class="modal-header">
-          <h5 class="modal-title" id="fullscreenModalLabel">Full Screen Mode</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          You have entered full screen mode.<br>
-          Press <strong>Esc</strong> or click below to exit full screen.<br><br>
-          <div class="d-flex justify-content-center gap-3">
-            <button class="btn btn-outline-secondary btn-sm" onclick="exitFullScreenViaModal()">Exit Full Screen</button>
-            <button class="btn btn-primary btn-sm" data-bs-dismiss="modal">Continue</button>
-          </div>
-        </div>
+    <!-- Sticky horizontal scrollbar -->
+    <div id="horizontal-scrollbar" class="sticky-horizontal-scroll">
+      <div class="scroll-inner-x"><div id="scroll-sync-bar" style="height: 1px;"></div></div>
+    </div>
+  </div><!-- /#desktop-table -->
+
+  <!-- MOBILE: Two views (By Student / By Competency) -->
+  <div id="mobile-views" class="container px-2 pb-4">
+    <!-- Toggle -->
+    <div class="mob-stuck bg-transparent mb-3">
+      <div class="btn-group w-100" role="group" aria-label="Mobile view switch">
+        <input type="radio" class="btn-check" name="mobView" id="viewByStudent" autocomplete="off" checked>
+        <label class="btn btn-outline-primary" for="viewByStudent">By Student</label>
+
+        <input type="radio" class="btn-check" name="mobView" id="viewByCompetency" autocomplete="off">
+        <label class="btn btn-outline-primary" for="viewByCompetency">By Competency</label>
       </div>
     </div>
-  </div>
 
-  <!-- Sticky horizontal scrollbar -->
-  <div id="horizontal-scrollbar" class="sticky-horizontal-scroll">
-    <div class="scroll-inner-x"><div id="scroll-sync-bar" style="height: 1px;"></div></div>
-  </div>
+    <!-- BY STUDENT -->
+    <div id="mob-student-view">
+      <div class="mb-2">
+        <label for="mobStudentSel" class="form-label mb-1">Student</label>
+        <select id="mobStudentSel" class="form-select">
+          {% for s in students %}
+            <option value="{{ loop.index0 }}">{{ s.PreferredName }} {{ s.LastName }} (Y{{ s.YearLevelID }})</option>
+          {% endfor %}
+        </select>
+        <div class="mob-subtle mt-1">{{ students|length }} student(s)</div>
+      </div>
+
+      <div id="mobStudentCard" class="mob-card p-2">
+        <!-- JS injects the selected student's competencies here -->
+      </div>
+    </div>
+
+    <!-- BY COMPETENCY -->
+    <div id="mob-competency-view" style="display:none;">
+      <div class="mb-2">
+        <label for="mobCompSel" class="form-label mb-1">Competency</label>
+        <select id="mobCompSel" class="form-select">
+          {% for col in columns[3:] %}
+            <option value="{{ col|replace('&lt;br&gt;','<br>') }}">{{ col|safe }}</option>
+          {% endfor %}
+        </select>
+        <div class="mob-subtle mt-1">{{ students|length }} student(s)</div>
+      </div>
+
+      <div id="mobCompList" class="mob-card">
+        <!-- JS injects rows of students for the selected competency here -->
+      </div>
+    </div>
+  </div><!-- /#mobile-views -->
+
 </div> <!-- END .page-wrapper -->
 
+<!-- Modals (Mark All, Help, Scenarios, Fullscreen) -->
+<div class="modal fade" id="markAllConfirmModal" tabindex="-1" aria-labelledby="markAllConfirmLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content text-center">
+      <div class="modal-header">
+        <h5 class="modal-title" id="markAllConfirmLabel">Confirm Mark All</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        This will mark all checkboxes in the <strong><span id="mark-all-column-name">selected column</span></strong> as achieved.<br>
+        <div id="autofill-affected" class="mt-2 text-start"></div>
+        Are you sure you want to continue?
+      </div>
+      <div class="modal-footer justify-content-center">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+        <button id="confirm-mark-all-btn" type="button" class="btn btn-success btn-sm">Yes, mark all</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- HELP: content is injected per device -->
+<div class="modal fade" id="helpModal" tabindex="-1" aria-labelledby="helpModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="helpModalLabel">Help</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div id="helpModalBody" class="modal-body small">
+        <!-- JS fills this with phone vs desktop content -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="scenarioModal" tabindex="-1" aria-labelledby="scenarioModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="scenarioModalLabel">Scenario Descriptions</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <ul class="list-group">
+          {% for s in scenarios %}
+          <li class="list-group-item">
+            <strong>Scenario {{ s.ScenarioID }}: {{ s.HTMLScenario | safe }}</strong>
+            <p class="mb-0">{{ s.Description }}</p>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="fullscreenModal" tabindex="-1" aria-labelledby="fullscreenModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content text-center">
+      <div class="modal-header">
+        <h5 class="modal-title" id="fullscreenModalLabel">Full Screen Mode</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        You have entered full screen mode.<br>
+        Press <strong>Esc</strong> or click below to exit full screen.<br><br>
+        <div class="d-flex justify-content-center gap-3">
+          <button class="btn btn-outline-secondary btn-sm" onclick="exitFullScreenViaModal()">Exit Full Screen</button>
+          <button class="btn btn-primary btn-sm" data-bs-dismiss="modal">Continue</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
+/* ===== Reuse existing server-side data ===== */
 const autofillMap = {{ autofill_map | tojson }};
 const classId = {{ class_id | tojson }};
 const term = {{ term | tojson }};
 const year = {{ year | tojson }};
-let pendingMarkAllCompetency = null;
 
+/* ===== Desktop handlers (unchanged) ===== */
 function toggleEditMode(editing) {
   const displayBox = document.getElementById("class-info-display");
   const editBox = document.getElementById("class-info-edit");
@@ -320,7 +409,8 @@ function toggleEditMode(editing) {
 function exitFullScreenViaModal() {
   document.body.classList.remove("fullscreen-mode");
   document.querySelector(".scroll-table-inner")?.classList.remove("fullscreen");
-  document.getElementById("fullscreen-btn").textContent = "🖥️ Full Screen";
+  const fsBtn = document.getElementById("fullscreen-btn");
+  if (fsBtn) fsBtn.textContent = "🖥️ Full Screen";
   const modal = bootstrap.Modal.getInstance(document.getElementById('fullscreenModal'));
   modal?.hide();
 }
@@ -406,14 +496,14 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 });
 
-// Fullscreen toggle
+// Fullscreen toggle (guarded if button hidden)
 function toggleFullScreen() {
   const scrollInner = document.querySelector(".scroll-table-inner");
   const btn = document.getElementById("fullscreen-btn");
   const isNowFull = !document.body.classList.contains("fullscreen-mode");
   document.body.classList.toggle("fullscreen-mode", isNowFull);
   scrollInner.classList.toggle("fullscreen", isNowFull);
-  btn.textContent = isNowFull ? "↩️ Exit Full Screen" : "🖥️ Full Screen";
+  if (btn) btn.textContent = isNowFull ? "↩️ Exit Full Screen" : "🖥️ Full Screen";
   if (isNowFull) {
     const modal = new bootstrap.Modal(document.getElementById('fullscreenModal'));
     modal.show();
@@ -488,12 +578,15 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 });
 
-// Keyboard nav
+let pendingMarkAllCompetency = null;
+
+// Keyboard nav (desktop)
 document.addEventListener("keydown", function (e) {
   if (e.key === "Escape" && document.body.classList.contains("fullscreen-mode")) {
     document.body.classList.remove("fullscreen-mode");
     document.querySelector(".scroll-table-inner")?.classList.remove("fullscreen");
-    document.getElementById("fullscreen-btn").textContent = "🖥️ Full Screen";
+    const fsBtn = document.getElementById("fullscreen-btn");
+    if (fsBtn) fsBtn.textContent = "🖥️ Full Screen";
   }
 });
 
@@ -582,12 +675,12 @@ document.addEventListener("DOMContentLoaded", () => {
       statusEl.textContent = "Preparing export…";
 
       const payload = {
-  class_id: {{ class_id|tojson }},
-  term: {{ term|tojson }},
-  year: {{ year|tojson }},
-  rows: {{ students|tojson }},
-  column_order: {{ (columns[3:]) | tojson }}   // 👈 add this
-};
+        class_id: {{ class_id|tojson }},
+        term: {{ term|tojson }},
+        year: {{ year|tojson }},
+        rows: {{ students|tojson }},
+        column_order: {{ (columns[3:]) | tojson }}
+      };
 
       const res = await fetch("{{ url_for('class_bp.export_achievements_excel') }}", {
         method: "POST",
@@ -609,9 +702,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const disp = res.headers.get("Content-Disposition") || res.headers.get("content-disposition");
       if (disp) {
         const match = /filename\*=UTF-8''([^;]+)|filename="?([^\";]+)"?/i.exec(disp);
-        if (match) {
-          filename = decodeURIComponent(match[1] || match[2]);
-        }
+        if (match) filename = decodeURIComponent(match[1] || match[2]);
       }
 
       const url = URL.createObjectURL(blob);
@@ -635,6 +726,259 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 });
-</script>
 
+/* ===== Mobile layer ===== */
+const _students = {{ students|tojson }};
+const _columns  = {{ columns|tojson }};
+const _compCols = _columns.slice(3);
+const _scenarios = {{ scenarios|tojson }};
+const _autofill = {{ autofill_map|tojson }};
+const _classId = {{ class_id|tojson }};
+const _term = {{ term|tojson }};
+const _year = {{ year|tojson }};
+
+function normalizeColKey(raw) { return String(raw).replace(/&lt;br&gt;|<br\s*\/?>/gi, '<br>'); }
+function isScenarioCol(col)   { return /Scenario (One|Two)\s*-\s*Selected/i.test(col); }
+
+async function postJSON(url, payload) {
+  const res = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+/* BY STUDENT */
+const studentSel = document.getElementById('mobStudentSel');
+const studentCard = document.getElementById('mobStudentCard');
+
+function renderStudent(index) {
+  const s = _students[index];
+  if (!s) { studentCard.innerHTML = '<div class="p-3 text-muted">No student.</div>'; return; }
+
+  let html = `
+    <div class="p-3 border-bottom">
+      <div class="h6 mb-0">${s.PreferredName} ${s.LastName}</div>
+      <div class="mob-subtle">Year ${s.YearLevelID}</div>
+    </div>
+  `; // NSN intentionally not shown
+
+  _compCols.forEach((rawCol) => {
+    const val = (s[rawCol] ?? '').toString().trim();
+
+    if (isScenarioCol(rawCol)) {
+      html += `
+        <div class="mob-row">
+          <div class="mob-label">${rawCol}</div>
+          <select class="form-select form-select-sm w-auto"
+                  data-type="scenario"
+                  data-nsn="${s.NSN}"
+                  data-header="${rawCol}">
+            ${_scenarios.map(sc => `
+              <option value="${sc.ScenarioID}" ${val == String(sc.ScenarioID) ? 'selected':''}>
+                ${sc.HTMLScenario}
+              </option>`).join('')}
+          </select>
+        </div>`;
+    } else {
+      html += `
+        <div class="mob-row">
+          <div class="mob-label">${rawCol}</div>
+          <input type="checkbox"
+                 class="form-check-input ms-2"
+                 data-type="checkbox"
+                 data-nsn="${s.NSN}"
+                 data-header="${rawCol}"
+                 ${['Y','1',1,true].includes(val) ? 'checked':''} />
+        </div>`;
+    }
+  });
+
+  studentCard.innerHTML = html;
+
+  // wire events
+  studentCard.querySelectorAll('[data-type="checkbox"]').forEach(cb => {
+    cb.addEventListener('change', async function() {
+      try {
+        const nsn = this.dataset.nsn;
+        const header = this.dataset.header;
+        const status = this.checked ? 1 : 0;
+        await postJSON('/update_competency', { nsn, header_name: header, status, class_id:_classId, term:_term, year:_year });
+
+        if (status === 1 && _autofill[header]) {
+          for (const dep of _autofill[header]) {
+            const target = studentCard.querySelector(`[data-type="checkbox"][data-nsn="${nsn}"][data-header="${dep}"]`);
+            if (target && !target.checked) {
+              target.checked = true;
+              target.dispatchEvent(new Event('change'));
+            }
+          }
+        }
+      } catch(e){ alert('Update failed'); console.error(e); }
+    });
+  });
+
+  studentCard.querySelectorAll('[data-type="scenario"]').forEach(sel => {
+    sel.addEventListener('change', async function() {
+      try {
+        const nsn = this.dataset.nsn;
+        const header = this.dataset.header;
+        const value = parseInt(this.value);
+        await postJSON('/update_scenario', { nsn, header, value, class_id:_classId, term:_term, year:_year });
+      } catch(e){ alert('Update failed'); console.error(e); }
+    });
+  });
+}
+
+/* BY COMPETENCY */
+const compSel = document.getElementById('mobCompSel');
+const compList = document.getElementById('mobCompList');
+
+function renderCompetency(rawCol) {
+  const scenarioMode = isScenarioCol(rawCol);
+
+  let html = `
+    <div class="p-3 border-bottom">
+      <div class="h6 mb-0">${rawCol}</div>
+      <div class="mob-subtle">${_students.length} student(s)</div>
+    </div>
+    <div>`;
+
+  _students.forEach(s => {
+    const val = (s[rawCol] ?? '').toString().trim();
+    html += `<div class="mob-row">
+      <div>
+        <div class="mob-label">${s.PreferredName} ${s.LastName}</div>
+        <div class="mob-subtle">Y${s.YearLevelID}</div>
+      </div>
+      <div>`;
+
+    if (scenarioMode) {
+  html += `
+    <select class="form-select form-select-sm scenario-select"
+            data-type="scenario"
+            data-nsn="${s.NSN}"
+            data-header="${rawCol}">
+      ${_scenarios.map(sc => `
+        <option value="${sc.ScenarioID}" ${val == String(sc.ScenarioID) ? 'selected' : ''}>
+          ${sc.HTMLScenario}
+        </option>`).join('')}
+    </select>`;
+} else {
+      html += `<input type="checkbox"
+                     class="form-check-input ms-2"
+                     data-type="checkbox"
+                     data-nsn="${s.NSN}"
+                     data-header="${rawCol}"
+                     ${['Y','1',1,true].includes(val) ? 'checked':''} />`;
+    }
+
+    html += `</div></div>`;
+  });
+
+  html += `</div>`;
+  compList.innerHTML = html;
+
+  // wire events
+  compList.querySelectorAll('[data-type="checkbox"]').forEach(cb => {
+    cb.addEventListener('change', async function() {
+      try {
+        const nsn = this.dataset.nsn;
+        const header = this.dataset.header;
+        const status = this.checked ? 1 : 0;
+        await postJSON('/update_competency', { nsn, header_name: header, status, class_id:_classId, term:_term, year:_year });
+
+        if (status === 1 && _autofill[header]) {
+          // Mark dependents for THIS student server-side quietly
+          for (const dep of _autofill[header]) {
+            await postJSON('/update_competency', { nsn, header_name: dep, status: 1, class_id:_classId, term:_term, year:_year });
+          }
+        }
+      } catch(e){ alert('Update failed'); console.error(e); }
+    });
+  });
+
+  compList.querySelectorAll('[data-type="scenario"]').forEach(sel => {
+    sel.addEventListener('change', async function() {
+      try {
+        const nsn = this.dataset.nsn;
+        const header = this.dataset.header;
+        const value = parseInt(this.value);
+        await postJSON('/update_scenario', { nsn, header, value, class_id:_classId, term:_term, year:_year });
+      } catch(e){ alert('Update failed'); console.error(e); }
+    });
+  });
+}
+
+/* View switch */
+const viewByStudent = document.getElementById('viewByStudent');
+const viewByCompetency = document.getElementById('viewByCompetency');
+const studentView = document.getElementById('mob-student-view');
+const compView = document.getElementById('mob-competency-view');
+
+viewByStudent.addEventListener('change', () => {
+  studentView.style.display = 'block';
+  compView.style.display = 'none';
+});
+viewByCompetency.addEventListener('change', () => {
+  studentView.style.display = 'none';
+  compView.style.display = 'block';
+});
+
+studentSel?.addEventListener('change', e => renderStudent(parseInt(e.target.value)));
+compSel?.addEventListener('change', e => renderCompetency(e.target.value));
+
+// initial renders
+if (_students.length) renderStudent(0);
+if (_compCols.length) renderCompetency(_compCols[0]);
+
+/* ===== Device-aware Help modal ===== */
+function isPhone() { return window.matchMedia('(max-width: 767.98px)').matches; }
+
+const helpPhoneHTML = `
+  <h6 class="fw-bold">On your phone</h6>
+  <ul>
+    <li>Use the toggle at the top to switch between <strong>By Student</strong> and <strong>By Competency</strong>.</li>
+    <li>Tap checkboxes to mark achievements. Scenario dropdowns let you select a scenario.</li>
+    <li>Long lists scroll vertically. The big grid is hidden on mobile to make it easier.</li>
+  </ul>
+  <h6 class="fw-bold mt-3">Other</h6>
+  <ul>
+    <li><strong>Export</strong> lets you download Excel files.</li>
+    <li><strong>Print</strong> opens a printer-friendly view.</li>
+  </ul>
+`;
+
+const helpDesktopHTML = `
+  <h6 class="fw-bold">Keyboard Navigation (Desktop)</h6>
+  <ul>
+    <li><strong>Tab</strong>/<strong>Shift+Tab</strong> – move sideways between checkboxes</li>
+    <li><strong>Enter</strong>/<strong>Shift+Enter</strong> – move down/up between rows</li>
+    <li><strong>Space</strong> – toggle a checkbox</li>
+    <li>Click checkboxes to toggle them manually</li>
+  </ul>
+  <h6 class="fw-bold mt-3">Other Features</h6>
+  <ul>
+    <li><strong>🖨️ Print</strong> – printable table</li>
+    <li><strong>🖥️ Full Screen</strong> – expands the grid (hidden on phones)</li>
+    <li><strong>Sort by First/Last Name</strong> – reorder students</li>
+  </ul>
+  {% if students | selectattr("YearLevelID", "in", [7, 8]) | list | length > 0 %}
+  <h6 class="fw-bold mt-3">Scenarios</h6>
+  <ul>
+    <li>Dropdowns select the scenario for each student.</li>
+    <li>Number keys <strong>0–4</strong> pick a scenario quickly; <strong>Arrow Up/Down</strong> scroll options.</li>
+    <li>See <strong>“View full descriptions”</strong> in the header for details.</li>
+  </ul>
+  {% endif %}
+`;
+
+const helpBody = document.getElementById('helpModalBody');
+document.getElementById('helpModal').addEventListener('show.bs.modal', () => {
+  helpBody.innerHTML = isPhone() ? helpPhoneHTML : helpDesktopHTML;
+});
+window.addEventListener('resize', () => {
+  if (document.getElementById('helpModal')?.classList.contains('show')) {
+    helpBody.innerHTML = isPhone() ? helpPhoneHTML : helpDesktopHTML;
+  }
+});
+</script>
 {% endblock %}

@@ -3,7 +3,7 @@
 
 {% block content %}
 <style>
-  /* Card look to match your other page */
+  /* Shared look */
   .class-card {
     border: 1px solid #e9ecef;
     border-radius: 0.75rem;
@@ -22,10 +22,19 @@
     background: #6c757d1a;
     color: #6c757d;
   }
-  .btn-wrap > * { min-width: 180px; }            /* comfy width on desktop */
+  .btn-wrap > * { min-width: 180px; }
   @media (max-width: 575.98px) {
     .btn-wrap { flex-direction: column; gap: .5rem; }
-    .btn-wrap > * { width: 100%; min-width: 0; }  /* full-width on phones */
+    .btn-wrap > * { width: 100%; min-width: 0; }
+  }
+
+  /* Responsive visibility rules */
+  .class-table { display: none; }      /* hidden on mobile */
+  .class-cards { display: block; }     /* shown on mobile */
+
+  @media (min-width: 768px) {
+    .class-table { display: table; }   /* shown on desktop */
+    .class-cards { display: none; }    /* hidden on desktop */
   }
 </style>
 
@@ -64,37 +73,71 @@
   </div>
 </form>
 
-<!-- Classes as cards -->
 {% if classes %}
 <div class="container mt-4">
   <h4 class="text-center mb-3">Classes at {{desc}}</h4>
 
-  <div class="row g-3 justify-content-center">
-    {% for cls in classes %}
-    <div class="card shadow-sm mb-3 border-0">
-  <div class="card-body">
-    <h6 class="card-title mb-2 text-primary fw-semibold">{{ cls.ClassName }}</h6>
-    <p class="mb-1"><span class="fw-semibold text-muted">Teacher:</span> {{ cls.TeacherName }}</p>
-    <p class="mb-3"><span class="fw-semibold text-muted">Year Levels:</span> {{ cls.YearLevels }}</p>
+  <!-- MOBILE CARDS -->
+  <div class="class-cards">
+    <div class="row g-3 justify-content-center">
+      {% for cls in classes %}
+      <div class="card shadow-sm mb-3 border-0">
+        <div class="card-body">
+          <h6 class="card-title mb-2 text-primary fw-semibold">{{ cls.ClassName }}</h6>
+          <p class="mb-1"><span class="fw-semibold text-muted">Teacher:</span> {{ cls.TeacherName }}</p>
+          <p class="mb-3"><span class="fw-semibold text-muted">Year Levels:</span> {{ cls.YearLevels }}</p>
 
-    <div class="d-flex flex-wrap gap-2 mt-2">
-      <a class="btn btn-outline-secondary btn-sm"
-         href="{{ url_for('class_bp.view_class', class_id=cls.ClassID, term=request.form['term'], year=request.form['calendaryear'], filter='all') }}">
-         All Competencies
-      </a>
-      <a class="btn btn-outline-primary btn-sm"
-         href="{{ url_for('class_bp.view_class', class_id=cls.ClassID, term=request.form['term'], year=request.form['calendaryear'], filter='water') }}">
-        Water-Based
-      </a>
+          <div class="d-flex flex-wrap gap-2 mt-2">
+            <a class="btn btn-outline-secondary btn-sm"
+              href="{{ url_for('class_bp.view_class', class_id=cls.ClassID, term=request.form['term'], year=request.form['calendaryear'], filter='all') }}">
+              All Competencies
+            </a>
+            <a class="btn btn-outline-primary btn-sm"
+              href="{{ url_for('class_bp.view_class', class_id=cls.ClassID, term=request.form['term'], year=request.form['calendaryear'], filter='water') }}">
+              Water-Based
+            </a>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
     </div>
   </div>
-</div>
-    {% endfor %}
+
+  <!-- DESKTOP TABLE -->
+  <div class="class-table table-responsive mt-3">
+    <table class="table table-hover align-middle">
+      <thead class="table-light">
+        <tr>
+          <th>Class Name</th>
+          <th>Teacher</th>
+          <th>Year Levels</th>
+          <th class="text-center">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for cls in classes %}
+        <tr>
+          <td class="fw-semibold text-primary">{{ cls.ClassName }}</td>
+          <td>{{ cls.TeacherName }}</td>
+          <td>{{ cls.YearLevels }}</td>
+          <td class="text-center">
+            <a class="btn btn-outline-secondary btn-sm me-1"
+              href="{{ url_for('class_bp.view_class', class_id=cls.ClassID, term=request.form['term'], year=request.form['calendaryear'], filter='all') }}">
+              All
+            </a>
+            <a class="btn btn-outline-primary btn-sm"
+              href="{{ url_for('class_bp.view_class', class_id=cls.ClassID, term=request.form['term'], year=request.form['calendaryear'], filter='water') }}">
+              Water-Based
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </div>
 </div>
 {% endif %}
 
-<!-- Suggestions if no classes -->
 {% if suggestions and not classes %}
 <div class="container mt-4">
   <div class="row justify-content-center">
