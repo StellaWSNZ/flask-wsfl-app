@@ -55,6 +55,8 @@
 {% if classes %}
 <div class="container mt-4">
   <h4 class="text-center mb-3">Select a Class</h4>
+  <div class="d-none d-sm-block">
+
   <div class="row justify-content-center">
     <div class="col-md-10">
       <table class="table table-sm table-borderless">
@@ -81,6 +83,33 @@
         </tbody>
       </table>
     </div>
+  </div>
+  </div>
+
+
+  <div class="d-sm-none" id="classCards">
+{% for cls in classes %}
+<div class="card shadow-sm mb-3 border-0">
+  <div class="card-body">
+    <h6 class="card-title mb-2 text-primary fw-semibold">{{ cls.ClassName }}</h6>
+    <p class="mb-1"><span class="fw-semibold text-muted">Teacher:</span> {{ cls.TeacherName }}</p>
+    <p class="mb-3"><span class="fw-semibold text-muted">Year Levels:</span> {{ cls.YearLevels }}</p>
+
+    <div class="d-flex flex-wrap gap-2 mt-2">
+      <a class="btn btn-outline-secondary btn-sm"
+         href="{{ url_for('class_bp.view_class', class_id=cls.ClassID, term=request.form['term'], year=request.form['calendaryear'], filter='all') }}">
+         All Competencies
+      </a>
+      <a class="btn btn-outline-primary btn-sm"
+         href="{{ url_for('class_bp.view_class', class_id=cls.ClassID, term=request.form['term'], year=request.form['calendaryear'], filter='water') }}">
+        Water-Based
+      </a>
+    </div>
+  </div>
+</div>
+
+{% endfor %}
+
   </div>
 </div>
 {% endif %}

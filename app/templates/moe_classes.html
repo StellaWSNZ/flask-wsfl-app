@@ -2,10 +2,34 @@
 {% block title %}View My School's Classes{% endblock %}
 
 {% block content %}
-{% set selected_term = request.form.get("term") if request.method == "POST" else TERM %}
-{% set selected_year = request.form.get("calendaryear") if request.method == "POST" else YEAR %}
+<style>
+  /* Card look to match your other page */
+  .class-card {
+    border: 1px solid #e9ecef;
+    border-radius: 0.75rem;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(0,0,0,.04);
+  }
+  .class-card .label {
+    color: #6c757d;
+    font-size: .9rem;
+  }
+  .badge-soft {
+    background: #0d6efd1a;
+    color: #0d6efd;
+  }
+  .badge-soft-secondary {
+    background: #6c757d1a;
+    color: #6c757d;
+  }
+  .btn-wrap > * { min-width: 180px; }            /* comfy width on desktop */
+  @media (max-width: 575.98px) {
+    .btn-wrap { flex-direction: column; gap: .5rem; }
+    .btn-wrap > * { width: 100%; min-width: 0; }  /* full-width on phones */
+  }
+</style>
 
-<h3  class="text-primary mb-4 text-center">Filter Classes</h3>
+<h3 class="text-primary mb-4 text-center">Filter Classes</h3>
 
 <form method="POST">
   <div class="container">
@@ -40,36 +64,32 @@
   </div>
 </form>
 
-<!-- Classes -->
+<!-- Classes as cards -->
 {% if classes %}
 <div class="container mt-4">
-  <h4 class="text-center mb-3">Classes at Your School</h4>
-  <div class="row justify-content-center">
-    <div class="col-md-10">
-      <table class="table table-sm table-borderless">
-        <tbody>
-          {% for cls in classes %}
-          <tr class="align-middle">
-            <td><strong>Class Name:</strong> {{ cls.ClassName }}</td>
-            <td><strong>Teacher Name:</strong> {{ cls.TeacherName }}</td>
-            <td><strong>Year Levels:</strong> {{ cls.YearLevels }}</td>
-            <td>
-              <a class="btn btn-sm btn-outline-primary"
-                 href="{{ url_for('class_bp.view_class', class_id=cls.ClassID, term=selected_term, year=selected_year, filter='all') }}">
-                View All Competencies
-              </a>
-            </td>
-            <td>
-              <a class="btn btn-sm btn-outline-secondary"
-                 href="{{ url_for('class_bp.view_class', class_id=cls.ClassID, term=selected_term, year=selected_year, filter='water') }}">
-                View Water-Based Competencies
-              </a>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+  <h4 class="text-center mb-3">Classes at {{desc}}</h4>
+
+  <div class="row g-3 justify-content-center">
+    {% for cls in classes %}
+    <div class="card shadow-sm mb-3 border-0">
+  <div class="card-body">
+    <h6 class="card-title mb-2 text-primary fw-semibold">{{ cls.ClassName }}</h6>
+    <p class="mb-1"><span class="fw-semibold text-muted">Teacher:</span> {{ cls.TeacherName }}</p>
+    <p class="mb-3"><span class="fw-semibold text-muted">Year Levels:</span> {{ cls.YearLevels }}</p>
+
+    <div class="d-flex flex-wrap gap-2 mt-2">
+      <a class="btn btn-outline-secondary btn-sm"
+         href="{{ url_for('class_bp.view_class', class_id=cls.ClassID, term=request.form['term'], year=request.form['calendaryear'], filter='all') }}">
+         All Competencies
+      </a>
+      <a class="btn btn-outline-primary btn-sm"
+         href="{{ url_for('class_bp.view_class', class_id=cls.ClassID, term=request.form['term'], year=request.form['calendaryear'], filter='water') }}">
+        Water-Based
+      </a>
     </div>
+  </div>
+</div>
+    {% endfor %}
   </div>
 </div>
 {% endif %}
@@ -93,4 +113,3 @@
 </div>
 {% endif %}
 {% endblock %}
-

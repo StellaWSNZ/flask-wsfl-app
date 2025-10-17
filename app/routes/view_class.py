@@ -1088,6 +1088,10 @@ def get_schools_by_funder():
         schools = [dict(row._mapping) for row in result]
     return jsonify(schools)
 
+    
+import traceback
+from flask import render_template, request, redirect, url_for, flash, session, current_app as app
+from sqlalchemy import text
 @class_bp.route('/SchoolClasses', methods=['GET', 'POST'])
 @login_required
 def moe_classes():
@@ -1096,53 +1100,89 @@ def moe_classes():
         return redirect(url_for("home_bp.home"))
 
     engine = get_db_engine()
+
     classes = []
     students = []
     suggestions = []
 
-    moe_number = session.get("user_id")
+    moe_number   = session.get("user_id")
+    default_term = session.get("nearest_term")
+    default_year = session.get("nearest_year")
+
+    # ✅ Always define these for the template
+    selected_term = default_term
+    selected_year = default_year
 
     if request.method == "POST":
-        term = request.form.get("term")
-        year = request.form.get("calendaryear")
+        raw_term = (request.form.get("term") or "").strip()
+        raw_year = (request.form.get("calendaryear") or "").strip()
 
-        with engine.connect() as conn:
-            # Attempt to find classes
-            result = conn.execute(
-                text("""
-                    EXEC FlaskHelperFunctionsSpecific 
-                        @Request = :Request,
-                        @MOENumber = :moe,
-                        @Term = :term,
-                        @Year = :year
-                """),
-                {"Request": "ClassesBySchoolTermYear", "moe": moe_number, "term": term, "year": year}
-            )
-            classes = [row._mapping for row in result.fetchall()]
+        try:
+            term = int(raw_term)
+            year = int(raw_year)
+            # keep for template
+            selected_term = term
+            selected_year = year
+        except ValueError:
+            flash("Please select a valid term and year.", "warning")
+        else:
+            try:
+                with engine.connect() as conn:
+                    result = conn.execute(
+                        text("""
+                            EXEC FlaskHelperFunctionsSpecific 
+                                @Request   = :Request,
+                                @MOENumber = :moe,
+                                @Term      = :term,
+                                @Year      = :year
+                        """),
+                        {
+                            "Request": "ClassesBySchoolTermYear",
+                            "moe": moe_number,
+                            "term": term,
+                            "year": year
+                        }
+                    )
+                    classes = [dict(r) for r in result.mappings().all()]
 
-            if not classes:
-                result = conn.execute(
-                    text("""
-                        EXEC FlaskHelperFunctionsSpecific 
-                            @Request = :Request,
-                            @MOENumber = :moe
-                    """),
-                    {"Request": "DistinctTermsForSchool", "moe": moe_number}
-                )
-                suggestions = [f"{row.CalendarYear} Term {row.Term}" for row in result.fetchall()]
+                    if not classes:
+                        sres = conn.execute(
+                            text("""
+                                EXEC FlaskHelperFunctionsSpecific 
+                                    @Request   = :Request,
+                                    @MOENumber = :moe
+                            """),
+                            {"Request": "DistinctTermsForSchool", "moe": moe_number}
+                        )
+                        srows = [dict(r) for r in sres.mappings().all()]
+                        suggestions = [f"{r.get('CalendarYear')} Term {r.get('Term')}" for r in srows]
 
-                flash("No classes found for your school in this term and year.", "warning")
+            except Exception as e:
+                print("\n========== ERROR during DB work (/SchoolClasses) ==========")
+                traceback.print_exc()
+                print("===========================================================\n")
+                app.logger.exception("DB error in /SchoolClasses")
+                flash(f"Error loading classes: {e}", "danger")
 
-    return render_template(
-        "moe_classes.html",
-        classes=classes,
-        students=students,
-        suggestions=suggestions,
-        TERM=session.get("nearest_term"),
-        YEAR=session.get("nearest_year")
-    )
-    
-    
+    # Render (now with selected_term/selected_year)
+    try:
+        return render_template(
+            "moe_classes.html",
+            classes=classes,
+            students=students,
+            suggestions=suggestions,
+            TERM=default_term,
+            YEAR=default_year,
+            selected_term=selected_term,
+            selected_year=selected_year,
+            desc = session.get('desc')
+        )
+    except Exception as e:
+        print("\n========== ERROR during render_template(moe_classes.html) ==========")
+        traceback.print_exc()
+        print("===================================================================\n")
+        app.logger.exception("Template error in moe_classes.html")
+        return (f"<h3>Template rendering failed</h3><pre>{e}</pre>", 500)
 def generate_qr_code_png(data, box_size=2):
     qr = qrcode.QRCode(box_size=box_size, border=1)
     qr.add_data(data)
