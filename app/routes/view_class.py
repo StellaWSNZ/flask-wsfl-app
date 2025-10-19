@@ -2280,20 +2280,50 @@ def _require_moe_or_adm():
 
 def _json_error(msg, code=400):
     return jsonify({"ok": False, "error": msg}), code
+# at the top of this module
+from datetime import date
+from flask import request, render_template, abort, current_app
 
-# ---- page ----
+def is_mobile() -> bool:
+    """Very simple UA sniff to block phones/tablets."""
+    try:
+        ua = (request.headers.get("User-Agent") or "").lower()
+    except Exception as e:
+        current_app.logger.debug("UA read failed: %r", e)
+        return False
+    return any(k in ua for k in ("iphone", "android", "ipad", "mobile"))
+
 @class_bp.route("/EditClass")
 @login_required
 def class_students_page():
+    # role check
     if not _require_moe_or_adm():
         return _json_error("Forbidden", 403)
+
+    # device check
+    if is_mobile():
+        try:
+            return render_template(
+                "error.html",
+                message="This page is not available on mobile devices.",
+                code=900
+            ), 900
+        except Exception as e:
+            current_app.logger.warning("error.html render failed: %r", e)
+            abort(403, description="This page is not available on mobile devices.")
+
+
+    # normal desktop flow
     try:
-        return render_template("class_students.html",
-                               current_year=date.today().year)
+        return render_template(
+            "class_students.html",
+            current_year=date.today().year
+        )
     except Exception:
         import traceback
-        traceback.print_exc()  # prints the BuildError if url_for fails
+        traceback.print_exc()
         return "<pre>" + traceback.format_exc() + "</pre>", 500
+
 # ---- API: classes for a school/term/year ----
 @class_bp.route("/classes_for_term")
 @login_required

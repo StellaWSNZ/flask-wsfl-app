@@ -4,7 +4,7 @@ import json
 import threading
 import warnings
 import pandas as pd
-from flask import Blueprint, render_template, request, session, flash, redirect, url_for, send_file, jsonify, abort
+from flask import Blueprint, current_app, render_template, request, session, flash, redirect, url_for, send_file, jsonify, abort
 from app.utils.database import get_db_engine
 from werkzeug.utils import secure_filename
 from app.routes.auth import login_required
@@ -95,6 +95,9 @@ def normalize_date_string(s):
     s = re.sub(r"[^\w]", "-", s)
     return s
 
+def is_mobile() -> bool:
+    ua = (request.headers.get("User-Agent") or "").lower()
+    return any(k in ua for k in ("iphone", "android", "ipad", "mobile"))
 
 @upload_bp.route('/ClassUpload', methods=['GET', 'POST'])
 @login_required
@@ -104,7 +107,17 @@ def classlistupload():
         if session.get("user_role") not in ["ADM", "FUN", "MOE", "PRO", "GRP"]:
             flash("You don’t have permission to access the class upload page.", "danger")
             return redirect(url_for("home_bp.home"))
-
+        if is_mobile():
+            try:
+                return render_template(
+                    "error.html",
+                    message="This page is not available on mobile devices.",
+                    code=900
+                ), 900
+            except Exception as e:
+                current_app.logger.warning("error.html render failed: %r", e)
+                # Fallback if error.html expects other vars
+                return ("This page is not available on mobile devices.", 900)
         engine = get_db_engine()
         preview_data = None
         original_columns = []
