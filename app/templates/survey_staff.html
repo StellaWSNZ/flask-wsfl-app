@@ -5,19 +5,16 @@
 <div class="container mt-5">
   <h2 class="mb-4 text-primary text-center">Staff Form Responses</h2>
 
-  <!-- 🔍 Filter Form (entity pickers) -->
-  <form method="GET" id="filterForm" class="mb-4">
+  <!-- 🔍 Entity pickers -->
+  <form method="GET" id="entityFilterForm" class="mb-4">
     <div class="row g-3 justify-content-center align-items-end">
       <div class="col-md-3">
         <label for="entity_type" class="form-label">Entity Type</label>
         <select class="form-select" id="entity_type" name="entity_type" required>
           {% for et in allowed_entity_types %}
-            <option value="{{ et.value }}" {% if entity_type == et.value %}selected{% endif %}>
-              {{ et.label }}
-            </option>
+            <option value="{{ et.value }}" {% if entity_type == et.value %}selected{% endif %}>{{ et.label }}</option>
           {% endfor %}
         </select>
-
       </div>
       <div class="col-md-4">
         <label for="entity_id" class="form-label" id="entityLabel">Select {{ entity_type }}</label>
@@ -31,17 +28,18 @@
     </div>
   </form>
 
-  <!-- 🔎 Client-side filter/sort controls (only bottom three filters styled/centered) -->
   {% if staff_surveys %}
+  <!-- 🔎 Client filters -->
   <div class="filter-bar row g-2 mb-3 justify-content-center text-center">
     <div class="col-12 col-md-3">
       <input id="filterName" type="text" class="form-control" placeholder="Filter by form description or email">
     </div>
     <div class="col-12 col-md-3">
-      <select id="filterForm" class="form-select">
+      <select id="filterFormTitle" class="form-select">
+        <!-- empty value means: show all -->
         <option value="">All forms</option>
         {% for form_title in staff_surveys|map(attribute='Title')|unique|list %}
-          <option value="{{ form_title }}">{{ form_title }}</option>
+          <option value="{{ form_title|trim }}">{{ form_title }}</option>
         {% endfor %}
       </select>
     </div>
@@ -49,15 +47,17 @@
       <select id="sortBy" class="form-select">
         <option value="submitted_desc">Submitted (newest)</option>
         <option value="submitted_asc">Submitted (oldest)</option>
-        
+        <option value="name_asc">Name (A→Z)</option>
+        <option value="name_desc">Name (Z→A)</option>
+        <option value="form_asc">Form (A→Z)</option>
       </select>
     </div>
   </div>
   {% endif %}
 
-  <!-- 📋 Table View -->
+  <!-- 📋 Table (md+) -->
   {% if staff_surveys %}
-  <div class="table-responsive mt-2">
+  <div class="table-responsive mt-2 d-none d-md-block" id="tableView">
     <table class="table table-bordered align-middle shadow-sm bg-white rounded table-hover">
       <thead class="table-dark-blue text-white sticky-top">
         <tr>
@@ -68,14 +68,20 @@
           <th class="text-center">Action</th>
         </tr>
       </thead>
-      <tbody>
+      <tbody id="surveyTbody">
         {% for s in staff_surveys %}
-        <tr class="click-row position-relative" data-ts="{{ s.SubmittedDate.timestamp() if s.SubmittedDate }}">
+        {% set person = (s.Name or (s.FirstName ~ ' ' ~ s.Surname))|trim %}
+        <tr class="click-row position-relative"
+            data-ts="{{ s.SubmittedDate.timestamp() if s.SubmittedDate }}"
+            data-form="{{ s.Title|trim }}"
+            data-name="{{ person }}"
+            data-email="{{ s.SubjectEmail|lower }}"
+            data-desc="{{ s.Details|lower }}">
           <td>
             <span class="badge {{ s.BadgeClass }}">{{ s.Title }}</span>
             <a class="stretched-link visually-hidden-focusable"
                href="{{ url_for('survey_bp.view_my_survey_response', respondent_id=s.RespondentID) }}"
-               aria-label="Open {{ s.Title }} for {{ s.Name or (s.FirstName ~ ' ' ~ s.Surname) }}">
+               aria-label="Open {{ s.Title }} for {{ person or 'respondent' }}">
               Open
             </a>
           </td>
@@ -84,15 +90,11 @@
           <td>
             {% if s.SubmittedDate %}
               {{ s.SubmittedDate.strftime('%d %B %Y, %I:%M %p') }}
-            {% else %}
-              —
-            {% endif %}
+            {% else %} — {% endif %}
           </td>
           <td class="text-center">
             <a href="{{ url_for('survey_bp.view_my_survey_response', respondent_id=s.RespondentID) }}"
-               class="btn btn-sm btn-outline-primary" target="_blank">
-              View Response
-            </a>
+               class="btn btn-sm btn-outline-primary" target="_blank">View Response</a>
           </td>
         </tr>
         {% endfor %}
@@ -100,137 +102,184 @@
     </table>
   </div>
 
-  {% elif selected_entity_id %}
-  <div class="alert alert-info text-center mt-4">
-    No survey responses found for this selection.
+  <!-- 📱 Cards (< md) -->
+  <div class="d-md-none" id="cardView" aria-live="polite">
+    <div class="row g-3" id="cardContainer">
+      {% for s in staff_surveys %}
+      {% set person = (s.Name or (s.FirstName ~ ' ' ~ s.Surname))|trim %}
+      <div class="col-12 survey-card"
+           data-ts="{{ s.SubmittedDate.timestamp() if s.SubmittedDate }}"
+           data-form="{{ s.Title|trim }}"
+           data-name="{{ person }}"
+           data-email="{{ s.SubjectEmail|lower }}"
+           data-desc="{{ s.Details|lower }}">
+        <div class="card shadow-sm h-100 border-0 mobile-card-focus">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start mb-1">
+              <span class="badge {{ s.BadgeClass }}">{{ s.Title }}</span>
+              {% if s.SubmittedDate %}
+                <small class="text-muted">{{ s.SubmittedDate.strftime('%d %b %Y, %I:%M %p') }}</small>
+              {% else %}
+                <small class="text-muted">—</small>
+              {% endif %}
+            </div>
+
+            {% if person %}<div class="fw-semibold mb-1">{{ person }}</div>{% endif %}
+            <div class="text-muted small mb-2">{{ s.Details }}</div>
+
+            <div class="d-flex align-items-center justify-content-between">
+              <a href="mailto:{{ s.SubjectEmail }}" class="text-decoration-none small">{{ s.SubjectEmail }}</a>
+              <a href="{{ url_for('survey_bp.view_my_survey_response', respondent_id=s.RespondentID) }}"
+                 class="stretched-link btn btn-sm btn-outline-primary ms-2">View</a>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
   </div>
+
+  {% elif selected_entity_id %}
+  <div class="alert alert-info text-center mt-4">No survey responses found for this selection.</div>
   {% endif %}
 </div>
 
-<!-- 💅 Custom CSS -->
 <style>
 .table-dark-blue th { background-color: #1a427d; color: white; }
 .sticky-top { position: sticky; top: 0; z-index: 1; }
 .click-row { cursor: pointer; }
 
-/* Dark blue outline ONLY for bottom three filters */
-.filter-bar .form-control,
-.filter-bar .form-select {
-  border-color: #1a427d;
-}
-.filter-bar .form-control:focus,
-.filter-bar .form-select:focus {
-  border-color: #1a427d;
-  box-shadow: 0 0 0 0.2rem rgba(26, 66, 125, 0.25);
+/* filters outline */
+.filter-bar .form-control, .filter-bar .form-select { border-color: #1a427d; }
+.filter-bar .form-control:focus, .filter-bar .form-select:focus {
+  border-color: #1a427d; box-shadow: 0 0 0 0.2rem rgba(26,66,125,.25);
 }
 
-/* Deterministic blue shades for badges */
-.badge.badge-blue-1 { background-color: #bfdbfe !important; color: #1e3a8a !important; } /* Very Light Blue */
-.badge.badge-blue-2 { background-color: #60a5fa !important; color: #fff !important; }   /* Light Sky Blue */
-.badge.badge-blue-3 { background-color: #3b82f6 !important; color: #fff !important; }   /* Bright Blue */
-.badge.badge-blue-4 { background-color: #2563eb !important; color: #fff !important; }   /* Strong Mid Blue */
-.badge.badge-blue-5 { background-color: #1e40af !important; color: #fff !important; }   /* Navy Blue */
-.badge.badge-blue-6 { background-color: #312e81 !important; color: #fff !important; }   /* Deep Indigo */
+/* badge palette (deterministic) */
+.badge.badge-blue-1 { background:#bfdbfe!important; color:#1e3a8a!important; }
+.badge.badge-blue-2 { background:#60a5fa!important; color:#fff!important; }
+.badge.badge-blue-3 { background:#3b82f6!important; color:#fff!important; }
+.badge.badge-blue-4 { background:#2563eb!important; color:#fff!important; }
+.badge.badge-blue-5 { background:#1e40af!important; color:#fff!important; }
+.badge.badge-blue-6 { background:#312e81!important; color:#fff!important; }
 
+/* stretch filter inputs */
+.filter-bar .col-12 { display:flex; align-items:stretch; }
+.filter-bar .form-control, .filter-bar .form-select { flex:1; }
 
-.filter-bar .col-12 {
-  display: flex;
-  align-items: stretch;
-}
-.filter-bar .form-control,
-.filter-bar .form-select {
-  flex: 1;   /* make them expand equally */
-}
-
-
+/* mobile card polish */
+#cardView .card { border-radius: 1rem; }
+.mobile-card-focus:focus-within { outline: 2px solid #1a427d33; }
+#cardView .badge { font-weight: 600; }
 </style>
 
-<!-- JS: Load /get_entities dynamically & client-side filter/sort -->
 <script>
 document.addEventListener("DOMContentLoaded", function () {
+  /* ---- Entity loader ---- */
   const entityTypeSelect = document.getElementById("entity_type");
   const entityIdSelect   = document.getElementById("entity_id");
   const entityLabel      = document.getElementById("entityLabel");
   const selectedEntityId = "{{ selected_entity_id }}";
 
-  function loadEntities(type) {
-    if (!type) return;
+  function loadEntities(type){
+    if(!type) return;
     entityLabel.textContent = `Select ${type}`;
     entityIdSelect.innerHTML = '<option value="">Loading...</option>';
-
     fetch(`/get_entities?entity_type=${encodeURIComponent(type)}`)
-      .then(res => res.json())
-      .then(data => {
+      .then(r=>r.json())
+      .then(data=>{
         entityIdSelect.innerHTML = '<option value="">-- Choose --</option>';
-        (data || []).forEach(entity => {
-          const option = document.createElement("option");
-          option.value = entity.id;
-          option.textContent = entity.name || entity.label || entity.id;
-          if (String(entity.id) === selectedEntityId) option.selected = true;
-          entityIdSelect.appendChild(option);
+        (data||[]).forEach(e=>{
+          const o = document.createElement("option");
+          o.value = e.id;
+          o.textContent = e.name || e.label || e.id;
+          if(String(e.id) === selectedEntityId) o.selected = true;
+          entityIdSelect.appendChild(o);
         });
       })
-      .catch(err => {
-        console.error("Error loading entities:", err);
-        entityIdSelect.innerHTML = '<option value="">-- Failed to load --</option>';
-      });
+      .catch(()=>{ entityIdSelect.innerHTML = '<option value="">-- Failed to load --</option>'; });
+  }
+  if (entityTypeSelect){
+    loadEntities(entityTypeSelect.value);
+    entityTypeSelect.addEventListener("change", ()=> loadEntities(entityTypeSelect.value));
   }
 
-  loadEntities(entityTypeSelect.value);
-  entityTypeSelect.addEventListener("change", function () {
-    loadEntities(this.value);
-  });
+  /* ---- Filters shared by table + cards ---- */
+  const tbody = document.getElementById("surveyTbody");
+  const tableRows = tbody ? Array.from(tbody.querySelectorAll("tr")) : [];
+  const cardContainer = document.getElementById("cardContainer");
+  const cards = cardContainer ? Array.from(cardContainer.querySelectorAll(".survey-card")) : [];
 
-  // --- Filters / sorting (only if table rendered) ---
-  const tbody = document.querySelector("table tbody");
-  if (tbody) {
-    const allRows = Array.from(tbody.querySelectorAll("tr"));
+  const filterNameEl = document.getElementById("filterName");
+  const filterFormTitleEl = document.getElementById("filterFormTitle");
+  const sortByEl = document.getElementById("sortBy");
+
+  function slugify(x){
+    return (x||"").toString().trim().toLowerCase()
+      .replace(/\u00A0/g," ")
+      .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+      .replace(/[’'"]/g,"'")
+      .replace(/[\u2013\u2014]/g,"-")
+      .replace(/\s+/g," ");
+  }
+
+  // precompute slugs for fast, resilient matching
+  tableRows.forEach(tr => tr.dataset.formSlug = slugify(tr.getAttribute("data-form")||""));
+  cards.forEach(c => c.dataset.formSlug = slugify(c.getAttribute("data-form")||""));
+
+  function selectedFormSlug(){
+    if (!filterFormTitleEl) return "";
+    const opt = filterFormTitleEl.options[filterFormTitleEl.selectedIndex];
+    // Empty value => "All forms" => no filter
+    if (!opt || !opt.value) return "";
+    return slugify(opt.textContent || opt.value);
+  }
+
+  function applyFilterSort(){
+    const q = (filterNameEl?.value || "").toLowerCase();
+    const formSlug = selectedFormSlug(); // "" means show all
+    const sort = (sortByEl?.value || "submitted_desc");
     const collate = new Intl.Collator();
 
-    function getCell(tr, idx) { return tr.children[idx]?.textContent.trim() || ""; }
+    const pass = (el)=>{
+      const desc  = (el.getAttribute("data-desc")||"");
+      const email = (el.getAttribute("data-email")||"");
+      const okQ   = !q || desc.includes(q) || email.includes(q);
+      const okF   = !formSlug || (el.dataset.formSlug === formSlug);
+      return okQ && okF;
+    };
 
-    function applyFilterSort() {
-      const q     = (document.getElementById("filterName")?.value || "").toLowerCase();
-      const form  = (document.getElementById("filterForm")?.value || "");
-      const sort  = (document.getElementById("sortBy")?.value || "submitted_desc");
-
-      let out = allRows.filter(tr => {
-        const formTitle = getCell(tr, 0);       // includes badge text
-        const name      = getCell(tr, 1);
-        const email     = getCell(tr, 2);
-        const matchesQ  = !q || (name.toLowerCase().includes(q) || email.toLowerCase().includes(q));
-        const matchesF  = !form || formTitle === form;
-        return matchesQ && matchesF;
-      });
-
-      out.sort((a, b) => {
-        const titleA = getCell(a, 0), titleB = getCell(b, 0);
-        const nameA  = getCell(a, 1), nameB = getCell(b, 1);
-        const tsA    = Number(a.getAttribute("data-ts") || 0);
-        const tsB    = Number(b.getAttribute("data-ts") || 0);
-
-        switch (sort) {
-          case "submitted_desc": return tsB - tsA;
-          case "submitted_asc":  return tsA - tsB;
-          case "name_asc":       return collate.compare(nameA, nameB);
-          case "name_desc":      return collate.compare(nameB, nameA);
-          case "form_asc":       return collate.compare(titleA, titleB);
-          default:               return 0;
-        }
-      });
-
-      tbody.replaceChildren(...out);
-    }
-
-    ["filterName","filterForm","sortBy"].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) {
-        el.addEventListener("input", applyFilterSort);
-        el.addEventListener("change", applyFilterSort);
+    const sorter = (a,b)=>{
+      const tsA = +a.getAttribute("data-ts")||0, tsB = +b.getAttribute("data-ts")||0;
+      const fA = a.getAttribute("data-form")||"", fB = b.getAttribute("data-form")||"";
+      const nA = a.getAttribute("data-name")||"", nB = b.getAttribute("data-name")||"";
+      switch (sort){
+        case "submitted_desc": return tsB - tsA;
+        case "submitted_asc":  return tsA - tsB;
+        case "name_asc":       return collate.compare(nA, nB);
+        case "name_desc":      return collate.compare(nB, nA);
+        case "form_asc":       return collate.compare(fA, fB);
+        default:               return 0;
       }
-    });
-    applyFilterSort();
+    };
+
+    if (tbody && tableRows.length){
+      const vis = tableRows.filter(pass).sort(sorter);
+      tbody.replaceChildren(...vis);
+    }
+    if (cardContainer && cards.length){
+      const vis = cards.filter(pass).sort(sorter);
+      cardContainer.replaceChildren(...vis);
+    }
   }
+
+  ["input","change"].forEach(evt=>{
+    filterNameEl?.addEventListener(evt, applyFilterSort);
+    filterFormTitleEl?.addEventListener(evt, applyFilterSort);
+    sortByEl?.addEventListener(evt, applyFilterSort);
+  });
+
+  applyFilterSort(); // run on load
 });
 </script>
 {% endblock %}
