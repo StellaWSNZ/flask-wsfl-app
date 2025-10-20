@@ -83,20 +83,24 @@ def build_plain_body(actual_email, first_name, school_name,
         f"(TEST routed to {DEBUG_ROUTE_TO}. Intended To: {actual_email}; Intended Cc: {cc_display})\n\n"
         if debug else ""
     )
+
     return (
         f"{debug_note}"
         f"Kia ora {fname},\n\n"
         f"{INTRO_LINE} {PROVIDER_NAME} may have uploaded {school}'s class lists to the WSFL database already. "
         f"If your lists have been uploaded, you'll see them under \"{NAV_PATH_PLAIN}\". "
         f"When you have a moment, please log in and check everything looks right.\n\n"
-        f"{guides_line_text()}\n"
+        # 👇 Add this line
+        f"Full instructions and videos are available any time at https://wsfl.onrender.com/instructions/School\n\n"
+        # f"{guides_line_text()}\n"
         f"Login details\n"
         f"    • Sign in: {LOGIN_URL}\n"
         f"    • Username: {actual_email}\n"
-        f"    • Temporary password: your lowercase surname (keep punctuation such as apostrophes and hyphens) followed immediately by your school's MOE number (no spaces).\n\n"
+        f"    • Temporary password: your lowercase surname (keep punctuation such as apostrophes and hyphens) "
+        f"followed immediately by your school's MOE number (no spaces).\n\n"
         f"Getting started\n"
         f"    • Check all classes are present and correct (Step 1).\n"
-        f"    • Check staff access is up to date-add/remove as needed (Step 2).\n"
+        f"    • Check staff access is up to date—add/remove as needed (Step 2).\n"
         f"    • Optional: View and record class achievements (Step 3).\n"
         f"    • Optional: View performance reports (e.g., \"YTD Performance vs National Target\") (Step 4).\n"
         f"    • Optional: View previously submitted data for your classes from the past {HISTORY_YEARS} years (Step 4).\n"
@@ -111,6 +115,7 @@ def build_plain_body(actual_email, first_name, school_name,
         f"{SIGN_OFF_NAME}\n"
         f"{SIGN_OFF_TITLE}\n"
     )
+
 
 def build_message(email, first_name, school_name, temp_pw):
     to_addr = DEBUG_ROUTE_TO if DEBUG_SEND else email
@@ -168,7 +173,7 @@ def send_email(msg: EmailMessage):
 # =====================================================
 # Main function to create user + send email
 # =====================================================
-def create_user_and_send(first_name, surname, email, moe_number):
+def create_user_and_send(first_name, surname, email, moe_number, is_admin=0):
     """Call stored proc to create/update user, set password, and send email."""
     temp_pw = temp_password(surname, moe_number)
     hashed  = bcrypt.hashpw(temp_pw.encode(), bcrypt.gensalt()).decode()
@@ -178,9 +183,9 @@ def create_user_and_send(first_name, surname, email, moe_number):
         conn.execute(
             text("EXEC dbo.AddOrUpdateSchoolUser "
                  "@FirstName=:first, @Surname=:sur, "
-                 "@Email=:email, @MOENumber=:moe, @Hash=:hash"),
+                 "@Email=:email, @MOENumber=:moe, @Hash=:hash, @Admin=:admin"),
             {"first": first_name, "sur": surname,
-             "email": email, "moe": moe_number, "hash": hashed}
+             "email": email, "moe": moe_number, "hash": hashed, "admin": is_admin}
         )
 
         # School name via helper SP (you confirmed @Number is correct)

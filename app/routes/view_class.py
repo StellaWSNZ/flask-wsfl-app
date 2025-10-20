@@ -2278,6 +2278,10 @@ def _require_moe_or_adm():
     admin = int(session.get("user_admin") or 0)
     return (role == "MOE" and admin == 1)or role == "ADM"
 
+def _require_moe_or_adm2():
+    role = session.get("user_role")
+    admin = int(session.get("user_admin") or 0)
+    return (role == "MOE")or role == "ADM"
 def _json_error(msg, code=400):
     return jsonify({"ok": False, "error": msg}), code
 # at the top of this module
@@ -2297,7 +2301,7 @@ def is_mobile() -> bool:
 @login_required
 def class_students_page():
     # role check
-    if not _require_moe_or_adm():
+    if not _require_moe_or_adm2():
         return _json_error("Forbidden", 403)
 
     # device check
