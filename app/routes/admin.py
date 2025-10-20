@@ -2,7 +2,7 @@
 
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, Response, jsonify, abort
 from werkzeug.security import generate_password_hash
-from app.utils.database import get_db_engine
+from app.utils.database import get_db_engine, log_alert
 from app.routes.auth import login_required
 import pandas as pd
 import bcrypt
@@ -15,56 +15,66 @@ admin_bp = Blueprint("admin_bp", __name__)
 
 import traceback
 
+from flask import (
+    current_app, request, session, flash, redirect, url_for,
+    render_template, abort
+)
+from sqlalchemy import text
+from app.utils.database import get_db_engine, log_alert
 
 @admin_bp.route('/CreateUser', methods=['GET', 'POST'])
 @login_required
 def create_user():
-    if not session.get("user_admin"):
-        abort(403)
-
-    engine = get_db_engine()
-    user_role = session.get("user_role")
-    user_id   = session.get("user_id")
-    desc      = session.get("desc")
-
-    # Defaults for template (lists stay empty; JS will populate selects)
-    funder = None
-    funders, providers, schools, groups = [], [], [], []
-    only_own_staff_or_empty = False  # no longer computed; keep constant or remove from template
-
-    # Keep only what you truly need for header/banners
     try:
+        # ---- perms --------------------------------------------------------
+        if not session.get("user_admin"):
+            abort(403)
+
+        # ---- setup --------------------------------------------------------
+        engine    = get_db_engine()
+        user_role = session.get("user_role")
+        user_id   = session.get("user_id")
+        desc      = session.get("desc")
+
+        # dev-only forced failure (for testing the catch-all)
+        FAIL_FLAG = (request.args.get("__fail") or request.form.get("__fail"))
+        if not current_app.debug:
+            FAIL_FLAG = None
+        if FAIL_FLAG == "init":
+            raise RuntimeError("Forced init failure (CreateUser)")
+
+        funder = None
+        funders, providers, schools, groups = [], [], [], []
+        only_own_staff_or_empty = False
+
+        # ---- optional header context for FUN ------------------------------
         if user_role == "FUN":
-            # Optional: only if your header needs specific funder fields not in session
             with engine.connect() as conn:
                 funder = conn.execute(
                     text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :fid"),
                     {"Request": "FunderByID", "fid": user_id}
                 ).fetchone()
-    except Exception:
-        traceback.print_exc()
-        flash("An error occurred while loading data.", "danger")
 
-    # Handle create on POST (unchanged except for selected_id handling)
-    if request.method == "POST":
-        email        = request.form.get("email")
-        firstname    = request.form.get("firstname")
-        surname      = request.form.get("surname")
-        send_email   = request.form.get("send_email") == "on"
-        admin_flag   = 1 if request.form.get("admin") == "1" else 0
-        selected_role = request.form.get("selected_role")
-        selected_id_raw = request.form.get("selected_id")
+        # ---- POST: create user -------------------------------------------
+        if request.method == "POST":
+            email          = (request.form.get("email") or "").strip()
+            firstname      = (request.form.get("firstname") or "").strip()
+            surname        = (request.form.get("surname") or "").strip()
+            send_email     = request.form.get("send_email") == "on"
+            admin_flag     = 1 if request.form.get("admin") == "1" else 0
+            selected_role  = (request.form.get("selected_role") or "").strip()
+            selected_id_raw = request.form.get("selected_id")
 
-        def to_int(v):
             try:
-                return int(v)
+                selected_id = int(selected_id_raw)
             except (TypeError, ValueError):
-                return None
+                selected_id = None
 
-        selected_id = to_int(selected_id_raw)
-        hashed_pw = None  # you’re creating invite-only users; keep None if SP supports it
+            if FAIL_FLAG == "post":
+                raise RuntimeError("Forced POST failure (CreateUser)")
 
-        try:
+            hashed_pw = None  # invite-only; SP should handle NULL
+
             with engine.begin() as conn:
                 existing = conn.execute(
                     text("EXEC FlaskHelperFunctions @Request = :Request, @Text = :Text"),
@@ -97,35 +107,66 @@ def create_user():
                             "active": 1
                         }
                     )
-                    flash(f"✅ User {email} created.", "success")
 
-                    if send_email:
-                        # Ensure `mail` is imported from your app
-                        send_account_setup_email(
-                            mail=mail,
-                            recipient_email=email,
-                            first_name=firstname,
-                            role=selected_role,
-                            is_admin=admin_flag,
-                            invited_by_name=f"{session.get('user_firstname')} {session.get('user_surname')}",
-                            inviter_desc=desc
-                        )
-        except Exception:
-            traceback.print_exc()
-            flash("Failed to create user due to an internal error.", "danger")
+            flash(f"✅ User {email} created.", "success")
 
-    return render_template(
-        "create_user.html",
-        user_role=user_role,
-        name=desc,
-        funder=funder,                 # optional; remove if your template doesn’t use it
-        funders=funders,               # now always empty; JS fills
-        providers=providers,           # now always empty; JS fills
-        schools=schools,               # now always empty; JS fills
-        groups=groups,                 # now always empty; JS fills
-        only_own_staff_or_empty=only_own_staff_or_empty
-    )
-    
+            if send_email:
+                try:
+                    # ensure `mail` and this helper are imported where you define them
+                    send_account_setup_email(
+                        mail=mail,
+                        recipient_email=email,
+                        first_name=firstname,
+                        role=selected_role,
+                        is_admin=admin_flag,
+                        invited_by_name=f"{session.get('user_firstname')} {session.get('user_surname')}",
+                        inviter_desc=desc
+                    )
+                except Exception as mail_err:
+                    current_app.logger.warning(f"Email send failed for {email}: {mail_err}")
+                    flash("User created, but the email could not be sent.", "warning")
+
+            return redirect(url_for("admin_bp.create_user"))
+
+        # ---- GET: render --------------------------------------------------
+        return render_template(
+            "create_user.html",
+            user_role=user_role,
+            name=desc,
+            funder=funder,
+            funders=funders,
+            providers=providers,
+            schools=schools,
+            groups=groups,
+            only_own_staff_or_empty=only_own_staff_or_empty
+        )
+
+    except Exception as e:
+        # ---- universal catcher -------------------------------------------
+        current_app.logger.exception("❌ create_user() failed")
+        try:
+            # prefer selected_id if present; otherwise None
+            sel_id = request.form.get("selected_id")
+            try:
+                sel_id = int(sel_id) if sel_id is not None else None
+            except ValueError:
+                sel_id = None
+
+            log_alert(
+                # engine optional if your helper builds its own; pass if you like:
+                engine=get_db_engine(),
+                email=session.get("email"),
+                role=session.get("user_role"),
+                entity_id=sel_id,
+                link=request.url,
+                message=str(e)
+            )
+        except Exception as log_err:
+            current_app.logger.error(f"⚠️ Failed to log alert in CreateUser: {log_err}")
+
+        flash("An unexpected error occurred. The issue has been logged.", "danger")
+        return redirect(url_for("admin_bp.create_user"))
+
 
 
 
