@@ -1,11 +1,14 @@
 # app/add_user.py
-from flask import Blueprint, current_app, render_template, request, redirect, session, url_for, flash
+from flask import (
+    Blueprint, current_app, render_template, request,
+    redirect, session, url_for, flash, abort
+)
 import os
 from sqlalchemy import create_engine, text
 from dotenv import load_dotenv
 
 # Reuse your helper that sets the password via SP and sends the email
-# (create_user_and_send(first_name, surname, email, moe_number))
+# (create_user_and_send(first_name, surname, email, moe_number, is_admin=0))
 from app.utils.wsfl_email import create_user_and_send
 
 load_dotenv()
@@ -20,13 +23,12 @@ user_bp = Blueprint("add_user", __name__)
 def _clean(s: str) -> str:
     return (s or "").strip()
 
-
 @user_bp.route("/add-user", methods=["GET", "POST"])
 def add_user():
     try:
-        # -----------------------------
-        # GET or POST logic
-        # -----------------------------
+        # -------------------------------------------------
+        # Dev helper: bubble exceptions when asked in debug
+        # -------------------------------------------------
         if request.method == "POST":
             first = _clean(request.form.get("first_name"))
             sur   = _clean(request.form.get("surname"))
@@ -58,20 +60,27 @@ def add_user():
                     session.get("email"), role, moe_id
                 )
 
-            # Main action
+            # Main action — create + send welcome
             temp_pw = create_user_and_send(first, sur, email, moe_id, is_admin=is_admin)
+            _ = temp_pw  # kept for clarity; SP/email helper handles password & send
+
             flag = "Admin" if is_admin else "Standard"
             flash(f"{flag} user created and welcome email sent to {email}.", "success")
 
             return redirect(url_for("add_user.add_user"))
 
         # -----------------------------
-        # GET: populate dropdown
+        # GET: populate dropdown (resilient)
         # -----------------------------
-        with engine.begin() as conn:
-            schools = conn.execute(
-                text("EXEC FlaskHelperFunctions @Request = 'SchoolDropdownAll'")
-            ).fetchall()
+        schools = []
+        try:
+            with engine.begin() as conn:
+                schools = conn.execute(
+                    text("EXEC FlaskHelperFunctions @Request = 'SchoolDropdownAll'")
+                ).fetchall()
+        except Exception as fetch_err:
+            current_app.logger.warning(f"School dropdown load failed: {fetch_err}")
+            flash("Couldn't load the school list. You can still fill the form, or try again later.", "warning")
 
         return render_template("add_user.html", schools=schools)
 
@@ -82,29 +91,29 @@ def add_user():
         err_msg = str(e)
         current_app.logger.exception("❌ add_user() route failed")
 
-        # Try to log the alert to your audit table
+        # Log alert ONLY on POST to avoid GET-render loops spamming the DB
         try:
-            with engine.begin() as conn:
-                conn.execute(
-                    text("""
-                        EXEC AUD_Alerts_Insert
-                             @Email        = :Email,
-                             @RoleCode     = :RoleCode,
-                             @EntityID     = :id,
-                             @Link         = :Link,
-                             @ErrorMessage = :ErrorMessage
-                    """),
-                    {
-                        "Email": session.get("email"),
-                        "RoleCode": session.get("user_role"),
-                        "id": session.get("user_id"),
-                        "Link": request.url,
-                        "ErrorMessage": err_msg
-                    }
-                )
+            if request.method == "POST":
+                with engine.begin() as conn:
+                    conn.execute(
+                        text("""
+                            EXEC AUD_Alerts_Insert
+                                 @Email        = :Email,
+                                 @RoleCode     = :RoleCode,
+                                 @EntityID     = :id,
+                                 @Link         = :Link,
+                                 @ErrorMessage = :ErrorMessage
+                        """),
+                        {
+                            "Email": (session.get("email") or "")[:320],
+                            "RoleCode": (session.get("user_role") or "")[:10],
+                            "id": session.get("user_id"),
+                            "Link": str(request.url)[:2048],
+                            "ErrorMessage": err_msg
+                        }
+                    )
         except Exception as log_err:
             current_app.logger.error(f"⚠️ Failed to log alert: {log_err}")
 
         flash("An unexpected error occurred. The issue has been logged.", "danger")
-        return redirect(url_for("add_user.add_user"))
-    
+        return abort(500)  # IMPORTANT: do NOT redirect back to /add-user here

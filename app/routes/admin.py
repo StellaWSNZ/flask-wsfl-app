@@ -26,17 +26,22 @@ from app.utils.database import get_db_engine, log_alert
 @login_required
 def create_user():
     try:
+        # ---- perms --------------------------------------------------------
         if not session.get("user_admin"):
             abort(403)
 
+        # ---- setup --------------------------------------------------------
         engine    = get_db_engine()
         user_role = session.get("user_role")
         user_id   = session.get("user_id")
         desc      = session.get("desc")
 
+        # dev-only failure switch
         FAIL_FLAG = (request.args.get("__fail") or request.form.get("__fail"))
         if not current_app.debug:
             FAIL_FLAG = None
+        if current_app.debug and request.args.get("__bubble"):
+            raise  # surface error in debugger
         if FAIL_FLAG == "init":
             raise RuntimeError("Forced init failure (CreateUser)")
 
@@ -44,6 +49,7 @@ def create_user():
         funders, providers, schools, groups = [], [], [], []
         only_own_staff_or_empty = False
 
+        # ---- optional header context for FUN ------------------------------
         if user_role == "FUN":
             with engine.connect() as conn:
                 funder = conn.execute(
@@ -51,6 +57,7 @@ def create_user():
                     {"Request": "FunderByID", "fid": user_id}
                 ).fetchone()
 
+        # ---- POST: create user -------------------------------------------
         if request.method == "POST":
             email           = (request.form.get("email") or "").strip()
             firstname       = (request.form.get("firstname") or "").strip()
@@ -65,10 +72,10 @@ def create_user():
             except (TypeError, ValueError):
                 selected_id = None
 
-            if FAIL_FLAG == "post":
-                raise RuntimeError("Forced POST failure (CreateUser)")
+            
+            
 
-            hashed_pw = None
+            hashed_pw = None  # invite-only; SP handles NULL
 
             with engine.begin() as conn:
                 existing = conn.execute(
@@ -78,7 +85,7 @@ def create_user():
 
                 if existing:
                     flash("⚠️ Email already exists.", "warning")
-                    return redirect(url_for("admin_bp.create_user"))   # <-- stop here
+                    return redirect(url_for("admin_bp.create_user"))  # ok to redirect here
 
                 # create the user
                 conn.execute(
@@ -105,7 +112,6 @@ def create_user():
                     }
                 )
 
-            # success + optional email only if we reached here (i.e., not existing)
             flash(f"✅ User {email} created.", "success")
 
             if send_email:
@@ -125,7 +131,7 @@ def create_user():
 
             return redirect(url_for("admin_bp.create_user"))
 
-        # GET render
+        # ---- GET: render --------------------------------------------------
         return render_template(
             "create_user.html",
             user_role=user_role,
@@ -139,91 +145,155 @@ def create_user():
         )
 
     except Exception as e:
+        # ---- universal catcher -------------------------------------------
         current_app.logger.exception("❌ create_user() failed")
-        try:
-            sel_id = request.form.get("selected_id")
-            try:
-                sel_id = int(sel_id) if sel_id is not None else None
-            except ValueError:
-                sel_id = None
 
-            log_alert(
-                engine=get_db_engine(),
-                email=session.get("email"),
-                role=session.get("user_role"),
-                entity_id=sel_id,
-                link=request.url,
-                message=str(e)
-            )
+        # best-effort DB alert; only on POST to avoid loops spamming alerts
+        try:
+            if request.method == "POST":
+                sel_id = request.form.get("selected_id")
+                try:
+                    sel_id = int(sel_id) if sel_id is not None else None
+                except ValueError:
+                    sel_id = None
+
+                log_alert(
+                    email=(session.get("user_email") or session.get("email") or "")[:320],
+                    role=(session.get("user_role") or "")[:10],
+                    entity_id=sel_id,
+                    link=str(request.url)[:2048],   # avoid NVARCHAR(2048) overflow
+                    message=str(e)
+                )
         except Exception as log_err:
             current_app.logger.error(f"⚠️ Failed to log alert in CreateUser: {log_err}")
 
         flash("An unexpected error occurred. The issue has been logged.", "danger")
-        return redirect(url_for("admin_bp.create_user"))
-
+        return abort(500)  # IMPORTANT: don't redirect back to the same route
 
 from datetime import datetime
 from flask import session, render_template
 from sqlalchemy import text
-
 @admin_bp.route("/Profile")
 @login_required
 def profile():
     try:
-        formatted_login = datetime.fromisoformat(session["last_login_nzt"]).strftime('%A, %d %B %Y, %I:%M %p')
-    except (KeyError, ValueError, TypeError):
-        formatted_login = "Unknown"
+        # --- hard-coded test raise (works only in DEBUG so prod is safe) ---
+        FAIL_FLAG = request.args.get("__fail")
+        if current_app.debug and FAIL_FLAG == "test":
+            raise RuntimeError("Forced test error from /Profile for alert logging verification")
 
-    user_info = {
-        "email": session.get("user_email"),
-        "role": session.get("user_role"),
-        "admin": session.get("user_admin"),
-        "email_alt":session.get("user_email_alt"),
-        "firstname": session.get("user_firstname"),
-        "surname": session.get("user_surname"),
-        "desc": session.get("desc"),
-        "last_login": formatted_login,
-        "school_address": session.get("school_address"),
-        "school_town": session.get("school_town"),
-        "school_lat": session.get("school_lat"),
-        "school_lon": session.get("school_lon"),
-        "school_type": session.get("school_type"),
-        "user_id": session.get("user_id"),
-        "user_type_desc": session.get("school_type_desc"),
-        "funder_lat": session.get("funder_lat"),
-        "funder_lon": session.get("funder_lon"),
-        "funder_address": session.get("funder_address"),
-        "provider_lat": session.get("provider_lat"),
-        "provider_lon": session.get("provider_lon"),
-        "provider_address": session.get("provider_address")
-    }
+        # ---------- session-derived fields ----------
+        try:
+            last_login_raw = session.get("last_login_nzt")
+            formatted_login = (
+                datetime.fromisoformat(last_login_raw).strftime('%A, %d %B %Y, %I:%M %p')
+                if last_login_raw else "Unknown"
+            )
+        except (ValueError, TypeError):
+            formatted_login = "Unknown"
 
-    # Load dropdown options
-    engine = get_db_engine()
-    with engine.connect() as conn:
-        result = conn.execute(text("EXEC FlaskHelperFunctions 'SchoolTypeDropdown'"))
-        school_type_options = [dict(row._mapping) for row in result]
-        result = conn.execute(text("EXEC GetElearningStatus :Email"), {"Email": user_info["email_alt"] or user_info["email"]})
-        eLearning_status = [dict(row._mapping) for row in result]
+        user_email     = session.get("user_email")
+        user_email_alt = session.get("user_email_alt")
+        display_email  = user_email_alt or user_email
 
-        # optionally pass a static last_updated date for now 
-        last_self_review_row = conn.execute(text("EXEC SVY_LatestSelfReveiw :Email, :AltEmail"), {"Email": user_info["email"],"AltEmail": user_info["email_alt"]}).fetchone()
-        user_info["last_self_review"] = (
-            last_self_review_row[0].strftime('%A, %d %B %Y')
-            if last_self_review_row and last_self_review_row[0]
-            else None
+        user_info = {
+            "email": user_email,
+            "role": session.get("user_role"),
+            "admin": session.get("user_admin"),
+            "email_alt": user_email_alt,
+            "firstname": session.get("user_firstname"),
+            "surname": session.get("user_surname"),
+            "desc": session.get("desc"),
+            "last_login": formatted_login,
+            "school_address": session.get("school_address"),
+            "school_town": session.get("school_town"),
+            "school_lat": session.get("school_lat"),
+            "school_lon": session.get("school_lon"),
+            "school_type": session.get("school_type"),
+            "user_id": session.get("user_id"),
+            "user_type_desc": session.get("school_type_desc"),
+            "funder_lat": session.get("funder_lat"),
+            "funder_lon": session.get("funder_lon"),
+            "funder_address": session.get("funder_address"),
+            "provider_lat": session.get("provider_lat"),
+            "provider_lon": session.get("provider_lon"),
+            "provider_address": session.get("provider_address"),
+            "last_self_review": None,
+            "last_self_review_overdue": False,
+        }
+
+        # ---------- DB lookups ----------
+        school_type_options, eLearning_status = [], []
+        engine = get_db_engine()
+        with engine.connect() as conn:
+            result = conn.execute(text("EXEC FlaskHelperFunctions 'SchoolTypeDropdown'"))
+            school_type_options = [dict(row._mapping) for row in result]
+
+            result = conn.execute(
+                text("EXEC GetElearningStatus :Email"),
+                {"Email": display_email}
+            )
+            eLearning_status = [dict(row._mapping) for row in result]
+
+            last_row = conn.execute(
+                text("EXEC SVY_LatestSelfReveiw :Email, :AltEmail"),
+                {"Email": user_email, "AltEmail": user_email_alt}
+            ).fetchone()
+
+            last_dt = last_row[0] if last_row else None
+            if isinstance(last_dt, datetime):
+                user_info["last_self_review"] = last_dt.strftime('%A, %d %B %Y')
+                user_info["last_self_review_overdue"] = (datetime.now() - last_dt) > timedelta(days=90)
+
+        return render_template(
+            "profile.html",
+            user=user_info,
+            school_type_options=school_type_options,
+            eLearning_status=eLearning_status
         )
-        last_review_date = last_self_review_row[0] if last_self_review_row else None
 
-        overdue = False
-        if last_review_date and isinstance(last_review_date, datetime):
-            overdue = datetime.now() - last_review_date > timedelta(days=90)
-        user_info["last_self_review_overdue"] = overdue
-
-    return render_template("profile.html",
-                       user=user_info,
-                       school_type_options=school_type_options,
-                       eLearning_status=eLearning_status)
+    except Exception as e:
+        current_app.logger.exception("❌ profile() failed")
+        # IMPORTANT: use robust email key (your session uses user_email)
+        log_alert(
+            email=session.get("user_email") or session.get("email"),
+            role=session.get("user_role"),
+            entity_id=session.get("user_id"),
+            link=request.url,
+            message=str(e)
+        )
+        flash("We couldn’t load your profile completely. The issue has been logged.", "warning")
+        # Render with safe fallbacks
+        return render_template(
+            "profile.html",
+            user={
+                "email": session.get("user_email"),
+                "role": session.get("user_role"),
+                "admin": session.get("user_admin"),
+                "email_alt": session.get("user_email_alt"),
+                "firstname": session.get("user_firstname"),
+                "surname": session.get("user_surname"),
+                "desc": session.get("desc"),
+                "last_login": "Unknown",
+                "school_address": session.get("school_address"),
+                "school_town": session.get("school_town"),
+                "school_lat": session.get("school_lat"),
+                "school_lon": session.get("school_lon"),
+                "school_type": session.get("school_type"),
+                "user_id": session.get("user_id"),
+                "user_type_desc": session.get("school_type_desc"),
+                "funder_lat": session.get("funder_lat"),
+                "funder_lon": session.get("funder_lon"),
+                "funder_address": session.get("funder_address"),
+                "provider_lat": session.get("provider_lat"),
+                "provider_lon": session.get("provider_lon"),
+                "provider_address": session.get("provider_address"),
+                "last_self_review": None,
+                "last_self_review_overdue": False,
+            },
+            school_type_options=[],
+            eLearning_status=[]
+        )
 
 from flask import request, redirect, url_for, flash
 
