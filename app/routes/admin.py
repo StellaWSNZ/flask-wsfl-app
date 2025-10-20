@@ -26,17 +26,14 @@ from app.utils.database import get_db_engine, log_alert
 @login_required
 def create_user():
     try:
-        # ---- perms --------------------------------------------------------
         if not session.get("user_admin"):
             abort(403)
 
-        # ---- setup --------------------------------------------------------
         engine    = get_db_engine()
         user_role = session.get("user_role")
         user_id   = session.get("user_id")
         desc      = session.get("desc")
 
-        # dev-only forced failure (for testing the catch-all)
         FAIL_FLAG = (request.args.get("__fail") or request.form.get("__fail"))
         if not current_app.debug:
             FAIL_FLAG = None
@@ -47,7 +44,6 @@ def create_user():
         funders, providers, schools, groups = [], [], [], []
         only_own_staff_or_empty = False
 
-        # ---- optional header context for FUN ------------------------------
         if user_role == "FUN":
             with engine.connect() as conn:
                 funder = conn.execute(
@@ -55,14 +51,13 @@ def create_user():
                     {"Request": "FunderByID", "fid": user_id}
                 ).fetchone()
 
-        # ---- POST: create user -------------------------------------------
         if request.method == "POST":
-            email          = (request.form.get("email") or "").strip()
-            firstname      = (request.form.get("firstname") or "").strip()
-            surname        = (request.form.get("surname") or "").strip()
-            send_email     = request.form.get("send_email") == "on"
-            admin_flag     = 1 if request.form.get("admin") == "1" else 0
-            selected_role  = (request.form.get("selected_role") or "").strip()
+            email           = (request.form.get("email") or "").strip()
+            firstname       = (request.form.get("firstname") or "").strip()
+            surname         = (request.form.get("surname") or "").strip()
+            send_email      = request.form.get("send_email") == "on"
+            admin_flag      = 1 if request.form.get("admin") == "1" else 0
+            selected_role   = (request.form.get("selected_role") or "").strip()
             selected_id_raw = request.form.get("selected_id")
 
             try:
@@ -73,7 +68,7 @@ def create_user():
             if FAIL_FLAG == "post":
                 raise RuntimeError("Forced POST failure (CreateUser)")
 
-            hashed_pw = None  # invite-only; SP should handle NULL
+            hashed_pw = None
 
             with engine.begin() as conn:
                 existing = conn.execute(
@@ -83,36 +78,38 @@ def create_user():
 
                 if existing:
                     flash("⚠️ Email already exists.", "warning")
-                else:
-                    conn.execute(
-                        text("""
-                            EXEC FlaskInsertUser 
-                                @Email = :email,
-                                @HashPassword = :hash,
-                                @Role = :role,
-                                @ID = :id,
-                                @FirstName = :firstname,
-                                @Surname = :surname,
-                                @Admin = :admin,
-                                @Active = :active
-                        """),
-                        {
-                            "email": email,
-                            "hash": hashed_pw,
-                            "role": selected_role,
-                            "id": selected_id,
-                            "firstname": firstname,
-                            "surname": surname,
-                            "admin": admin_flag,
-                            "active": 1
-                        }
-                    )
+                    return redirect(url_for("admin_bp.create_user"))   # <-- stop here
 
+                # create the user
+                conn.execute(
+                    text("""
+                        EXEC FlaskInsertUser 
+                            @Email = :email,
+                            @HashPassword = :hash,
+                            @Role = :role,
+                            @ID = :id,
+                            @FirstName = :firstname,
+                            @Surname = :surname,
+                            @Admin = :admin,
+                            @Active = :active
+                    """),
+                    {
+                        "email": email,
+                        "hash": hashed_pw,
+                        "role": selected_role,
+                        "id": selected_id,
+                        "firstname": firstname,
+                        "surname": surname,
+                        "admin": admin_flag,
+                        "active": 1
+                    }
+                )
+
+            # success + optional email only if we reached here (i.e., not existing)
             flash(f"✅ User {email} created.", "success")
 
             if send_email:
                 try:
-                    # ensure `mail` and this helper are imported where you define them
                     send_account_setup_email(
                         mail=mail,
                         recipient_email=email,
@@ -128,7 +125,7 @@ def create_user():
 
             return redirect(url_for("admin_bp.create_user"))
 
-        # ---- GET: render --------------------------------------------------
+        # GET render
         return render_template(
             "create_user.html",
             user_role=user_role,
@@ -142,10 +139,8 @@ def create_user():
         )
 
     except Exception as e:
-        # ---- universal catcher -------------------------------------------
         current_app.logger.exception("❌ create_user() failed")
         try:
-            # prefer selected_id if present; otherwise None
             sel_id = request.form.get("selected_id")
             try:
                 sel_id = int(sel_id) if sel_id is not None else None
@@ -153,7 +148,6 @@ def create_user():
                 sel_id = None
 
             log_alert(
-                # engine optional if your helper builds its own; pass if you like:
                 engine=get_db_engine(),
                 email=session.get("email"),
                 role=session.get("user_role"),
@@ -166,8 +160,6 @@ def create_user():
 
         flash("An unexpected error occurred. The issue has been logged.", "danger")
         return redirect(url_for("admin_bp.create_user"))
-
-
 
 
 from datetime import datetime
