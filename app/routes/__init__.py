@@ -32,6 +32,15 @@ def register_routes(app):
     app.register_blueprint(user_bp)
     app.register_blueprint(instructions_bp)  
     
+    output_path = "blueprints_list.txt"
+    with open(output_path, "w", encoding="utf-8") as f:
+        for name, bp in app.blueprints.items():
+            line = f"{name} -> {bp.import_name}\n"
+            f.write(line)
+            print(line.strip())  # optional: still print to console
+    print(f"\n✅ Blueprint list saved to {output_path}\n")
+
+    
     @app.errorhandler(Exception)
     def handle_error(e):
         code = getattr(e, 'code', 500)
