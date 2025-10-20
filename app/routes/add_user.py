@@ -90,13 +90,14 @@ def add_user():
                         EXEC AUD_Alerts_Insert
                              @Email        = :Email,
                              @RoleCode     = :RoleCode,
-                             @EntityID     = NULL,
+                             @EntityID     = :id,
                              @Link         = :Link,
                              @ErrorMessage = :ErrorMessage
                     """),
                     {
                         "Email": session.get("email"),
                         "RoleCode": session.get("user_role"),
+                        "id": session.get("user_id"),
                         "Link": request.url,
                         "ErrorMessage": err_msg
                     }
