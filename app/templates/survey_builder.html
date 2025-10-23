@@ -172,39 +172,48 @@ block content %}
     </div>
   </div>
 </div>
+<script type="application/json" id="likert-scales-data">
+  {{ scales|tojson }}
+</script>
 
 <script>
   // Preloaded from Flask
-  const LIKERT_SCALES = {{ scales|tojson|safe }};
+  const LIKERT_SCALES = JSON.parse(
+    document.getElementById("likert-scales-data").textContent
+  );
 
   // ---- State ----
   const survey = {
-    title: "", description: "", routeName: "",
-    sections: []  // [{name, order, text, questions:[{code,text,likertScaleId?,options?}]}]
+    title: "",
+    description: "",
+    routeName: "",
+    sections: [], // [{name, order, text, questions:[{code,text,likertScaleId?,options?}]}]
   };
 
   // ---- DOM refs ----
-  const addType = document.getElementById('addType');
-  const targetSection = document.getElementById('targetSection');
-  const questionType = document.getElementById('questionType');
-  const addBtn = document.getElementById('addBtn');
-  const builderArea = document.getElementById('builderArea');
+  const addType = document.getElementById("addType");
+  const targetSection = document.getElementById("targetSection");
+  const questionType = document.getElementById("questionType");
+  const addBtn = document.getElementById("addBtn");
+  const builderArea = document.getElementById("builderArea");
 
-  const surveyTitle = document.getElementById('surveyTitle');
-  const surveyDescription = document.getElementById('surveyDescription');
-  const surveyRoute = document.getElementById('surveyRoute');
+  const surveyTitle = document.getElementById("surveyTitle");
+  const surveyDescription = document.getElementById("surveyDescription");
+  const surveyRoute = document.getElementById("surveyRoute");
 
   // Likert modal + feedback modal + toast
   let likertModal, feedbackModal, toast;
-  document.addEventListener('DOMContentLoaded', () => {
-    likertModal = new bootstrap.Modal(document.getElementById('likertModal'));
-    feedbackModal = new bootstrap.Modal(document.getElementById('feedbackModal'));
-    toast = new bootstrap.Toast(document.getElementById('liveToast'));
+  document.addEventListener("DOMContentLoaded", () => {
+    likertModal = new bootstrap.Modal(document.getElementById("likertModal"));
+    feedbackModal = new bootstrap.Modal(
+      document.getElementById("feedbackModal")
+    );
+    toast = new bootstrap.Toast(document.getElementById("liveToast"));
   });
-  const likertRows = document.getElementById('likertRows');
-  const addLikertRowBtn = document.getElementById('addLikertRow');
-  const saveLikertBtn = document.getElementById('saveLikertBtn');
-  const likertName = document.getElementById('likertName');
+  const likertRows = document.getElementById("likertRows");
+  const addLikertRowBtn = document.getElementById("addLikertRow");
+  const saveLikertBtn = document.getElementById("saveLikertBtn");
+  const likertName = document.getElementById("likertName");
 
   function showModalMessage(title, htmlBody, type = "danger") {
     const modalEl = document.getElementById("feedbackModal");
@@ -216,7 +225,7 @@ block content %}
     bodyEl.innerHTML = htmlBody;
     feedbackModal.show();
   }
-  function showToast(msg, color="primary") {
+  function showToast(msg, color = "primary") {
     const toastEl = document.getElementById("liveToast");
     const toastBody = document.getElementById("toastBody");
     toastEl.className = `toast align-items-center text-bg-${color} border-0`;
@@ -226,18 +235,19 @@ block content %}
 
   // ---- Helpers ----
   function resequenceSections() {
-    survey.sections.forEach((s, i) => s.order = i + 1);
+    survey.sections.forEach((s, i) => (s.order = i + 1));
   }
 
   function refreshSectionSelector() {
     const prev = targetSection.value;
-    targetSection.innerHTML = '<option value="" disabled selected>Choose section…</option>';
+    targetSection.innerHTML =
+      '<option value="" disabled selected>Choose section…</option>';
     survey.sections
-      .sort((a,b)=>a.order-b.order)
+      .sort((a, b) => a.order - b.order)
       .forEach((s, idx) => {
-        const opt = document.createElement('option');
+        const opt = document.createElement("option");
         opt.value = String(idx);
-        opt.textContent = `${s.order}. ${s.name || 'Untitled Section'}`;
+        opt.textContent = `${s.order}. ${s.name || "Untitled Section"}`;
         targetSection.appendChild(opt);
       });
     if (prev) targetSection.value = prev;
@@ -245,61 +255,84 @@ block content %}
 
   function render() {
     builderArea.innerHTML = "";
-    survey.sections.sort((a,b)=>a.order-b.order).forEach((sec, sidx) => {
-      const card = document.createElement('div');
-      card.className = 'card mb-3';
-      const body = document.createElement('div');
-      body.className = 'card-body';
+    survey.sections
+      .sort((a, b) => a.order - b.order)
+      .forEach((sec, sidx) => {
+        const card = document.createElement("div");
+        card.className = "card mb-3";
+        const body = document.createElement("div");
+        body.className = "card-body";
 
-      body.innerHTML = `
+        body.innerHTML = `
         <div class="d-flex gap-2 align-items-start mb-2">
           <strong class="mt-1">Section ${sec.order}</strong>
-          <input class="form-control form-control-sm" placeholder="Section name" value="${sec.name||''}" data-bind="section-name:${sidx}">
-          <input class="form-control form-control-sm" type="number" min="1" value="${sec.order}" style="max-width:100px" title="Order" data-bind="section-order:${sidx}">
+          <input class="form-control form-control-sm" placeholder="Section name" value="${
+            sec.name || ""
+          }" data-bind="section-name:${sidx}">
+          <input class="form-control form-control-sm" type="number" min="1" value="${
+            sec.order
+          }" style="max-width:100px" title="Order" data-bind="section-order:${sidx}">
           <button class="btn btn-sm btn-outline-danger ms-auto" data-action="delete-section" data-sidx="${sidx}">Delete</button>
         </div>
-        <textarea class="form-control form-control-sm mb-2" rows="2" placeholder="Section description (optional)" data-bind="section-text:${sidx}">${sec.text||''}</textarea>
+        <textarea class="form-control form-control-sm mb-2" rows="2" placeholder="Section description (optional)" data-bind="section-text:${sidx}">${
+          sec.text || ""
+        }</textarea>
         <div data-role="questions"></div>
       `;
-      card.appendChild(body);
-      builderArea.appendChild(card);
+        card.appendChild(body);
+        builderArea.appendChild(card);
 
-      // render questions
-      const qwrap = body.querySelector('[data-role="questions"]');
-      (sec.questions||[]).forEach((q, qidx) => {
-        const qDiv = document.createElement('div');
-        qDiv.className = 'border rounded p-2 mb-2';
-        const extra = (q.code === 'DDL')
-          ? renderDDLOptionsHTML(sidx, qidx, q.options||[])
-          : (q.code === 'LIK') ? renderLikertPickerHTML(sidx, qidx, q.likertScaleId)
-          : '';
+        // render questions
+        const qwrap = body.querySelector('[data-role="questions"]');
+        (sec.questions || []).forEach((q, qidx) => {
+          const qDiv = document.createElement("div");
+          qDiv.className = "border rounded p-2 mb-2";
+          const extra =
+            q.code === "DDL"
+              ? renderDDLOptionsHTML(sidx, qidx, q.options || [])
+              : q.code === "LIK"
+              ? renderLikertPickerHTML(sidx, qidx, q.likertScaleId)
+              : "";
 
-        qDiv.innerHTML = `
+          qDiv.innerHTML = `
           <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
             <div class="d-flex gap-2 align-items-center flex-wrap">
               <span class="badge text-bg-secondary">${q.code}</span>
-              <input class="form-control form-control-sm" placeholder="Question text" value="${q.text||''}" data-bind="q-text:${sidx}:${qidx}" style="min-width:280px">
+              <input class="form-control form-control-sm" placeholder="Question text" value="${
+                q.text || ""
+              }" data-bind="q-text:${sidx}:${qidx}" style="min-width:280px">
             </div>
             <button class="btn btn-sm btn-outline-danger" data-action="delete-question" data-sidx="${sidx}" data-qidx="${qidx}">Delete</button>
           </div>
           ${extra}
         `;
-        qwrap.appendChild(qDiv);
+          qwrap.appendChild(qDiv);
+        });
       });
-    });
 
     refreshSectionSelector();
     wireEvents();
   }
 
   function renderDDLOptionsHTML(sidx, qidx, options) {
-    const rows = (options||[]).sort((a,b)=>a.order-b.order).map((o, i) => `
+    const rows = (options || [])
+      .sort((a, b) => a.order - b.order)
+      .map(
+        (o, i) => `
       <div class="row g-2 align-items-center mb-1" data-role="ddl-row" data-sidx="${sidx}" data-qidx="${qidx}" data-oidx="${i}">
-        <div class="col-auto"><input class="form-control form-control-sm" type="number" min="1" value="${o.order||i+1}" data-bind="ddl-order:${sidx}:${qidx}:${i}" style="max-width:80px"></div>
-        <div class="col"><input class="form-control form-control-sm" placeholder="Option label" value="${o.label||''}" data-bind="ddl-label:${sidx}:${qidx}:${i}"></div>
-        <div class="col"><input class="form-control form-control-sm" placeholder="Option value" value="${o.value||''}" data-bind="ddl-value:${sidx}:${qidx}:${i}"></div>
+        <div class="col-auto"><input class="form-control form-control-sm" type="number" min="1" value="${
+          o.order || i + 1
+        }" data-bind="ddl-order:${sidx}:${qidx}:${i}" style="max-width:80px"></div>
+        <div class="col"><input class="form-control form-control-sm" placeholder="Option label" value="${
+          o.label || ""
+        }" data-bind="ddl-label:${sidx}:${qidx}:${i}"></div>
+        <div class="col"><input class="form-control form-control-sm" placeholder="Option value" value="${
+          o.value || ""
+        }" data-bind="ddl-value:${sidx}:${qidx}:${i}"></div>
         <div class="col-auto"><button class="btn btn-sm btn-outline-danger" data-action="delete-ddl-option" data-sidx="${sidx}" data-qidx="${qidx}" data-oidx="${i}">×</button></div>
-      </div>`).join('');
+      </div>`
+      )
+      .join("");
     return `
       <div class="border rounded p-2 mt-2">
         <div class="d-flex justify-content-between align-items-center mb-2">
@@ -311,7 +344,12 @@ block content %}
   }
 
   function renderLikertPickerHTML(sidx, qidx, selectedId) {
-    const opts = LIKERT_SCALES.map(sc => `<option value="${sc.id}" ${String(sc.id)===String(selectedId)?'selected':''}>${sc.name} (max ${sc.max})</option>`).join('');
+    const opts = LIKERT_SCALES.map(
+      (sc) =>
+        `<option value="${sc.id}" ${
+          String(sc.id) === String(selectedId) ? "selected" : ""
+        }>${sc.name} (max ${sc.max})</option>`
+    ).join("");
     return `
       <div class="mt-2">
         <label class="form-label mb-1 small">Likert scale</label>
@@ -327,68 +365,83 @@ block content %}
 
   function wireEvents() {
     // Bind simple inputs
-    document.querySelectorAll('[data-bind]').forEach(el => {
+    document.querySelectorAll("[data-bind]").forEach((el) => {
       el.oninput = () => {
-        const [kind, s, q, o] = el.dataset.bind.split(':');
-        if (kind.startsWith('section-')) {
+        const [kind, s, q, o] = el.dataset.bind.split(":");
+        if (kind.startsWith("section-")) {
           const idx = +s;
-          if (kind === 'section-name') survey.sections[idx].name = el.value;
-          if (kind === 'section-text') survey.sections[idx].text = el.value;
-          if (kind === 'section-order') { survey.sections[idx].order = +el.value || 1; survey.sections.sort((a,b)=>a.order-b.order); resequenceSections(); render(); }
-        } else if (kind.startsWith('q-')) {
-          const sidx = +s, qidx = +q;
+          if (kind === "section-name") survey.sections[idx].name = el.value;
+          if (kind === "section-text") survey.sections[idx].text = el.value;
+          if (kind === "section-order") {
+            survey.sections[idx].order = +el.value || 1;
+            survey.sections.sort((a, b) => a.order - b.order);
+            resequenceSections();
+            render();
+          }
+        } else if (kind.startsWith("q-")) {
+          const sidx = +s,
+            qidx = +q;
           const qobj = survey.sections[sidx].questions[qidx];
-          if (kind === 'q-text') qobj.text = el.value;
-          if (kind === 'q-likert') qobj.likertScaleId = el.value ? +el.value : null;
-        } else if (kind.startsWith('ddl-')) {
-          const sidx = +s, qidx = +q, oidx = +o;
+          if (kind === "q-text") qobj.text = el.value;
+          if (kind === "q-likert")
+            qobj.likertScaleId = el.value ? +el.value : null;
+        } else if (kind.startsWith("ddl-")) {
+          const sidx = +s,
+            qidx = +q,
+            oidx = +o;
           const qobj = survey.sections[sidx].questions[qidx];
           qobj.options = qobj.options || [];
           const row = qobj.options[oidx];
           if (!row) return;
-          if (kind === 'ddl-order') row.order = +el.value || (oidx+1);
-          if (kind === 'ddl-label') row.label = el.value;
-          if (kind === 'ddl-value') row.value = el.value;
+          if (kind === "ddl-order") row.order = +el.value || oidx + 1;
+          if (kind === "ddl-label") row.label = el.value;
+          if (kind === "ddl-value") row.value = el.value;
         }
       };
     });
 
     // Buttons (delete/add/modal)
-    document.querySelectorAll('[data-action]').forEach(btn => {
+    document.querySelectorAll("[data-action]").forEach((btn) => {
       btn.onclick = async () => {
         const action = btn.dataset.action;
-        if (action === 'delete-section') {
+        if (action === "delete-section") {
           const sidx = +btn.dataset.sidx;
           survey.sections.splice(sidx, 1);
           resequenceSections();
           render();
         }
-        if (action === 'add-question') {
+        if (action === "add-question") {
           const sidx = +btn.dataset.sidx;
-          survey.sections[sidx].questions.push({ code:'SHT', text:'' });
+          survey.sections[sidx].questions.push({ code: "SHT", text: "" });
           render();
         }
-        if (action === 'delete-question') {
-          const sidx = +btn.dataset.sidx, qidx = +btn.dataset.qidx;
-          survey.sections[sidx].questions.splice(qidx,1);
+        if (action === "delete-question") {
+          const sidx = +btn.dataset.sidx,
+            qidx = +btn.dataset.qidx;
+          survey.sections[sidx].questions.splice(qidx, 1);
           render();
         }
-        if (action === 'add-ddl-option') {
-          const sidx = +btn.dataset.sidx, qidx = +btn.dataset.qidx;
+        if (action === "add-ddl-option") {
+          const sidx = +btn.dataset.sidx,
+            qidx = +btn.dataset.qidx;
           const qobj = survey.sections[sidx].questions[qidx];
           qobj.options = qobj.options || [];
-          const nextOrder = qobj.options.length ? Math.max(...qobj.options.map(o=>o.order||0))+1 : 1;
-          qobj.options.push({ order: nextOrder, label: '', value: '' });
+          const nextOrder = qobj.options.length
+            ? Math.max(...qobj.options.map((o) => o.order || 0)) + 1
+            : 1;
+          qobj.options.push({ order: nextOrder, label: "", value: "" });
           render();
         }
-        if (action === 'delete-ddl-option') {
-          const sidx = +btn.dataset.sidx, qidx = +btn.dataset.qidx, oidx = +btn.dataset.oidx;
+        if (action === "delete-ddl-option") {
+          const sidx = +btn.dataset.sidx,
+            qidx = +btn.dataset.qidx,
+            oidx = +btn.dataset.oidx;
           const qobj = survey.sections[sidx].questions[qidx];
-          qobj.options.splice(oidx,1);
-          qobj.options.forEach((o,i)=>o.order=i+1);
+          qobj.options.splice(oidx, 1);
+          qobj.options.forEach((o, i) => (o.order = i + 1));
           render();
         }
-        if (action === 'open-likert-modal') {
+        if (action === "open-likert-modal") {
           openLikertModal();
         }
       };
@@ -396,26 +449,45 @@ block content %}
   }
 
   // ---- Top controls ----
-  addType.addEventListener('change', () => {
+  addType.addEventListener("change", () => {
     const v = addType.value;
-    questionType.classList.toggle('d-none', v !== 'question');
-    targetSection.classList.toggle('d-none', v !== 'question');
+    questionType.classList.toggle("d-none", v !== "question");
+    targetSection.classList.toggle("d-none", v !== "question");
   });
 
-  addBtn.addEventListener('click', () => {
+  addBtn.addEventListener("click", () => {
     const v = addType.value;
     if (!v) return;
-    if (v === 'section') {
-      survey.sections.push({ name:"", order: survey.sections.length+1, text:"", questions: [] });
+    if (v === "section") {
+      survey.sections.push({
+        name: "",
+        order: survey.sections.length + 1,
+        text: "",
+        questions: [],
+      });
       render();
     } else {
       const sidx = +targetSection.value;
       const qtype = questionType.value;
-      if (isNaN(sidx)) { showModalMessage("Add Question", "<p>Please choose a section for the new question.</p>", "info"); return; }
-      if (!qtype) { showModalMessage("Add Question", "<p>Please choose a question type.</p>", "info"); return; }
-      const q = { code: qtype, text: '' };
-      if (qtype === 'DDL') q.options = [];
-      if (qtype === 'LIK') q.likertScaleId = null;
+      if (isNaN(sidx)) {
+        showModalMessage(
+          "Add Question",
+          "<p>Please choose a section for the new question.</p>",
+          "info"
+        );
+        return;
+      }
+      if (!qtype) {
+        showModalMessage(
+          "Add Question",
+          "<p>Please choose a question type.</p>",
+          "info"
+        );
+        return;
+      }
+      const q = { code: qtype, text: "" };
+      if (qtype === "DDL") q.options = [];
+      if (qtype === "LIK") q.likertScaleId = null;
       survey.sections[sidx].questions.push(q);
       render();
     }
@@ -423,8 +495,8 @@ block content %}
     addType.value = "";
     targetSection.value = "";
     questionType.value = "";
-    questionType.classList.add('d-none');
-    targetSection.classList.add('d-none');
+    questionType.classList.add("d-none");
+    targetSection.classList.add("d-none");
   });
 
   // ---- Validation ----
@@ -439,17 +511,21 @@ block content %}
     // Validate questions
     survey.sections.forEach((s, si) => {
       (s.questions || []).forEach((q, qi) => {
-        const label = `Section ${s.order || (si+1)} → Q${qi+1} (${q.code})`;
+        const label = `Section ${s.order || si + 1} → Q${qi + 1} (${q.code})`;
         if (!q.text || !q.text.trim()) {
           errors.push(`${label}: Question text is required.`);
         }
-        if (q.code === 'LIK' && !(q.likertScaleId > 0)) {
+        if (q.code === "LIK" && !(q.likertScaleId > 0)) {
           errors.push(`${label}: Select a Likert scale.`);
         }
-        if (q.code === 'DDL') {
-          const opts = (q.options || []).filter(o => (o.label && o.label.trim()) && (o.value && o.value.trim()));
+        if (q.code === "DDL") {
+          const opts = (q.options || []).filter(
+            (o) => o.label && o.label.trim() && o.value && o.value.trim()
+          );
           if (opts.length === 0) {
-            errors.push(`${label}: Add at least one dropdown option with label and value.`);
+            errors.push(
+              `${label}: Add at least one dropdown option with label and value.`
+            );
           }
         }
       });
@@ -459,14 +535,17 @@ block content %}
   }
 
   // ---- Save & Preview ----
-  document.getElementById('saveBtn').addEventListener('click', async () => {
+  document.getElementById("saveBtn").addEventListener("click", async () => {
     survey.title = surveyTitle.value.trim();
     survey.description = surveyDescription.value.trim();
     survey.routeName = surveyRoute.value.trim();
 
     const { ok, errors } = validateSurvey();
     if (!ok) {
-      const listHTML = "<ul class='mb-0'>" + errors.map(e => `<li>${e}</li>`).join("") + "</ul>";
+      const listHTML =
+        "<ul class='mb-0'>" +
+        errors.map((e) => `<li>${e}</li>`).join("") +
+        "</ul>";
       showModalMessage("Validation Errors", listHTML, "danger");
       return;
     }
@@ -476,45 +555,58 @@ block content %}
       title: survey.title || "",
       description: survey.description || "",
       routeName: survey.routeName || "",
-      sections: survey.sections.map(s => ({
+      sections: survey.sections.map((s) => ({
         name: s.name || null,
         order: s.order || 1,
         text: s.text || null,
-        questions: (s.questions||[]).map(q => {
+        questions: (s.questions || []).map((q) => {
           const base = { code: q.code, text: q.text || "" };
-          if (q.code === 'LIK') base.likertScaleId = q.likertScaleId || null;
-          if (q.code === 'DDL') base.options = (q.options||[]).map(o => ({
-            order: o.order || 1, label: o.label || "", value: o.value || ""
-          }));
+          if (q.code === "LIK") base.likertScaleId = q.likertScaleId || null;
+          if (q.code === "DDL")
+            base.options = (q.options || []).map((o) => ({
+              order: o.order || 1,
+              label: o.label || "",
+              value: o.value || "",
+            }));
           return base;
-        })
-      }))
+        }),
+      })),
     };
 
     try {
       const resp = await fetch("/survey/save", {
         method: "POST",
-        headers: {"Content-Type":"application/json"},
-        body: JSON.stringify(payload)
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       });
       const data = await resp.json();
       if (data.ok) {
         showToast(`Saved! Survey ID: ${data.survey_id}`, "success");
       } else {
-        showModalMessage("Save Failed", `<p>${data.error || "An unknown error occurred."}</p>`, "danger");
+        showModalMessage(
+          "Save Failed",
+          `<p>${data.error || "An unknown error occurred."}</p>`,
+          "danger"
+        );
       }
     } catch (e) {
       showModalMessage("Save Failed", `<p>${e?.message || e}</p>`, "danger");
     }
   });
 
-  document.getElementById('previewBtn').addEventListener('click', () => {
-    console.log(JSON.stringify({
-      title: surveyTitle.value.trim(),
-      description: surveyDescription.value.trim(),
-      routeName: surveyRoute.value.trim(),
-      sections: survey.sections
-    }, null, 2));
+  document.getElementById("previewBtn").addEventListener("click", () => {
+    console.log(
+      JSON.stringify(
+        {
+          title: surveyTitle.value.trim(),
+          description: surveyDescription.value.trim(),
+          routeName: surveyRoute.value.trim(),
+          sections: survey.sections,
+        },
+        null,
+        2
+      )
+    );
     showToast("JSON printed to console", "info");
   });
 
@@ -527,58 +619,70 @@ block content %}
     likertModal.show();
   }
   function addLikertRow(pos, text) {
-    const row = document.createElement('div');
-    row.className = 'row g-2 align-items-center mb-2';
+    const row = document.createElement("div");
+    row.className = "row g-2 align-items-center mb-2";
     row.innerHTML = `
-      <div class="col-auto"><input class="form-control form-control-sm" type="number" min="1" placeholder="#" value="${pos||''}"></div>
-      <div class="col"><input class="form-control form-control-sm" type="text" placeholder="Label text" value="${text||''}"></div>
+      <div class="col-auto"><input class="form-control form-control-sm" type="number" min="1" placeholder="#" value="${
+        pos || ""
+      }"></div>
+      <div class="col"><input class="form-control form-control-sm" type="text" placeholder="Label text" value="${
+        text || ""
+      }"></div>
       <div class="col-auto"><button class="btn btn-sm btn-outline-danger" type="button">&times;</button></div>`;
-    row.querySelector('button').onclick = () => row.remove();
+    row.querySelector("button").onclick = () => row.remove();
     likertRows.appendChild(row);
   }
-  addLikertRowBtn.addEventListener('click', () => addLikertRow());
+  addLikertRowBtn.addEventListener("click", () => addLikertRow());
 
-  saveLikertBtn.addEventListener('click', async () => {
+  saveLikertBtn.addEventListener("click", async () => {
     const name = likertName.value.trim();
     const labels = [];
-    likertRows.querySelectorAll('.row').forEach(r => {
+    likertRows.querySelectorAll(".row").forEach((r) => {
       const pos = +r.querySelector('input[type="number"]').value;
       const txt = r.querySelector('input[type="text"]').value.trim();
-      if (pos && txt) labels.push({position: pos, text: txt});
+      if (pos && txt) labels.push({ position: pos, text: txt });
     });
     if (!name || !labels.length) {
-      showModalMessage("Likert Scale", "<p>Name and at least one label are required.</p>", "info");
+      showModalMessage(
+        "Likert Scale",
+        "<p>Name and at least one label are required.</p>",
+        "info"
+      );
       return;
     }
 
     try {
-      const resp = await fetch('/survey/likert-scales', {
-        method: 'POST',
-        headers: {"Content-Type":"application/json"},
-        body: JSON.stringify({name, labels})
+      const resp = await fetch("/survey/likert-scales", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, labels }),
       });
       const data = await resp.json();
       if (!data.ok) {
-        showModalMessage("Likert Scale", "<p>Failed to save scale.</p>", "danger");
+        showModalMessage(
+          "Likert Scale",
+          "<p>Failed to save scale.</p>",
+          "danger"
+        );
         return;
       }
       // refresh list of scales
-      const r2 = await fetch('/survey/likert-scales');
+      const r2 = await fetch("/survey/likert-scales");
       const fresh = await r2.json();
       LIKERT_SCALES.length = 0;
-      fresh.forEach(x => LIKERT_SCALES.push(x));
+      fresh.forEach((x) => LIKERT_SCALES.push(x));
 
       likertModal.hide();
       showToast("Likert scale saved", "success");
       render();
-    } catch(e) {
+    } catch (e) {
       showModalMessage("Likert Scale", `<p>${e?.message || e}</p>`, "danger");
     }
   });
 
   // ---- boot ----
   // Start with one section so the UI isn't empty (you can remove this to start blank)
-  survey.sections.push({ name:"", order:1, text:"", questions: [] });
+  survey.sections.push({ name: "", order: 1, text: "", questions: [] });
   render();
 </script>
 {% endblock %}

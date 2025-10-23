@@ -38,10 +38,10 @@
 
     <style>
       /* page content already uses padding-top; add anchor + modal safety */
-html { scroll-padding-top: calc(var(--navbar-h) + env(safe-area-inset-top, 0px)); }
+      html { scroll-padding-top: calc(var(--navbar-h) + env(safe-area-inset-top, 0px)); }
 
-/* BS5 lets us control modal top margin with a var */
-.modal { --bs-modal-margin: calc(var(--navbar-h) + 1rem); }
+      /* BS5 lets us control modal top margin with a var */
+      .modal { --bs-modal-margin: calc(var(--navbar-h) + 1rem); }
 
       html, body { height: 100%; }
 
@@ -117,10 +117,8 @@ html { scroll-padding-top: calc(var(--navbar-h) + env(safe-area-inset-top, 0px))
 
   <body>
     <!-- Navbar -->
-    <nav
-      class="navbar navbar-expand-lg navbar-dark custom-navbar py-2 fixed-top"
-    >
-<div class="container-fluid px-2 px-sm-3">
+    <nav class="navbar navbar-expand-lg navbar-dark custom-navbar py-2 fixed-top">
+      <div class="container-fluid px-2 px-sm-3">
         <a
           class="navbar-brand d-flex align-items-center"
           href="{{ url_for('home_bp.home') }}"
@@ -155,8 +153,7 @@ html { scroll-padding-top: calc(var(--navbar-h) + env(safe-area-inset-top, 0px))
                 class="nav-link {% if request.path == '/' %}active{% endif %}"
                 {% if request.path == '/' %}aria-current="page"{% endif %}
                 href="{{ url_for('home_bp.home') }}"
-                >Dashboard</a
-              >
+              >Dashboard</a>
             </li>
 
             {% if user_role == "GRP" %}
@@ -166,35 +163,14 @@ html { scroll-padding-top: calc(var(--navbar-h) + env(safe-area-inset-top, 0px))
                 class="nav-link dropdown-toggle"
                 href="#"
                 role="button"
+                aria-haspopup="true"
                 data-bs-toggle="dropdown"
                 aria-expanded="false"
-                >Provider Tools</a
-              >
-              <ul
-                class="dropdown-menu dropdown-menu-end"
-                aria-labelledby="grpToolsToggle"
-              >
-                <li>
-                  <a
-                    class="dropdown-item py-2"
-                    href="{{ url_for('funder_bp.funder_dashboard') }}"
-                    >Overview</a
-                  >
-                </li>
-                <li>
-                  <a
-                    class="dropdown-item py-2"
-                    href="{{ url_for('report_bp.new_reports') }}"
-                    >Reporting</a
-                  >
-                </li>
-                <li>
-                  <a
-                    class="dropdown-item py-2"
-                    href="{{ url_for('class_bp.funder_classes') }}"
-                    >Class Lookup</a
-                  >
-                </li>
+              >Provider Tools</a>
+              <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="grpToolsToggle">
+                <li><a class="dropdown-item py-2" href="{{ url_for('funder_bp.funder_dashboard') }}">Overview</a></li>
+                <li><a class="dropdown-item py-2" href="{{ url_for('report_bp.new_reports') }}">Reporting</a></li>
+                <li><a class="dropdown-item py-2" href="{{ url_for('class_bp.funder_classes') }}">Class Lookup</a></li>
               </ul>
             </li>
             {% endif %}
@@ -206,53 +182,20 @@ html { scroll-padding-top: calc(var(--navbar-h) + env(safe-area-inset-top, 0px))
                 class="nav-link dropdown-toggle"
                 href="#"
                 role="button"
+                aria-haspopup="true"
                 data-bs-toggle="dropdown"
                 aria-expanded="false"
-                >Funder Tools</a
-              >
-              <ul
-                class="dropdown-menu dropdown-menu-end"
-                aria-labelledby="funToolsToggle"
-              >
+              >Funder Tools</a>
+              <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="funToolsToggle">
                 {% if session['user_admin'] == 1 %}
-                <li>
-                  <a
-                    class="dropdown-item py-2"
-                    href="{{ url_for('funder_bp.funder_dashboard') }}"
-                    >Overview</a
-                  >
-                </li>
+                <li><a class="dropdown-item py-2" href="{{ url_for('funder_bp.funder_dashboard') }}">Overview</a></li>
                 {% endif %}
-                <li>
-                  <a
-                    class="dropdown-item py-2"
-                    href="{{ url_for('report_bp.new_reports') }}"
-                    >Reporting</a
-                  >
-                </li>
-                <li>
-                  <a
-                    class="dropdown-item py-2"
-                    href="{{ url_for('class_bp.funder_classes') }}"
-                    >Class Lookup</a
-                  >
-                </li>
+                <li><a class="dropdown-item py-2" href="{{ url_for('report_bp.new_reports') }}">Reporting</a></li>
+                <li><a class="dropdown-item py-2" href="{{ url_for('class_bp.funder_classes') }}">Class Lookup</a></li>
                 {% if session['user_admin'] == 1 %}
-                <li>
-                  <a
-                    class="dropdown-item py-2"
-                    href="{{ url_for('admin_bp.provider_maintenance') }}"
-                    >Provider Maintenance</a
-                  >
-                </li>
+                <li><a class="dropdown-item py-2" href="{{ url_for('admin_bp.provider_maintenance') }}">Provider Maintenance</a></li>
                 {% endif %}
-                <li>
-                  <a
-                    class="dropdown-item py-2"
-                    href="{{ url_for('class_bp.achievement_upload') }}"
-                    >Upload Student Achievements</a
-                  >
-                </li>
+                <li><a class="dropdown-item py-2" href="{{ url_for('class_bp.achievement_upload') }}">Upload Student Achievements</a></li>
               </ul>
             </li>
             {% endif %}
@@ -264,59 +207,25 @@ html { scroll-padding-top: calc(var(--navbar-h) + env(safe-area-inset-top, 0px))
                 class="nav-link dropdown-toggle {% if 'school' in request.path or 'classlistupload' in request.path %}active{% endif %}"
                 href="#"
                 role="button"
+                aria-haspopup="true"
                 data-bs-toggle="dropdown"
                 aria-expanded="false"
-                >School Tools</a
-              >
-              <ul
-                class="dropdown-menu dropdown-menu-end"
-                aria-labelledby="moeToolsToggle"
-              >
+              >School Tools</a>
+              <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="moeToolsToggle">
                 {% if session['user_admin'] == 1 %}
-                <li>
-                  <a
-                    class="dropdown-item py-2"
-                    href="{{ url_for('funder_bp.funder_dashboard') }}"
-                    >Overview</a
-                  >
-                </li>
-                <li>
-                  <a
-                    class="dropdown-item py-2"
-                    href="{{ url_for('report_bp.new_reports') }}"
-                    >Reporting</a
-                  >
-                </li>
-                <li>
-                  <a
-                    class="dropdown-item py-2"
-                    href="{{ url_for('class_bp.class_students_page') }}"
-                    >Edit Class Lists</a
-                  >
-                </li>
+                <li><a class="dropdown-item py-2" href="{{ url_for('funder_bp.funder_dashboard') }}">Overview</a></li>
+                <li><a class="dropdown-item py-2" href="{{ url_for('report_bp.new_reports') }}">Reporting</a></li>
+                <li><a class="dropdown-item py-2" href="{{ url_for('class_bp.class_students_page') }}">Edit Class Lists</a></li>
                 {% endif %}
                 <li>
-                  <a
-                    class="dropdown-item py-2"
-                    href="{% if user_role == 'ADM' %}{{ url_for('class_bp.funder_classes') }}{% else %}{{ url_for('class_bp.moe_classes') }}{% endif %}"
-                    >Class Lookup</a
-                  >
+                  <a class="dropdown-item py-2"
+                     href="{% if user_role == 'ADM' %}{{ url_for('class_bp.funder_classes') }}{% else %}{{ url_for('class_bp.moe_classes') }}{% endif %}">
+                    Class Lookup
+                  </a>
                 </li>
-                <li>
-                  <a
-                    class="dropdown-item py-2"
-                    href="{{ url_for('upload_bp.classlistupload') }}"
-                    >Upload Class List</a
-                  >
-                </li>
+                <li><a class="dropdown-item py-2" href="{{ url_for('upload_bp.classlistupload') }}">Upload Class List</a></li>
                 {% if session['user_admin'] == 1 %}
-                <li>
-                  <a
-                    class="dropdown-item py-2"
-                    href="{{ url_for('students_bp.student_search_page') }}"
-                    >Edit Student Record</a
-                  >
-                </li>
+                <li><a class="dropdown-item py-2" href="{{ url_for('students_bp.student_search_page') }}">Edit Student Record</a></li>
                 {% endif %}
               </ul>
             </li>
@@ -329,44 +238,17 @@ html { scroll-padding-top: calc(var(--navbar-h) + env(safe-area-inset-top, 0px))
                 class="nav-link dropdown-toggle {% if 'reporting' in request.path or 'provider_classes' in request.path %}active{% endif %}"
                 href="#"
                 role="button"
+                aria-haspopup="true"
                 data-bs-toggle="dropdown"
                 aria-expanded="false"
-                >Provider Tools</a
-              >
-              <ul
-                class="dropdown-menu dropdown-menu-end"
-                aria-labelledby="proToolsToggle"
-              >
+              >Provider Tools</a>
+              <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="proToolsToggle">
                 {% if session['user_admin'] == 1 %}
-                <li>
-                  <a
-                    class="dropdown-item py-2"
-                    href="{{ url_for('funder_bp.funder_dashboard') }}"
-                    >Overview</a
-                  >
-                </li>
+                <li><a class="dropdown-item py-2" href="{{ url_for('funder_bp.funder_dashboard') }}">Overview</a></li>
                 {% endif %}
-                <li>
-                  <a
-                    class="dropdown-item py-2"
-                    href="{{ url_for('report_bp.new_reports') }}"
-                    >Reporting</a
-                  >
-                </li>
-                <li>
-                  <a
-                    class="dropdown-item py-2"
-                    href="{{ url_for('class_bp.provider_classes') }}"
-                    >Class Lookup</a
-                  >
-                </li>
-                <li>
-                  <a
-                    class="dropdown-item py-2"
-                    href="{{ url_for('class_bp.achievement_upload') }}"
-                    >Upload Student Achievements</a
-                  >
-                </li>
+                <li><a class="dropdown-item py-2" href="{{ url_for('report_bp.new_reports') }}">Reporting</a></li>
+                <li><a class="dropdown-item py-2" href="{{ url_for('class_bp.provider_classes') }}">Class Lookup</a></li>
+                <li><a class="dropdown-item py-2" href="{{ url_for('class_bp.achievement_upload') }}">Upload Student Achievements</a></li>
               </ul>
             </li>
             {% endif %}
@@ -378,120 +260,33 @@ html { scroll-padding-top: calc(var(--navbar-h) + env(safe-area-inset-top, 0px))
                 class="nav-link dropdown-toggle {% if 'reporting' in request.path or 'classlistupload' in request.path or 'funder_classes' in request.path %}active{% endif %}"
                 href="#"
                 role="button"
+                aria-haspopup="true"
                 data-bs-toggle="dropdown"
                 aria-expanded="false"
-                >Admin Tools</a
-              >
-              <ul
-                class="dropdown-menu dropdown-menu-end"
-                aria-labelledby="admToolsToggle"
-              >
-                <li class="dropdown-header" role="presentation">
-                  Reports &amp; Dashboards
-                </li>
-                <li>
-                  <a
-                    class="dropdown-item py-2"
-                    href="{{ url_for('report_bp.new_reports') }}"
-                    >Reporting</a
-                  >
-                </li>
-                <li>
-                  <a
-                    class="dropdown-item py-2"
-                    href="{{ url_for('funder_bp.funder_dashboard') }}"
-                    >Overview by Entity</a
-                  >
-                </li>
-                <li>
-                  <a
-                    class="dropdown-item py-2"
-                    href="{{ url_for('funder_bp.admin_dashboard') }}"
-                    >Overview</a
-                  >
-                </li>
+              >Admin Tools</a>
+              <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="admToolsToggle">
+                <li><h6 class="dropdown-header">Reports &amp; Dashboards</h6></li>
+                <li><a class="dropdown-item py-2" href="{{ url_for('report_bp.new_reports') }}">Reporting</a></li>
+                <li><a class="dropdown-item py-2" href="{{ url_for('funder_bp.funder_dashboard') }}">Overview by Entity</a></li>
+                <li><a class="dropdown-item py-2" href="{{ url_for('funder_bp.admin_dashboard') }}">Overview</a></li>
 
-                <li role="separator"><hr class="dropdown-divider" /></li>
+                <li><hr class="dropdown-divider" /></li>
 
-                <li class="dropdown-header" role="presentation">
-                  Entity &amp; User Management
-                </li>
-                <li>
-                  <a
-                    class="dropdown-item py-2"
-                    href="{{ url_for('admin_bp.admin_user_entities') }}"
-                    >Edit User Entity</a
-                  >
-                </li>
-                <li>
-                  <a
-                    class="dropdown-item py-2"
-                    href="{{ url_for('add_user.add_user') }}"
-                    >Add Teacher</a
-                  >
-                </li>
-                <li>
-                  <a
-                    class="dropdown-item py-2"
-                    href="{{ url_for('admin_bp.provider_maintenance') }}"
-                    >Provider Maintenance</a
-                  >
-                </li>
-                <li>
-                  <a
-                    class="dropdown-item py-2"
-                    href="{{ url_for('admin_bp.edit_school_type') }}"
-                    >Edit School Type</a
-                  >
-                </li>
-                <li>
-                  <a
-                    class="dropdown-item py-2"
-                    href="{{ url_for('students_bp.student_search_page') }}"
-                    >Edit Student Record</a
-                  >
-                </li>
-                <li>
-                  <a
-                    class="dropdown-item py-2"
-                    href="{{ url_for('class_bp.class_students_page') }}"
-                    >Edit Class Lists</a
-                  >
-                </li>
+                <li><h6 class="dropdown-header">Entity &amp; User Management</h6></li>
+                <li><a class="dropdown-item py-2" href="{{ url_for('admin_bp.admin_user_entities') }}">Edit User Entity</a></li>
+                <li><a class="dropdown-item py-2" href="{{ url_for('add_user.add_user') }}">Add Teacher</a></li>
+                <li><a class="dropdown-item py-2" href="{{ url_for('admin_bp.provider_maintenance') }}">Provider Maintenance</a></li>
+                <li><a class="dropdown-item py-2" href="{{ url_for('admin_bp.edit_school_type') }}">Edit School Type</a></li>
+                <li><a class="dropdown-item py-2" href="{{ url_for('students_bp.student_search_page') }}">Edit Student Record</a></li>
+                <li><a class="dropdown-item py-2" href="{{ url_for('class_bp.class_students_page') }}">Edit Class Lists</a></li>
 
-                <li role="separator"><hr class="dropdown-divider" /></li>
+                <li><hr class="dropdown-divider" /></li>
 
-                <li class="dropdown-header" role="presentation">
-                  Data Uploads &amp; Lookup
-                </li>
-                <li>
-                  <a
-                    class="dropdown-item py-2"
-                    href="{{ url_for('upload_bp.classlistupload') }}"
-                    >Upload Class List</a
-                  >
-                </li>
-                <li>
-                  <a
-                    class="dropdown-item py-2"
-                    href="{{ url_for('eLearning_bp.admin_eLearning_upload') }}"
-                    >Upload eLearning Excel</a
-                  >
-                </li>
-                <li>
-                  <a
-                    class="dropdown-item py-2"
-                    href="{{ url_for('class_bp.funder_classes') }}"
-                    >Class Lookup</a
-                  >
-                </li>
-                <li>
-                  <a
-                    class="dropdown-item py-2"
-                    href="{{ url_for('class_bp.achievement_upload') }}"
-                    >Upload Student Achievements</a
-                  >
-                </li>
+                <li><h6 class="dropdown-header">Data Uploads &amp; Lookup</h6></li>
+                <li><a class="dropdown-item py-2" href="{{ url_for('upload_bp.classlistupload') }}">Upload Class List</a></li>
+                <li><a class="dropdown-item py-2" href="{{ url_for('eLearning_bp.admin_eLearning_upload') }}">Upload eLearning Excel</a></li>
+                <li><a class="dropdown-item py-2" href="{{ url_for('class_bp.funder_classes') }}">Class Lookup</a></li>
+                <li><a class="dropdown-item py-2" href="{{ url_for('class_bp.achievement_upload') }}">Upload Student Achievements</a></li>
               </ul>
             </li>
             {% elif user_role == "ADM" and user_email == "megan@watersafety.org.nz" %}
@@ -501,50 +296,16 @@ html { scroll-padding-top: calc(var(--navbar-h) + env(safe-area-inset-top, 0px))
                 class="nav-link dropdown-toggle {% if 'reporting' in request.path or 'classlistupload' in request.path or 'funder_classes' in request.path %}active{% endif %}"
                 href="#"
                 role="button"
+                aria-haspopup="true"
                 data-bs-toggle="dropdown"
                 aria-expanded="false"
-                >Admin Tools</a
-              >
-              <ul
-                class="dropdown-menu dropdown-menu-end"
-                aria-labelledby="admToolsMeganToggle"
-              >
-                <li>
-                  <a
-                    class="dropdown-item py-2"
-                    href="{{ url_for('report_bp.new_reports') }}"
-                    >Reporting</a
-                  >
-                </li>
-                <li>
-                  <a
-                    class="dropdown-item py-2"
-                    href="{{ url_for('funder_bp.funder_dashboard') }}"
-                    >Overview by Entity</a
-                  >
-                </li>
-                <li>
-                  <a
-                    class="dropdown-item py-2"
-                    href="{{ url_for('funder_bp.admin_dashboard') }}"
-                    >Overview</a
-                  >
-                </li>
-                <li>
-                  <a
-                    class="dropdown-item py-2"
-                    href="{{ url_for('survey_bp.survey_by_routename', routename='ExternalReview') }}"
-                    >Complete an External Review</a
-                  >
-                </li>
-                <li>
-                  <a
-                    class="dropdown-item py-2"
-                    href="{{ url_for('survey_bp.list_my_surveys') }}"
-                    >View Past Forms</a
-                  >
-                </li>
-                            
+              >Admin Tools</a>
+              <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="admToolsMeganToggle">
+                <li><a class="dropdown-item py-2" href="{{ url_for('report_bp.new_reports') }}">Reporting</a></li>
+                <li><a class="dropdown-item py-2" href="{{ url_for('funder_bp.funder_dashboard') }}">Overview by Entity</a></li>
+                <li><a class="dropdown-item py-2" href="{{ url_for('funder_bp.admin_dashboard') }}">Overview</a></li>
+                <li><a class="dropdown-item py-2" href="{{ url_for('survey_bp.survey_by_routename', routename='ExternalReview') }}">Complete an External Review</a></li>
+                <li><a class="dropdown-item py-2" href="{{ url_for('survey_bp.list_my_surveys') }}">View Past Forms</a></li>
               </ul>
             </li>
             {% endif %}
@@ -556,72 +317,27 @@ html { scroll-padding-top: calc(var(--navbar-h) + env(safe-area-inset-top, 0px))
                 class="nav-link dropdown-toggle"
                 href="#"
                 role="button"
+                aria-haspopup="true"
                 data-bs-toggle="dropdown"
                 aria-expanded="false"
-                ><i class="bi bi-ui-checks me-1"></i> Forms</a
-              >
-              <ul
-                class="dropdown-menu dropdown-menu-end"
-                aria-labelledby="formsToggle"
-              >
-                <li>
-                  <a
-                    class="dropdown-item py-2"
-                    href="{{ url_for('survey_bp.survey_by_routename', routename='SelfReview') }}"
-                    >Complete a Self Review</a
-                  >
-                </li>
+              ><i class="bi bi-ui-checks me-1"></i> Forms</a>
+              <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="formsToggle">
+                <li><a class="dropdown-item py-2" href="{{ url_for('survey_bp.survey_by_routename', routename='SelfReview') }}">Complete a Self Review</a></li>
                 {% if user_role == "ADM" %}
-                <li>
-                  <a
-                    class="dropdown-item py-2"
-                    href="{{ url_for('survey_bp.survey_by_routename', routename='ExternalReview') }}"
-                    >Complete an External Review</a
-                  >
-                </li>
+                <li><a class="dropdown-item py-2" href="{{ url_for('survey_bp.survey_by_routename', routename='ExternalReview') }}">Complete an External Review</a></li>
                 {% endif %}
                 {% if user_role in ["FUN", "ADM"] %}
-                <li>
-                  <a
-                    class="dropdown-item py-2"
-                    href="{{ url_for('survey_bp.survey_by_routename', routename='TeacherAssessment') }}"
-                    >Complete a Teacher Assessment</a
-                  >
-                </li>
+                <li><a class="dropdown-item py-2" href="{{ url_for('survey_bp.survey_by_routename', routename='TeacherAssessment') }}">Complete a Teacher Assessment</a></li>
                 {% endif %}
                 {% if user_admin == 1 %}
-                <li>
-                  <a
-                    class="dropdown-item py-2"
-                    href="{{ url_for('survey_bp.staff_survey_admin') }}"
-                    >View Staff Forms</a
-                  >
-                </li>
+                <li><a class="dropdown-item py-2" href="{{ url_for('survey_bp.staff_survey_admin') }}">View Staff Forms</a></li>
                 {% endif %}
-                <li>
-                  <a
-                    class="dropdown-item py-2"
-                    href="{{ url_for('survey_bp.list_my_surveys') }}"
-                    >View Past Forms</a
-                  >
-                </li>
+                <li><a class="dropdown-item py-2" href="{{ url_for('survey_bp.list_my_surveys') }}">View Past Forms</a></li>
                 {% if user_email == "stella@watersafety.org.nz" %}
-                            <li>
-                  <a
-                    class="dropdown-item py-2"
-                    href="{{ url_for('survey_bp.survey_builder') }}"
-                    >Form Builder</a
-                  >
-                </li>
- {% endif %}
-                <li role="separator"><hr class="dropdown-divider" /></li>
-                <li>
-                  <a
-                    class="dropdown-item py-2"
-                    href="{{ url_for('feedback_bp.feedback') }}"
-                    >Report an Issue / Submit Feedback</a
-                  >
-                </li>
+                <li><a class="dropdown-item py-2" href="{{ url_for('survey_bp.survey_builder') }}">Form Builder</a></li>
+                {% endif %}
+                <li><hr class="dropdown-divider" /></li>
+                <li><a class="dropdown-item py-2" href="{{ url_for('feedback_bp.feedback') }}">Report an Issue / Submit Feedback</a></li>
               </ul>
             </li>
             {% endif %}
@@ -633,38 +349,17 @@ html { scroll-padding-top: calc(var(--navbar-h) + env(safe-area-inset-top, 0px))
                 class="nav-link dropdown-toggle"
                 href="#"
                 role="button"
+                aria-haspopup="true"
                 data-bs-toggle="dropdown"
                 aria-expanded="false"
-                ><i class="bi bi-people-fill me-1"></i> Staff</a
-              >
-              <ul
-                class="dropdown-menu dropdown-menu-end"
-                aria-labelledby="staffToggle"
-              >
+              ><i class="bi bi-people-fill me-1"></i> Staff</a>
+              <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="staffToggle">
                 {% if user_email != "megan@watersafety.org.nz" %}
-                <li>
-                  <a
-                    class="dropdown-item py-2"
-                    href="{{ url_for('staff_bp.staff_maintenance') }}"
-                    >Manage My Staff</a
-                  >
-                </li>
+                <li><a class="dropdown-item py-2" href="{{ url_for('staff_bp.staff_maintenance') }}">Manage My Staff</a></li>
                 {% endif %}
                 {% if user_role != "MOE" %}
-                <li>
-                  <a
-                    class="dropdown-item py-2"
-                    href="{{ url_for('survey_bp.staff_survey_admin') }}"
-                    >View Staff Forms</a
-                  >
-                </li>
-                <li>
-                  <a
-                    class="dropdown-item py-2"
-                    href="{{ url_for('staff_bp.staff_eLearning') }}"
-                    >View All eLearnings</a
-                  >
-                </li>
+                <li><a class="dropdown-item py-2" href="{{ url_for('survey_bp.staff_survey_admin') }}">View Staff Forms</a></li>
+                <li><a class="dropdown-item py-2" href="{{ url_for('staff_bp.staff_eLearning') }}">View All eLearnings</a></li>
                 {% endif %}
               </ul>
             </li>
@@ -672,21 +367,15 @@ html { scroll-padding-top: calc(var(--navbar-h) + env(safe-area-inset-top, 0px))
 
             {% if user_email != "megan@watersafety.org.nz" %}
             <li class="nav-item mt-2 mt-lg-0 me-2">
-              <a
-                href="{{ url_for('eLearning_bp.eLearning_guide') }}"
-                class="nav-link"
-                >eLearning</a
-              >
+              <a href="{{ url_for('eLearning_bp.eLearning_guide') }}" class="nav-link">eLearning</a>
             </li>
             <li class="nav-item mt-2 mt-lg-0 me-2">
-              <a href="{{ url_for('admin_bp.create_user') }}" class="nav-link"
-                ><i class="bi bi-person-plus me-1"></i> Create User</a
-              >
+              <a href="{{ url_for('admin_bp.create_user') }}" class="nav-link">
+                <i class="bi bi-person-plus me-1"></i> Create User
+              </a>
             </li>
             <li class="nav-item mt-2 mt-lg-0 me-2">
-              <a class="nav-link" href="{{ url_for('upload_bp.classlistupload') }}"
-                >Upload Class List</a
-              >
+              <a class="nav-link" href="{{ url_for('upload_bp.classlistupload') }}">Upload Class List</a>
             </li>
             {% endif %}
 
@@ -710,11 +399,7 @@ html { scroll-padding-top: calc(var(--navbar-h) + env(safe-area-inset-top, 0px))
             </li>
 
             <li class="nav-item mt-2 mt-lg-0">
-              <form
-                action="{{ url_for('auth_bp.logout') }}"
-                method="post"
-                class="d-inline"
-              >
+              <form action="{{ url_for('auth_bp.logout') }}" method="post" class="d-inline">
                 <button
                   type="submit"
                   class="btn btn-outline-light btn-sm d-flex justify-content-center align-items-center text-center uniform-btn"
@@ -728,7 +413,8 @@ html { scroll-padding-top: calc(var(--navbar-h) + env(safe-area-inset-top, 0px))
         {% endif %}
       </div>
     </nav>
-<div id="nav-spacer" style="height: var(--navbar-h);"></div>
+
+    <div id="nav-spacer" style="height: var(--navbar-h);"></div>
 
     <!-- Main Content -->
     <main class="container-fluid px-2 py-4">
@@ -736,17 +422,9 @@ html { scroll-padding-top: calc(var(--navbar-h) + env(safe-area-inset-top, 0px))
       {% if messages %}
       <div class="container mt-3">
         {% for category, message in messages %}
-        <div
-          class="alert alert-{{ category }} alert-dismissible fade show"
-          role="alert"
-        >
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
           {{ message }}
-          <button
-            type="button"
-            class="btn-close"
-            data-bs-dismiss="alert"
-            aria-label="Close"
-          ></button>
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
         {% endfor %}
       </div>
@@ -761,28 +439,27 @@ html { scroll-padding-top: calc(var(--navbar-h) + env(safe-area-inset-top, 0px))
 
     <!-- Update --navbar-h on load/resize/collapse -->
     <script>
-  (function () {
-    const nav = document.querySelector('.navbar.fixed-top, .navbar.sticky-top') || document.querySelector('.navbar');
-    if (!nav) return;
+      (function () {
+        const nav = document.querySelector('.navbar.fixed-top, .navbar.sticky-top') || document.querySelector('.navbar');
+        if (!nav) return;
 
-    const setNavbarHeightVar = () => {
-      const h = Math.ceil(nav.getBoundingClientRect().height || 56);
-      document.documentElement.style.setProperty('--navbar-h', `${h}px`);
-    };
+        const setNavbarHeightVar = () => {
+          const h = Math.ceil(nav.getBoundingClientRect().height || 56);
+          document.documentElement.style.setProperty('--navbar-h', `${h}px`);
+        };
 
-    // run early & often
-    setNavbarHeightVar();
-    window.addEventListener('load', setNavbarHeightVar, { passive: true });
-    window.addEventListener('resize', setNavbarHeightVar, { passive: true });
-    document.addEventListener('shown.bs.collapse', setNavbarHeightVar);
-    document.addEventListener('hidden.bs.collapse', setNavbarHeightVar);
+        // run early & often
+        setNavbarHeightVar();
+        window.addEventListener('load', setNavbarHeightVar, { passive: true });
+        window.addEventListener('resize', setNavbarHeightVar, { passive: true });
+        document.addEventListener('shown.bs.collapse', setNavbarHeightVar);
+        document.addEventListener('hidden.bs.collapse', setNavbarHeightVar);
 
-    // watch for height changes (e.g., wrapping text, dynamic menus)
-    const mo = new ResizeObserver(setNavbarHeightVar);
-    mo.observe(nav);
-  })();
-</script>
-
+        // watch for height changes (e.g., wrapping text, dynamic menus)
+        const mo = new ResizeObserver(setNavbarHeightVar);
+        mo.observe(nav);
+      })();
+    </script>
 
     {% block scripts %}{% endblock %}
   </body>

@@ -40,13 +40,14 @@
     </div>
     {% endif %} 
 
+
+
     <!-- School -->
     <div class="col-md-6 ">
       <label class="form-label">School</label>
       {% if user_role == 'MOE' %}
         <input type="text" class="form-control-plaintext"
               value="{{ selected_school or '—' }}" readonly aria-readonly="true">
-        <!-- IMPORTANT: include " ({{ selected_moe }})" so the backend parse works -->
         <input type="hidden" id="school_hidden" name="school"
               value="{% if selected_school %}{{ selected_school }}{% endif %}{% if selected_moe %} ({{ selected_moe }}){% endif %}">
       {% else %}
@@ -62,7 +63,6 @@
       {% endif %}
     </div>
 
-    <!-- Term -->
     <div class="col-md-3">
       <label for="term" class="form-label">Term</label>
       <select class="form-select" id="term" name="term" required>

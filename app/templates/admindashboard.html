@@ -129,14 +129,14 @@
                     <td>{{ staff.FirstName }}</td>
                     <td>{{ staff.Surname }}</td>
                     <td>
-  {% if staff.SelfReviewSubmitted %}
-    {% if staff.RespondentID %}
-<a href="{{ url_for('survey_bp.view_my_survey_response', respondent_id=staff.RespondentID) }}"
-   class="badge bg-dark text-decoration-none"
-   target="_blank">
-  {{ staff.SelfReviewSubmitted.strftime('%d %b %Y') }}
-</a>
-    {% else %}
+                      {% if staff.SelfReviewSubmitted %}
+                        {% if staff.RespondentID %}
+                    <a href="{{ url_for('survey_bp.view_my_survey_response', respondent_id=staff.RespondentID) }}"
+                      class="badge bg-dark text-decoration-none"
+                      target="_blank">
+                      {{ staff.SelfReviewSubmitted.strftime('%d %b %Y') }}
+                    </a>
+                        {% else %}
       <span class="badge bg-dark">
         {{ staff.SelfReviewSubmitted.strftime('%d %b %Y') }}
       </span>

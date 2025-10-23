@@ -9,6 +9,7 @@ block content %}
     Sorry, this page is not available on mobile devices. If this is critical
     please contact support.
   </p>
+
   {% elif code|int >= 500 %}
   <p>Oops! Something went wrong on our end. Please try again later.</p>
   {% elif code|int == 404 %}

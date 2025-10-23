@@ -146,10 +146,10 @@
         <strong>No classes found.</strong><br />
         Your school has classes from:
         <ul class="mb-0 text-start">
-          {% for s in suggestions %}
-            <li>{{ s }}</li>
-          {% endfor %}
-        </ul>
+  {%- for s in suggestions -%}
+    <li>{{ s | striptags }}</li>
+  {%- endfor -%}
+</ul>
       </div>
     </div>
   </div>

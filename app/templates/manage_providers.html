@@ -267,113 +267,129 @@ block content %}
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script type="application/json" id="providers-data">
+  [
+  {% for p in providers -%}
+    {
+      "id": {{ p.ProviderID }},
+      "name": {{ (p.ProviderDesc or "") | tojson }},
+      "lat": {{ 'null' if p.Latitude is none else p.Latitude }},
+      "lon": {{ 'null' if p.Longitude is none else p.Longitude }}
+    }{% if not loop.last %},{% endif %}
+  {%- endfor %}
+  ]
+</script>
 
+<!-- 2) CLEAN JS (no Jinja in code) -->
 <script>
   document.addEventListener("DOMContentLoaded", function () {
+    // ---- Load providers from the JSON script tag
+    const providersJsonEl = document.getElementById("providers-data");
+    const PROVIDERS = providersJsonEl
+      ? JSON.parse(providersJsonEl.textContent)
+      : [];
 
+    // ---- Delete modal wiring
     const deleteButtons = document.querySelectorAll(".open-delete-modal");
     const providerNameEl = document.getElementById("providerName");
     const providerIdInput = document.getElementById("providerIdInput");
 
-    deleteButtons.forEach(button => {
-      button.addEventListener("click", function () {
-        const providerId = this.getAttribute("data-provider-id");
-        const providerName = this.getAttribute("data-provider-name");
-
-        providerNameEl.textContent = providerName;
-        providerIdInput.value = providerId;
-
-        const confirmModal = new bootstrap.Modal(document.getElementById("confirmDeleteModal"));
-        confirmModal.show();
+    deleteButtons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const providerId = btn.getAttribute("data-provider-id");
+        const providerName = btn.getAttribute("data-provider-name");
+        if (providerNameEl) providerNameEl.textContent = providerName || "";
+        if (providerIdInput) providerIdInput.value = providerId || "";
+        new bootstrap.Modal(
+          document.getElementById("confirmDeleteModal")
+        ).show();
       });
     });
 
-    const modalMaps = {};
+    // ---- Leaflet maps
+    const modalMaps = {}; // pid -> { map, marker }
 
-    {% for provider in providers %}
-    (function () {
-      const pid = "{{ provider.ProviderID }}";
-      const lat = parseFloat("{{ provider.Latitude or 'NaN' }}");
-      const lon = parseFloat("{{ provider.Longitude or 'NaN' }}");
-      const name = `{{ provider.ProviderDesc | escape | replace("`", "\\`") }}`;
-
-      // 🗺️ Static map
-      if (!isNaN(lat) && !isNaN(lon)) {
-        const staticMapEl = document.getElementById("staticMap" + pid);
+    PROVIDERS.forEach((p) => {
+      // Static map in the card (only if we have coords)
+      if (p.lat !== null && p.lon !== null) {
+        const staticMapEl = document.getElementById("staticMap" + p.id);
         if (staticMapEl) {
           const staticMap = L.map(staticMapEl, {
             zoomControl: false,
             attributionControl: false,
             dragging: false,
-            attributionControl: false
-          }).setView([lat, lon], 13);
+          }).setView([p.lat, p.lon], 13);
 
           L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-            maxZoom: 18
+            maxZoom: 18,
           }).addTo(staticMap);
 
-          L.marker([lat, lon]).addTo(staticMap).bindPopup(name);
+          L.marker([p.lat, p.lon]).addTo(staticMap).bindPopup(p.name);
         }
       }
 
-      const modalLat = isNaN(lat) ? -41.3 : lat;
-      const modalLon = isNaN(lon) ? 174.8 : lon;
+      // Modal map (instantiate so user can add marker)
+      const modalLat = p.lat === null ? -41.3 : p.lat;
+      const modalLon = p.lon === null ? 174.8 : p.lon;
+      const mapId = "modalMap" + p.id;
+      const mapEl = document.getElementById(mapId);
+      if (!mapEl) return;
 
-      const mapId = "modalMap" + pid;
       const modalMap = L.map(mapId).setView([modalLat, modalLon], 13);
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 18
+        maxZoom: 18,
       }).addTo(modalMap);
 
       let marker = null;
-      if (!isNaN(lat) && !isNaN(lon)) {
-        marker = L.marker([modalLat, modalLon], { draggable: true }).addTo(modalMap);
+      if (p.lat !== null && p.lon !== null) {
+        marker = L.marker([modalLat, modalLon], { draggable: true }).addTo(
+          modalMap
+        );
       }
+      modalMaps[p.id] = { map: modalMap, marker };
 
-      modalMaps[pid] = { map: modalMap, marker };
-
-      // 🖱️ Click to add marker if missing
+      // Click to add first marker
       modalMap.on("click", function (e) {
-        if (!modalMaps[pid].marker) {
-          marker = L.marker(e.latlng, { draggable: true }).addTo(modalMap);
-          modalMaps[pid].marker = marker;
-          updateInputs(e.latlng.lat, e.latlng.lng, pid);
-
-          marker.on("dragend", function (ev) {
+        if (!modalMaps[p.id].marker) {
+          const m = L.marker(e.latlng, { draggable: true }).addTo(modalMap);
+          modalMaps[p.id].marker = m;
+          updateInputs(e.latlng.lat, e.latlng.lng, p.id);
+          m.on("dragend", function (ev) {
             const pos = ev.target.getLatLng();
-            updateInputs(pos.lat, pos.lng, pid);
+            updateInputs(pos.lat, pos.lng, p.id);
           });
         }
       });
 
+      // Drag existing marker updates inputs
       if (marker) {
         marker.on("dragend", function (e) {
           const pos = e.target.getLatLng();
-          updateInputs(pos.lat, pos.lng, pid);
+          updateInputs(pos.lat, pos.lng, p.id);
         });
       }
+    });
 
-    })();
-    {% endfor %}
-
-    function updateInputs(lat, lon, pid) {
-      document.querySelector(`.lat-input[data-map-id='${pid}']`).value = lat.toFixed(6);
-      document.querySelector(`.lon-input[data-map-id='${pid}']`).value = lon.toFixed(6);
-    }
-
-    // ⌨️ Update marker on input
-    document.querySelectorAll(".lat-input, .lon-input").forEach(input => {
-      input.addEventListener("input", e => {
+    // Inputs -> marker/map
+    document.querySelectorAll(".lat-input, .lon-input").forEach((input) => {
+      input.addEventListener("input", (e) => {
         const pid = e.target.dataset.mapId;
-        const lat = parseFloat(document.querySelector(`.lat-input[data-map-id='${pid}']`).value);
-        const lon = parseFloat(document.querySelector(`.lon-input[data-map-id='${pid}']`).value);
+        const lat = parseFloat(
+          document.querySelector(`.lat-input[data-map-id='${pid}']`).value
+        );
+        const lon = parseFloat(
+          document.querySelector(`.lon-input[data-map-id='${pid}']`).value
+        );
         const mapObj = modalMaps[pid];
+        if (!mapObj) return;
 
         if (!isNaN(lat) && !isNaN(lon)) {
           if (!mapObj.marker) {
-            mapObj.marker = L.marker([lat, lon], { draggable: true }).addTo(mapObj.map);
-            mapObj.marker.on("dragend", function (e) {
-              const pos = e.target.getLatLng();
+            mapObj.marker = L.marker([lat, lon], { draggable: true }).addTo(
+              mapObj.map
+            );
+            mapObj.marker.on("dragend", function (ev) {
+              const pos = ev.target.getLatLng();
               updateInputs(pos.lat, pos.lng, pid);
             });
           } else {
@@ -384,16 +400,27 @@ block content %}
       });
     });
 
-    // 🧼 Resize modal map when shown
-    document.querySelectorAll(".modal").forEach(modal => {
+    // Fix Leaflet sizing when edit modal is shown
+    document.querySelectorAll(".modal").forEach((modal) => {
       modal.addEventListener("shown.bs.modal", function () {
-        const pid = this.id.replace("editModal", "");
+        const id = this.id || "";
+        if (!id.startsWith("editModal")) return; // Only edit modals
+        const pid = id.replace("editModal", "");
         const mapObj = modalMaps[pid];
-        if (mapObj) {
-          setTimeout(() => mapObj.map.invalidateSize(), 250);
-        }
+        if (mapObj) setTimeout(() => mapObj.map.invalidateSize(), 250);
       });
     });
+
+    function updateInputs(lat, lon, pid) {
+      const latInput = document.querySelector(
+        `.lat-input[data-map-id='${pid}']`
+      );
+      const lonInput = document.querySelector(
+        `.lon-input[data-map-id='${pid}']`
+      );
+      if (latInput) latInput.value = Number(lat).toFixed(6);
+      if (lonInput) lonInput.value = Number(lon).toFixed(6);
+    }
   });
 </script>
 

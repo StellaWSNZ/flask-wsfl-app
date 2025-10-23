@@ -266,7 +266,7 @@
     }
 
     const fd = new FormData(); fd.append('file', file);
- 
+   
     try {
       const res = await fetch(PREVIEW_URL, { method: 'POST', credentials: 'same-origin', body: fd });
       const { ok, data } = await readJsonOrText(res);

@@ -128,7 +128,12 @@ select option { white-space: normal; word-break: break-word; }
         <input id="edit-teacher-name" type="text" value="{{ teacher_name }}"
                class="form-control form-control-sm d-inline-block" style="width: 200px;" />
         <strong>School:</strong> {{ school_name }}
-        <button class="btn btn-sm btn-success ms-2" onclick="submitClassInfo({{ class_id }})">Save</button>
+<button
+  class="btn btn-sm btn-success ms-2"
+  onclick="submitClassInfo(JSON.parse('{{ class_id|tojson }}'))"
+>
+  Save
+</button>
         <button class="btn btn-sm btn-secondary" onclick="toggleEditMode(false)">Cancel</button>
       </div>
 
@@ -391,10 +396,10 @@ select option { white-space: normal; word-break: break-word; }
 
 <script>
 /* ===== Reuse existing server-side data ===== */
-const autofillMap = {{ autofill_map | tojson }};
-const classId = {{ class_id | tojson }};
-const term = {{ term | tojson }};
-const year = {{ year | tojson }};
+const autofillMap = JSON.parse('{{ autofill_map | tojson }}');
+const classId     = JSON.parse('{{ class_id     | tojson }}');
+const term        = JSON.parse('{{ term         | tojson }}');
+const year        = JSON.parse('{{ year         | tojson }}');
 
 /* ===== Desktop handlers (unchanged) ===== */
 function toggleEditMode(editing) {
@@ -565,11 +570,11 @@ document.addEventListener("DOMContentLoaded", () => {
       statusEl.textContent = "Preparing export…";
 
       const payload = {
-        class_id: {{ class_id|tojson }},
-        term: {{ term|tojson }},
-        year: {{ year|tojson }},
-        rows: {{ students|tojson }},
-        column_order: {{ (columns[3:]) | tojson }}
+        class_id: JSON.parse('{{ class_id  | tojson }}'),
+        term:      JSON.parse('{{ term      | tojson }}'),
+        year:      JSON.parse('{{ year      | tojson }}'),
+        rows:      JSON.parse('{{ students  | tojson }}'),
+        column_order: JSON.parse('{{ (columns[3:]) | tojson }}')
       };
 
       const res = await fetch("{{ url_for('class_bp.export_achievements_excel') }}", {
@@ -618,14 +623,14 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 /* ===== Mobile layer ===== */
-const _students = {{ students|tojson }};
-const _columns  = {{ columns|tojson }};
-const _compCols = _columns.slice(3);
-const _scenarios = {{ scenarios|tojson }};
-const _autofill = {{ autofill_map|tojson }};
-const _classId = {{ class_id|tojson }};
-const _term = {{ term|tojson }};
-const _year = {{ year|tojson }};
+const _students  = JSON.parse('{{ students  | tojson }}');
+const _columns   = JSON.parse('{{ columns   | tojson }}');
+const _compCols  = _columns.slice(3);
+const _scenarios = JSON.parse('{{ scenarios | tojson }}');
+const _autofill  = JSON.parse('{{ autofill_map | tojson }}');
+const _classId   = JSON.parse('{{ class_id  | tojson }}');
+const _term      = JSON.parse('{{ term      | tojson }}');
+const _year      = JSON.parse('{{ year      | tojson }}');
 
 function normalizeColKey(raw) { return String(raw).replace(/&lt;br&gt;|<br\s*\/?>/gi, '<br>'); }
 function isScenarioCol(col)   { return /Scenario (One|Two)\s*-\s*Selected/i.test(col); }
@@ -637,7 +642,7 @@ async function postJSON(url, payload) {
 }
 
 /* BY STUDENT */
-const studentSel = document.getElementById('mobStudentSel');
+const studentSel  = document.getElementById('mobStudentSel');
 const studentCard = document.getElementById('mobStudentCard');
 
 function renderStudent(index) {
@@ -719,7 +724,7 @@ function renderStudent(index) {
 }
 
 /* BY COMPETENCY */
-const compSel = document.getElementById('mobCompSel');
+const compSel  = document.getElementById('mobCompSel');
 const compList = document.getElementById('mobCompList');
 
 function renderCompetency(rawCol) {
@@ -794,16 +799,26 @@ function renderCompetency(rawCol) {
     });
   });
 
-  compList.querySelectorAll('[data-type="scenario"]').forEach(sel => {
-    sel.addEventListener('change', async function() {
-      try {
-        const nsn = this.dataset.nsn;
-        const header = this.dataset.header;
-        const value = parseInt(this.value);
-        await postJSON('/update_scenario', { nsn, header, value, class_id:_classId, term:_term, year:_year });
-      } catch(e){ alert('Update failed'); console.error(e); }
-    });
+  compList.querySelectorAll('[data-type="scenario"]').forEach((sel) => {
+  sel.addEventListener('change', async function () {
+    try {
+      const nsn = this.dataset.nsn;
+      const header = this.dataset.header;
+      const value = Number.parseInt(this.value, 10);
+      await postJSON('/update_scenario', {
+        nsn,
+        header,
+        value,
+        class_id: _classId,
+        term: _term,
+        year: _year
+      });
+    } catch (e) {
+      alert('Update failed');
+      console.error(e);
+    }
   });
+});
 
   // --- Mobile "Mark all" / "Clear all" (hidden for scenario columns)
   if (!scenarioMode) {
@@ -834,10 +849,10 @@ function renderCompetency(rawCol) {
 }
 
 /* View switch */
-const viewByStudent = document.getElementById('viewByStudent');
+const viewByStudent    = document.getElementById('viewByStudent');
 const viewByCompetency = document.getElementById('viewByCompetency');
-const studentView = document.getElementById('mob-student-view');
-const compView = document.getElementById('mob-competency-view');
+const studentView      = document.getElementById('mob-student-view');
+const compView         = document.getElementById('mob-competency-view');
 
 viewByStudent.addEventListener('change', () => {
   studentView.style.display = 'block';
@@ -1055,4 +1070,5 @@ document.addEventListener("keydown", function (e) {
   }
 });
 </script>
+
 {% endblock %}

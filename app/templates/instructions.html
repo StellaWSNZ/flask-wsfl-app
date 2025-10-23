@@ -13,26 +13,30 @@ content %}
   </div>
   {% else %}
   <div class="accordion" id="instAccordion">
-    {% for item in items %} {% set cid = "c" ~ loop.index %} {% set hid = "h" ~
-    loop.index %}
+    {% for item in items %} {% set is_open = loop.first %} {% set base = 'acc-'
+    ~ loop.index %} {% set panel_id = base ~ '-panel' %} {% set header_id = base
+    ~ '-hdr' %}
+
     <div class="accordion-item border-2" style="border-color: #1a427d">
-      <h2 class="accordion-header" id="{{ hid }}">
+      <h2 class="accordion-header" id="acc-5-hdr">
         <button
           class="accordion-button collapsed"
           type="button"
           data-bs-toggle="collapse"
-          data-bs-target="#{{ cid }}"
-          aria-expanded="{{ 'true' if loop.first else 'false' }}"
-          aria-controls="{{ cid }}"
+          data-bs-target="#acc-5-panel"
+          aria-expanded="false"
+          aria-controls="acc-5-panel"
         >
           {{ item.title }}
         </button>
       </h2>
+
       <div
-        id="{{ cid }}"
-        class="accordion-collapse collapse {% if loop.first %}show{% endif %}"
-        aria-labelledby="{{ hid }}"
+        id="acc-5-panel"
+        class="accordion-collapse collapse"
+        aria-labelledby="acc-5-hdr"
         data-bs-parent="#instAccordion"
+        role="region"
       >
         <div class="accordion-body">
           {% if item.video_url %}
@@ -70,29 +74,26 @@ content %}
   </div>
   {% endif %}
 </div>
+
 <style>
   @media (max-width: 767.98px) {
     .container {
-      max-width: 95% !important; /* make it nearly full-width on phones */
+      max-width: 95% !important; /* nearly full-width on phones */
       padding-left: 0.75rem !important;
       padding-right: 0.75rem !important;
     }
-
     .accordion-button {
-      font-size: 1rem; /* slightly smaller text for titles */
-      padding: 0.75rem 1rem; /* reduce vertical padding */
+      font-size: 1rem;
+      padding: 0.75rem 1rem;
     }
-
     .accordion-body {
-      padding: 0.75rem; /* tighten body spacing */
+      padding: 0.75rem;
     }
-
     video {
       border-radius: 6px;
     }
-
     .btn {
-      padding: 0.45rem 0.75rem; /* make buttons more compact */
+      padding: 0.45rem 0.75rem;
       font-size: 0.9rem;
     }
   }
