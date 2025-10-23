@@ -6,13 +6,36 @@ from dotenv import load_dotenv
 
 load_dotenv(override=True)
 
-def get_db_engine():
-    from dotenv import load_dotenv
+from sqlalchemy import create_engine
+import os, urllib.parse
+from dotenv import load_dotenv
 
-    return create_engine(
-        f"mssql+pyodbc://{os.getenv('WSNZDBUSER')}:{os.getenv('WSNZDBPASS')}"
-        "@heimatau.database.windows.net:1433/WSFL?driver=ODBC+Driver+18+for+SQL+Server&MARS_Connection=Yes"
+def get_db_engine():
+    load_dotenv()
+
+    params = urllib.parse.quote_plus(
+        f"DRIVER={{ODBC Driver 18 for SQL Server}};"
+        f"SERVER=heimatau.database.windows.net,1433;"
+        f"DATABASE=WSFL;"
+        f"UID={os.getenv('WSNZDBUSER')};"
+        f"PWD={os.getenv('WSNZDBPASS')};"
+        "Encrypt=yes;"
+        "TrustServerCertificate=no;"
+        "MARS_Connection=Yes;"
+        "Login Timeout=30;"
     )
+
+    engine = create_engine(
+        f"mssql+pyodbc:///?odbc_connect={params}",
+        pool_pre_ping=True,      # validate before use (prevents stale connections)
+        pool_recycle=1800,       # recycle every 30 min to avoid idle TCP kills
+        pool_size=5,             # fine-tune for your app load
+        max_overflow=10,         # extra connections for bursts
+        connect_args={"timeout": 30},  # statement timeout in seconds
+        future=True
+    )
+
+    return engine
     
 # --- helpers (you can move this to a shared utils module) ------------------
 from sqlalchemy import text
