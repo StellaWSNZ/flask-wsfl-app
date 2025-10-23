@@ -1,0 +1,584 @@
+{% extends "header.html" %} {% block title %}Survey Builder{% endblock %} {%
+block content %}
+<div class="container py-4">
+  <h3 class="mb-3">Survey Builder</h3>
+
+  <!-- Survey meta -->
+  <div class="card mb-4">
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label"
+            >Survey Title <span class="text-danger">*</span></label
+          >
+          <input
+            id="surveyTitle"
+            type="text"
+            class="form-control"
+            placeholder="e.g., WSFL Confidence 2026"
+            required
+          />
+        </div>
+        <div class="col-md-6">
+          <label class="form-label"
+            >Route Name <span class="text-danger">*</span></label
+          >
+          <input
+            id="surveyRoute"
+            type="text"
+            class="form-control"
+            placeholder="e.g., wsfl-confidence-2026"
+            required
+          />
+        </div>
+        <div class="col-12">
+          <label class="form-label">Description</label>
+          <textarea
+            id="surveyDescription"
+            class="form-control"
+            rows="2"
+            placeholder="Describe this survey..."
+          ></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add controls -->
+  <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+    <select id="addType" class="form-select w-auto">
+      <option value="" selected disabled>Add...</option>
+      <option value="section">➕ Section</option>
+      <option value="question">➕ Question</option>
+    </select>
+
+    <select
+      id="targetSection"
+      class="form-select w-auto d-none"
+      title="Add question to section"
+    >
+      <option value="" selected disabled>Choose section…</option>
+    </select>
+
+    <select id="questionType" class="form-select w-auto d-none">
+      <option disabled selected>Select question type</option>
+      <option value="DDL">Dropdown Select</option>
+      <option value="LIK">Likert Scale</option>
+      <option value="LNG">Long Answer</option>
+      <option value="SHT">Short Answer</option>
+      <option value="T/F">True or False</option>
+      <option value="TXT">Text Answer</option>
+    </select>
+
+    <button id="addBtn" class="btn btn-outline-primary">Add</button>
+  </div>
+
+  <!-- Canvas -->
+  <div id="builderArea"></div>
+
+  <div class="mt-4 d-flex gap-2">
+    <button id="saveBtn" class="btn btn-success">Save Survey</button>
+    <button id="previewBtn" class="btn btn-outline-secondary">
+      Preview JSON (console)
+    </button>
+  </div>
+</div>
+
+<!-- Likert Modal -->
+<div class="modal fade" id="likertModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Create Likert Scale</h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Scale Name</label>
+          <input
+            id="likertName"
+            class="form-control"
+            placeholder="e.g., WSFL Confidence – Understanding (New)"
+          />
+        </div>
+        <div class="d-flex justify-content-between align-items-center">
+          <h6 class="mb-2">Labels</h6>
+          <button
+            id="addLikertRow"
+            class="btn btn-sm btn-outline-primary"
+            type="button"
+          >
+            + Add Label
+          </button>
+        </div>
+        <div id="likertRows" class="mt-2"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">
+          Cancel
+        </button>
+        <button id="saveLikertBtn" class="btn btn-primary" type="button">
+          Save Scale
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Feedback Modal (replaces alert) -->
+<div class="modal fade" id="feedbackModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title" id="feedbackModalTitle">Validation Errors</h5>
+        <button
+          type="button"
+          class="btn-close btn-close-white"
+          data-bs-dismiss="modal"
+        ></button>
+      </div>
+      <div class="modal-body" id="feedbackModalBody"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast (for success/info) -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1055">
+  <div
+    id="liveToast"
+    class="toast align-items-center text-bg-primary border-0"
+    role="alert"
+    aria-live="assertive"
+    aria-atomic="true"
+  >
+    <div class="d-flex">
+      <div class="toast-body" id="toastBody">Saved</div>
+      <button
+        type="button"
+        class="btn-close btn-close-white me-2 m-auto"
+        data-bs-dismiss="toast"
+        aria-label="Close"
+      ></button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Preloaded from Flask
+  const LIKERT_SCALES = {{ scales|tojson|safe }};
+
+  // ---- State ----
+  const survey = {
+    title: "", description: "", routeName: "",
+    sections: []  // [{name, order, text, questions:[{code,text,likertScaleId?,options?}]}]
+  };
+
+  // ---- DOM refs ----
+  const addType = document.getElementById('addType');
+  const targetSection = document.getElementById('targetSection');
+  const questionType = document.getElementById('questionType');
+  const addBtn = document.getElementById('addBtn');
+  const builderArea = document.getElementById('builderArea');
+
+  const surveyTitle = document.getElementById('surveyTitle');
+  const surveyDescription = document.getElementById('surveyDescription');
+  const surveyRoute = document.getElementById('surveyRoute');
+
+  // Likert modal + feedback modal + toast
+  let likertModal, feedbackModal, toast;
+  document.addEventListener('DOMContentLoaded', () => {
+    likertModal = new bootstrap.Modal(document.getElementById('likertModal'));
+    feedbackModal = new bootstrap.Modal(document.getElementById('feedbackModal'));
+    toast = new bootstrap.Toast(document.getElementById('liveToast'));
+  });
+  const likertRows = document.getElementById('likertRows');
+  const addLikertRowBtn = document.getElementById('addLikertRow');
+  const saveLikertBtn = document.getElementById('saveLikertBtn');
+  const likertName = document.getElementById('likertName');
+
+  function showModalMessage(title, htmlBody, type = "danger") {
+    const modalEl = document.getElementById("feedbackModal");
+    const header = modalEl.querySelector(".modal-header");
+    const titleEl = document.getElementById("feedbackModalTitle");
+    const bodyEl = document.getElementById("feedbackModalBody");
+    header.className = `modal-header bg-${type} text-white`;
+    titleEl.textContent = title;
+    bodyEl.innerHTML = htmlBody;
+    feedbackModal.show();
+  }
+  function showToast(msg, color="primary") {
+    const toastEl = document.getElementById("liveToast");
+    const toastBody = document.getElementById("toastBody");
+    toastEl.className = `toast align-items-center text-bg-${color} border-0`;
+    toastBody.textContent = msg;
+    toast.show();
+  }
+
+  // ---- Helpers ----
+  function resequenceSections() {
+    survey.sections.forEach((s, i) => s.order = i + 1);
+  }
+
+  function refreshSectionSelector() {
+    const prev = targetSection.value;
+    targetSection.innerHTML = '<option value="" disabled selected>Choose section…</option>';
+    survey.sections
+      .sort((a,b)=>a.order-b.order)
+      .forEach((s, idx) => {
+        const opt = document.createElement('option');
+        opt.value = String(idx);
+        opt.textContent = `${s.order}. ${s.name || 'Untitled Section'}`;
+        targetSection.appendChild(opt);
+      });
+    if (prev) targetSection.value = prev;
+  }
+
+  function render() {
+    builderArea.innerHTML = "";
+    survey.sections.sort((a,b)=>a.order-b.order).forEach((sec, sidx) => {
+      const card = document.createElement('div');
+      card.className = 'card mb-3';
+      const body = document.createElement('div');
+      body.className = 'card-body';
+
+      body.innerHTML = `
+        <div class="d-flex gap-2 align-items-start mb-2">
+          <strong class="mt-1">Section ${sec.order}</strong>
+          <input class="form-control form-control-sm" placeholder="Section name" value="${sec.name||''}" data-bind="section-name:${sidx}">
+          <input class="form-control form-control-sm" type="number" min="1" value="${sec.order}" style="max-width:100px" title="Order" data-bind="section-order:${sidx}">
+          <button class="btn btn-sm btn-outline-danger ms-auto" data-action="delete-section" data-sidx="${sidx}">Delete</button>
+        </div>
+        <textarea class="form-control form-control-sm mb-2" rows="2" placeholder="Section description (optional)" data-bind="section-text:${sidx}">${sec.text||''}</textarea>
+        <div data-role="questions"></div>
+      `;
+      card.appendChild(body);
+      builderArea.appendChild(card);
+
+      // render questions
+      const qwrap = body.querySelector('[data-role="questions"]');
+      (sec.questions||[]).forEach((q, qidx) => {
+        const qDiv = document.createElement('div');
+        qDiv.className = 'border rounded p-2 mb-2';
+        const extra = (q.code === 'DDL')
+          ? renderDDLOptionsHTML(sidx, qidx, q.options||[])
+          : (q.code === 'LIK') ? renderLikertPickerHTML(sidx, qidx, q.likertScaleId)
+          : '';
+
+        qDiv.innerHTML = `
+          <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div class="d-flex gap-2 align-items-center flex-wrap">
+              <span class="badge text-bg-secondary">${q.code}</span>
+              <input class="form-control form-control-sm" placeholder="Question text" value="${q.text||''}" data-bind="q-text:${sidx}:${qidx}" style="min-width:280px">
+            </div>
+            <button class="btn btn-sm btn-outline-danger" data-action="delete-question" data-sidx="${sidx}" data-qidx="${qidx}">Delete</button>
+          </div>
+          ${extra}
+        `;
+        qwrap.appendChild(qDiv);
+      });
+    });
+
+    refreshSectionSelector();
+    wireEvents();
+  }
+
+  function renderDDLOptionsHTML(sidx, qidx, options) {
+    const rows = (options||[]).sort((a,b)=>a.order-b.order).map((o, i) => `
+      <div class="row g-2 align-items-center mb-1" data-role="ddl-row" data-sidx="${sidx}" data-qidx="${qidx}" data-oidx="${i}">
+        <div class="col-auto"><input class="form-control form-control-sm" type="number" min="1" value="${o.order||i+1}" data-bind="ddl-order:${sidx}:${qidx}:${i}" style="max-width:80px"></div>
+        <div class="col"><input class="form-control form-control-sm" placeholder="Option label" value="${o.label||''}" data-bind="ddl-label:${sidx}:${qidx}:${i}"></div>
+        <div class="col"><input class="form-control form-control-sm" placeholder="Option value" value="${o.value||''}" data-bind="ddl-value:${sidx}:${qidx}:${i}"></div>
+        <div class="col-auto"><button class="btn btn-sm btn-outline-danger" data-action="delete-ddl-option" data-sidx="${sidx}" data-qidx="${qidx}" data-oidx="${i}">×</button></div>
+      </div>`).join('');
+    return `
+      <div class="border rounded p-2 mt-2">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <strong class="small">Dropdown options</strong>
+          <button class="btn btn-sm btn-outline-primary" data-action="add-ddl-option" data-sidx="${sidx}" data-qidx="${qidx}">+ Add option</button>
+        </div>
+        ${rows || '<div class="text-muted small">No options yet.</div>'}
+      </div>`;
+  }
+
+  function renderLikertPickerHTML(sidx, qidx, selectedId) {
+    const opts = LIKERT_SCALES.map(sc => `<option value="${sc.id}" ${String(sc.id)===String(selectedId)?'selected':''}>${sc.name} (max ${sc.max})</option>`).join('');
+    return `
+      <div class="mt-2">
+        <label class="form-label mb-1 small">Likert scale</label>
+        <div class="d-flex gap-2">
+          <select class="form-select form-select-sm" data-bind="q-likert:${sidx}:${qidx}">
+            <option value="">Select…</option>
+            ${opts}
+          </select>
+          <button class="btn btn-sm btn-outline-secondary" data-action="open-likert-modal">New scale…</button>
+        </div>
+      </div>`;
+  }
+
+  function wireEvents() {
+    // Bind simple inputs
+    document.querySelectorAll('[data-bind]').forEach(el => {
+      el.oninput = () => {
+        const [kind, s, q, o] = el.dataset.bind.split(':');
+        if (kind.startsWith('section-')) {
+          const idx = +s;
+          if (kind === 'section-name') survey.sections[idx].name = el.value;
+          if (kind === 'section-text') survey.sections[idx].text = el.value;
+          if (kind === 'section-order') { survey.sections[idx].order = +el.value || 1; survey.sections.sort((a,b)=>a.order-b.order); resequenceSections(); render(); }
+        } else if (kind.startsWith('q-')) {
+          const sidx = +s, qidx = +q;
+          const qobj = survey.sections[sidx].questions[qidx];
+          if (kind === 'q-text') qobj.text = el.value;
+          if (kind === 'q-likert') qobj.likertScaleId = el.value ? +el.value : null;
+        } else if (kind.startsWith('ddl-')) {
+          const sidx = +s, qidx = +q, oidx = +o;
+          const qobj = survey.sections[sidx].questions[qidx];
+          qobj.options = qobj.options || [];
+          const row = qobj.options[oidx];
+          if (!row) return;
+          if (kind === 'ddl-order') row.order = +el.value || (oidx+1);
+          if (kind === 'ddl-label') row.label = el.value;
+          if (kind === 'ddl-value') row.value = el.value;
+        }
+      };
+    });
+
+    // Buttons (delete/add/modal)
+    document.querySelectorAll('[data-action]').forEach(btn => {
+      btn.onclick = async () => {
+        const action = btn.dataset.action;
+        if (action === 'delete-section') {
+          const sidx = +btn.dataset.sidx;
+          survey.sections.splice(sidx, 1);
+          resequenceSections();
+          render();
+        }
+        if (action === 'add-question') {
+          const sidx = +btn.dataset.sidx;
+          survey.sections[sidx].questions.push({ code:'SHT', text:'' });
+          render();
+        }
+        if (action === 'delete-question') {
+          const sidx = +btn.dataset.sidx, qidx = +btn.dataset.qidx;
+          survey.sections[sidx].questions.splice(qidx,1);
+          render();
+        }
+        if (action === 'add-ddl-option') {
+          const sidx = +btn.dataset.sidx, qidx = +btn.dataset.qidx;
+          const qobj = survey.sections[sidx].questions[qidx];
+          qobj.options = qobj.options || [];
+          const nextOrder = qobj.options.length ? Math.max(...qobj.options.map(o=>o.order||0))+1 : 1;
+          qobj.options.push({ order: nextOrder, label: '', value: '' });
+          render();
+        }
+        if (action === 'delete-ddl-option') {
+          const sidx = +btn.dataset.sidx, qidx = +btn.dataset.qidx, oidx = +btn.dataset.oidx;
+          const qobj = survey.sections[sidx].questions[qidx];
+          qobj.options.splice(oidx,1);
+          qobj.options.forEach((o,i)=>o.order=i+1);
+          render();
+        }
+        if (action === 'open-likert-modal') {
+          openLikertModal();
+        }
+      };
+    });
+  }
+
+  // ---- Top controls ----
+  addType.addEventListener('change', () => {
+    const v = addType.value;
+    questionType.classList.toggle('d-none', v !== 'question');
+    targetSection.classList.toggle('d-none', v !== 'question');
+  });
+
+  addBtn.addEventListener('click', () => {
+    const v = addType.value;
+    if (!v) return;
+    if (v === 'section') {
+      survey.sections.push({ name:"", order: survey.sections.length+1, text:"", questions: [] });
+      render();
+    } else {
+      const sidx = +targetSection.value;
+      const qtype = questionType.value;
+      if (isNaN(sidx)) { showModalMessage("Add Question", "<p>Please choose a section for the new question.</p>", "info"); return; }
+      if (!qtype) { showModalMessage("Add Question", "<p>Please choose a question type.</p>", "info"); return; }
+      const q = { code: qtype, text: '' };
+      if (qtype === 'DDL') q.options = [];
+      if (qtype === 'LIK') q.likertScaleId = null;
+      survey.sections[sidx].questions.push(q);
+      render();
+    }
+    // reset
+    addType.value = "";
+    targetSection.value = "";
+    questionType.value = "";
+    questionType.classList.add('d-none');
+    targetSection.classList.add('d-none');
+  });
+
+  // ---- Validation ----
+  function validateSurvey() {
+    const errors = [];
+    const t = surveyTitle.value.trim();
+    const r = surveyRoute.value.trim();
+
+    if (!t) errors.push("Survey Title is required.");
+    if (!r) errors.push("Route Name is required.");
+
+    // Validate questions
+    survey.sections.forEach((s, si) => {
+      (s.questions || []).forEach((q, qi) => {
+        const label = `Section ${s.order || (si+1)} → Q${qi+1} (${q.code})`;
+        if (!q.text || !q.text.trim()) {
+          errors.push(`${label}: Question text is required.`);
+        }
+        if (q.code === 'LIK' && !(q.likertScaleId > 0)) {
+          errors.push(`${label}: Select a Likert scale.`);
+        }
+        if (q.code === 'DDL') {
+          const opts = (q.options || []).filter(o => (o.label && o.label.trim()) && (o.value && o.value.trim()));
+          if (opts.length === 0) {
+            errors.push(`${label}: Add at least one dropdown option with label and value.`);
+          }
+        }
+      });
+    });
+
+    return { ok: errors.length === 0, errors };
+  }
+
+  // ---- Save & Preview ----
+  document.getElementById('saveBtn').addEventListener('click', async () => {
+    survey.title = surveyTitle.value.trim();
+    survey.description = surveyDescription.value.trim();
+    survey.routeName = surveyRoute.value.trim();
+
+    const { ok, errors } = validateSurvey();
+    if (!ok) {
+      const listHTML = "<ul class='mb-0'>" + errors.map(e => `<li>${e}</li>`).join("") + "</ul>";
+      showModalMessage("Validation Errors", listHTML, "danger");
+      return;
+    }
+
+    // Build payload exactly as helper proc expects
+    const payload = {
+      title: survey.title || "",
+      description: survey.description || "",
+      routeName: survey.routeName || "",
+      sections: survey.sections.map(s => ({
+        name: s.name || null,
+        order: s.order || 1,
+        text: s.text || null,
+        questions: (s.questions||[]).map(q => {
+          const base = { code: q.code, text: q.text || "" };
+          if (q.code === 'LIK') base.likertScaleId = q.likertScaleId || null;
+          if (q.code === 'DDL') base.options = (q.options||[]).map(o => ({
+            order: o.order || 1, label: o.label || "", value: o.value || ""
+          }));
+          return base;
+        })
+      }))
+    };
+
+    try {
+      const resp = await fetch("/survey/save", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify(payload)
+      });
+      const data = await resp.json();
+      if (data.ok) {
+        showToast(`Saved! Survey ID: ${data.survey_id}`, "success");
+      } else {
+        showModalMessage("Save Failed", `<p>${data.error || "An unknown error occurred."}</p>`, "danger");
+      }
+    } catch (e) {
+      showModalMessage("Save Failed", `<p>${e?.message || e}</p>`, "danger");
+    }
+  });
+
+  document.getElementById('previewBtn').addEventListener('click', () => {
+    console.log(JSON.stringify({
+      title: surveyTitle.value.trim(),
+      description: surveyDescription.value.trim(),
+      routeName: surveyRoute.value.trim(),
+      sections: survey.sections
+    }, null, 2));
+    showToast("JSON printed to console", "info");
+  });
+
+  // ---- Likert modal logic ----
+  function openLikertModal() {
+    likertName.value = "";
+    likertRows.innerHTML = "";
+    addLikertRow(1, "");
+    addLikertRow(2, "");
+    likertModal.show();
+  }
+  function addLikertRow(pos, text) {
+    const row = document.createElement('div');
+    row.className = 'row g-2 align-items-center mb-2';
+    row.innerHTML = `
+      <div class="col-auto"><input class="form-control form-control-sm" type="number" min="1" placeholder="#" value="${pos||''}"></div>
+      <div class="col"><input class="form-control form-control-sm" type="text" placeholder="Label text" value="${text||''}"></div>
+      <div class="col-auto"><button class="btn btn-sm btn-outline-danger" type="button">&times;</button></div>`;
+    row.querySelector('button').onclick = () => row.remove();
+    likertRows.appendChild(row);
+  }
+  addLikertRowBtn.addEventListener('click', () => addLikertRow());
+
+  saveLikertBtn.addEventListener('click', async () => {
+    const name = likertName.value.trim();
+    const labels = [];
+    likertRows.querySelectorAll('.row').forEach(r => {
+      const pos = +r.querySelector('input[type="number"]').value;
+      const txt = r.querySelector('input[type="text"]').value.trim();
+      if (pos && txt) labels.push({position: pos, text: txt});
+    });
+    if (!name || !labels.length) {
+      showModalMessage("Likert Scale", "<p>Name and at least one label are required.</p>", "info");
+      return;
+    }
+
+    try {
+      const resp = await fetch('/survey/likert-scales', {
+        method: 'POST',
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({name, labels})
+      });
+      const data = await resp.json();
+      if (!data.ok) {
+        showModalMessage("Likert Scale", "<p>Failed to save scale.</p>", "danger");
+        return;
+      }
+      // refresh list of scales
+      const r2 = await fetch('/survey/likert-scales');
+      const fresh = await r2.json();
+      LIKERT_SCALES.length = 0;
+      fresh.forEach(x => LIKERT_SCALES.push(x));
+
+      likertModal.hide();
+      showToast("Likert scale saved", "success");
+      render();
+    } catch(e) {
+      showModalMessage("Likert Scale", `<p>${e?.message || e}</p>`, "danger");
+    }
+  });
+
+  // ---- boot ----
+  // Start with one section so the UI isn't empty (you can remove this to start blank)
+  survey.sections.push({ name:"", order:1, text:"", questions: [] });
+  render();
+</script>
+{% endblock %}

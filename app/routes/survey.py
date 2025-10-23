@@ -1,5 +1,6 @@
 ## Survey.py
 from datetime import timezone
+import json
 from zoneinfo import ZoneInfo
 from flask import Blueprint, jsonify, render_template, request, redirect, flash, session, url_for, current_app
 from sqlalchemy import text
@@ -450,11 +451,38 @@ def api_classes():
     ]
     return jsonify(data)
 
+
 @survey_bp.route("/MyForms/<int:respondent_id>")
 @login_required
 def view_my_survey_response(respondent_id):
     session_email = session.get("user_email")
     is_admin = session.get("user_role") == "ADM"
+
+    def _normalize_tf(qcode, answer_bool, answer_likert, answer_text):
+        """
+        Return 1 (Yes), 0 (No), or None for non-T/F or missing.
+        Prefers AnswerBoolean, then Likert 1/2, then textual '1/0/yes/no'.
+        """
+        if qcode != 'T/F':
+            return None
+
+        # 1) Use BIT column if present
+        if answer_bool is not None:
+            return 1 if bool(answer_bool) else 0
+
+        # 2) Fall back to Likert (1=yes, 2=no)
+        if answer_likert in (1, 2):
+            return 1 if answer_likert == 1 else 0
+
+        # 3) Fall back to text
+        if isinstance(answer_text, str) and answer_text.strip():
+            t = answer_text.strip().lower()
+            if t in ("1", "true", "t", "yes", "y"):
+                return 1
+            if t in ("0", "false", "f", "no", "n"):
+                return 0
+
+        return None
 
     try:
         engine = get_db_engine()
@@ -477,16 +505,21 @@ def view_my_survey_response(respondent_id):
                 qid = row["QuestionID"]
                 qtext = row["QuestionText"]
                 qcode = row["QuestionCode"]
-                answer_likert = row["AnswerLikert"]
-                answer_text = row["AnswerText"]
+                answer_likert = row.get("AnswerLikert")
+                answer_text   = row.get("AnswerText")
+                answer_bool   = row.get("AnswerBoolean")  # <-- NEW
 
                 if qid not in questions:
+                    # Precompute TF value (None if not T/F)
+                    tf_val = _normalize_tf(qcode, answer_bool, answer_likert, answer_text)
+
                     question = {
                         "id": qid,
                         "text": qtext,
                         "type": qcode,
-                        "answer_likert": answer_likert,
-                        "answer_text": answer_text,
+                        "answer_likert": answer_likert if qcode == "LIK" else None,
+                        "answer_text": None if qcode in ("LIK", "T/F") else (answer_text or None),
+                        "answer_tf_value": tf_val if qcode == "T/F" else None,  # <-- NEW
                         "labels": []
                     }
 
@@ -499,20 +532,20 @@ def view_my_survey_response(respondent_id):
 
                     questions[qid] = question
                 else:
-                    if answer_likert and not questions[qid]["answer_likert"]:
+                    # merge/patch multi-row results
+                    if qcode == "LIK" and answer_likert and not questions[qid]["answer_likert"]:
                         questions[qid]["answer_likert"] = answer_likert
-                    if answer_text and not questions[qid]["answer_text"]:
+
+                    if qcode not in ("LIK", "T/F") and answer_text and not questions[qid]["answer_text"]:
                         questions[qid]["answer_text"] = answer_text
+
+                    if qcode == "T/F" and questions[qid]["answer_tf_value"] is None:
+                        questions[qid]["answer_tf_value"] = _normalize_tf(qcode, answer_bool, answer_likert, answer_text)
 
             email = rows[0]["Email"]
             submitted_raw = rows[0]["SubmittedDate"]
             title = rows[0]["Title"]
-            if submitted_raw:
-                submitted = submitted_raw
-                #submitted_utc = submitted_raw.replace(tzinfo=timezone.utc)
-                #submitted = submitted_utc.astimezone(ZoneInfo("Pacific/Auckland"))
-            else:
-                submitted = "Not submitted yet"
+            submitted = submitted_raw or "Not submitted yet"
 
             role_code = rows[0]["Role"]
             role_mapping = {
@@ -526,9 +559,8 @@ def view_my_survey_response(respondent_id):
             entity = rows[0]["EntityDescription"]
             if role == "WSNZ Admin":
                 entity = "WSNZ"
-            fullname = f"{rows[0]['FirstName'] or ''} {rows[0]['Surname'] or ''}".strip()
-            if not fullname:
-                fullname = None
+            fullname = f"{rows[0]['FirstName'] or ''} {rows[0]['Surname'] or ''}".strip() or None
+
             return render_template(
                 "survey_view.html",
                 questions=list(questions.values()),
@@ -537,18 +569,14 @@ def view_my_survey_response(respondent_id):
                 submitted=submitted,
                 entity=entity,
                 fullname=fullname,
-                title = title 
+                title=title
             )
 
     except Exception:
         tb_str = traceback.format_exc()
         print("🔥 FULL TRACEBACK:")
         print(tb_str)
-
-        # Flash minimal message
         flash("Something went wrong loading the survey form.", "danger")
-
-        # Render full traceback in browser (optional: disable after debugging)
         return f"<pre>{tb_str}</pre>", 500
 
 @survey_bp.route("/Form/invite/<token>")
@@ -924,5 +952,126 @@ def add_moe_staff():
         return jsonify(ok=False, message="Sorry—something went wrong while adding the teacher."), 500
     
     
+ 
+# ---------- Builder page (preload Likert scales from helper proc) ----------
+@survey_bp.route("/SurveyBuilder", methods=["GET"])
+@login_required
+def survey_builder():
     
-    
+    if session.get("user_role") != "ADM":
+        flash("Unauthorized access", "danger")
+        return redirect(url_for("home_bp.home"))
+    try:
+        engine = get_db_engine()
+        with engine.connect() as conn:
+            rows = conn.execute(text(
+                "EXEC FlaskFormBuilderHelper @Request='ListLikertScales';"
+            )).fetchall()
+
+        scales = []
+        for r in rows:
+            # Defensive: some drivers might return memoryview/bytes
+            raw = r.LabelsJSON
+            labels = []
+            if raw is not None:
+                try:
+                    if isinstance(raw, (bytes, bytearray, memoryview)):
+                        raw = bytes(raw).decode("utf-8", errors="ignore")
+                    if isinstance(raw, str) and raw.strip() != "":
+                        labels = json.loads(raw)
+                except Exception as e:
+                    current_app.logger.warning("LabelsJSON parse failed: %s; raw=%r", e, raw)
+                    labels = []
+            scales.append({
+                "id": int(r.LikertScaleID),
+                "name": r.ScaleName,
+                "max": int(r.MaxValue),
+                "labels": labels
+            })
+
+        return render_template("survey_builder.html", scales=scales)
+
+    except Exception as e:
+        # Log the full stacktrace to your console
+        current_app.logger.exception("SurveyBuilder crashed")
+        # Return a simple error page so you SEE the error in browser too
+        return f"<pre>SurveyBuilder error:\n{e}</pre>", 500
+
+# ---------- Save survey via helper proc ----------
+@survey_bp.route("/survey/save", methods=["POST"])
+@login_required
+def survey_save():
+    try:
+        payload = request.get_json(force=True)  # <-- your JSON object
+        # (Optional) basic validation
+        if not payload.get("title") or not payload.get("routeName"):
+            return jsonify({"ok": False, "error": "title and routeName required"}), 400
+
+        engine = get_db_engine()
+        with engine.begin() as conn:
+            row = conn.execute(
+                text("""
+                    EXEC dbo.FlaskFormBuilderHelper
+                         @Request='CreateSurveyFromJson',
+                         @SurveyJSON=:j;
+                """),
+                {"j": json.dumps(payload)}  # stringify once
+            ).fetchone()
+
+        return jsonify({"ok": True, "survey_id": int(row.SurveyID)})
+
+    except Exception as e:
+        current_app.logger.exception("survey_save failed")
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+# ---------- Likert: list ----------
+@survey_bp.route("/survey/likert-scales", methods=["GET"])
+@login_required
+def likert_list():
+    engine = get_db_engine()
+    with engine.connect() as conn:
+        rows = conn.execute(text("""
+            EXEC FlaskFormBuilderHelper @Request='ListLikertScales';
+        """)).fetchall()
+    out = []
+    for r in rows:
+        labels = []
+        if getattr(r, "LabelsJSON", None):
+            try:
+                labels = json.loads(r.LabelsJSON)
+            except Exception:
+                labels = []
+        out.append({
+            "id": int(r.LikertScaleID),
+            "name": r.ScaleName,
+            "max": int(r.MaxValue),
+            "labels": labels
+        })
+    return jsonify(out)
+
+# ---------- Likert: create (name + labels) ----------
+@survey_bp.route("/survey/likert-scales", methods=["POST"])
+@login_required
+def likert_create():
+    data = request.get_json(force=True)
+    name = (data.get("name") or "").strip()
+    labels = data.get("labels") or []  # [{position:int, text:str}, ...]
+    print(data)
+    print(name)
+    print(labels)
+    if not name or not labels:
+        return jsonify({"ok": False, "error": "name and labels required"}), 400
+
+    engine = get_db_engine()
+    with engine.begin() as conn:
+        row = conn.execute(
+            text("""
+                EXEC dbo.FlaskFormBuilderHelper
+                     @Request='CreateLikertScale',
+                     @ScaleName=:n,
+                     @LabelsJSON=:lbls;
+            """),
+            {"n": name, "lbls": json.dumps(labels)}
+        ).fetchone()
+
+    return jsonify({"ok": True, "id": int(row.LikertScaleID)})

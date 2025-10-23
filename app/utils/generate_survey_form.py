@@ -5,25 +5,25 @@ from dotenv import load_dotenv
 
 load_dotenv(override=True)
 
-# DB connection string
 DB_URL = os.getenv("DB_URL_CUSTOM")
 engine = create_engine(DB_URL)
 
-# Output Jinja2 HTML template path
-SURVEY_ID = 4
+SURVEY_ID = 5
 output_path = f"app/templates/survey_form_{SURVEY_ID}.html"
+
+# 1) Load survey meta INCLUDING RouteName
 with engine.connect() as conn:
     result = conn.execute(
-        text("SELECT Title, Header, Footer FROM SVY_Survey WHERE SurveyID = :id"),
+        text("SELECT Title, Header, Footer, RouteName FROM SVY_Survey WHERE SurveyID = :id"),
         {"id": SURVEY_ID}
     ).mappings().first()
 
-survey_title = result["Title"] or "Survey"
-survey_header = result["Header"] or ""
-survey_footer = result["Footer"] or ""
+survey_title = (result["Title"] or "Survey")
+survey_header = (result["Header"] or "")
+survey_footer = (result["Footer"] or "")
+survey_route  = (result["RouteName"] or "").strip() or "ExternalReview"
 
-
-# Step 2: Fetch sections, questions + labels
+# 2) Fetch sections/questions/labels
 query = """
 SELECT 
     s.SectionName,
@@ -41,34 +41,33 @@ WHERE q.QuestionCode IN ('LIK', 'T/F', 'SHT', 'LNG') AND q.SurveyID = :id
 ORDER BY s.SectionOrder, q.QuestionID, l.Position
 """
 
-# Group: section → {text + question → labels}
 sections = defaultdict(lambda: {"text": "", "questions": defaultdict(list)})
-
 with engine.connect() as conn:
     rows = conn.execute(text(query), {"id": SURVEY_ID}).fetchall()
 
 for secname, secorder, sectext, qid, qtext, qcode, pos, label in rows:
     key = (secorder or 0, secname or "No Section")
     sections[key]["text"] = sectext or ""
-
     if qcode in ['SHT', 'LNG']:
-        sections[key]["questions"][(qid, qtext, qcode)] = []  # No labels needed
+        sections[key]["questions"][(qid, qtext, qcode)] = []
     else:
         sections[key]["questions"][(qid, qtext, qcode)].append((pos, label))
 
-# Step 3: Build Jinja2 HTML
+# 3) Build Jinja2 HTML
 html = [
     '{% extends "header.html" %}',
     '{% block title %}' + survey_title + '{% endblock %}',
     '{% block content %}',
     '<div class="container mt-5">',
-    f'  <h1 class="mb-4 text-center text-primary">{ survey_title }</h1>',
-    '<form action="/submit" method="post">'
+    f'  <h1 class="mb-4 text-center text-primary">{survey_title}</h1>',
+    # IMPORTANT: let Jinja compute the URL using the DB route
+    # Use a normal Python string (not f-string) so braces don't need doubling
+    '  <form action="{{ url_for(\'survey_bp.submit_survey\', routename=\'' + survey_route + '\') }}" method="post">'
 ]
 if survey_header.strip():
     html.append(survey_header)
 
-# Render all sections and questions
+# Render sections/questions
 for (secorder, secname), secdata in sorted(sections.items()):
     if secname != "No Section":
         html.append('<div class="p-3 mb-3 bg-white rounded">')
@@ -83,19 +82,19 @@ for (secorder, secname), secdata in sorted(sections.items()):
         html.append(f'<legend class="h6"><strong>Q{qid}:</strong> {qtext}</legend>')
 
         if qcode == 'LIK':
-            for pos, label in labels:
+            for pos, lbl in labels:
                 html.append(
                     f'<div class="form-check">'
                     f'<input class="form-check-input" type="radio" name="q{qid}" value="{pos}">'
-                    f'<label class="form-check-label">{label}</label>'
+                    f'<label class="form-check-label">{lbl}</label>'
                     f'</div>'
                 )
         elif qcode == 'T/F':
-            for pos, label in [(1, 'Yes'), (2, 'No')]:
+            for pos, lbl in [(1, 'Yes'), (2, 'No')]:
                 html.append(
                     f'<div class="form-check">'
                     f'<input class="form-check-input" type="radio" name="q{qid}" value="{pos}">'
-                    f'<label class="form-check-label">{label}</label>'
+                    f'<label class="form-check-label">{lbl}</label>'
                     f'</div>'
                 )
         elif qcode == 'SHT':
@@ -109,12 +108,14 @@ for (secorder, secname), secdata in sorted(sections.items()):
 
         html.append('</fieldset>')
 
-# Final submit button
+# Submit + footer
 html.append('<button type="submit" class="btn btn-primary">Submit Survey</button>')
+if survey_footer.strip():
+    html.append(survey_footer)
 html.append('</form></div>{% endblock %}')
 
-# Step 4: Write to file
+# 4) Write template
 with open(output_path, "w", encoding="utf-8") as f:
     f.write('\n'.join(html))
 
-print(f"✅ Jinja2 form written to {output_path} with title '{survey_title}'")
+print(f"✅ Jinja2 form written to {output_path} (route: {survey_route})")

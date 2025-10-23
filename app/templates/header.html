@@ -544,6 +544,7 @@ html { scroll-padding-top: calc(var(--navbar-h) + env(safe-area-inset-top, 0px))
                     >View Past Forms</a
                   >
                 </li>
+                            
               </ul>
             </li>
             {% endif %}
@@ -604,6 +605,15 @@ html { scroll-padding-top: calc(var(--navbar-h) + env(safe-area-inset-top, 0px))
                     >View Past Forms</a
                   >
                 </li>
+                {% if user_email == "stella@watersafety.org.nz" %}
+                            <li>
+                  <a
+                    class="dropdown-item py-2"
+                    href="{{ url_for('survey_bp.survey_builder') }}"
+                    >Form Builder</a
+                  >
+                </li>
+ {% endif %}
                 <li role="separator"><hr class="dropdown-divider" /></li>
                 <li>
                   <a
