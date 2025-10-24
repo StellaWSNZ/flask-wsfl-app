@@ -5,7 +5,7 @@ import qrcode
 import base64
 from io import BytesIO
 from flask import Blueprint, render_template, session, redirect, url_for, flash, request, jsonify
-from app.utils.database import get_db_engine
+from app.utils.database import get_db_engine, log_alert
 from sqlalchemy import text
 import pandas as pd
 import io, re, ast, urllib.parse, traceback
@@ -454,10 +454,33 @@ def view_class(class_id, term, year):
             )
 
     except Exception as e:
-        print("❌ An error occurred in view_class:")
+        # console trace for local dev
         traceback.print_exc()
-        return "An internal error occurred. Check logs for details.", 500
 
+        # structured app log
+        try:
+            current_app.logger.error(
+                "❌ view_class crashed | class_id=%s term=%s year=%s | user=%s | filter=%s | order_by=%s | err=%s",
+                class_id, term, year, session.get("user_email"), request.args.get("filter", "all"),
+                request.args.get("order_by", "last"), e, exc_info=True
+            )
+        except Exception:
+            pass  # logging must never break
+
+        # best-effort alert in DB (won't raise)
+        try:
+            log_alert(
+                email    = session.get("user_email"),
+                role     = session.get("user_role"),
+                entity_id= session.get("user_id"),
+                link     = url_for("class_bp.view_class", class_id=class_id, term=term, year=year, _external=True),
+                message  = f"/Class/{class_id}/{term}/{year} failed (filter={request.args.get('filter')}, order_by={request.args.get('order_by')}): {e}\n{traceback.format_exc()}"[:4000],
+            )
+        except Exception:
+            pass
+
+        # user-facing response unchanged
+        return "An internal error occurred. Check logs for details.", 500
 
 
 @class_bp.route("/update_class_info", methods=["POST"])

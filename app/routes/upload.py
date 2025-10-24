@@ -5,7 +5,7 @@ import threading
 import warnings
 import pandas as pd
 from flask import Blueprint, current_app, render_template, request, session, flash, redirect, url_for, send_file, jsonify, abort
-from app.utils.database import get_db_engine
+from app.utils.database import get_db_engine, log_alert
 from werkzeug.utils import secure_filename
 from app.routes.auth import login_required
 from sqlalchemy import text
@@ -448,242 +448,260 @@ def classlistupload():
 
         )
     except Exception as e:
+
         print("ERROR: ", e)
         traceback.print_exc()
 
+        # 🔎 ship the error to AUD_Alerts (never raises)
+        try:
+            log_alert(
+                email    = session.get("user_email"),
+                role     = session.get("user_role"),
+                entity_id= session.get("user_id"),
+                link     = url_for("upload_bp.classlistupload", _external=True),
+                message  = f"/ClassUpload failed: {e}\n{traceback.format_exc()}"[:4000],
+            )
+        except Exception:
+            pass  # logging must never break the response
+
+        flash("Something went wrong while loading the class upload page.", "danger")
+        return redirect(url_for("home_bp.home"))
+# -----------------------------
+# /classlistdownload  (Excel)
+# -----------------------------
 @upload_bp.route('/classlistdownload', methods=['POST'])
 @login_required
 def classlistdownload():
-    if not session.get("preview_data"):
-        flash("No data available to export.", "danger")
+    try:
+        if not session.get("preview_data"):
+            flash("No data available to export.", "danger")
+            return redirect(url_for("upload_bp.classlistupload"))
+
+        desired_order = [
+            "NSN","FirstName","PreferredName","LastName","Birthdate",
+            "Ethnicity","YearLevel","ErrorMessage","Match"
+        ]
+
+        # Reconstruct DataFrame
+        df = pd.DataFrame(session["preview_data"])
+        df["Birthdate"] = autodetect_date_column(df["Birthdate"])
+        df = df.fillna("")
+
+        # Ensure only desired columns and in the correct order
+        columns_to_write = [col for col in desired_order if col in df.columns]
+
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+            df[columns_to_write].to_excel(writer, sheet_name='Results', index=False, startrow=1, header=False)
+            workbook  = writer.book
+            worksheet = writer.sheets['Results']
+
+            # Write header row manually (we used header=False above)
+            for col_num, col_name in enumerate(columns_to_write):
+                worksheet.write(0, col_num, col_name)
+
+            # Excel column name helper
+            def excel_col_letter(n):
+                name = ''
+                while n >= 0:
+                    name = chr(n % 26 + 65) + name
+                    n = n // 26 - 1
+                return name
+
+            max_row = len(df) + 1
+            max_col = len(columns_to_write)
+            last_col_letter = excel_col_letter(max_col - 1)
+
+            worksheet.add_table(f"A1:{last_col_letter}{max_row}", {
+                'columns': [{'header': col} for col in columns_to_write],
+                'style': 'Table Style Light 8',
+                'name': 'MyTable'
+            })
+
+            # Formats
+            wrap_top_format    = workbook.add_format({'text_wrap': True, 'valign': 'top'})
+            red_format         = workbook.add_format({'bg_color': '#D63A3A', 'font_color': '#FFFFFF', 'bold': True, 'valign': 'top'})
+            orange_format      = workbook.add_format({'bg_color': "#EF9D32", 'font_color': '#FFFFFF', 'bold': True, 'valign': 'top'})
+            orange_date_format = workbook.add_format({
+                'bg_color': "#EF9D32", 'font_color': '#FFFFFF', 'bold': True, 'valign': 'top',
+                'num_format': 'yyyy-mm-dd'
+            })
+            red_date_format    = workbook.add_format({
+                'bg_color': '#D63A3A', 'font_color': '#FFFFFF', 'bold': True, 'valign': 'top',
+                'num_format': 'yyyy-mm-dd'
+            })
+            badge_format_error = workbook.add_format({'bold': True, 'align': 'center', 'valign': 'top', 'font_color': '#FFFFFF', 'bg_color': "#D63A3A", 'border': 1})
+            badge_format_ready = workbook.add_format({'bold': True, 'align': 'center', 'valign': 'top', 'font_color': '#FFFFFF', 'bg_color': "#49B00D", 'border': 1})
+            date_format        = workbook.add_format({'num_format': 'yyyy-mm-dd', 'valign': 'top'})
+
+            # Write formatted cells
+            for row in range(1, len(df) + 1):
+                error_fields = df.loc[row - 1, 'ErrorFields']
+                match_value  = df.loc[row - 1, 'Match']
+                error_columns = [field.strip() for field in error_fields.split(',')] if pd.notna(error_fields) else []
+
+                for col in range(len(columns_to_write)):
+                    col_name = columns_to_write[col]
+                    value    = df.iloc[row - 1][col_name]
+
+                    if col_name == 'ErrorMessage' and (value is True or str(value).strip().lower() == 'true'):
+                        value = ""
+
+                    is_error_col = col_name.lower() in [e.lower() for e in error_columns]
+                    is_match     = str(match_value).strip().lower() in ["1", "true", "yes"]
+                    fmt = (orange_format if is_match else red_format) if is_error_col else wrap_top_format
+
+                    if col_name == "Birthdate":
+                        try:
+                            # Expecting YYYY-MM-DD
+                            if isinstance(value, str) and re.match(r"^\d{4}-\d{2}-\d{2}$", value):
+                                dt = datetime.datetime.strptime(value, "%Y-%m-%d")
+                                fmt = (orange_date_format if is_match else red_date_format) if is_error_col else date_format
+                                worksheet.write_datetime(row, col, dt, fmt)
+                            else:
+                                worksheet.write(row, col, "", fmt)
+                        except Exception:
+                            worksheet.write(row, col, "", fmt)
+                    else:
+                        worksheet.write(row, col, value, fmt)
+
+                # Badge
+                badge_col   = len(columns_to_write) - 1
+                badge_value = 'Ready' if str(match_value).strip().lower() in ["1", "true", "yes"] else 'Fix required'
+                badge_format = badge_format_ready if badge_value == 'Ready' else badge_format_error
+                worksheet.write(row, badge_col, badge_value, badge_format)
+
+            # Column widths
+            column_widths = {
+                'NSN': 14, 'FirstName': 20, 'PreferredName': 20, 'LastName': 20,
+                'Birthdate': 18, 'Ethnicity': 14, 'Match': 12, 'ErrorMessage': 40
+            }
+            for col_num, col_name in enumerate(columns_to_write):
+                worksheet.set_column(col_num, col_num, column_widths.get(col_name, None), wrap_top_format)
+
+            worksheet.set_column(max_col, max_col, 15, wrap_top_format)
+            for row in range(max_row):
+                worksheet.set_row(row, None, wrap_top_format)
+
+        output.seek(0)
+        classname   = sanitize_filename(session.get("selected_class"))
+        teachername = sanitize_filename(session.get("selected_teacher"))
+        year        = sanitize_filename(session.get("selected_year"))
+        term        = sanitize_filename(session.get("selected_term"))
+
+        filename = f"{classname or 'Class'}_{teachername or 'Teacher'}_{year or 'Year'}_T{term or 'Term'}.xlsx"
+        return send_file(
+            output,
+            download_name=filename,
+            as_attachment=True,
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
+    except Exception as e:
+        # console trace
+        traceback.print_exc()
+        flash("Failed to generate Excel.", "danger")
+        # DB log (best-effort)
+        try:
+            log_alert(
+                email=session.get("user_email"), role=session.get("user_role"),
+                entity_id=session.get("user_id"),
+                link=url_for("upload_bp.classlistdownload", _external=True),
+                message=f"Excel export failed: {e}\n{traceback.format_exc()}"[:4000],
+            )
+        except Exception:
+            pass
         return redirect(url_for("upload_bp.classlistupload"))
 
-    desired_order = [
-        "NSN",
-        "FirstName",
-        "PreferredName",
-        "LastName",
-        "Birthdate",
-        "Ethnicity",
-        "YearLevel",
-        "ErrorMessage",
-        "Match"
-    ]
-
-    # Reconstruct DataFrame
-    df = pd.DataFrame(session["preview_data"])
-    df["Birthdate"] = autodetect_date_column(df["Birthdate"])
-
-
-    df = df.fillna("")
-
-    # Ensure only desired columns and in the correct order
-    columns_to_write = [col for col in desired_order if col in df.columns]
-
-    output = BytesIO()
-
-    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        df[columns_to_write].to_excel(writer, sheet_name='Results', index=False, startrow=1, header=False)
-        workbook = writer.book
-        worksheet = writer.sheets['Results']
-
-        for col_num, col_name in enumerate(columns_to_write):
-            worksheet.write(0, col_num, col_name)
-
-        # Excel column name helper
-        def excel_col_letter(n):
-            name = ''
-            while n >= 0:
-                name = chr(n % 26 + 65) + name
-                n = n // 26 - 1
-            return name
-
-        max_row = len(df) + 1
-        max_col = len(columns_to_write)
-        last_col_letter = excel_col_letter(max_col - 1)
-
-        worksheet.add_table(f"A1:{last_col_letter}{max_row}", {
-            'columns': [{'header': col} for col in columns_to_write],
-            'style': 'Table Style Light 8',
-            'name': 'MyTable'
-        })
-
-        # Formats
-        wrap_top_format = workbook.add_format({'text_wrap': True, 'valign': 'top'})
-        red_format = workbook.add_format({'bg_color': '#D63A3A', 'font_color': '#FFFFFF', 'bold': True, 'valign': 'top'})
-        orange_format = workbook.add_format({'bg_color': "#EF9D32", 'font_color': '#FFFFFF', 'bold': True, 'valign': 'top'})
-        orange_date_format = workbook.add_format({
-            'bg_color': "#EF9D32", 'font_color': '#FFFFFF', 'bold': True, 'valign': 'top',
-            'num_format': 'yyyy-mm-dd'
-        })
-        red_date_format = workbook.add_format({
-            'bg_color': '#D63A3A', 'font_color': '#FFFFFF', 'bold': True, 'valign': 'top',
-            'num_format': 'yyyy-mm-dd'
-        })
-
-        badge_format_error = workbook.add_format({'bold': True, 'align': 'center', 'valign': 'top', 'font_color': '#FFFFFF', 'bg_color': "#D63A3A", 'border': 1})
-        badge_format_ready = workbook.add_format({'bold': True, 'align': 'center', 'valign': 'top', 'font_color': '#FFFFFF', 'bg_color': "#49B00D", 'border': 1})
-        date_format = workbook.add_format({'num_format': 'yyyy-mm-dd', 'valign': 'top'})
-
-        # Write formatted cells
-        for row in range(1, len(df) + 1):
-            error_fields = df.loc[row - 1, 'ErrorFields']
-            match_value = df.loc[row - 1, 'Match']
-            error_columns = [field.strip() for field in error_fields.split(',')] if pd.notna(error_fields) else []
-
-            for col in range(len(columns_to_write)):
-                col_name = columns_to_write[col]
-                value = df.iloc[row - 1][col_name]
-                
-                if col_name == 'ErrorMessage' and (value is True or str(value).strip().lower() == 'true'):
-                    value = ""
-
-                is_error_col = col_name.lower() in [e.lower() for e in error_columns]
-                is_match = str(match_value).strip().lower() in ["1", "true", "yes"]
-
-                if is_error_col:
-                    fmt = orange_format if is_match else red_format
-                else:
-                    fmt = wrap_top_format  # fallback for normal cells
-
-                if col_name == "Birthdate":
-                    try:
-                        # Expecting YYYY-MM-DD format from autodetect_date_column
-                        if isinstance(value, str) and re.match(r"^\d{4}-\d{2}-\d{2}$", value):
-                            dt = datetime.datetime.strptime(value, "%Y-%m-%d")
-                            if is_error_col:
-                                fmt = orange_date_format if is_match else red_date_format
-                            else:
-                                fmt = date_format
-                            worksheet.write_datetime(row, col, dt, fmt)
-                        else:
-                            worksheet.write(row, col, "", fmt)
-                    except Exception:
-                        worksheet.write(row, col, "", fmt)
-                else:
-                    worksheet.write(row, col, value, fmt)
-
-
-
-            # Badge
-            badge_col = len(columns_to_write) - 1
-            badge_value = 'Ready' if match_value == 1 else 'Fix required'
-            badge_format = badge_format_ready if match_value == 1 else badge_format_error
-            worksheet.write(row, badge_col, badge_value, badge_format)
-
-        # Column widths
-        column_widths = {
-            'NSN': 14,
-            'FirstName': 20,
-            'PreferredName': 20,
-            'LastName': 20,
-            'Birthdate': 18,
-            'Ethnicity': 14,
-            'Match': 12,
-            'ErrorMessage': 40
-        }
-
-        for col_num, col_name in enumerate(columns_to_write):
-            width = column_widths.get(col_name, None)
-            worksheet.set_column(col_num, col_num, width, wrap_top_format)
-
-        worksheet.set_column(max_col, max_col, 15, wrap_top_format)
-        for row in range(max_row):
-            worksheet.set_row(row, None, wrap_top_format)
-
-    output.seek(0)
-    classname = sanitize_filename(session.get("selected_class"))
-    teachername = sanitize_filename(session.get("selected_teacher"))
-    year = sanitize_filename(session.get("selected_year"))
-    term = sanitize_filename(session.get("selected_term"))
-
-    filename = f"{classname or 'Class'}_{teachername or 'Teacher'}_{year or 'Year'}_T{term or 'Term'}.xlsx"
-    return send_file(
-        output,
-        download_name=filename,
-        as_attachment=True,
-        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
     
-    
+# -----------------------------
+# /classlistdownload_csv
+# -----------------------------
 @upload_bp.route('/classlistdownload_csv', methods=['POST'])
 @login_required
 def classlistdownload_csv():
-    if not session.get("preview_data"):
-        flash("No data available to export.", "danger")
+    try:
+        if not session.get("preview_data"):
+            flash("No data available to export.", "danger")
+            return redirect(url_for("upload_bp.classlistupload"))
+
+        desired_order = [
+            "NSN","FirstName","PreferredName","LastName","Birthdate",
+            "Ethnicity","YearLevel","ErrorMessage","Match"
+        ]
+
+        df = pd.DataFrame(session["preview_data"])
+        df["Birthdate"] = autodetect_date_column(df["Birthdate"])
+        df = df.fillna("")
+
+        # Keep only desired columns and order
+        columns_to_write = [col for col in desired_order if col in df.columns]
+        df["Match"] = df["Match"].apply(
+            lambda x: "Ready" if str(x).strip().lower() in ["1","true","yes"] else "Fix required"
+        )
+
+        output = BytesIO()
+        df[columns_to_write].to_csv(output, index=False)
+        output.seek(0)
+
+        classname   = sanitize_filename(session.get("selected_class"))
+        teachername = sanitize_filename(session.get("selected_teacher"))
+        year        = sanitize_filename(session.get("selected_year"))
+        term        = sanitize_filename(session.get("selected_term"))
+
+        filename = f"{classname or 'Class'}_{teachername or 'Teacher'}_{year or 'Year'}_T{term or 'Term'}.csv"
+        return send_file(output, download_name=filename, as_attachment=True, mimetype='text/csv')
+
+    except Exception as e:
+        traceback.print_exc()
+        flash("Failed to generate CSV.", "danger")
+        try:
+            log_alert(
+                email=session.get("user_email"), role=session.get("user_role"),
+                entity_id=session.get("user_id"),
+                link=url_for("upload_bp.classlistdownload_csv", _external=True),
+                message=f"CSV export failed: {e}\n{traceback.format_exc()}"[:4000],
+            )
+        except Exception:
+            pass
         return redirect(url_for("upload_bp.classlistupload"))
 
-    desired_order = [
-        "NSN",
-        "FirstName",
-        "PreferredName",
-        "LastName",
-        "Birthdate",
-        "Ethnicity",
-        "YearLevel",
-        "ErrorMessage",
-        "Match"
-    ]
-
-    df = pd.DataFrame(session["preview_data"])
-    df["Birthdate"] = autodetect_date_column(df["Birthdate"])
-    df = df.fillna("")
-
-    # Keep only desired columns and order
-    columns_to_write = [col for col in desired_order if col in df.columns]
-    df["Match"] = df["Match"].apply(lambda x: "Ready" if str(x).strip().lower() in ["1", "true", "yes"] else "Fix required")
-
-    output = BytesIO()
-    df[columns_to_write].to_csv(output, index=False)
-    output.seek(0)
-
-    classname = sanitize_filename(session.get("selected_class"))
-    teachername = sanitize_filename(session.get("selected_teacher"))
-    year = sanitize_filename(session.get("selected_year"))
-    term = sanitize_filename(session.get("selected_term"))
     
-    filename = f"{classname or 'Class'}_{teachername or 'Teacher'}_{year or 'Year'}_T{term or 'Term'}.csv"
-    return send_file(
-        output,
-        download_name=filename,
-        as_attachment=True,
-        mimetype='text/csv'
-    )
-    
+# -----------------------------
+# /submitclass
+# -----------------------------
 @upload_bp.route('/submitclass', methods=['POST'])
 @login_required
 def submitclass():
     engine = get_db_engine()
     try:
-        funder_id  = session.get("selected_funder")
-        moe_number = session.get("selected_moe")
-        term       = session.get("selected_term")
-        year       = session.get("selected_year")
-        teacher    = session.get("selected_teacher")
-        classname  = session.get("selected_class")
+        funder_id   = session.get("selected_funder")
+        moe_number  = session.get("selected_moe")
+        term        = session.get("selected_term")
+        year        = session.get("selected_year")
+        teacher     = session.get("selected_teacher")
+        classname   = session.get("selected_class")
         preview_data = session.get("preview_data")
-        selected_provider = session.get("selected_provider")  # <-- NEW
+        selected_provider = session.get("selected_provider")  # may be None
 
         missing = []
-        if not funder_id:   missing.append("funder_id")
-        if not moe_number:  missing.append("moe_number")
-        if not term:        missing.append("term")
-        if not year:        missing.append("year")
-        if not teacher:     missing.append("teacher")
-        if not classname:   missing.append("classname")
-        if not preview_data:missing.append("preview_data")
+        if not funder_id:    missing.append("funder_id")
+        if not moe_number:   missing.append("moe_number")
+        if not term:         missing.append("term")
+        if not year:         missing.append("year")
+        if not teacher:      missing.append("teacher")
+        if not classname:    missing.append("classname")
+        if not preview_data: missing.append("preview_data")
 
-        # Provider requirement by role (adjust to your policy)
         user_role = session.get("user_role")
-        roles_require_provider = {"FUN", "GRP"}  # e.g. FUN/GRP must choose provider
-        if user_role in roles_require_provider and not selected_provider:
+        if user_role in {"FUN","GRP"} and not selected_provider:
             missing.append("provider")
 
         if missing:
             flash(f"Missing required data to submit class list: {', '.join(missing)}", "danger")
             return redirect(url_for("upload_bp.classlistupload"))
 
-        # Clean strings once (deduped loop)
+        # Clean strings
         for row in preview_data:
             for k, v in row.items():
                 if isinstance(v, str):
@@ -691,21 +709,18 @@ def submitclass():
 
         input_json = json.dumps(preview_data)
 
-        # Normalise types
         try:
             term = int(term)
         except: pass
         try:
             year = int(year)
         except: pass
-        # ProviderID can be None (NULL) for ADM/MOE (optional)
         if selected_provider is not None and str(selected_provider).isdigit():
             selected_provider = int(selected_provider)
         else:
             selected_provider = None
 
         with engine.begin() as conn:
-            # Always pass ProviderID (may be NULL)  <-- KEY CHANGE
             conn.execute(
                 text("""
                     EXEC FlaskInsertClassList
@@ -728,72 +743,124 @@ def submitclass():
                     "ClassName": classname,
                     "InputJSON": input_json,
                     "Email": session.get("user_email"),
-                    "ProviderID": selected_provider  # None -> SQL NULL
+                    "ProviderID": selected_provider
                 }
             )
 
         flash("✅ Class submitted successfully!", "success")
+        return redirect(url_for("upload_bp.classlistupload"))
 
     except Exception as e:
+        traceback.print_exc()
         flash(f"❌ Error submitting class: {str(e)}", "danger")
+        try:
+            log_alert(
+                email=session.get("user_email"), role=session.get("user_role"),
+                entity_id=session.get("user_id"),
+                link=url_for("upload_bp.classlistupload", _external=True),
+                message=f"/submitclass failed: {e}\n{traceback.format_exc()}"[:4000],
+            )
+        except Exception:
+            pass
+        return redirect(url_for("upload_bp.classlistupload"))
 
-    return redirect(url_for("upload_bp.classlistupload"))
 
-  
-    
-@upload_bp.route("/progress")
-@login_required
-def get_progress():
-    return jsonify(processing_status)
 
+# -----------------------------
+# /results
+# -----------------------------
 @upload_bp.route("/results")
 @login_required
 def results():
-    global last_valid_df, last_error_df
-    valid_html = (
-        last_valid_df.to_html(classes="table table-bordered", index=False)
-        if not last_valid_df.empty else "<p>No valid records found.</p>"
-    )
-    error_html = (
-        last_error_df.to_html(classes="table table-danger", index=False)
-        if not last_error_df.empty else "<p>No errors found.</p>"
-    )
-    return render_template("displayresults.html", valid_html=valid_html, error_html=error_html)
+    try:
+        global last_valid_df, last_error_df
+        valid_html = (
+            last_valid_df.to_html(classes="table table-bordered", index=False)
+            if not last_valid_df.empty else "<p>No valid records found.</p>"
+        )
+        error_html = (
+            last_error_df.to_html(classes="table table-danger", index=False)
+            if not last_error_df.empty else "<p>No errors found.</p>"
+        )
+        return render_template("displayresults.html", valid_html=valid_html, error_html=error_html)
 
+    except Exception as e:
+        traceback.print_exc()
+        flash("Failed to render results.", "danger")
+        try:
+            log_alert(
+                email=session.get("user_email"), role=session.get("user_role"),
+                entity_id=session.get("user_id"),
+                link=url_for("upload_bp.results", _external=True),
+                message=f"/results failed: {e}\n{traceback.format_exc()}"[:4000],
+            )
+        except Exception:
+            pass
+        return redirect(url_for("upload_bp.classlistupload"))
+# -----------------------------
+# /download_excel  (competency)
+# -----------------------------
 @upload_bp.route("/download_excel")
 @login_required
 def download_excel():
-    global last_valid_df
-    if last_valid_df.empty:
-        flash("No data available for export.", "warning")
+    try:
+        global last_valid_df
+        if last_valid_df.empty:
+            flash("No data available for export.", "warning")
+            return redirect(url_for("upload_bp.results"))
+
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+            last_valid_df.to_excel(writer, index=False, sheet_name='Competency Report')
+        output.seek(0)
+        return send_file(
+            output,
+            download_name="competency_report.xlsx",
+            as_attachment=True,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+
+    except Exception as e:
+        traceback.print_exc()
+        flash("Failed to download Excel.", "danger")
+        try:
+            log_alert(
+                email=session.get("user_email"), role=session.get("user_role"),
+                entity_id=session.get("user_id"),
+                link=url_for("upload_bp.download_excel", _external=True),
+                message=f"/download_excel failed: {e}\n{traceback.format_exc()}"[:4000],
+            )
+        except Exception:
+            pass
         return redirect(url_for("upload_bp.results"))
 
-    output = io.BytesIO()
-    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        last_valid_df.to_excel(writer, index=False, sheet_name='Competency Report')
-    output.seek(0)
-    return send_file(
-        output,
-        download_name="competency_report.xlsx",
-        as_attachment=True,
-        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    )
-
- 
 @upload_bp.route("/get_schools_for_funder")
 @login_required
 def get_schools_for_funder():
-    funder_id = request.args.get("funder_id", type=int)
-    #print(funder_id)
-    if not funder_id:
-        return jsonify([])
+    try:
+        funder_id = request.args.get("funder_id", type=int)
+        if not funder_id:
+            return jsonify([])
 
-    engine = get_db_engine()
-    with engine.connect() as conn:
-        result = conn.execute(
-            text("EXEC FlaskHelperFunctions :Request, @Number=:Number"),
-            {"Request": "FilterSchoolID", "Number": funder_id}
-        )
-        schools = [row.School for row in result]
-        #print(schools)
-    return jsonify(schools)
+        engine = get_db_engine()
+        with engine.connect() as conn:
+            result = conn.execute(
+                text("EXEC FlaskHelperFunctions :Request, @Number=:Number"),
+                {"Request": "FilterSchoolID", "Number": funder_id}
+            )
+            schools = [row.School for row in result]
+
+        return jsonify(schools)
+
+    except Exception as e:
+        traceback.print_exc()
+        try:
+            log_alert(
+                email=session.get("user_email"), role=session.get("user_role"),
+                entity_id=session.get("user_id"),
+                link=url_for("upload_bp.get_schools_for_funder", _external=True),
+                message=f"/get_schools_for_funder failed: {e}\n{traceback.format_exc()}"[:4000],
+            )
+        except Exception:
+            pass
+        return jsonify([]), 500

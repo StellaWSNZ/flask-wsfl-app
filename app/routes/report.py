@@ -31,19 +31,69 @@ from app.routes.auth import login_required
 
 report_bp = Blueprint("report_bp", __name__) 
 
+# app/routes/report.py (or your helpers module where these live)
+
+import io
+import base64
+import traceback
+from base64 import b64decode
+from flask import session, flash, redirect, url_for, send_file
+import matplotlib.pyplot as plt
+
+from app.utils.database import log_alert  # ✅ import logger
+
 def fig_to_png_b64(fig, *, dpi=200) -> str:
-    buf = io.BytesIO()
-    plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
-    fig.savefig(buf, format="png", dpi=dpi)
-    plt.close(fig)
-    return base64.b64encode(buf.getvalue()).decode("ascii")
+    """
+    Best-effort: returns base64 PNG; logs error to AUD_Alerts on failure.
+    """
+    try:
+        buf = io.BytesIO()
+        # keep your tight layout choice
+        plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
+        fig.savefig(buf, format="png", dpi=dpi)
+        plt.close(fig)
+        return base64.b64encode(buf.getvalue()).decode("ascii")
+    except Exception as e:
+        # Log to DB, but don't raise (return empty string so caller can handle)
+        err_text = f"fig_to_png_b64 failed: {e}\n{traceback.format_exc()}"
+        log_alert(
+            email=session.get("user_email"),
+            role=session.get("user_role"),
+            entity_id=None,
+            link="fig_to_png_b64",
+            message=err_text[:4000],  # keep it sane
+        )
+        try:
+            plt.close(fig)
+        except Exception:
+            pass
+        return ""
 
 def fig_to_pdf_b64(fig) -> str:
-    buf = io.BytesIO()
-    plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
-    fig.savefig(buf, format="pdf")
-    plt.close(fig)
-    return base64.b64encode(buf.getvalue()).decode("ascii")
+    """
+    Best-effort: returns base64 PDF; logs error to AUD_Alerts on failure.
+    """
+    try:
+        buf = io.BytesIO()
+        plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
+        fig.savefig(buf, format="pdf")
+        plt.close(fig)
+        return base64.b64encode(buf.getvalue()).decode("ascii")
+    except Exception as e:
+        err_text = f"fig_to_pdf_b64 failed: {e}\n{traceback.format_exc()}"
+        log_alert(
+            email=session.get("user_email"),
+            role=session.get("user_role"),
+            entity_id=None,
+            link="fig_to_pdf_b64",
+            message=err_text[:4000],
+        )
+        try:
+            plt.close(fig)
+        except Exception:
+            pass
+        return ""
+
 # Store raw bytes to avoid "I/O on closed file" errors
 last_pdf_bytes = None
 last_pdf_filename = None
@@ -59,6 +109,7 @@ def get_available_terms(nearest_year, nearest_term):
     return options
 
 
+# ---------- Download endpoints with log_alert ----------
 
 @report_bp.route('/Reporting/download_pdf')
 @login_required
@@ -67,6 +118,7 @@ def download_pdf():
         pdf_data = session.get("report_pdf_bytes")
         pdf_name = session.get("report_pdf_filename") or "report.pdf"
         if not pdf_data:
+            # Not an error per se; just tell user
             flash("No PDF report has been generated yet.", "warning")
             return redirect(url_for("report_bp.new_reports"))
 
@@ -77,8 +129,16 @@ def download_pdf():
             mimetype='application/pdf'
         )
     except Exception as e:
+        err_text = f"/Reporting/download_pdf failed: {e}\n{traceback.format_exc()}"
         print("❌ Error in /download_pdf:", e)
-        traceback.print_exc()
+        # ✅ log to DB
+        log_alert(
+            email=session.get("user_email"),
+            role=session.get("user_role"),
+            entity_id=None,
+            link=url_for("report_bp.download_pdf", _external=True),
+            message=err_text[:4000],
+        )
         flash("An error occurred while downloading the PDF.", "danger")
         return redirect(url_for("report_bp.new_reports"))
 
@@ -100,10 +160,19 @@ def download_png():
             mimetype='image/png'
         )
     except Exception as e:
+        err_text = f"/Reporting/download_png failed: {e}\n{traceback.format_exc()}"
         print("❌ Error in /download_png:", e)
-        traceback.print_exc()
+        # ✅ log to DB
+        log_alert(
+            email=session.get("user_email"),
+            role=session.get("user_role"),
+            entity_id=None,
+            link=url_for("report_bp.download_png", _external=True),
+            message=err_text[:4000],
+        )
         flash("An error occurred while downloading the PNG.", "danger")
         return redirect(url_for("report_bp.new_reports"))
+
     
 # at top of the file with your other imports:
 from flask import Blueprint, render_template, request, session, flash, redirect, url_for
@@ -129,7 +198,7 @@ def is_one_var_vs_target(rows):
     num_rates = sum([has_prov, has_fund, has_nat])
     return has_target and (num_rates == 1)
 
-@report_bp.route("/Reports", methods=["GET", "POST"])
+    @report_bp.route("/Reports", methods=["GET", "POST"])
 @login_required
 def new_reports():
     role = session.get("user_role")  # "ADM", "FUN", or "PRO"
@@ -145,7 +214,7 @@ def new_reports():
 
     # sticky IDs from POST if present
     selected_provider_id = request.form.get("provider_id") if request.method == "POST" else None
-    selected_school_id   = request.form.get("school_id") if request.method == "POST" else None  # 🆕
+    selected_school_id   = request.form.get("school_id")   if request.method == "POST" else None  # 🆕
     print(f"📥 initial provider_id from POST: {selected_provider_id} (type {type(selected_provider_id)})")
     print(f"📥 initial school_id from POST: {selected_school_id} (type {type(selected_school_id)})")
     display = False
@@ -189,6 +258,14 @@ def new_reports():
                     ).fetchone()
                     if not row:
                         msg = "Funder not found."
+                        # ✅ log it
+                        log_alert(
+                            email=session.get("user_email"),
+                            role=session.get("user_role"),
+                            entity_id=None,
+                            link=request.url,
+                            message=f"/Reports: funder not found for name '{selected_funder_name}'"
+                        )
                         if is_ajax:
                             return jsonify({"ok": False, "error": msg}), 400
                         flash(msg, "danger")
@@ -203,6 +280,14 @@ def new_reports():
                         selected_provider_id = session.get("id")
                     if not selected_provider_id:
                         msg = "Please choose a provider."
+                        # ✅ log it (validation miss)
+                        log_alert(
+                            email=session.get("user_email"),
+                            role=session.get("user_role"),
+                            entity_id=funder_id,
+                            link=request.url,
+                            message="/Reports: provider required but missing for provider report"
+                        )
                         if is_ajax:
                             return jsonify({"ok": False, "error": msg}), 400
                         flash("Please choose a provider to run that report.", "warning")
@@ -223,6 +308,14 @@ def new_reports():
                 needs_school = selected_type in {"school_ytd_vs_national"}
                 if needs_school and not selected_school_id:
                     msg = "Please choose a school."
+                    # ✅ log it (validation miss)
+                    log_alert(
+                        email=session.get("user_email"),
+                        role=session.get("user_role"),
+                        entity_id=funder_id,
+                        link=request.url,
+                        message="/Reports: school required but missing for school report"
+                    )
                     if is_ajax:
                         return jsonify({"ok": False, "error": msg}), 400
                     flash(msg, "warning")
@@ -293,7 +386,7 @@ def new_reports():
                     print("🔎 rows:", len(results))
 
                 elif selected_type == "ly_funder_vs_ly_national_vs_target":
-                    ly = selected_year - 1
+                    ly = selected_year - 1  # (kept for clarity; proc uses constants below)
                     sql = text("""
                         SET NOCOUNT ON;
                         EXEC dbo.GetFunderNationalRates_All
@@ -372,7 +465,7 @@ def new_reports():
 
                     results = rows
 
-                # 🆕 SCHOOL: YTD vs National (uses GetSchoolNationalRates @CalendarYear, @Term, @MoeNumber)
+                # 🆕 SCHOOL: YTD vs National
                 elif selected_type == "school_ytd_vs_national":
                     sql = text("""
                         SET NOCOUNT ON;
@@ -394,6 +487,14 @@ def new_reports():
 
                 else:
                     msg = "Invalid report option."
+                    # ✅ log it
+                    log_alert(
+                        email=session.get("user_email"),
+                        role=session.get("user_role"),
+                        entity_id=funder_id,
+                        link=request.url,
+                        message=f"/Reports: invalid report_option '{selected_type}'"
+                    )
                     if is_ajax:
                         return jsonify({"ok": False, "error": msg}), 400
                     flash(msg, "warning")
@@ -456,7 +557,6 @@ def new_reports():
                         )
 
                     elif selected_type == "provider_ytd_vs_target":
-                        # 1) Font (safe to skip if missing)
                         try:
                             use_ppmori("app/static/fonts")
                         except Exception as font_e:
@@ -464,7 +564,6 @@ def new_reports():
 
                         mode = "provider"  # always provider for this report
 
-                        # 2) Resolve provider name robustly
                         provider_id_val = request.form.get("provider_id") or session.get("provider_id")
                         provider_id_val = int(provider_id_val) if provider_id_val not in (None, "", "None") else None
 
@@ -480,7 +579,6 @@ def new_reports():
                         if not subject_name:
                             subject_name = "Unknown Provider"
 
-                        # 3) Detect provider-rate rows
                         def _is_provider_row(r):
                             return str(r.get("ResultType", "")).lower().startswith("provider rate")
                         provider_rows = [r for r in results if _is_provider_row(r)]
@@ -494,10 +592,8 @@ def new_reports():
                             )
                             filtered_results = [r for r in results if not _is_provider_row(r)]
 
-                        # 4) Title
                         chart_title = f"{subject_name} — YTD vs Target (Term {selected_term}, {selected_year})"
 
-                        # 5) Draw
                         fig = provider_portrait_with_target(
                             filtered_results,
                             term=selected_term,
@@ -507,7 +603,6 @@ def new_reports():
                             title=chart_title,
                         )
 
-                        # Optional: annotate banner on figure
                         if no_data_banner and fig is not None:
                             try:
                                 import matplotlib.pyplot as plt  # ensure available
@@ -582,7 +677,6 @@ def new_reports():
                         left_bits.append(selected_funder_name)
                     left_bits.append(f"Term {selected_term}, {selected_year}")
 
-                    # prefer readable names over IDs
                     if selected_type == "school_ytd_vs_national" and (school_name or school_id):
                         left_bits.append(school_name or f"School MOE {school_id}")
                     elif provider_name:
@@ -605,16 +699,23 @@ def new_reports():
             print("❌ Error in /NewReporting (POST):", e)
             traceback.print_exc()
 
-            # Inspect the underlying DB error text (SQLAlchemy wraps pyodbc errors)
+            # ✅ log to AUD_Alerts (with underlying DB error text if present)
             err_text = str(getattr(e, "orig", e))
+            log_alert(
+                email=session.get("user_email"),
+                role=session.get("user_role"),
+                entity_id=None,
+                link=request.url,
+                message=f"/Reports error: {err_text}"
+            )
 
-            # Friendly message + status code
+            # Friendly message + status code (unchanged behavior)
             if "Provider is not linked to the supplied FunderID" in err_text:
                 user_msg = "You must select a provider and funder that are linked for this report"
-                status_code = 400  # Bad Request (validation/config issue)
+                status_code = 400
             else:
                 user_msg = "An error occurred while generating the report."
-                status_code = 500  # Generic server error
+                status_code = 500
 
             if is_ajax:
                 return jsonify({"ok": False, "error": user_msg, "display": False}), status_code

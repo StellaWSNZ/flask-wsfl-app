@@ -1,8 +1,8 @@
 import sys
-from flask import Blueprint, render_template, request, session, redirect, jsonify, abort, url_for
+from flask import Blueprint, current_app, render_template, request, session, redirect, jsonify, abort, url_for
 from sqlalchemy import text
 from app.routes.auth import login_required
-from app.utils.database import get_db_engine
+from app.utils.database import get_db_engine, log_alert
 import pandas as pd
 import traceback
 from collections import defaultdict
@@ -252,186 +252,278 @@ def funder_dashboard():
         )
 
     except Exception:
-        traceback.print_exc()
+        log_alert(
+            email=session.get("user_email"),
+            role=session.get("user_role"),
+            entity_id=locals().get("selected_entity_id"),  # safe if unset
+            link=request.url,
+            message=f"funder_dashboard unhandled error: {e}"
+        )
+        current_app.logger.exception("Unhandled error in funder_dashboard")
         return "Internal Server Error", 500
 
 @funder_bp.route("/get_entities")
 @login_required
 def get_entities():
     entity_type = request.args.get("entity_type")
-    user_id = session.get("user_id")
-    user_role = session.get("user_role")
-    desc = session.get("desc")
-    user_admin = session.get("user_admin")
+    user_id     = session.get("user_id")
+    user_role   = session.get("user_role")
+    desc        = session.get("desc")
+    user_admin  = session.get("user_admin")
 
-    #print(f"\n📥 /get_entities called")
-    #print(f"🧑 role = {user_role}, id = {user_id}, admin = {user_admin}")
-    #print(f"📦 entity_type = {entity_type}")
-
-    engine = get_db_engine()
     entities = []
 
-    with engine.begin() as conn:
-        if entity_type == "Provider":
-            if user_role == "PRO":
-                #print("🎯 Handling PRO role")
-                entities = [{"id": user_id, "name": desc}]
+    # quick guard for missing/unknown type
+    if not entity_type:
+        log_alert(
+            email=session.get("user_email"),
+            role=user_role,
+            entity_id=user_id,
+            link=request.url,
+            message="get_entities: missing entity_type"
+        )
+        return jsonify([])
 
-            elif user_role == "GRP":
-                #print("🎯 Handling GRP role for Provider")
-                raw_providers = session.get("group_entities", {}).get("PRO", [])
-               # print(f"🗂 raw_providers from session = {raw_providers}")
-               # print(raw_providers)
-                entities = [{"id": e["id"], "name": e["name"]} for e in raw_providers]
+    try:
+        engine = get_db_engine()
+        with engine.begin() as conn:
+            if entity_type == "Provider":
+                try:
+                    if user_role == "PRO":
+                        entities = [{"id": user_id, "name": desc}]
+                    elif user_role == "GRP":
+                        raw_providers = session.get("group_entities", {}).get("PRO", [])
+                        entities = [{"id": e["id"], "name": e["name"]} for e in raw_providers]
+                    elif user_role == "FUN":
+                        stmt = text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :FunderID")
+                        result = conn.execute(stmt, {"Request": "ProvidersByFunder", "FunderID": user_id})
+                        entities = [{"id": r._mapping["ProviderID"], "name": r._mapping["Description"]} for r in result]
+                    else:  # ADM or fallback
+                        stmt = text("EXEC FlaskHelperFunctions @Request = 'ProviderDropdown'")
+                        result = conn.execute(stmt)
+                        entities = [{"id": r._mapping["ProviderID"], "name": r._mapping["Description"]} for r in result]
+                except Exception as e:
+                    log_alert(
+                        email=session.get("user_email"),
+                        role=user_role,
+                        entity_id=user_id,
+                        link=request.url,
+                        message=f"get_entities Provider error: {e}"
+                    )
+                    entities = []
 
-            elif user_role == "FUN":
-                #print("🎯 Handling FUN role for Provider")
-                stmt = text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :FunderID")
-                result = conn.execute(stmt, {
-                    "Request": "ProvidersByFunder",
-                    "FunderID": user_id
-                })
-                entities = [{"id": row._mapping["ProviderID"], "name": row._mapping["Description"]} for row in result]
+            elif entity_type == "Funder":
+                try:
+                    if user_role == "FUN":
+                        entities = [{"id": user_id, "name": desc}]
+                    else:  # ADM or fallback
+                        stmt = text("EXEC FlaskHelperFunctions @Request = 'FunderDropdown'")
+                        result = conn.execute(stmt)
+                        entities = [{"id": r._mapping["FunderID"], "name": r._mapping["Description"]} for r in result]
+                except Exception as e:
+                    log_alert(
+                        email=session.get("user_email"),
+                        role=user_role,
+                        entity_id=user_id,
+                        link=request.url,
+                        message=f"get_entities Funder error: {e}"
+                    )
+                    entities = []
 
-            else:  # ADM or fallback
-                #print("🎯 Handling ADM role or default for Provider")
-                stmt = text("EXEC FlaskHelperFunctions @Request = 'ProviderDropdown'")
-                result = conn.execute(stmt)
-                entities = [{"id": row._mapping["ProviderID"], "name": row._mapping["Description"]} for row in result]
+            elif entity_type == "Group":
+                try:
+                    if user_role == "GRP":
+                        entities = [{"id": user_id, "name": desc}]
+                    elif user_role == "ADM":
+                        stmt = text("EXEC FlaskGetAllGroups")
+                        result = conn.execute(stmt)
+                        entities = [{"id": r._mapping["ID"], "name": r._mapping["Name"]} for r in result]
+                    elif user_role == "FUN":
+                        stmt = text("EXEC FlaskGetGroupsByFunder @FunderID = :fid")
+                        result = conn.execute(stmt, {"fid": user_id})
+                        entities = [{"id": r._mapping["ID"], "name": r._mapping["Name"]} for r in result]
+                    else:
+                        entities = []
+                except Exception as e:
+                    log_alert(
+                        email=session.get("user_email"),
+                        role=user_role,
+                        entity_id=user_id,
+                        link=request.url,
+                        message=f"get_entities Group error: {e}"
+                    )
+                    entities = []
 
-        elif entity_type == "Funder":
-            if user_role == "FUN":
-                #print("🎯 Handling FUN role for Funder")
-                entities = [{"id": user_id, "name": desc}]
-            else:  # ADM or fallback
-                #print("🎯 Handling ADM role for Funder")
-                stmt = text("EXEC FlaskHelperFunctions @Request = 'FunderDropdown'")
-                result = conn.execute(stmt)
-                entities = [{"id": row._mapping["FunderID"], "name": row._mapping["Description"]} for row in result]
+            elif entity_type == "School":
+                try:
+                    if user_role == "ADM":
+                        stmt = text("EXEC FlaskHelperFunctions @Request = 'SchoolDropdown'")
+                        result = conn.execute(stmt)
+                        rows = result.fetchall()
+                        entities = [{"id": r._mapping["MOENumber"], "name": r._mapping["SchoolName"]} for r in rows]
 
-        elif entity_type == "Group":
-            #print("🎯 Handling Group entity type")
+                    elif user_role == "PRO":
+                        stmt = text("EXEC FlaskHelperFunctions @Request = 'SchoolDropdownProvider', @Number = :fid")
+                        result = conn.execute(stmt, {"fid": user_id})
+                        rows = result.fetchall()
+                        entities = [{"id": r._mapping["MOENumber"], "name": r._mapping["SchoolName"]} for r in rows]
 
-            if user_role == "GRP":
-                #print("🔹 GRP user: loading from session")
-                raw_groups = session.get("group_entities", {}).get("PRO", [])
-                #print(f"🗂 raw_groups = {raw_groups}")
-                entities = [{"id": user_id, "name": desc} ]
+                    elif user_role == "FUN":
+                        stmt = text("EXEC FlaskHelperFunctions @Request = 'SchoolDropdownFunder', @Number = :fid")
+                        result = conn.execute(stmt, {"fid": user_id})
+                        rows = result.fetchall()
+                        entities = [{"id": r._mapping["MOENumber"], "name": r._mapping["SchoolName"]} for r in rows]
 
-            elif user_role == "ADM":
-                #print("🔹 ADM user: loading all groups via stored procedure")
-                stmt = text("EXEC FlaskGetAllGroups")
-                result = conn.execute(stmt)
-                entities = [{"id": row._mapping["ID"], "name": row._mapping["Name"]} for row in result]
+                    elif user_role == "GRP":
+                        stmt = text("EXEC FlaskHelperFunctions @Request = 'SchoolDropdownGroup', @Number = :fid")
+                        result = conn.execute(stmt, {"fid": user_id})
+                        rows = result.fetchall()
+                        entities = [{"id": r._mapping["MOENumber"], "name": r._mapping["SchoolName"]} for r in rows]
 
-            elif user_role == "FUN":
-                #print("🔹 FUN user: loading groups restricted to funder")
-                stmt = text("EXEC FlaskGetGroupsByFunder @FunderID = :fid")
-                result = conn.execute(stmt, {"fid": user_id})
-                entities = [{"id": row._mapping["ID"], "name": row._mapping["Name"]} for row in result]
-        elif entity_type == "School":
-           # print("*")
-            if user_role == "ADM":
-              #  print("*")
-                # ✅ Example: adjust request string if needed
-                stmt = text("EXEC FlaskHelperFunctions @Request = 'SchoolDropdown'")
-                result = conn.execute(stmt)
+                    elif user_role == "MOE":
+                        entities = [{"id": user_id, "name": desc}]
+                    else:
+                        entities = []
+                except Exception as e:
+                    log_alert(
+                        email=session.get("user_email"),
+                        role=user_role,
+                        entity_id=user_id,
+                        link=request.url,
+                        message=f"get_entities School error: {e}"
+                    )
+                    entities = []
 
-                # ✅ Safely consume just the first result set
-                rows = result.fetchall()
-                entities = [
-                    {"id": row._mapping["MOENumber"], "name": row._mapping["SchoolName"]}
-                    for row in rows
-                ]
-            elif user_role == "PRO":
-                stmt = text("EXEC FlaskHelperFunctions @Request = 'SchoolDropdownProvider', @Number = :fid")
-                result = conn.execute(stmt, {"fid": user_id})
-                
-                # ✅ Safely consume just the first result set
-                rows = result.fetchall()
-                print(rows)
-                entities = [
-                    {"id": row._mapping["MOENumber"], "name": row._mapping["SchoolName"]}
-                    for row in rows
-                ]
-            elif user_role == "FUN":
-                stmt = text("EXEC FlaskHelperFunctions @Request = 'SchoolDropdownFunder', @Number = :fid")
-                result = conn.execute(stmt, {"fid": user_id})
-                
-                # ✅ Safely consume just the first result set
-                rows = result.fetchall()
-                print(rows)
-                entities = [
-                    {"id": row._mapping["MOENumber"], "name": row._mapping["SchoolName"]}
-                    for row in rows
-                ]
-            elif user_role == "GRP":
-                stmt = text("EXEC FlaskHelperFunctions @Request = 'SchoolDropdownGroup', @Number = :fid")
-                result = conn.execute(stmt, {"fid": user_id})
-                
-                # ✅ Safely consume just the first result set
-                rows = result.fetchall()
-                print(rows)
-                entities = [
-                    {"id": row._mapping["MOENumber"], "name": row._mapping["SchoolName"]}
-                    for row in rows
-                ]
-            elif user_role == "MOE":
-                #print("🎯 Handling FUN role for Funder")
-                entities = [{"id": user_id, "name": desc}]
             else:
-                # Optional: restrict non-ADM access or return empty
+                # Unknown entity_type
+                log_alert(
+                    email=session.get("user_email"),
+                    role=user_role,
+                    entity_id=user_id,
+                    link=request.url,
+                    message=f"get_entities: unknown entity_type '{entity_type}'"
+                )
                 entities = []
-    #print(f"✅ Final entities being returned = {entities}\n")
-    return jsonify(entities)
+
+        return jsonify(entities)
+
+    except Exception as e:
+        # top-level safety net
+        log_alert(
+            email=session.get("user_email"),
+            role=user_role,
+            entity_id=user_id,
+            link=request.url,
+            message=f"get_entities unhandled error: {e}"
+        )
+        return jsonify([]), 500
+
 
 
 @funder_bp.get("/providers")
 @login_required
 def providers_by_funder():
-    funder_id = request.args.get("funder_id", type=int)
-    if not funder_id:
-        return jsonify([]), 400
+    try:
+        funder_id = request.args.get("funder_id", type=int)
+        if not funder_id:
+            log_alert(
+                email=session.get("user_email"),
+                role=session.get("user_role"),
+                entity_id=session.get("user_id"),
+                link=request.url,
+                message="providers_by_funder: Missing or invalid funder_id"
+            )
+            return jsonify([]), 400
 
-    engine = get_db_engine()
-    with engine.begin() as conn:
-        rows = conn.execute(
-            text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :FunderID"),
-            {"Request": "ProvidersByFunder", "FunderID": funder_id}
-        ).mappings().all()
+        engine = get_db_engine()
 
-    return jsonify([{"id": r["ProviderID"], "name": r["Description"]} for r in rows])
-  
+        with engine.begin() as conn:
+            rows = conn.execute(
+                text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :FunderID"),
+                {"Request": "ProvidersByFunder", "FunderID": funder_id}
+            ).mappings().all()
+
+        providers = [{"id": r["ProviderID"], "name": r["Description"]} for r in rows]
+        return jsonify(providers)
+
+    except Exception as e:
+        # Log unexpected failure to DB and app logs
+        log_alert(
+            email=session.get("user_email"),
+            role=session.get("user_role"),
+            entity_id=funder_id if 'funder_id' in locals() else None,
+            link=request.url,
+            message=f"providers_by_funder: {e}"
+        )
+        current_app.logger.exception("Unhandled error in providers_by_funder")
+        return jsonify([]), 500
+    
+    
+
 @funder_bp.route('/FullOverview', methods=['GET', 'POST'])
 @login_required
 def admin_dashboard():
+    # Admins only
     if session.get("user_role") != "ADM":
         return redirect(url_for("home_bp.home"))
 
- 
+    # ---- Parse inputs with guards ----
+    try:
+        term = int(request.args.get("term", 2))
+    except Exception:
+        term = 2
+        log_alert(
+            email=session.get("user_email"),
+            role=session.get("user_role"),
+            entity_id=None,
+            link=request.url,
+            message=f"admin_dashboard: invalid term query param; fell back to 2"
+        )
 
     try:
-        print("📌 Admin Dashboard route hit")
-        term = int(request.args.get("term", 2))
         year = int(request.args.get("year", 2025))
-        threshold_raw = request.args.get("threshold", "50")
-        entity_type = request.args.get("entity_type", None)  # "Funder" or "Provider"
-        form_submitted = entity_type is not None
+    except Exception:
+        year = 2025
+        log_alert(
+            email=session.get("user_email"),
+            role=session.get("user_role"),
+            entity_id=None,
+            link=request.url,
+            message=f"admin_dashboard: invalid year query param; fell back to 2025"
+        )
 
-        try:
-            threshold = float(threshold_raw) / 100  # Convert % to decimal
-        except ValueError:
-            threshold = 0.85
+    threshold_raw = request.args.get("threshold", "50")
+    entity_type = request.args.get("entity_type", None)  # "Funder" or "Provider"
+    form_submitted = entity_type is not None
+
+    try:
+        threshold = float(threshold_raw) / 100  # Convert % to decimal
+    except Exception:
+        threshold = 0.85
+        log_alert(
+            email=session.get("user_email"),
+            role=session.get("user_role"),
+            entity_id=None,
+            link=request.url,
+            message=f"admin_dashboard: invalid threshold '{threshold_raw}'; defaulted to 0.85"
+        )
+
+    try:
+        current_app.logger.info("📌 Admin Dashboard route hit")
+
         engine = get_db_engine()
         funder_data = []
 
         with engine.begin() as conn:
+            # Dropdown options for the form
             if entity_type == "Funder":
                 result = conn.execute(text("EXEC FlaskHelperFunctions @Request = 'FunderDropdown'"))
             else:
                 result = conn.execute(text("EXEC FlaskHelperFunctions @Request = 'ProviderDropdown'"))
+
             entity_options = [dict(row._mapping) for row in result]
 
+            # If the form hasn't been submitted yet, just render the shell
             if not form_submitted:
                 return render_template(
                     "admindashboard.html",
@@ -444,13 +536,15 @@ def admin_dashboard():
                     form_submitted=False
                 )
 
+            # -------- Pull data by entity_type --------
             if entity_type == "Funder":
+                # School summary across all funders
                 school_result = conn.execute(text("""
                     EXEC FlaskGetSchoolSummaryAllFunders 
-                    @CalendarYear = :year, 
-                    @Term = :term, 
-                    @Email = :email,
-                    @Threshold = :threshold
+                         @CalendarYear = :year, 
+                         @Term = :term, 
+                         @Email = :email,
+                         @Threshold = :threshold
                 """), {
                     "year": year,
                     "term": term,
@@ -459,11 +553,12 @@ def admin_dashboard():
                 })
                 schools = [dict(row._mapping) for row in school_result]
 
+                # Staff eLearning for all funders
                 elearning_result = conn.execute(text("""
                     EXEC FlaskGetStaffELearningAll 
-                    @RoleType = 'FUN', 
-                    @Email = :email, 
-                    @SelfReview = 1
+                         @RoleType = 'FUN', 
+                         @Email = :email, 
+                         @SelfReview = 1
                 """), {
                     "email": session.get("user_email")
                 })
@@ -475,50 +570,57 @@ def admin_dashboard():
                     "Passed": 0, "Completed": 0,
                     "Cancelled": 0
                 }))
+
                 for r in elearning_rows:
-                    if not r.get("Active"):  # Skip if course is not active (0 or None)
+                    if not r.get("Active"):  # skip inactive courses
                         continue
                     fid = r["EntityID"]
                     email = r["Email"]
                     summary = elearning_grouped[fid][email]
-                    summary["FirstName"] = r["FirstName"]
-                    summary["Surname"] = r["Surname"]
-                    status = r["Status"]
+                    summary["FirstName"] = r.get("FirstName", "")
+                    summary["Surname"] = r.get("Surname", "")
+                    status = r.get("Status", "")
                     if status == "Enrolled":
                         status = "Not Started"
-
-                    summary[status] += 1
-                    summary.setdefault(f"{status}_Courses", []).append(r["CourseName"])
+                    if status:
+                        summary[status] += 1
+                        summary.setdefault(f"{status}_Courses", []).append(r.get("CourseName", ""))
                     if r.get("SelfReviewSubmitted"):
                         summary["SelfReviewSubmitted"] = r["SelfReviewSubmitted"]
                         if r.get("RespondentID"):
                             summary["RespondentID"] = r["RespondentID"]
+
                 schools_grouped = defaultdict(list)
                 names = {}
                 for row in schools:
                     fid = row["FunderID"]
-                    names[fid] = row["FunderName"]
+                    names[fid] = row.get("FunderName")
+                    # rename for display
                     row["School Name"] = row.pop("SchoolName", None)
                     row["No. Classes"] = row.pop("NumClasses", None)
                     row["Edited Classes"] = row.pop("EditedClasses", None)
                     row["Total Students"] = row.pop("TotalStudents", None)
-                    schools_grouped[fid].append({k: v for k, v in row.items() if k not in ["CalendarYear", "Term", "FunderID", "FunderName"]})
+                    # drop control cols
+                    trimmed = {k: v for k, v in row.items()
+                               if k not in ["CalendarYear", "Term", "FunderID", "FunderName"]}
+                    schools_grouped[fid].append(trimmed)
 
-                for fid, schools in schools_grouped.items():
+                for fid, schools_list in schools_grouped.items():
                     funder_data.append({
                         "id": fid,
                         "name": names.get(fid),
-                        "schools": schools,
+                        "schools": schools_list,
                         "elearning_summary": elearning_grouped.get(fid, {})
                     })
 
             elif entity_type == "Provider":
+                # School summary across all providers
                 school_result = conn.execute(text("""
                     EXEC FlaskGetSchoolSummaryAllProviders 
-                    @CalendarYear = :year, 
-                    @Term = :term, 
-                    @Email = :email,
-                    @Threshold = :threshold
+                         @CalendarYear = :year, 
+                         @Term = :term, 
+                         @Email = :email,
+                         @Threshold = :threshold
                 """), {
                     "year": year,
                     "term": term,
@@ -527,11 +629,12 @@ def admin_dashboard():
                 })
                 schools = [dict(row._mapping) for row in school_result]
 
+                # Staff eLearning for all providers
                 elearning_result = conn.execute(text("""
                     EXEC FlaskGetStaffELearningAll 
-                    @RoleType = 'PRO', 
-                    @Email = :email, 
-                    @SelfReview = 1
+                         @RoleType = 'PRO', 
+                         @Email = :email, 
+                         @SelfReview = 1
                 """), {
                     "email": session.get("user_email")
                 })
@@ -544,19 +647,19 @@ def admin_dashboard():
                     "Cancelled": 0
                 }))
                 for r in elearning_rows:
-                    if not r.get("Active"):  # Skip if course is not active (0 or None)
+                    if not r.get("Active"):
                         continue
                     pid = r["EntityID"]
                     email = r["Email"]
                     summary = elearning_grouped[pid][email]
-                    summary["FirstName"] = r["FirstName"]
-                    summary["Surname"] = r["Surname"]
-                    status = r["Status"]
+                    summary["FirstName"] = r.get("FirstName", "")
+                    summary["Surname"] = r.get("Surname", "")
+                    status = r.get("Status", "")
                     if status == "Enrolled":
                         status = "Not Started"
-
-                    summary[status] += 1
-                    summary.setdefault(f"{status}_Courses", []).append(r["CourseName"])
+                    if status:
+                        summary[status] += 1
+                        summary.setdefault(f"{status}_Courses", []).append(r.get("CourseName", ""))
                     if r.get("SelfReviewSubmitted"):
                         summary["SelfReviewSubmitted"] = r["SelfReviewSubmitted"]
                         if r.get("RespondentID"):
@@ -566,21 +669,44 @@ def admin_dashboard():
                 names = {}
                 for row in schools:
                     pid = row["ProviderID"]
-                    names[pid] = row["ProviderName"]
+                    names[pid] = row.get("ProviderName")
                     row["School Name"] = row.pop("SchoolName", None)
                     row["No. Classes"] = row.pop("NumClasses", None)
                     row["Edited Classes"] = row.pop("EditedClasses", None)
                     row["Total Students"] = row.pop("TotalStudents", None)
-                    schools_grouped[pid].append({k: v for k, v in row.items() if k not in ["CalendarYear", "Term", "ProviderID", "ProviderName"]})
+                    trimmed = {k: v for k, v in row.items()
+                               if k not in ["CalendarYear", "Term", "ProviderID", "ProviderName"]}
+                    schools_grouped[pid].append(trimmed)
 
-                for pid, schools in schools_grouped.items():
+                for pid, schools_list in schools_grouped.items():
                     funder_data.append({
                         "id": pid,
                         "name": names.get(pid),
-                        "schools": schools,
+                        "schools": schools_list,
                         "elearning_summary": elearning_grouped.get(pid, {})
                     })
 
+            else:
+                # Unknown / missing entity_type – render form again
+                log_alert(
+                    email=session.get("user_email"),
+                    role=session.get("user_role"),
+                    entity_id=None,
+                    link=request.url,
+                    message=f"admin_dashboard: missing/invalid entity_type '{entity_type}'"
+                )
+                return render_template(
+                    "admindashboard.html",
+                    funder_data=[],
+                    entity_options=entity_options,
+                    entity_type=entity_type,
+                    term=term,
+                    year=year,
+                    threshold=threshold,
+                    form_submitted=False
+                )
+
+        # Success render
         return render_template(
             "admindashboard.html",
             funder_data=funder_data,
@@ -592,7 +718,14 @@ def admin_dashboard():
             form_submitted=True
         )
 
-    except Exception:
-        traceback.print_exc(file=sys.stdout)
-        print("🔴 AdminDashboard failed", flush=True)
+    except Exception as e:
+        # Log to DB + server logs, but never crash the request
+        log_alert(
+            email=session.get("user_email"),
+            role=session.get("user_role"),
+            entity_id=None,
+            link=request.url,
+            message=f"admin_dashboard: {e}"
+        )
+        current_app.logger.exception("🔴 AdminDashboard failed")
         return "Internal Server Error", 500
