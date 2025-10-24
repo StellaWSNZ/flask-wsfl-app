@@ -3,6 +3,7 @@ from pathlib import Path
 from flask import (
     Blueprint,
     render_template,
+    request,
     url_for,
     abort,
     current_app,
@@ -10,7 +11,7 @@ from flask import (
     redirect,
 )
 from app.routes.auth import login_required
-
+from app.utils.database import log_alert
 # Create the blueprint
 instructions_bp = Blueprint("instructions_bp", __name__)
 
@@ -97,7 +98,6 @@ def _discover_items_for_role(role_code: str):
 
 
 # ---------- Routes ----------
-
 @instructions_bp.route("/instructions")
 @login_required
 def instructions_me():
@@ -106,19 +106,30 @@ def instructions_me():
     Non-admins go to their role only.
     Admins default to Funder (change DEFAULT_ADMIN_LABEL if you prefer).
     """
-    
-    print("*")
-    user_role = (session.get("user_role") or "").upper()
+    try:
+        user_role = (session.get("user_role") or "").upper()
 
-    if user_role in ALLOWED_ROLES:
-        label = ROLE_TO_LABEL.get(user_role, user_role)
-        return redirect(url_for("instructions_bp.instructions_for_label", label=label))
+        if user_role in ALLOWED_ROLES:
+            label = ROLE_TO_LABEL.get(user_role, user_role)
+            return redirect(url_for("instructions_bp.instructions_for_label", label=label))
 
-    if user_role == ADMIN_CODE:
-        DEFAULT_ADMIN_LABEL = "Funder"  # or "Provider" / "School" / "ProviderGroup"
-        return redirect(url_for("instructions_bp.instructions_for_label", label=DEFAULT_ADMIN_LABEL))
+        if user_role == ADMIN_CODE:
+            DEFAULT_ADMIN_LABEL = "Funder"  # or "Provider" / "School" / "ProviderGroup"
+            return redirect(url_for("instructions_bp.instructions_for_label", label=DEFAULT_ADMIN_LABEL))
 
-    abort(403)
+        abort(403)
+
+    except Exception as e:
+        # Log to DB and server logs; never crash the logger
+        log_alert(
+            email=session.get("user_email"),
+            role=session.get("user_role"),
+            entity_id=None,
+            link=request.url,
+            message=f"instructions_me: {e}"
+        )
+        current_app.logger.exception("Unhandled error in instructions_me")
+        abort(500)
 
 
 @instructions_bp.route("/instructions/<label>")
@@ -132,53 +143,76 @@ def instructions_for_label(label):
       /instructions/providergroup
     Map to internal codes: PRO, FUN, MOE, GRP
     """
-    role_code = _label_to_role(label)
-    if role_code is None or role_code not in ALLOWED_ROLES:
-        abort(404)
+    try:
+        role_code = _label_to_role(label)
+        if role_code is None or role_code not in ALLOWED_ROLES:
+            abort(404)
 
-    # Access control: non-admins can only view their own role
-    user_role = (session.get("user_role") or "").upper()
-    if user_role != ADMIN_CODE and user_role != role_code:
-        abort(403)
+        # Access control: non-admins can only view their own role
+        user_role = (session.get("user_role") or "").upper()
+        if user_role != ADMIN_CODE and user_role != role_code:
+            abort(403)
 
-    items = _discover_items_for_role(role_code)
+        items = _discover_items_for_role(role_code)
 
-    # Display label (optionally add a space for Provider Group)
-    display_label = ROLE_TO_LABEL[role_code]
-    if display_label == "ProviderGroup":
-        display_label = "Provider Group"
+        # Display label (optionally add a space for Provider Group)
+        display_label = ROLE_TO_LABEL[role_code]
+        if display_label == "ProviderGroup":
+            display_label = "Provider Group"
 
-    return render_template(
-        "instructions.html",   # your template should extend header.html
-        role_code=role_code,   # e.g. "PRO"
-        role_label=display_label,  # e.g. "Provider"
-        items=items,
-        user_role=user_role,
-    )
+        return render_template(
+            "instructions.html",   # your template should extend header.html
+            role_code=role_code,   # e.g. "PRO"
+            role_label=display_label,  # e.g. "Provider"
+            items=items,
+            user_role=user_role,
+        )
+
+    except Exception as e:
+        log_alert(
+            email=session.get("user_email"),
+            role=session.get("user_role"),
+            entity_id=None,
+            link=request.url,
+            message=f"instructions_for_label('{label}'): {e}"
+        )
+        current_app.logger.exception("Unhandled error in instructions_for_label(%s)", label)
+        abort(500)
 
 
 # Optional: keep old /instructions/code/PRO working (back-compat)
 @instructions_bp.route("/instructions/code/<role_code>")
 @login_required
 def instructions_for_code(role_code):
-    role = (role_code or "").upper()
-    if role not in ALLOWED_ROLES:
-        abort(404)
+    try:
+        role = (role_code or "").upper()
+        if role not in ALLOWED_ROLES:
+            abort(404)
 
-    user_role = (session.get("user_role") or "").upper()
-    if user_role != ADMIN_CODE and user_role != role:
-        abort(403)
+        user_role = (session.get("user_role") or "").upper()
+        if user_role != ADMIN_CODE and user_role != role:
+            abort(403)
 
-    items = _discover_items_for_role(role)
-    display_label = ROLE_TO_LABEL[role]
-    if display_label == "ProviderGroup":
-        display_label = "Provider Group"
+        items = _discover_items_for_role(role)
+        display_label = ROLE_TO_LABEL[role]
+        if display_label == "ProviderGroup":
+            display_label = "Provider Group"
 
-    return render_template(
-        "instructions.html",
-        role_code=role,
-        role_label=display_label,
-        items=items,
-        user_role=user_role,
-    )
+        return render_template(
+            "instructions.html",
+            role_code=role,
+            role_label=display_label,
+            items=items,
+            user_role=user_role,
+        )
 
+    except Exception as e:
+        log_alert(
+            email=session.get("user_email"),
+            role=session.get("user_role"),
+            entity_id=None,
+            link=request.url,
+            message=f"instructions_for_code('{role_code}'): {e}"
+        )
+        current_app.logger.exception("Unhandled error in instructions_for_code(%s)", role_code)
+        abort(500)
