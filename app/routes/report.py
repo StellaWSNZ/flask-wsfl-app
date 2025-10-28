@@ -198,7 +198,7 @@ def is_one_var_vs_target(rows):
     num_rates = sum([has_prov, has_fund, has_nat])
     return has_target and (num_rates == 1)
 
-    @report_bp.route("/Reports", methods=["GET", "POST"])
+@report_bp.route("/Reports", methods=["GET", "POST"])
 @login_required
 def new_reports():
     role = session.get("user_role")  # "ADM", "FUN", or "PRO"
