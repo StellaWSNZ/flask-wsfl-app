@@ -328,8 +328,7 @@ from app.routes.auth import login_required
 from app.utils.database import get_db_engine, log_alert
 from app.routes.staff_maintenance import staff_bp
 # If these are defined elsewhere in your app, keep your existing imports:
-from app import mail
-from app.utils.mailers import send_account_setup_email  # adjust to your project path
+from app.utils.custom_email import send_account_setup_email  # adjust to your project path
 
 
 @staff_bp.route('/update_staff', methods=['POST'])
