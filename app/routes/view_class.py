@@ -2410,6 +2410,7 @@ from flask import request, jsonify
 from sqlalchemy import text
 import time, traceback
 
+
 @class_bp.route("/search_students")
 @login_required
 def search_students():
@@ -2458,6 +2459,7 @@ def search_students():
 
     print(f"➡️  Returning {len(out)} student records to client")
     return jsonify(out)
+
 
 # ---- API: add existing student to class ----
 @class_bp.route("/add_student", methods=["POST"])
@@ -2589,12 +2591,12 @@ def create_student_and_add():
         return _json_error("NSN must be numeric")
     if not (student.get("FirstName") and student.get("LastName")):
         return _json_error("Student FirstName and LastName are required")
-
+    print(student)
     first = (student.get("FirstName") or "").strip()
     last  = (student.get("LastName")  or "").strip()
     pref  = (student.get("PreferredName") or None)
     dob   = (student.get("DateOfBirth") or None)
-    eth   = (student.get("EthnicityID") or None)
+    eth   = (student.get("EthnicityID") or 0)
     yl    = (year_level if year_level not in ("", None) else None)
     term  = None if term_in in ("", None) else str(term_in)
     year  = year_in  # pass through (None is fine)
