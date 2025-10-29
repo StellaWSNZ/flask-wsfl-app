@@ -1,10 +1,10 @@
 from flask import Blueprint, abort, current_app, render_template, request, redirect, url_for, flash, session
 from app.utils.database import get_db_engine, log_alert
 import pandas as pd
-import json
 from sqlalchemy import text
 from app.routes.auth import login_required
-import pprint
+import requests
+
 eLearning_bp = Blueprint("eLearning_bp", __name__)
 
 @eLearning_bp.route("/eLearning", methods=["GET", "POST"])
@@ -119,5 +119,4 @@ def eLearning_guide():
 
 @eLearning_bp.route("/my-ip")
 def get_my_ip():
-    import requests
     return requests.get("https://api.ipify.org").text

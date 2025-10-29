@@ -1,7 +1,7 @@
 # app/routes/home.py
 from flask import Blueprint, render_template, session, redirect, url_for, current_app
 from app.routes.auth import login_required
-from app.utils.database import get_db_engine, log_alert  # log_alert writes to AUD_Alerts_Insert
+from app.utils.database import get_db_engine, log_alert
 from sqlalchemy import text
 from datetime import datetime
 import pytz

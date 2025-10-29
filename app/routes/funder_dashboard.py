@@ -1,16 +1,10 @@
-import sys
 from flask import Blueprint, current_app, render_template, request, session, redirect, jsonify, abort, url_for
 from sqlalchemy import text
 from app.routes.auth import login_required
 from app.utils.database import get_db_engine, log_alert
 import pandas as pd
-import traceback
 from collections import defaultdict
-from datetime import datetime
-import traceback
-import sys
-from collections import defaultdict
-from datetime import datetime
+
 funder_bp = Blueprint("funder_bp", __name__)
 def compute_has_groups(engine, user_role, user_id):
     """Return True if the current user should see 'Provider Group' in the type dropdown."""

@@ -6,9 +6,6 @@ from flask import (
 import os
 from sqlalchemy import create_engine, text
 from dotenv import load_dotenv
-
-# Reuse your helper that sets the password via SP and sends the email
-# (create_user_and_send(first_name, surname, email, moe_number, is_admin=0))
 from app.utils.wsfl_email import create_user_and_send
 
 load_dotenv()
@@ -116,4 +113,4 @@ def add_user():
             current_app.logger.error(f"⚠️ Failed to log alert: {log_err}")
 
         flash("An unexpected error occurred. The issue has been logged.", "danger")
-        return abort(500)  # IMPORTANT: do NOT redirect back to /add-user here
+        return abort(500)  

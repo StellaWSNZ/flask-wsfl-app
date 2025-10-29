@@ -1,26 +1,36 @@
 # app/routes/admin.py
 
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash, Response, jsonify, abort
-from werkzeug.security import generate_password_hash
-from app.utils.database import get_db_engine, log_alert
-from app.routes.auth import login_required
-import pandas as pd
-import bcrypt
-from sqlalchemy import text
-import sqlalchemy.sql
 from datetime import datetime, timedelta
-from app.utils.custom_email import send_account_setup_email
-from app.extensions import mail
-admin_bp = Blueprint("admin_bp", __name__)
-
+from math import ceil
 import traceback
-
-from flask import (
-    current_app, request, session, flash, redirect, url_for,
-    render_template, abort
-)
+import bcrypt
+import pandas as pd
+import sqlalchemy.sql
 from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
+from user_agents import parse as ua_parse
+from werkzeug.security import generate_password_hash
+from flask import (
+    Blueprint,
+    Response,
+    abort,
+    current_app,
+    flash,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
+)
+
+from app.extensions import mail
+from app.routes.auth import login_required
+from app.utils.custom_email import send_account_setup_email
 from app.utils.database import get_db_engine, log_alert
+
+# Blueprint
+admin_bp = Blueprint("admin_bp", __name__)
 
 @admin_bp.route('/CreateUser', methods=['GET', 'POST'])
 @login_required
@@ -168,11 +178,8 @@ def create_user():
             current_app.logger.error(f"⚠️ Failed to log alert in CreateUser: {log_err}")
 
         flash("An unexpected error occurred. The issue has been logged.", "danger")
-        return abort(500)  # IMPORTANT: don't redirect back to the same route
+        return abort(500)  
 
-from datetime import datetime
-from flask import session, render_template
-from sqlalchemy import text
 
 
 
@@ -257,7 +264,6 @@ def profile():
 
     except Exception as e:
         current_app.logger.exception("❌ profile() failed")
-        # IMPORTANT: use robust email key (your session uses user_email)
         log_alert(
             email=session.get("user_email") or session.get("email"),
             role=session.get("user_role"),
@@ -298,13 +304,11 @@ def profile():
             eLearning_status=[]
         )
 
-from flask import request, redirect, url_for, flash
 
 @admin_bp.route("/update_profile", methods=["POST"])
 @login_required
 def update_profile():
-    from sqlalchemy.exc import SQLAlchemyError
-    from datetime import datetime
+    
 
     # ---- read & clean form ----
     original_email = (request.form.get("original_email") or "").strip()
@@ -1174,21 +1178,7 @@ def assign_kaiako_staff():
         print(f"❌ Error during DB execution: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
 
-from math import ceil
-from user_agents import parse as ua_parse  # pip install pyyaml ua-parser user-agents
 
-
-# Optional: response compression (network win)
-# from flask_compress import Compress
-# Compress(app)
-try:
-    from user_agents import parse as ua_parse
-    def is_mobile_request(req):
-        ua = ua_parse(req.headers.get("User-Agent", ""))
-        return ua.is_mobile or ua.is_tablet
-except Exception:
-    def is_mobile_request(req):  # fallback
-        return False
 
 @admin_bp.route("/SchoolType", methods=["GET", "POST"])
 @login_required
@@ -1436,7 +1426,6 @@ def get_users():
         engine = get_db_engine()
         with engine.begin() as conn:
             # If you prefer not to depend on pandas here, switch to .mappings().all()
-            import pandas as pd  # ensure imported somewhere; keep local to avoid global import errors
             df = pd.read_sql("EXEC FlaskGetAllUsers", conn)
         return jsonify(df.to_dict(orient="records"))
 

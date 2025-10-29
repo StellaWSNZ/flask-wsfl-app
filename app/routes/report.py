@@ -1,46 +1,55 @@
-import io
+# Standard library
 import base64
+import io
 import traceback
 from base64 import b64decode
 from datetime import date, datetime
 
+# Third-party
 import matplotlib
-matplotlib.use("Agg")  # safe backend for servers
+matplotlib.use("Agg")  # Safe backend for servers
 import matplotlib.pyplot as plt
 import pandas as pd
 import pytz
-from sqlalchemy import text
 from flask import (
-    Blueprint, render_template, request,
-    session, flash, redirect, url_for,
-    send_file, jsonify, abort
+    Blueprint,
+    abort,
+    flash,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    send_file,
+    session,
+    url_for,
 )
+from sqlalchemy import text
 
 # App utilities
-from app.utils.database import get_db_engine
-from app.utils.fundernationalplot import create_competency_report as create_funder_report
-from app.utils.providerplot import create_competency_report as create_provider_report
-from app.utils.competencyplot import load_competency_rates, make_figure as create_comp_figure
+from app.utils.database import get_db_engine, log_alert
+from app.utils.fundernationalplot import (
+    create_competency_report as create_funder_report,
+)
+from app.utils.providerplot import (
+    create_competency_report as create_provider_report,
+)
+from app.utils.competencyplot import (
+    load_competency_rates,
+    make_figure as create_comp_figure,
+)
 from app.utils.schoolplot import create_school_report
-import app.utils.report_three_bar_landscape as r3  # old fundernationalplot.py
-import app.utils.report_two_bar_portrait as r2     # old nationalplot.py
-from app.utils.one_bar_one_line import provider_portrait_with_target, use_ppmori
+import app.utils.report_three_bar_landscape as r3  # Old fundernationalplot.py
+import app.utils.report_two_bar_portrait as r2      # Old nationalplot.py
+from app.utils.one_bar_one_line import (
+    provider_portrait_with_target,
+    use_ppmori,
+)
 
 # Routes / auth
 from app.routes.auth import login_required
 
-report_bp = Blueprint("report_bp", __name__) 
-
-# app/routes/report.py (or your helpers module where these live)
-
-import io
-import base64
-import traceback
-from base64 import b64decode
-from flask import session, flash, redirect, url_for, send_file
-import matplotlib.pyplot as plt
-
-from app.utils.database import log_alert  # ✅ import logger
+# Blueprint
+report_bp = Blueprint("report_bp", __name__)
 
 def fig_to_png_b64(fig, *, dpi=200) -> str:
     """
@@ -174,13 +183,6 @@ def download_png():
         return redirect(url_for("report_bp.new_reports"))
 
     
-# at top of the file with your other imports:
-from flask import Blueprint, render_template, request, session, flash, redirect, url_for
-from sqlalchemy import text
-import traceback
-
-
-from app.utils.one_bar_one_line import provider_portrait_with_target, use_ppmori
 
 
 def is_one_var_vs_target(rows):
@@ -605,7 +607,6 @@ def new_reports():
 
                         if no_data_banner and fig is not None:
                             try:
-                                import matplotlib.pyplot as plt  # ensure available
                                 ax = fig.gca()
                                 ax.annotate(
                                     no_data_banner,

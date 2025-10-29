@@ -1,17 +1,38 @@
 # app/routes/auth.py
+
+# Standard library
+from functools import wraps
+from urllib.parse import urljoin, urlparse
+
+# Third-party
 import bcrypt
-from flask import Blueprint, abort, render_template, request, session, redirect, url_for, flash, current_app
-from app.utils.database import get_db_engine, log_alert
-from app.utils.custom_email import send_reset_email, generate_reset_token, verify_reset_token
+from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from sqlalchemy import text
-from itsdangerous import URLSafeTimedSerializer
+from flask import (
+    Blueprint,
+    abort,
+    current_app,
+    flash,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
+)
+
+# Local
 from app.extensions import mail
+from app.utils.custom_email import (
+    send_reset_email,
+    generate_reset_token,
+    verify_reset_token,
+)
+from app.utils.database import get_db_engine, log_alert
+
+# Blueprint
 auth_bp = Blueprint("auth_bp", __name__)
 __all__ = ["auth_bp", "login_required"]
 
-from functools import wraps
-from flask import session, redirect, url_for, request
-from urllib.parse import urlparse, urljoin
 
 def login_required(f):
     @wraps(f)
@@ -27,9 +48,7 @@ def is_safe_url(target):
     ref_url = urlparse(request.host_url)
     test_url = urlparse(urljoin(request.host_url, target))
     return test_url.scheme in ("http", "https") and ref_url.netloc == test_url.netloc
-from flask import request, render_template, redirect, url_for, flash, current_app, session
-from sqlalchemy import text
-import bcrypt
+
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
@@ -186,12 +205,6 @@ def login():
         flash("Something went wrong. Please contact support.", "danger")
         return render_template("login.html", next=next_url)
 
-from flask import (
-    request, render_template, redirect, url_for, flash,
-    current_app, session, abort
-)
-from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
-from sqlalchemy import text
 
 @auth_bp.route('/logout', methods=['GET', 'POST'])
 def logout():

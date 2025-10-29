@@ -1,29 +1,36 @@
-from flask import Blueprint, render_template, session, redirect, url_for, flash, request, jsonify, abort,request
+# Standard library
+import traceback
+from datetime import datetime
+from types import SimpleNamespace
+
+# Third-party
 import pandas as pd
-from sqlalchemy import text
-from app.utils.database import get_db_engine, log_alert
-from app.routes.auth import login_required
-from app.utils.custom_email import send_account_setup_email, send_elearning_reminder_email
-from app.extensions import mail
 import requests
-import traceback
-from datetime import datetime
-staff_bp = Blueprint("staff_bp", __name__)
-
-# app/routes/staff_maintenance.py
-
-from datetime import datetime
-import traceback
-
-import pandas as pd
-from flask import Blueprint, render_template, request, session, abort
-from flask import url_for  # for absolute link in log_alert
+from flask import (
+    Blueprint,
+    abort,
+    flash,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
+)
 from sqlalchemy import text
 
+# Local
+from app.extensions import mail
 from app.routes.auth import login_required
-from app.utils.database import get_db_engine, log_alert  # ✅ bring in log_alert
+from app.utils.custom_email import (
+    send_account_setup_email,
+    send_elearning_reminder_email,
+)
+from app.utils.database import get_db_engine, log_alert
 
+# Blueprint
 staff_bp = Blueprint("staff_bp", __name__)
+
 
 @staff_bp.route("/Staff", methods=["GET", "POST"])
 @login_required
@@ -318,17 +325,6 @@ def add_school_to_funder():
         return jsonify(ok=False, error=msg), 500
     
     
-# app/routes/staff_actions.py  (or keep in your existing staff routes file)
-
-from flask import request, redirect, url_for, session, flash
-from sqlalchemy import text
-import traceback
-
-from app.routes.auth import login_required
-from app.utils.database import get_db_engine, log_alert
-from app.routes.staff_maintenance import staff_bp
-# If these are defined elsewhere in your app, keep your existing imports:
-from app.utils.custom_email import send_account_setup_email  # adjust to your project path
 
 
 @staff_bp.route('/update_staff', methods=['POST'])
@@ -642,7 +638,6 @@ def get_active_courses():
         )
         return jsonify([]), 500
 
-from types import SimpleNamespace
 ROLECODE_MAP = {
     "Funder":   "FUN",
     "Provider": "PRO",

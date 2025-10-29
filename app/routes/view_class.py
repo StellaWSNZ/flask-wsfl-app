@@ -1,36 +1,72 @@
 # app/routes/view_class.py
-from datetime import date, datetime, timezone, timedelta
-from collections import defaultdict
-import qrcode
+# Standard library
+import ast
 import base64
-from io import BytesIO
-from flask import Blueprint, render_template, session, redirect, url_for, flash, request, jsonify
-from app.utils.database import get_db_engine, log_alert
-from sqlalchemy import text
-import pandas as pd
-import io, re, ast, urllib.parse, traceback
-
-from app.routes.auth import login_required
-import matplotlib
-from sqlalchemy.exc import SQLAlchemyError
-
-matplotlib.use('Agg')  # Prevent GUI backend errors in web servers
-import matplotlib.pyplot as plt
-import io, base64
-from datetime import datetime
+import csv
+import io
+import json
+import os
+import re
 import sys
-from app.utils.fundernationalplot import create_competency_report
-from app.utils.competencyplot import load_competency_rates, make_figure
-from app.utils.nationalplot import generate_national_report
+import time
 import traceback
+import urllib.parse
 from collections import defaultdict
-from datetime import datetime, timedelta,timezone
+from datetime import date, datetime, timedelta, timezone
+from io import BytesIO
+
+# Third-party
+import matplotlib
+matplotlib.use("Agg")  # Prevent GUI backend errors on servers
+import matplotlib.pyplot as plt
+import pandas as pd
+import pyodbc  # For error type
+import qrcode
+import xlrd
+from dateutil.parser import isoparse
+from flask import (
+    Blueprint,
+    abort,
+    current_app,
+    flash,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    send_file,
+    session,
+    url_for,
+)
+from flask_login import current_user
+from openpyxl import load_workbook
+from sqlalchemy import text
+from sqlalchemy.exc import DBAPIError, SQLAlchemyError
+
+# Local
+from app.routes.auth import login_required
+from app.utils.competencyplot import load_competency_rates, make_figure
+from app.utils.database import get_db_engine, log_alert
+from app.utils.fundernationalplot import create_competency_report
+from app.utils.nationalplot import generate_national_report
+
+# Blueprint
+class_bp = Blueprint("class_bp", __name__)
+
+# Optional: Playwright (conditionally available)
+try:
+    from playwright.sync_api import sync_playwright
+except Exception:
+    sync_playwright = None
+
 
 class_bp = Blueprint("class_bp", __name__)
 
 from datetime import datetime, timedelta
 from dateutil.parser import isoparse
 from collections import defaultdict
+from flask import request, jsonify
+from sqlalchemy import text
+import time, traceback
 
 
 from datetime import datetime, timedelta, timezone
@@ -45,7 +81,7 @@ from collections import defaultdict
 import traceback
 import pandas as pd
 from sqlalchemy import text
-from dateutil.parser import isoparse
+import re as _re
 
 def _build_print_context(engine, class_id: int, term: int, year: int, filter_type: str, order_by: str):
     """
@@ -764,7 +800,6 @@ def update_competency():
         return jsonify({"success": True})
     except Exception as e:
         print("❌ Exception occurred during update_competency:")
-        import traceback
         traceback.print_exc()
         return jsonify({"success": False, "error": str(e)}), 500
 
@@ -826,7 +861,6 @@ def update_scenario():
 
     except Exception as e:
         print("❌ Scenario update failed:", e)
-        import traceback
         traceback.print_exc()
         return jsonify(success=False, error=str(e)), 500
 
@@ -1111,10 +1145,6 @@ def get_schools_by_funder():
         schools = [dict(row._mapping) for row in result]
     return jsonify(schools)
 
-    
-import traceback
-from flask import render_template, request, redirect, url_for, flash, session, current_app as app
-from sqlalchemy import text
 @class_bp.route('/SchoolClasses', methods=['GET', 'POST'])
 @login_required
 def moe_classes():
@@ -1689,12 +1719,6 @@ def _render_print_html(engine, class_id: int, term: int, year: int, filter_type:
     ctx = _build_print_context(engine, class_id, term, year, filter_type, order_by)
     return render_template("print_view.html", **ctx)
 
-try:
-    from playwright.sync_api import sync_playwright
-except Exception:
-    sync_playwright = None
-
-from flask import request, jsonify, send_file, current_app as app
 
 
 def _html_to_pdf_bytes_with_playwright(html: str, base_url: str | None = None) -> bytes | None:
@@ -1891,9 +1915,7 @@ def achievement_upload():
 @class_bp.route("/preview_upload", methods=["POST"])
 @login_required
 def preview_upload():
-    import io, re, csv, traceback, os, json
-    import pandas as pd
-    from flask import jsonify, request
+
 
     MAX_PREVIEW_ROWS = 200
     MAX_PAYLOAD_ROWS = 10000  # safety cap
@@ -1909,13 +1931,11 @@ def preview_upload():
         return max(total - 1, 0)
 
     def _count_xlsx_rows(b):
-        from openpyxl import load_workbook
         b.seek(0)
         ws = load_workbook(b, read_only=True).active
         return ws.max_row - 1 if ws.max_row else 0
 
     def _count_xls_rows(b):
-        import xlrd
         b.seek(0)
         sh = xlrd.open_workbook(file_contents=b.read()).sheet_by_index(0)
         return sh.nrows - 1 if sh.nrows else 0
@@ -1930,7 +1950,6 @@ def preview_upload():
         "Ethnicity": {"ethnicity"},
     }
     def norm(s):
-        import re as _re
         return _re.sub(r'[^a-z0-9]+', '', str(s or '').lower())
 
     try:
@@ -2086,10 +2105,6 @@ def apply_upload():
         "merge_preview": []                 # kept for backward UI compatibility
       }
     """
-    from flask import request, jsonify
-    import json, traceback
-    import pyodbc  # for error type
-    from datetime import date, datetime
 
     engine = get_db_engine()
 
@@ -2260,7 +2275,6 @@ def apply_upload():
 
     
 def _count_csv_rows(b, encoding=None):
-    import csv
     b.seek(0)
     if encoding:
         text = io.TextIOWrapper(b, encoding=encoding)
@@ -2280,7 +2294,6 @@ def _count_csv_rows(b, encoding=None):
 
 def _count_xlsx_rows(b):
     b.seek(0)
-    from openpyxl import load_workbook
     wb = load_workbook(b, read_only=True)
     ws = wb.active
     return ws.max_row - 1 if ws.max_row else 0
@@ -2288,7 +2301,6 @@ def _count_xlsx_rows(b):
 
 def _count_xls_rows(b):
     b.seek(0)
-    import xlrd
     wb = xlrd.open_workbook(file_contents=b.read())
     sh = wb.sheet_by_index(0)
     nrows = sh.nrows
@@ -2308,8 +2320,7 @@ def _require_moe_or_adm2():
 def _json_error(msg, code=400):
     return jsonify({"ok": False, "error": msg}), code
 # at the top of this module
-from datetime import date
-from flask import request, render_template, abort, current_app
+
 
 def is_mobile() -> bool:
     """Very simple UA sniff to block phones/tablets."""
@@ -2347,7 +2358,6 @@ def class_students_page():
             current_year=date.today().year
         )
     except Exception:
-        import traceback
         traceback.print_exc()
         return "<pre>" + traceback.format_exc() + "</pre>", 500
 
@@ -2406,9 +2416,6 @@ def get_class_students(class_id):
             "Deletable": m.get("Deletable")
         })
     return jsonify(out)
-from flask import request, jsonify
-from sqlalchemy import text
-import time, traceback
 
 
 @class_bp.route("/search_students")
@@ -2438,7 +2445,6 @@ def search_students():
             print(f"✅ Stored proc returned {len(rows)} rows")
     except Exception as e:
         # This will surface any SQL or connection errors
-        import traceback
         print("💥 DB call failed:", e)
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
@@ -2467,7 +2473,6 @@ def search_students():
 def add_student_to_class():
     # who + where
     try:
-        from flask_login import current_user
         uid = getattr(current_user, "id", None)
         uemail = getattr(current_user, "email", None)
     except Exception:
@@ -2483,7 +2488,6 @@ def add_student_to_class():
     data = request.get_json(silent=True)
     if data is None and raw:
         # Fallback: try manual JSON load (handles wrong Content-Type)
-        import json
         try:
             data = json.loads(raw)
         except Exception as e:
@@ -2515,14 +2519,10 @@ def add_student_to_class():
 
         return jsonify({"ok": True})
     except Exception as e:
-        import traceback
         traceback.print_exc()
         return _json_error("Failed to add student to class", 500)
 
-import re
-from flask import jsonify, current_app, session
-from sqlalchemy import text
-from sqlalchemy.exc import DBAPIError
+
 
 
 def friendly_sql_error(exc: Exception) -> tuple[int, str, int | None]:
@@ -2606,7 +2606,6 @@ def create_student_and_add():
         with eng.begin() as conn:
             # Optional: stamp session context for SQL audit triggers
             try:
-                from flask_login import current_user
                 acting = getattr(current_user, "email", None) or session.get("user_email") or "flaskuser"
                 conn.exec_driver_sql(
                     "EXEC sys.sp_set_session_context @key=N'wsfl_user', @value=?",

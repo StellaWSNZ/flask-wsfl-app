@@ -1,17 +1,43 @@
 ## Survey.py
-from datetime import timezone
+# Standard library
+import hashlib
 import json
-from zoneinfo import ZoneInfo
-from flask import Blueprint, jsonify, render_template, request, redirect, flash, session, url_for, current_app
-from sqlalchemy import text
-from app.utils.database import get_db_engine, log_alert
-from collections import namedtuple
-from app.routes.auth import login_required
-import traceback
-from app.extensions import mail
-from itsdangerous import URLSafeTimedSerializer,BadSignature, SignatureExpired
 import re
+import traceback
+from collections import namedtuple
+from datetime import timezone
+from zoneinfo import ZoneInfo
+
+# Third-party
+from flask import (
+    Blueprint,
+    current_app,
+    flash,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
+)
+from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
+from sqlalchemy import text
+from sqlalchemy.exc import DBAPIError
+
+# Local
+from app.extensions import mail
+from app.routes.auth import login_required
+from app.utils.custom_email import (
+    send_elearning_reminder_email,
+    send_survey_invitation_email,
+    send_survey_invite_email,
+    send_survey_reminder_email,
+)
+from app.utils.database import get_db_engine, log_alert
+
+# Blueprint
 survey_bp = Blueprint("survey_bp", __name__)
+
 @survey_bp.route("/Form/<string:routename>")
 def survey_by_routename(routename):
     engine = get_db_engine()
@@ -482,11 +508,7 @@ def _load_survey_list(email):
         return "Internal Server Error", 500
 
 
-from flask import render_template, session, redirect, url_for, flash, request
-from sqlalchemy import text
-from datetime import timezone
-from zoneinfo import ZoneInfo
-import traceback
+
 @survey_bp.route("/api/teachers")
 def api_teachers():
     school_id = request.args.get("school_id", "").strip()
@@ -821,9 +843,6 @@ def guest_survey_by_id(survey_id):
             pass
         return "Internal Server Error", 500
 
-    
-from flask import request, redirect, url_for, flash
-from app.utils.custom_email import send_survey_invite_email, send_elearning_reminder_email
 @survey_bp.route("/send_invite", methods=["POST"])
 @login_required
 def send_survey_invite():
@@ -870,10 +889,6 @@ def send_survey_invite():
     return redirect(request.referrer or "/")
 
 
-from flask import request, session, redirect, url_for, flash
-from app.utils.custom_email import send_survey_invite_email, send_survey_reminder_email, send_survey_invitation_email
-from app.extensions import mail
-from app.routes.survey import survey_bp
 @survey_bp.route("/send_survey_link", methods=["POST"])
 @login_required
 def email_survey_link():
@@ -1007,7 +1022,7 @@ def _coerce_entity_type(chosen: str, allowed: list[dict]) -> str:
     return vals[0] if vals else "School"
 
 
-import hashlib
+
 
 def _badge_class(title: str) -> str:
     shades = ["badge-blue-1","badge-blue-2","badge-blue-3",
@@ -1018,7 +1033,6 @@ def _badge_class(title: str) -> str:
     idx = int.from_bytes(h2, "big") % len(shades)
     return shades[idx]
 
-import hashlib  # <- add this at the top of survey.py
 
 @survey_bp.route("/SurveyByEntity", methods=["GET"])
 @login_required
@@ -1065,7 +1079,6 @@ def staff_survey_admin():
                     })
 
     except Exception as e:
-        import traceback
         traceback.print_exc()
         flash("An error occurred while loading survey data.", "danger")
         # ship to AUD_Alerts (never break the response)
@@ -1105,7 +1118,6 @@ def api_flask_get_all_users():
             rows = [dict(r._mapping) for r in result]
         return jsonify(rows)
     except Exception as e:
-        import traceback
         traceback.print_exc()
         # best-effort DB alert
         try:
@@ -1120,9 +1132,7 @@ def api_flask_get_all_users():
             pass
         return jsonify([]), 500
 
-from flask import jsonify, request, current_app
-from sqlalchemy import text
-from sqlalchemy.exc import DBAPIError
+
 @survey_bp.route("/api/AddMOEStaff", methods=["POST"])
 def add_moe_staff():
     data = request.get_json(force=True, silent=True) or {}
