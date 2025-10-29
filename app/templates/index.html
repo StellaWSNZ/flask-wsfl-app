@@ -9,7 +9,48 @@ content %}
     background-attachment: fixed;
     background-position: bottom center;
   }
+
+  /* ---- Themed cards for Stella ---- */
+  .card-error {
+    border: 2px solid #004080 !important;
+    background-color: #f4f7fb; /* light blue-grey background */
+  }
+
+  .card-error .card-header {
+    background-color: #004080 !important;
+    color: white !important;
+    font-weight: 600;
+  }
+
+  .card pre {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 0.5rem;
+    padding: 0.75rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+    margin: 0;
+  }
+
+  /* Optional hover effect */
+  .card-error:hover {
+    box-shadow: 0 0 10px rgba(0, 64, 128, 0.3);
+    transform: translateY(-2px);
+    transition: all 0.2s ease-in-out;
+  }
+
+  /* Buttons in Stella cards */
+  .btn-error {
+    border-color: #004080;
+    color: #004080;
+  }
+
+  .btn-error:hover {
+    background-color: #004080;
+    color: white;
+  }
 </style>
+
 <!-- Welcome Banner -->
 <div class="row justify-content-center">
   <div class="col-md-9">
@@ -25,14 +66,46 @@ content %}
   </div>
 </div>
 
+<!-- Cards -->
 <div class="row justify-content-center">
   <div class="col-md-9">
     <div class="row g-4">
       {% for card in cards %}
       <div class="col-md-3 col-sm-6">
-        <div class="card h-100">
-          {% if user_email != 'stella@watersafety.org.nz'%}
+        {% if user_email == 'stella@watersafety.org.nz' and card.type == 'error'
+        %}
+        <!-- Stella-only: New Error card -->
+        <div class="card card-error h-100">
+          <div class="card-header">{{ card.title }}</div>
+          <div class="card-body d-flex flex-column">
+            <div class="mb-2 small">
+              <div>
+                <span class="fw-semibold">Entity:</span> {{ card.entity }}
+              </div>
+              <div>
+                <span class="fw-semibold">User:</span>
+                {% if card.user_full_name %} {{ card.user_full_name }} {% else
+                %}
+                <span class="text-muted">(unknown)</span>
+                {% endif %}
+              </div>
+              <div>
+                <span class="fw-semibold">Email: </span
+                ><span class="text-muted">{{ card.email }}</span>
+              </div>
+              {% if card.created_at %}
+              <span class="fw-semibold">Logged:</span>
+              <div class="text-muted">{{ card.created_at }}</div>
+              {% endif %}
+            </div>
 
+            <pre class="mb-3 small">{{ card.text }}</pre>
+          </div>
+        </div>
+        {% else %}
+        <!-- Generic card -->
+        <div class="card h-100">
+          {% if user_email != 'stella@watersafety.org.nz' and card.image %}
           <img
             src="{{ url_for('static', filename='cardicons/' ~ card.image) }}"
             class="card-img-top"
@@ -42,14 +115,14 @@ content %}
           <div class="card-header">{{ card.title }}</div>
           <div class="card-body d-flex flex-column">
             <p class="card-text mb-4">{{ card.text }}</p>
-            {% if user_email != 'stella@watersafety.org.nz'%}
-
-            <a href="{{ card.href }}" class="btn btn-outline-secondary mt-auto">
-              Click here
-            </a>
-            {%endif%}
+            {% if card.href %}
+            <a href="{{ card.href }}" class="btn btn-outline-secondary mt-auto"
+              >Click here</a
+            >
+            {% endif %}
           </div>
         </div>
+        {% endif %}
       </div>
       {% endfor %}
     </div>

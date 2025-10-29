@@ -4,7 +4,7 @@ from app.routes.auth import login_required
 from app.utils.database import get_db_engine, log_alert  # log_alert writes to AUD_Alerts_Insert
 from sqlalchemy import text
 from datetime import datetime
-
+import pytz
 home_bp = Blueprint('home_bp', __name__)
 
 # ---- helper: pull newest unshown alerts for a user and mark as shown
@@ -39,6 +39,7 @@ def fetch_new_alerts_for_user(email: str, limit: int = 12, mark_shown: bool = Tr
         return []
 
 
+
 @home_bp.route('/')
 @login_required
 def home():
@@ -57,13 +58,12 @@ def home():
         subtitle = ""
         cards = []
 
-        # ---- role-specific content (kept as close to your original as possible)
+        # ---- role-specific content
         if role == "ADM":
             if last_login_nzt:
                 subtitle = "You are logged in as Admin. Last Logged in: " + datetime.fromisoformat(last_login_nzt).strftime('%A, %d %B %Y, %I:%M %p')
             else:
                 subtitle = "You are logged in as Admin."
-            # (you had cards = [] at the end; keeping it empty)
             cards = []
 
         elif role == "FUN":
@@ -142,24 +142,43 @@ def home():
         error_cards = []
         if email == "stella@watersafety.org.nz":
             alerts = fetch_new_alerts_for_user(email=email, limit=8, mark_shown=True)
-            # convert alerts into dashboard cards
             for a in alerts:
-                # Fallbacks to avoid None in template
-                title = "New error "+ (a.get("EntityName") or "")
-                text_body = a.get("ErrorMessage") or "An error was logged."
-                href = a.get("Link") or url_for("home_bp.home")
+                created_utc = a.get("CreatedAtUtc")
+
+                # If it's a string, parse to datetime
+                if isinstance(created_utc, str):
+                    try:
+                        created_utc = datetime.fromisoformat(created_utc.replace("Z", "+00:00"))
+                    except Exception:
+                        created_utc = None
+                local_tz = pytz.timezone(session.get("user_timezone", "Pacific/Auckland"))
+                if created_utc:
+                    created_local = created_utc.astimezone(local_tz)
+                    created_str = created_local.strftime("%A, %d %B %Y, %I:%M %p")
+                else:
+                    created_str = None
+
                 error_cards.append({
-                    "title": title,
-                    "text": text_body,
-                    "href": href,
-                    # supply a generic icon you have under static/cardicons/
-                    "image": "Error.png"
+                    "type": "error",
+                    "title": "New Error",
+                    "entity": a.get("EntityName") or "Unknown",
+                    "user_full_name": (a.get("UserFullName") or "").strip() or None,
+                    "email": a.get("Email") or "(no email)",
+                    "text": a.get("ErrorMessage") or "An error was logged.",
+                    "href": a.get("Link") or url_for("home_bp.home"),
+                    "created_at": created_str
                 })
 
-        # put error cards first so they’re hard to miss
+        # put error cards first
         cards = (error_cards or []) + (cards or [])
 
-        return render_template("index.html", display_name=display_name, subtitle=subtitle, cards=cards)
+        return render_template(
+            "index.html",
+            display_name=display_name,
+            subtitle=subtitle,
+            cards=cards,
+            user_email=email
+        )
 
     except Exception as e:
         # best-effort DB alert + server log
