@@ -5,19 +5,19 @@
 
   <!-- Page introduction -->
   <div class="alert alert-info shadow-sm">
-  {% if is_admin %}
-    <strong>Overview:</strong>
-    This page shows all schools currently or previously funded by the selected funder,
-    including a summary of their registered staff and class lists by term and year.
-  {% else %}
-    <strong>Overview:</strong>
-    This page shows all schools you currently or have previously funded,
-    including a summary of their registered staff and class lists by term and year.
-  {% endif %}
-</div>
+    {% if is_admin %}
+      <strong>Overview:</strong>
+      This page shows all schools currently or previously funded by the selected funder,
+      including a summary of their registered staff and class lists by term and year.
+    {% else %}
+      <strong>Overview:</strong>
+      This page shows all schools you currently or have previously funded,
+      including a summary of their registered staff and class lists by term and year.
+    {% endif %}
+  </div>
 
-
   {% if is_admin %}
+  <!-- Funder dropdown (for admins) -->
   <form method="post" class="mb-3">
     <label for="FunderID" class="form-label fw-semibold">Select funder</label>
     <select id="FunderID" name="FunderID" class="form-select" onchange="this.form.submit()">
@@ -33,144 +33,211 @@
   </form>
   {% endif %}
 
+  <!-- Full-width single-row filters -->
+  <div class="d-flex align-items-end gap-3 mb-3 flex-wrap w-100">
+
+    <!-- User filter -->
+    <div class="flex-fill">
+      <label class="form-label fw-semibold mb-1">User filter</label>
+      <select id="filterUsers" class="form-select w-100">
+        <option value="any" selected>Any</option>
+        <option value="no-active">No active users</option>
+        <option value="no-inactive">No inactive users</option>
+        <option value="no-users">No users registered</option>
+      </select>
+    </div>
+
+    <!-- Class filter -->
+    <div class="flex-fill">
+      <label class="form-label fw-semibold mb-1">
+        Class Lists (selected
+        {% if selected_term and selected_year %}
+          Term {{ selected_term }}, {{ selected_year }}
+        {% else %}
+          term &amp; year
+        {% endif %}
+        )
+      </label>
+      <select id="filterClasses" class="form-select w-100">
+        <option value="any" selected>Any</option>
+        <option value="has">Has class lists</option>
+        <option value="none">No class lists</option>
+      </select>
+    </div>
+
+    <!-- Sort by -->
+    <div class="flex-fill">
+      <label class="form-label fw-semibold mb-1">Sort by</label>
+      <select id="sortCards" class="form-select w-100">
+        <option value="school-asc" selected>School name (A→Z)</option>
+        <option value="school-desc">School name (Z→A)</option>
+        <option value="moe-asc">MOE number (↑)</option>
+        <option value="moe-desc">MOE number (↓)</option>
+        <option value="classes-asc">Class lists (↑)</option>
+        <option value="classes-desc">Class lists (↓)</option>
+      </select>
+    </div>
+
+    <!-- Reset button -->
+    <div class="flex-fill" style="max-width: 150px;">
+      <label class="form-label fw-semibold mb-1 d-block">&nbsp;</label>
+      <button id="resetFilters" type="button" class="btn btn-outline-secondary w-100">
+        Reset
+      </button>
+    </div>
+
+  </div> <!-- End full-width form -->
+
   {% if rows|length == 0 %}
     <div class="alert alert-info">No schools found.</div>
   {% else %}
+  <div id="schoolsList">
     {% for r in rows %}
-    <div class="row mb-3">
-      <div class="col-12">
+      <div class="row mb-3">
+        <div class="col-12">
+          {% set active_cnt   = r.ActiveUserCount or 0 %}
+          {% set inactive_cnt = (r.InactiveContacts|length) if r.InactiveContacts else 0 %}
+          {% set has_selected = 1 if (r.SelectedYear and r.SelectedTerm) else 0 %}
+          {% set total_classes = r.TotalClasses or 0 %}
 
-        <!-- Card with dark blue border -->
-        <div class="card w-100 shadow-sm border-3 border-primary school-card rounded-3">
-          <div class="card-body bg-light bg-gradient">
+          <div class="card w-100 shadow-sm border-3 border-primary school-card rounded-3"
+               data-active-count="{{ active_cnt }}"
+               data-inactive-count="{{ inactive_cnt }}"
+               data-has-selected="{{ has_selected }}"
+               data-selected-count="{{ r.SelectedClasses or 0 }}"
+               data-total-classes="{{ total_classes }}"
+               data-moe="{{ r.MOENumber }}"
+               data-school="{{ r.SchoolName }}">
+            <div class="card-body bg-light bg-gradient">
 
-            <!-- School header -->
-            <div class="mb-2">
-              <div class="fs-5 fw-semibold text-dark">{{ r.SchoolName }}</div>
-              <div class="text-muted">MOE {{ r.MOENumber }}</div>
-            </div>
+              <!-- School header -->
+              <div class="mb-2">
+                <div class="fs-5 fw-semibold text-dark">{{ r.SchoolName }}</div>
+                <div class="text-muted">MOE {{ r.MOENumber }}</div>
+              </div>
 
-            <!-- Summary badges -->
-            <!-- Summary badges -->
-<div class="mb-3">
-  <span class="badge {{ 'bg-success' if r.HasActiveUsers else 'bg-secondary' }}">
-    {{ r.ActiveUserCount }} active {{ 'user' if r.ActiveUserCount == 1 else 'users' }}
-  </span>
+              <!-- Summary badges -->
+              <div class="mb-3">
+                <span class="badge {{ 'bg-success' if r.HasActiveUsers else 'bg-secondary' }}">
+                  {{ r.ActiveUserCount }} active {{ 'user' if r.ActiveUserCount == 1 else 'users' }}
+                </span>
 
-  {% if r.SelectedYear and r.SelectedTerm %}
-    <span class="badge bg-primary ms-2">
-      {{ r.SelectedClasses }} {{ 'class list' if r.SelectedClasses == 1 else 'class lists' }}
-      in Term {{ r.SelectedTerm }}, {{ r.SelectedYear }}
-    </span>
-  {% else %}
-    <span class="badge bg-primary ms-2">
-      {{ r.TotalClasses }} {{ 'class' if r.TotalClasses == 1 else 'classes' }} (all time)
-    </span>
-  {% endif %}
-</div>
-
-            <div class="row g-3">
-              <!-- Left: Active + Inactive users -->
-              <div class="col-12 col-md-6">
-                <div class="fw-semibold mb-2 text-dark">Active Users</div>
-                {% if r.Contacts and r.Contacts|length > 0 %}
-                  <ul class="list-group mb-2">
-                    {% for u in r.Contacts %}
-                      <li class="list-group-item py-2 {% if loop.index > 5 %}d-none extra-active-{{ r.MOENumber }}{% endif %}">
-                        {% set full = (u['FirstName'] ~ ' ' ~ u['Surname'])|trim %}
-                        {% if full %}
-                          {{ full }}{% if u['Email'] %} <span class="text-muted">({{ u['Email'] }})</span>{% endif %}
-                        {% elif u['Email'] %}
-                          {{ u['Email'] }}
-                        {% else %}
-                          Unnamed account
-                        {% endif %}
-                      </li>
-                    {% endfor %}
-                  </ul>
-                  {% if r.Contacts|length > 5 %}
-                    <button type="button"
-                            class="btn btn-outline-primary btn-sm mb-3 toggle-users"
-                            data-target=".extra-active-{{ r.MOENumber }}"
-                            data-show="Show all {{ r.Contacts|length }} users"
-                            data-hide="Show less">
-                      Show all {{ r.Contacts|length }} users
-                    </button>
-                  {% endif %}
+                {% if r.SelectedYear and r.SelectedTerm %}
+                  <span class="badge bg-primary ms-2">
+                    {{ r.SelectedClasses }} {{ 'class list' if r.SelectedClasses == 1 else 'class lists' }}
+                    in Term {{ r.SelectedTerm }}, {{ r.SelectedYear }}
+                  </span>
                 {% else %}
-                  <div class="text-muted mb-3">No active users.</div>
-                {% endif %}
-
-                <div class="fw-semibold mb-2 text-dark">Inactive Users</div>
-                {% if r.InactiveContacts and r.InactiveContacts|length > 0 %}
-                  <ul class="list-group mb-2">
-                    {% for u in r.InactiveContacts %}
-                      <li class="list-group-item py-2 {% if loop.index > 5 %}d-none extra-inactive-{{ r.MOENumber }}{% endif %}">
-                        {% set full = (u['FirstName'] ~ ' ' ~ u['Surname'])|trim %}
-                        {% if full %}
-                          {{ full }}{% if u['Email'] %} <span class="text-muted">({{ u['Email'] }})</span>{% endif %}
-                        {% elif u['Email'] %}
-                          {{ u['Email'] }}
-                        {% else %}
-                          Unnamed account
-                        {% endif %}
-                      </li>
-                    {% endfor %}
-                  </ul>
-                  {% if r.InactiveContacts|length > 5 %}
-                    <button type="button"
-                            class="btn btn-outline-secondary btn-sm mb-3 toggle-users"
-                            data-target=".extra-inactive-{{ r.MOENumber }}"
-                            data-show="Show all {{ r.InactiveContacts|length }} users"
-                            data-hide="Show less">
-                      Show all {{ r.InactiveContacts|length }} users
-                    </button>
-                  {% endif %}
-                {% else %}
-                  <div class="text-muted mb-3">No inactive users.</div>
+                  <span class="badge bg-primary ms-2">
+                    {{ r.TotalClasses }} {{ 'class' if r.TotalClasses == 1 else 'classes' }} (all time)
+                  </span>
                 {% endif %}
               </div>
 
-              <!-- Right: Classes -->
-              <div class="col-12 col-md-6">
-                <div class="fw-semibold mb-2 text-dark">Classes by Year &amp; Term</div>
-                {% if r.ClassCounts and r.ClassCounts|length > 0 %}
-                  <div class="table-responsive">
-                    <table class="table table-sm align-middle mb-0 table-hover border">
-                      <thead style="background-color: white;">
-                        <tr>
-                          <th>Year</th>
-                          <th>Term</th>
-                          <th class="text-end">Class Lists Uploaded</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {% for c in r.ClassCounts %}
+              <div class="row g-3">
+                <!-- Left: Active & Inactive users -->
+                <div class="col-12 col-md-6">
+                  <div class="fw-semibold mb-2 text-dark">Active Users</div>
+                  {% if r.Contacts and r.Contacts|length > 0 %}
+                    <ul class="list-group mb-2">
+                      {% for u in r.Contacts %}
+                        <li class="list-group-item py-2 {% if loop.index > 5 %}d-none extra-active-{{ r.MOENumber }}{% endif %}">
+                          {% set full = (u['FirstName'] ~ ' ' ~ u['Surname'])|trim %}
+                          {% if full %}
+                            {{ full }}{% if u['Email'] %} <span class="text-muted">({{ u['Email'] }})</span>{% endif %}
+                          {% elif u['Email'] %}
+                            {{ u['Email'] }}
+                          {% else %}
+                            Unnamed account
+                          {% endif %}
+                        </li>
+                      {% endfor %}
+                    </ul>
+                    {% if r.Contacts|length > 5 %}
+                      <button type="button"
+                              class="btn btn-outline-primary btn-sm mb-3 toggle-users"
+                              data-target=".extra-active-{{ r.MOENumber }}"
+                              data-show="Show all {{ r.Contacts|length }} users"
+                              data-hide="Show less">
+                        Show all {{ r.Contacts|length }} users
+                      </button>
+                    {% endif %}
+                  {% else %}
+                    <div class="text-muted mb-3">No active users.</div>
+                  {% endif %}
+
+                  <div class="fw-semibold mb-2 text-dark">Inactive Users</div>
+                  {% if r.InactiveContacts and r.InactiveContacts|length > 0 %}
+                    <ul class="list-group mb-2">
+                      {% for u in r.InactiveContacts %}
+                        <li class="list-group-item py-2 {% if loop.index > 5 %}d-none extra-inactive-{{ r.MOENumber }}{% endif %}">
+                          {% set full = (u['FirstName'] ~ ' ' ~ u['Surname'])|trim %}
+                          {% if full %}
+                            {{ full }}{% if u['Email'] %} <span class="text-muted">({{ u['Email'] }})</span>{% endif %}
+                          {% elif u['Email'] %}
+                            {{ u['Email'] }}
+                          {% else %}
+                            Unnamed account
+                          {% endif %}
+                        </li>
+                      {% endfor %}
+                    </ul>
+                    {% if r.InactiveContacts|length > 5 %}
+                      <button type="button"
+                              class="btn btn-outline-secondary btn-sm mb-3 toggle-users"
+                              data-target=".extra-inactive-{{ r.MOENumber }}"
+                              data-show="Show all {{ r.InactiveContacts|length }} users"
+                              data-hide="Show less">
+                        Show all {{ r.InactiveContacts|length }} users
+                      </button>
+                    {% endif %}
+                  {% else %}
+                    <div class="text-muted mb-3">No inactive users.</div>
+                  {% endif %}
+                </div>
+
+                <!-- Right: Classes -->
+                <div class="col-12 col-md-6">
+                  <div class="fw-semibold mb-2 text-dark">Classes by Year &amp; Term</div>
+                  {% if r.ClassCounts and r.ClassCounts|length > 0 %}
+                    <div class="table-responsive">
+                      <table class="table table-sm align-middle mb-0 table-hover border">
+                        <thead style="background-color: white;">
                           <tr>
-                            <td>{{ c['CalendarYear'] }}</td>
-                            <td>Term {{ c['Term'] }}</td>
-                            <td class="text-end">{{ c['Count'] }}</td>
+                            <th>Year</th>
+                            <th>Term</th>
+                            <th class="text-end">Class Lists Uploaded</th>
                           </tr>
-                        {% endfor %}
-                      </tbody>
-                    </table>
-                  </div>
-                {% else %}
-                  <div class="text-muted">No classes found.</div>
-                {% endif %}
+                        </thead>
+                        <tbody>
+                          {% for c in r.ClassCounts %}
+                            <tr>
+                              <td>{{ c['CalendarYear'] }}</td>
+                              <td>Term {{ c['Term'] }}</td>
+                              <td class="text-end">{{ c['Count'] }}</td>
+                            </tr>
+                          {% endfor %}
+                        </tbody>
+                      </table>
+                    </div>
+                  {% else %}
+                    <div class="text-muted">No classes found.</div>
+                  {% endif %}
+                </div>
               </div>
             </div>
-
           </div>
         </div>
       </div>
-    </div>
     {% endfor %}
+  </div>
   {% endif %}
 </div>
 
+<!-- Scripts -->
 <script>
 document.addEventListener("DOMContentLoaded", function() {
+  // Toggle user lists
   document.querySelectorAll(".toggle-users").forEach(function(btn) {
     btn.addEventListener("click", function() {
       const target = btn.getAttribute("data-target");
@@ -183,14 +250,95 @@ document.addEventListener("DOMContentLoaded", function() {
       btn.textContent = isHidden ? hideText : showText;
     });
   });
+
+  // Apply filters and sorting
+  function applyAll() {
+    applyFilters();
+    applySort();
+  }
+
+  function applyFilters() {
+    const userFilter = document.getElementById("filterUsers")?.value || "any";
+    const classFilter = document.getElementById("filterClasses")?.value || "any";
+
+    const cards = document.querySelectorAll(".school-card");
+    cards.forEach(card => {
+      const active = parseInt(card.getAttribute("data-active-count") || "0", 10);
+      const inactive = parseInt(card.getAttribute("data-inactive-count") || "0", 10);
+      const selCnt = parseInt(card.getAttribute("data-selected-count") || "0", 10);
+
+      let userPass = true;
+      if (userFilter === "no-active") userPass = (active === 0);
+      if (userFilter === "no-inactive") userPass = (inactive === 0);
+      if (userFilter === "no-users") userPass = (active === 0 && inactive === 0);
+
+      let classPass = true;
+      if (classFilter === "has") classPass = (selCnt > 0);
+      if (classFilter === "none") classPass = (selCnt === 0);
+
+      const row = card.closest(".row");
+      (row || card).style.display = (userPass && classPass) ? "" : "none";
+    });
+  }
+
+  function applySort() {
+    const container = document.getElementById("schoolsList");
+    if (!container) return;
+
+    const sortValue = document.getElementById("sortCards")?.value || "school-asc";
+    const rows = Array.from(container.querySelectorAll(".row")).filter(r => r.querySelector(".school-card"));
+
+    const sortable = rows.map(row => {
+      const card = row.querySelector(".school-card");
+      const moe = parseInt(card.getAttribute("data-moe") || "0", 10);
+      const school = (card.getAttribute("data-school") || "").toLowerCase();
+      const selCnt = parseInt(card.getAttribute("data-selected-count") || "0", 10);
+      return { row, moe, school, classes: selCnt, hidden: row.style.display === "none" };
+    });
+
+    const visible = sortable.filter(x => !x.hidden);
+    const hidden = sortable.filter(x => x.hidden);
+
+    const cmpNum = (a, b) => a - b;
+    const cmpText = (a, b) => a.localeCompare(b, undefined, { sensitivity: "base" });
+
+    visible.sort((A, B) => {
+      switch (sortValue) {
+        case "moe-asc": return cmpNum(A.moe, B.moe);
+        case "moe-desc": return cmpNum(B.moe, A.moe);
+        case "school-asc": return cmpText(A.school, B.school);
+        case "school-desc": return cmpText(B.school, A.school);
+        case "classes-asc": return cmpNum(A.classes, B.classes);
+        case "classes-desc": return cmpNum(B.classes, A.classes);
+        default: return 0;
+      }
+    });
+
+    visible.forEach(x => container.appendChild(x.row));
+    hidden.forEach(x => container.appendChild(x.row));
+  }
+
+  function resetFilters() {
+    const u = document.getElementById("filterUsers");
+    const c = document.getElementById("filterClasses");
+    if (u) u.value = "any";
+    if (c) c.value = "any";
+    applyAll();
+  }
+
+  document.getElementById("filterUsers")?.addEventListener("change", applyAll);
+  document.getElementById("filterClasses")?.addEventListener("change", applyAll);
+  document.getElementById("sortCards")?.addEventListener("change", applySort);
+  document.getElementById("resetFilters")?.addEventListener("click", resetFilters);
+
+  applyAll();
 });
 </script>
 
 <style>
 .school-card {
   transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-  border-color: #002b5c !important; /* custom deep navy blue */
+  border-color: #002b5c !important; /* navy blue */
 }
-
 </style>
 {% endblock %}

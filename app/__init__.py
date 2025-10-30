@@ -66,7 +66,8 @@ def create_app():
     # 🔗 Register Blueprints
     # -----------------------------
     register_routes(app)
-    print(app.url_map)
+    
+    
     # -----------------------------
     # 🔐 Redirect Unauthenticated Users
     # -----------------------------

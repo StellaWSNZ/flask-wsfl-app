@@ -761,11 +761,19 @@ def _parse_json_maybe(val):
         current_app.logger.warning("JSON parse failed: %r", s, exc_info=True)
         return []
 
+
 @funder_bp.route("/Schools", methods=["GET", "POST"])
 @login_required
 def funder_schools():
+    """
+    School Overview for funders/admins.
+    - Loads schools for the selected funder
+    - Builds per-school aggregates
+    - Picks a default (year, term) if none supplied
+    - Computes SelectedClasses per row for the chosen (year, term)
+    """
     user_role = session.get("user_role")
-    if user_role not in ["ADM", "FUN"]:
+    if user_role not in ("ADM", "FUN"):
         flash("Unauthorized", "danger")
         return redirect(url_for("home_bp.home"))
 
@@ -776,84 +784,109 @@ def funder_schools():
     selected_funder = None
     rows = []
 
-    # Pull selected filters (supports GET or POST). Leave blank = auto-pick latest below.
+    # --- 1) Pull selected filters from GET or POST; blank = choose latest below
     sel_term_raw = (request.values.get("term") or "").strip()
     sel_year_raw = (request.values.get("year") or "").strip()
     sel_term = int(sel_term_raw) if sel_term_raw.isdigit() else None
     sel_year = int(sel_year_raw) if sel_year_raw.isdigit() else None
 
+    # Helper: safe JSON parser handling None/bytes
+    def parse_list(val):
+        try:
+            import json as _json
+            if val is None:
+                return []
+            if isinstance(val, (bytes, bytearray, memoryview)):
+                val = bytes(val).decode("utf-8", errors="ignore")
+            return _json.loads(str(val))
+        except Exception:
+            return []
+
     try:
         with engine.connect() as conn:
+            # --- 2) Resolve selected funder
             if user_role == "ADM":
                 funders = conn.execute(
                     text("EXEC FlaskHelperFunctions @Request = :r"),
                     {"r": "FunderDropdown"}
                 ).mappings().all()
+
                 fid_raw = (request.form.get("FunderID") or "").strip()
                 if fid_raw.isdigit():
                     selected_funder = int(fid_raw)
                 elif funders:
                     selected_funder = int(funders[0]["FunderID"])
             else:
+                # FUN role uses their own ID
                 selected_funder = int(user_id) if user_id is not None else None
 
-            if selected_funder is not None:
-                raw = conn.execute(
-                    text("EXEC FlaskHelperFunctions @Request = :r, @Number = :fid"),
-                    {"r": "FunderSchoolOverview", "fid": selected_funder}
-                ).mappings().all()
+            if selected_funder is None:
+                # Nothing to show if no funder can be resolved
+                return render_template(
+                    "funder_schools.html",
+                    rows=[],
+                    funders=funders,
+                    selected_funder=None,
+                    is_admin=(user_role == "ADM"),
+                    selected_year=sel_year,
+                    selected_term=sel_term,
+                )
 
-                # Build rows and also collect all (year, term) pairs to pick a default
-                all_year_terms = set()
+            # --- 3) Fetch data
+            raw = conn.execute(
+                text("EXEC FlaskHelperFunctions @Request = :r, @Number = :fid"),
+                {"r": "FunderSchoolOverview", "fid": selected_funder}
+            ).mappings().all()
 
-                def parse_list(val):
-                    try:
-                        import json as _json
-                        if val is None:
-                            return []
-                        if isinstance(val, (bytes, bytearray, memoryview)):
-                            val = bytes(val).decode("utf-8", errors="ignore")
-                        return _json.loads(str(val))
-                    except Exception:
-                        return []
+            # --- 4) Build pre_rows + collect all (year, term) pairs to pick defaults
+            all_year_terms = set()
+            pre_rows = []
 
-                pre_rows = []
-                for r in raw:
-                    class_counts = parse_list(r.get("ClassCountsJson"))
-                    for c in class_counts:
-                        y = c.get("CalendarYear")
-                        t = c.get("Term")
-                        if isinstance(y, int) and isinstance(t, int):
-                            all_year_terms.add((y, t))
+            for r in raw:
+                class_counts = parse_list(r.get("ClassCountsJson"))
 
-                    pre_rows.append({
-                        "MOENumber":        r.get("MOENumber"),
-                        "SchoolName":       r.get("SchoolName"),
-                        "ActiveUserCount":  int(r.get("ActiveUserCount", 0) or 0),
-                        "HasActiveUsers":   int(r.get("HasActiveUsers", 0) or 0),
-                        "Contacts":         parse_list(r.get("ContactsJson")),
-                        "InactiveContacts": parse_list(r.get("InactiveContactsJson")),
-                        "TotalClasses":     int(r.get("TotalClasses", 0) or 0),
-                        "ClassCounts":      class_counts,
-                    })
+                # collect all available (year, term) pairs
+                for c in class_counts:
+                    y = c.get("CalendarYear")
+                    t = c.get("Term")
+                    if isinstance(y, int) and isinstance(t, int):
+                        all_year_terms.add((y, t))
 
-                # If no term/year provided, pick the latest available (max year, then max term in that year)
-                if (sel_year is None or sel_term is None) and all_year_terms:
-                    # sort by year desc, term desc
-                    latest_y, latest_t = sorted(all_year_terms, key=lambda p: (p[0], p[1]), reverse=True)[0]
-                    sel_year = sel_year or latest_y
-                    sel_term = sel_term or latest_t
+                pre_rows.append({
+                    "MOENumber":        r.get("MOENumber"),
+                    "SchoolName":       r.get("SchoolName"),
+                    "ActiveUserCount":  int(r.get("ActiveUserCount", 0) or 0),
+                    "HasActiveUsers":   int(r.get("HasActiveUsers", 0) or 0),
+                    "Contacts":         parse_list(r.get("ContactsJson")),
+                    "InactiveContacts": parse_list(r.get("InactiveContactsJson")),
+                    "TotalClasses":     int(r.get("TotalClasses", 0) or 0),
+                    "ClassCounts":      class_counts,
+                })
 
-                # Compute SelectedClasses for each row (count in chosen year/term)
-                for r in pre_rows:
-                    selected_count = 0
-                    # Manually lock to Term 4, 2025
-                    sel_year = 2025
-                    sel_term = 4
-                    r["SelectedYear"] = sel_year
-                    r["SelectedTerm"] = sel_term
-                    r["SelectedClasses"] = selected_count
-                    rows.append(r)
+            # --- 5) If no explicit selection, choose latest available (max year, then max term)
+            if (sel_year is None or sel_term is None) and all_year_terms:
+                latest_y, latest_t = sorted(
+                    all_year_terms, key=lambda p: (p[0], p[1]), reverse=True
+                )[0]
+                if sel_year is None:
+                    sel_year = latest_y
+                if sel_term is None:
+                    sel_term = latest_t
+
+            # --- 6) Compute SelectedClasses for each row for chosen (sel_year, sel_term)
+            # If no (year,term) was resolvable, this stays 0 and the UI will show "all time" badge.
+            rows = []
+            for r in pre_rows:
+                selected_count = 0
+                if isinstance(sel_year, int) and isinstance(sel_term, int):
+                    for c in (r["ClassCounts"] or []):
+                        if c.get("CalendarYear") == sel_year and c.get("Term") == sel_term:
+                            selected_count += int(c.get("Count", 0) or 0)
+
+                r["SelectedYear"] = sel_year
+                r["SelectedTerm"] = sel_term
+                r["SelectedClasses"] = selected_count
+                rows.append(r)
 
     except Exception:
         err_id = uuid.uuid4().hex[:8]
@@ -871,6 +904,7 @@ def funder_schools():
         flash(f"Unexpected error (ID {err_id}). Please try again.", "danger")
         return redirect(url_for("home_bp.home"))
 
+    # --- 7) Render
     return render_template(
         "funder_schools.html",
         rows=rows,
