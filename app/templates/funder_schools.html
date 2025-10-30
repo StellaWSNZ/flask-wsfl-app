@@ -5,9 +5,17 @@
 
   <!-- Page introduction -->
   <div class="alert alert-info shadow-sm">
-    <strong>Overview:</strong> This page shows all schools you fund, including a summary of
-    their registered staff and class lists by term and year.
-  </div>
+  {% if is_admin %}
+    <strong>Overview:</strong>
+    This page shows all schools currently or previously funded by the selected funder,
+    including a summary of their registered staff and class lists by term and year.
+  {% else %}
+    <strong>Overview:</strong>
+    This page shows all schools you currently or have previously funded,
+    including a summary of their registered staff and class lists by term and year.
+  {% endif %}
+</div>
+
 
   {% if is_admin %}
   <form method="post" class="mb-3">
@@ -43,14 +51,23 @@
             </div>
 
             <!-- Summary badges -->
-            <div class="mb-3">
-              <span class="badge {{ 'bg-success' if r.HasActiveUsers else 'bg-secondary' }}">
-                {{ r.ActiveUserCount }} active {{ 'user' if r.ActiveUserCount == 1 else 'users' }}
-              </span>
-              <span class="badge bg-primary ms-2">
-                {{ r.TotalClasses }} {{ 'class' if r.TotalClasses == 1 else 'classes' }}
-              </span>
-            </div>
+            <!-- Summary badges -->
+<div class="mb-3">
+  <span class="badge {{ 'bg-success' if r.HasActiveUsers else 'bg-secondary' }}">
+    {{ r.ActiveUserCount }} active {{ 'user' if r.ActiveUserCount == 1 else 'users' }}
+  </span>
+
+  {% if r.SelectedYear and r.SelectedTerm %}
+    <span class="badge bg-primary ms-2">
+      {{ r.SelectedClasses }} {{ 'class list' if r.SelectedClasses == 1 else 'class lists' }}
+      in Term {{ r.SelectedTerm }}, {{ r.SelectedYear }}
+    </span>
+  {% else %}
+    <span class="badge bg-primary ms-2">
+      {{ r.TotalClasses }} {{ 'class' if r.TotalClasses == 1 else 'classes' }} (all time)
+    </span>
+  {% endif %}
+</div>
 
             <div class="row g-3">
               <!-- Left: Active + Inactive users -->
@@ -124,7 +141,7 @@
                         <tr>
                           <th>Year</th>
                           <th>Term</th>
-                          <th class="text-end">Classes</th>
+                          <th class="text-end">Class Lists Uploaded</th>
                         </tr>
                       </thead>
                       <tbody>

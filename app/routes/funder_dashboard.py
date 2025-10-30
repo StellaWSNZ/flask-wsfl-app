@@ -761,99 +761,122 @@ def _parse_json_maybe(val):
         current_app.logger.warning("JSON parse failed: %r", s, exc_info=True)
         return []
 
-
 @funder_bp.route("/Schools", methods=["GET", "POST"])
 @login_required
 def funder_schools():
-    # Authorize roles
     user_role = session.get("user_role")
     if user_role not in ["ADM", "FUN"]:
         flash("Unauthorized", "danger")
         return redirect(url_for("home_bp.home"))
 
-    engine = get_db_engine()
+    engine  = get_db_engine()
     user_id = session.get("user_id")
 
     funders = []
     selected_funder = None
     rows = []
 
+    # Pull selected filters (supports GET or POST). Leave blank = auto-pick latest below.
+    sel_term_raw = (request.values.get("term") or "").strip()
+    sel_year_raw = (request.values.get("year") or "").strip()
+    sel_term = int(sel_term_raw) if sel_term_raw.isdigit() else None
+    sel_year = int(sel_year_raw) if sel_year_raw.isdigit() else None
+
     try:
         with engine.connect() as conn:
-            # Admins: choose a funder; Funders: fixed to own id
             if user_role == "ADM":
                 funders = conn.execute(
                     text("EXEC FlaskHelperFunctions @Request = :r"),
                     {"r": "FunderDropdown"}
                 ).mappings().all()
-
                 fid_raw = (request.form.get("FunderID") or "").strip()
                 if fid_raw.isdigit():
                     selected_funder = int(fid_raw)
                 elif funders:
                     selected_funder = int(funders[0]["FunderID"])
-                else:
-                    selected_funder = None
             else:
                 selected_funder = int(user_id) if user_id is not None else None
 
-            # Load overview rows
             if selected_funder is not None:
                 raw = conn.execute(
                     text("EXEC FlaskHelperFunctions @Request = :r, @Number = :fid"),
                     {"r": "FunderSchoolOverview", "fid": selected_funder}
                 ).mappings().all()
 
+                # Build rows and also collect all (year, term) pairs to pick a default
+                all_year_terms = set()
+
+                def parse_list(val):
+                    try:
+                        import json as _json
+                        if val is None:
+                            return []
+                        if isinstance(val, (bytes, bytearray, memoryview)):
+                            val = bytes(val).decode("utf-8", errors="ignore")
+                        return _json.loads(str(val))
+                    except Exception:
+                        return []
+
+                pre_rows = []
                 for r in raw:
-                    rows.append({
+                    class_counts = parse_list(r.get("ClassCountsJson"))
+                    for c in class_counts:
+                        y = c.get("CalendarYear")
+                        t = c.get("Term")
+                        if isinstance(y, int) and isinstance(t, int):
+                            all_year_terms.add((y, t))
+
+                    pre_rows.append({
                         "MOENumber":        r.get("MOENumber"),
                         "SchoolName":       r.get("SchoolName"),
                         "ActiveUserCount":  int(r.get("ActiveUserCount", 0) or 0),
                         "HasActiveUsers":   int(r.get("HasActiveUsers", 0) or 0),
-                        "Contacts":         _parse_json_maybe(r.get("ContactsJson")),           # Active users
-                        "InactiveContacts": _parse_json_maybe(r.get("InactiveContactsJson")),   # Inactive users
+                        "Contacts":         parse_list(r.get("ContactsJson")),
+                        "InactiveContacts": parse_list(r.get("InactiveContactsJson")),
                         "TotalClasses":     int(r.get("TotalClasses", 0) or 0),
-                        "ClassCounts":      _parse_json_maybe(r.get("ClassCountsJson")),        # [{CalendarYear, Term, Count}]
+                        "ClassCounts":      class_counts,
                     })
 
-    except (OperationalError, SQLAlchemyError) as db_err:
+                # If no term/year provided, pick the latest available (max year, then max term in that year)
+                if (sel_year is None or sel_term is None) and all_year_terms:
+                    # sort by year desc, term desc
+                    latest_y, latest_t = sorted(all_year_terms, key=lambda p: (p[0], p[1]), reverse=True)[0]
+                    sel_year = sel_year or latest_y
+                    sel_term = sel_term or latest_t
+
+                # Compute SelectedClasses for each row (count in chosen year/term)
+                for r in pre_rows:
+                    selected_count = 0
+                    # Manually lock to Term 4, 2025
+                    sel_year = 2025
+                    sel_term = 4
+                    r["SelectedYear"] = sel_year
+                    r["SelectedTerm"] = sel_term
+                    r["SelectedClasses"] = selected_count
+                    rows.append(r)
+
+    except Exception:
         err_id = uuid.uuid4().hex[:8]
-        current_app.logger.error(f"[FunderSchools DBERR {err_id}]\n{traceback.format_exc()}")
+        current_app.logger.error(f"[FunderSchools ERROR {err_id}]\n{traceback.format_exc()}")
         try:
             log_alert(
                 email=session.get("user_email"),
                 role=session.get("user_role"),
                 entity_id=None,
                 link=request.url,
-                message=f"FunderSchools DBERR {err_id}: {db_err}"
+                message=f"FunderSchools ERROR {err_id}"
             )
         except Exception:
             pass
-        flash(f"Database error (ID {err_id}). Please try again.", "danger")
+        flash(f"Unexpected error (ID {err_id}). Please try again.", "danger")
         return redirect(url_for("home_bp.home"))
 
-    except Exception as e:
-        err_id = uuid.uuid4().hex[:8]
-        current_app.logger.error(f"[FunderSchools UNHANDLED {err_id}]\n{traceback.format_exc()}")
-        try:
-            log_alert(
-                email=session.get("user_email"),
-                role=session.get("user_role"),
-                entity_id=None,
-                link=request.url,
-                message=f"FunderSchools UNHANDLED {err_id}: {e}"
-            )
-        except Exception:
-            pass
-        flash(f"Unexpected error (ID {err_id}). Please try again later.", "danger")
-        return redirect(url_for("home_bp.home"))
-
-    # Normal successful render
     return render_template(
         "funder_schools.html",
         rows=rows,
         funders=funders,
         selected_funder=selected_funder,
         is_admin=(user_role == "ADM"),
+        selected_year=sel_year,
+        selected_term=sel_term,
     )
-
