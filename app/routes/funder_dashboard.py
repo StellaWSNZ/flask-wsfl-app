@@ -723,3 +723,137 @@ def admin_dashboard():
         )
         current_app.logger.exception("🔴 AdminDashboard failed")
         return "Internal Server Error", 500
+
+
+import uuid
+import traceback
+import time
+from flask import current_app, request, render_template, redirect, url_for, flash, abort, session
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError, OperationalError
+from werkzeug.exceptions import HTTPException
+from app.utils.database import get_db_engine, log_alert  # if you have log_alert, great; else comment out
+from app.routes.auth import login_required
+# add this import near the top of the file
+import json
+
+
+def _parse_json_maybe(val):
+    """Return a Python list from a SQL NVARCHAR/VARBINARY JSON array, or [] on failure."""
+    if isinstance(val, list):
+        return val
+    if val is None:
+        return []
+    # handle bytes/memoryview
+    if isinstance(val, (bytes, bytearray, memoryview)):
+        try:
+            val = bytes(val).decode("utf-8")
+        except Exception:
+            return []
+    else:
+        val = str(val)
+    s = val.strip()
+    if not s or s.lower() == "null":
+        return []
+    try:
+        return json.loads(s)
+    except Exception:
+        current_app.logger.warning("JSON parse failed: %r", s, exc_info=True)
+        return []
+
+
+@funder_bp.route("/Schools", methods=["GET", "POST"])
+@login_required
+def funder_schools():
+    # Authorize roles
+    user_role = session.get("user_role")
+    if user_role not in ["ADM", "FUN"]:
+        flash("Unauthorized", "danger")
+        return redirect(url_for("home_bp.home"))
+
+    engine = get_db_engine()
+    user_id = session.get("user_id")
+
+    funders = []
+    selected_funder = None
+    rows = []
+
+    try:
+        with engine.connect() as conn:
+            # Admins: choose a funder; Funders: fixed to own id
+            if user_role == "ADM":
+                funders = conn.execute(
+                    text("EXEC FlaskHelperFunctions @Request = :r"),
+                    {"r": "FunderDropdown"}
+                ).mappings().all()
+
+                fid_raw = (request.form.get("FunderID") or "").strip()
+                if fid_raw.isdigit():
+                    selected_funder = int(fid_raw)
+                elif funders:
+                    selected_funder = int(funders[0]["FunderID"])
+                else:
+                    selected_funder = None
+            else:
+                selected_funder = int(user_id) if user_id is not None else None
+
+            # Load overview rows
+            if selected_funder is not None:
+                raw = conn.execute(
+                    text("EXEC FlaskHelperFunctions @Request = :r, @Number = :fid"),
+                    {"r": "FunderSchoolOverview", "fid": selected_funder}
+                ).mappings().all()
+
+                for r in raw:
+                    rows.append({
+                        "MOENumber":        r.get("MOENumber"),
+                        "SchoolName":       r.get("SchoolName"),
+                        "ActiveUserCount":  int(r.get("ActiveUserCount", 0) or 0),
+                        "HasActiveUsers":   int(r.get("HasActiveUsers", 0) or 0),
+                        "Contacts":         _parse_json_maybe(r.get("ContactsJson")),           # Active users
+                        "InactiveContacts": _parse_json_maybe(r.get("InactiveContactsJson")),   # Inactive users
+                        "TotalClasses":     int(r.get("TotalClasses", 0) or 0),
+                        "ClassCounts":      _parse_json_maybe(r.get("ClassCountsJson")),        # [{CalendarYear, Term, Count}]
+                    })
+
+    except (OperationalError, SQLAlchemyError) as db_err:
+        err_id = uuid.uuid4().hex[:8]
+        current_app.logger.error(f"[FunderSchools DBERR {err_id}]\n{traceback.format_exc()}")
+        try:
+            log_alert(
+                email=session.get("user_email"),
+                role=session.get("user_role"),
+                entity_id=None,
+                link=request.url,
+                message=f"FunderSchools DBERR {err_id}: {db_err}"
+            )
+        except Exception:
+            pass
+        flash(f"Database error (ID {err_id}). Please try again.", "danger")
+        return redirect(url_for("home_bp.home"))
+
+    except Exception as e:
+        err_id = uuid.uuid4().hex[:8]
+        current_app.logger.error(f"[FunderSchools UNHANDLED {err_id}]\n{traceback.format_exc()}")
+        try:
+            log_alert(
+                email=session.get("user_email"),
+                role=session.get("user_role"),
+                entity_id=None,
+                link=request.url,
+                message=f"FunderSchools UNHANDLED {err_id}: {e}"
+            )
+        except Exception:
+            pass
+        flash(f"Unexpected error (ID {err_id}). Please try again later.", "danger")
+        return redirect(url_for("home_bp.home"))
+
+    # Normal successful render
+    return render_template(
+        "funder_schools.html",
+        rows=rows,
+        funders=funders,
+        selected_funder=selected_funder,
+        is_admin=(user_role == "ADM"),
+    )
+
