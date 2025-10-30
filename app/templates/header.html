@@ -187,6 +187,8 @@
               >Funder Tools</a>
               <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="funToolsToggle">
                 {% if session['user_admin'] == 1 %}
+                <li><a class="dropdown-item py-2" href="{{ url_for('funder_bp.funder_schools') }}">Overview by School</a></li>
+
                 <li><a class="dropdown-item py-2" href="{{ url_for('funder_bp.funder_dashboard') }}">Overview</a></li>
                 {% endif %}
                 <li><a class="dropdown-item py-2" href="{{ url_for('report_bp.new_reports') }}">Reporting</a></li>
@@ -267,6 +269,7 @@
                 <li><h6 class="dropdown-header">Reports &amp; Dashboards</h6></li>
                 <li><a class="dropdown-item py-2" href="{{ url_for('report_bp.new_reports') }}">Reporting</a></li>
                 <li><a class="dropdown-item py-2" href="{{ url_for('funder_bp.funder_dashboard') }}">Overview by Entity</a></li>
+                <li><a class="dropdown-item py-2" href="{{ url_for('funder_bp.funder_schools') }}">Overview by School</a></li>
                 <li><a class="dropdown-item py-2" href="{{ url_for('funder_bp.admin_dashboard') }}">Overview</a></li>
 
                 <li><hr class="dropdown-divider" /></li>
