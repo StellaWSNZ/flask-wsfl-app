@@ -212,6 +212,7 @@ def helper():
 
             elif req == "ProvidersByFunderID":
                 # Returns providers for a given funder
+                
                 result = conn.execute(
                     text("EXEC FlaskHelperFunctions @Request = :req, @Number = :num"),
                     {"req": "ProvidersByFunderID", "num": int(number)}
@@ -221,12 +222,13 @@ def helper():
                     pid  = (
                         getattr(row, "ProviderID", None)
                         if hasattr(row, "ProviderID") else
-                        getattr(row, "ID", None)
+                        getattr(row, "id", None)
                     )
                     desc = getattr(row, "Description", getattr(row, "Name", None))
                     if pid is not None and desc:
                         out.append({"id": int(pid), "name": desc})
-
+                    print(out)
+                    
             else:
                 return jsonify([]), 400
 
