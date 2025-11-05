@@ -13,28 +13,32 @@ from dotenv import load_dotenv
 def get_db_engine():
     load_dotenv()
 
-    params = urllib.parse.quote_plus(
-        f"DRIVER={{ODBC Driver 18 for SQL Server}};"
-        f"SERVER=heimatau.database.windows.net,1433;"
-        f"DATABASE=WSFL;"
+    odbc = (
+        "DRIVER={ODBC Driver 18 for SQL Server};"
+        "SERVER=heimatau.database.windows.net,1433;"
+        "DATABASE=WSFL;"
         f"UID={os.getenv('WSNZDBUSER')};"
         f"PWD={os.getenv('WSNZDBPASS')};"
         "Encrypt=yes;"
         "TrustServerCertificate=no;"
         "MARS_Connection=Yes;"
         "Login Timeout=30;"
+        "Connection Timeout=30;"
+        "ApplicationIntent=ReadWrite;"
+        "MultiSubnetFailover=Yes;"
     )
+    params = urllib.parse.quote_plus(odbc)
 
+    # NOTE: avoid connect_args timeout here; rely on ODBC timeouts above
     engine = create_engine(
         f"mssql+pyodbc:///?odbc_connect={params}",
-        pool_pre_ping=True,      # validate before use (prevents stale connections)
-        pool_recycle=1800,       # recycle every 30 min to avoid idle TCP kills
-        pool_size=5,             # fine-tune for your app load
-        max_overflow=10,         # extra connections for bursts
-        connect_args={"timeout": 30},  # statement timeout in seconds
-        future=True
+        pool_pre_ping=True,
+        pool_recycle=300,     # recycle idle conns before Azure drops them
+        pool_size=5,
+        max_overflow=10,
+        pool_timeout=30,
+        future=True,
     )
-
     return engine
     
 # --- helpers (you can move this to a shared utils module) ------------------
