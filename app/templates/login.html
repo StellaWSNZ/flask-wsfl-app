@@ -33,8 +33,8 @@
     <form
       method="POST"
       action="{{ url_for('auth_bp.login') }}"
-      class="p-4 rounded shadow"
-      style="width: 300px; background-color: rgba(255, 255, 255, 0.9)"
+      class="login-card p-4 rounded shadow"
+      style="background-color: rgba(255, 255, 255, 0.92)"
     >
       <!-- ✅ Preserve next URL -->
       <input
@@ -48,7 +48,7 @@
       {% with messages = get_flashed_messages(with_categories=True) %} {% if
       messages %} {% for category, msg in messages %}
       <div
-        class="alert alert-{{ category }} alert-dismissible fade show"
+        class="alert alert-{{ category }} alert-dismissible fade show mb-3"
         role="alert"
       >
         {{ msg }}
@@ -69,6 +69,8 @@
           class="form-control"
           required
           autofocus
+          autocomplete="username"
+          inputmode="email"
         />
       </div>
 
@@ -79,14 +81,29 @@
           placeholder="Password"
           class="form-control"
           required
+          autocomplete="current-password"
         />
       </div>
 
-      <button type="submit" class="btn btn-primary w-100">Login</button>
-      <div class="d-flex justify-content-between mt-3">
-        <a href="{{ url_for('auth_bp.forgot_password') }}" class="small-link"
-          >Forgot password?</a
-        >
+      <button type="submit" class="btn btn-primary w-100 mb-3">Login</button>
+
+      <!-- ✅ Help alert section -->
+      <div class="alert alert-info py-3 small text-center mb-0" role="alert">
+        <p class="mb-2">Need help logging in?</p>
+        <div class="d-flex justify-content-center gap-2 flex-wrap">
+          <a
+            href="{{ url_for('auth_bp.forgot_password') }}"
+            class="btn btn-sm btn-outline-primary px-3"
+          >
+            Reset Password
+          </a>
+          <a
+            href="mailto:dbadmin@watersafety.org.nz"
+            class="btn btn-sm btn-outline-primary px-3"
+          >
+            Email Support
+          </a>
+        </div>
       </div>
     </form>
 
@@ -123,6 +140,41 @@
       }
       .small-link:hover {
         text-decoration: underline;
+      }
+      .login-card {
+        width: min(380px, 92vw);
+        border-radius: 12px !important;
+        padding: clamp(16px, 3.5vw, 28px) !important;
+        box-shadow: 0 6px 24px rgba(0, 0, 0, 0.15) !important;
+      }
+
+      .login-bg {
+        min-height: 100vh;
+        background-image: url("/static/CoverNoPicturesNoTextNoLogo.png");
+        background-size: cover;
+        background-position: bottom center;
+      }
+
+      .alert.small,
+      .alert .small {
+        font-size: 0.875rem;
+      }
+
+      .small-link {
+        font-size: 0.875rem;
+        color: #0d6efd;
+        text-decoration: none;
+      }
+      .small-link:hover {
+        text-decoration: underline;
+      }
+
+      .logo-top-left {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        width: 120px;
+        height: auto;
       }
     </style>
   </body>

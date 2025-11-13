@@ -228,9 +228,9 @@
   function setButtonBusy(btn, busy, idleLabel = "Create & Add"){
     if (!btn) return;
     if (busy) {
-      if (btn.disabled) return;              // already busy
+      if (btn.disabled) return;
       btn.disabled = true;
-      btn.dataset.prevHtml = btn.innerHTML;  // remember original
+      btn.dataset.prevHtml = btn.innerHTML;
       btn.innerHTML =
         '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Working…';
     } else {
@@ -244,7 +244,7 @@
   let pendingDeleteNSN = null;
   let pendingAddNSN    = null;
   let _studentsCache   = [];
-  let _reopenAddAfterYearLevel = false; // <— controls re-opening Add modal
+  let _reopenAddAfterYearLevel = false;
 
   /* Tooltips */
   function initTooltips(scope=document){
@@ -254,36 +254,30 @@
 
   /* Alerts inside modals */
   function showModalAlert(modalId, type, message, opts = {}) {
-  const modal = document.querySelector(modalId); 
-  if (!modal) return; 
+    const modal = document.querySelector(modalId);
+    if (!modal) return;
 
-  const host =
-    modalId === "#addStudentModal"    ? modal.querySelector("#add-modal-alert-host") :
-    modalId === "#editStudentModal"   ? modal.querySelector("#edit-modal-alert-host") :
-    modalId === "#deleteStudentModal" ? modal.querySelector("#delete-modal-alert-host") :
-    modalId === "#yearLevelModal"     ? modal.querySelector("#yearlevel-modal-alert-host") :
-    null;
-  if (!host) return;
+    const host =
+      modalId === "#addStudentModal"    ? modal.querySelector("#add-modal-alert-host") :
+      modalId === "#editStudentModal"   ? modal.querySelector("#edit-modal-alert-host") :
+      modalId === "#deleteStudentModal" ? modal.querySelector("#delete-modal-alert-host") :
+      modalId === "#yearLevelModal"     ? modal.querySelector("#yearlevel-modal-alert-host") :
+      null;
+    if (!host) return;
 
-  // Destructure options with sensible defaults
-  const {
-    timeout = (type === "success" || type === "info" ? 4000 : 0),
-    scroll  = true,
-  } = opts;
-
-  const id = "al_" + Math.random().toString(36).slice(2, 9);
-  host.insertAdjacentHTML(
-    "beforeend",
-    `<div id="${id}" class="alert alert-${type} alert-dismissible fade show" role="alert">
-       ${escapeHtml(message)}
-       <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-     </div>`
-  );
-
-  const el = document.getElementById(id);
-  if (scroll && el) el.scrollIntoView({ behavior: "smooth", block: "nearest" });
-  if (timeout > 0) setTimeout(() => bootstrap.Alert.getOrCreateInstance(el)?.close(), timeout);
-}
+    const { timeout = (type === "success" || type === "info" ? 4000 : 0), scroll  = true } = opts;
+    const id = "al_" + Math.random().toString(36).slice(2, 9);
+    host.insertAdjacentHTML(
+      "beforeend",
+      `<div id="${id}" class="alert alert-${type} alert-dismissible fade show" role="alert">
+         ${escapeHtml(message)}
+         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+       </div>`
+    );
+    const el = document.getElementById(id);
+    if (scroll && el) el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    if (timeout > 0) setTimeout(() => bootstrap.Alert.getOrCreateInstance(el)?.close(), timeout);
+  }
 
   /* Re-run the search (only if the user has a query typed) */
   function rerunSearchIfRelevant(){
@@ -325,7 +319,13 @@
     $sortField.addEventListener("change", renderStudentsSorted);
     $sortDir.addEventListener("change", renderStudentsSorted);
 
+    // Search triggers
     document.getElementById("search-btn").addEventListener("click", doSearch);
+    const $searchQ = document.getElementById("search-q");
+    $searchQ.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); doSearch(); }
+    });
+
     document.getElementById("create-and-add-btn").addEventListener("click", createAndAdd);
     document.getElementById("edit-student-form").addEventListener("submit", saveEdit);
     document.getElementById("confirm-delete-btn").addEventListener("click", confirmDelete);
@@ -437,8 +437,7 @@
               ? `<button class=\"btn btn-sm btn-outline-danger\" onclick=\"openDelete('${s.NSN}')\">Delete</button>`
               : `<button class=\"btn btn-sm btn-outline-danger\" disabled
                    data-bs-toggle=\"tooltip\"
-                   title=\"Cannot delete: this is the student's only class for this year/term and they have activity in the term window.\">Delete</button>`
-          }
+                   title=\"Cannot delete: this is the student's only class for this year/term and they have activity in the term window.\">Delete</button>`}
         </td>
       </tr>`;
   }
@@ -491,7 +490,7 @@
       });
       if (!resp.ok) { showModalAlert("#deleteStudentModal","danger","Failed to remove student from class."); return; }
       await loadStudents();
-      rerunSearchIfRelevant();  // refresh search list after delete
+      rerunSearchIfRelevant();
       showModalAlert("#deleteStudentModal","success","Student removed from class.",{timeout:1500});
       setTimeout(()=> bootstrap.Modal.getInstance(document.getElementById("deleteStudentModal"))?.hide(), 600);
       pendingDeleteNSN = null;
@@ -500,24 +499,55 @@
     }
   }
 
-  /* Search & Add Existing (opens year-level modal, hides Add modal) */
+  /* Search & Add Existing (with Enter key + resilient JSON handling) */
   async function doSearch(){
-    const q = document.getElementById("search-q").value.trim();
+    const $results = document.getElementById("search-results");
+    const q = (document.getElementById("search-q").value || "").trim();
     const moe = document.getElementById("school-select").value;
     const cid = document.getElementById("class-select").value;
-    const $results = document.getElementById("search-results");
-    $results.innerHTML = "Searching...";
+
+    if (!cid) {
+      showModalAlert("#addStudentModal","warning","Pick a class first.");
+      return;
+    }
+    if (!q) {
+      showModalAlert("#addStudentModal","info","Type an NSN or name to search.");
+      return;
+    }
+
+    $results.innerHTML = `
+      <div class="d-flex align-items-center gap-2 text-muted">
+        <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+        <span>Searching…</span>
+      </div>`;
 
     const url = `${URL_SEARCH_STUDENTS}?${new URLSearchParams({q, moe, class_id: cid})}`;
     try{
-      const r = await fetch(url, { credentials:"same-origin" });
-      if (!r.ok) { $results.innerHTML = ""; showModalAlert("#addStudentModal","danger","Search failed."); return; }
+      const r = await fetch(url, {
+        credentials:"same-origin",
+        headers: { "Accept": "application/json" } // nudge Flask to return JSON
+      });
+
+      const ct = (r.headers.get("Content-Type") || "").toLowerCase();
+      if (!ct.includes("application/json")) {
+        $results.innerHTML = "";
+        showModalAlert("#addStudentModal","danger","Your session may have expired. Please refresh and sign in again.");
+        return;
+        }
+
+      if (!r.ok) {
+        $results.innerHTML = "";
+        showModalAlert("#addStudentModal","danger",`Search failed (HTTP ${r.status}).`);
+        return;
+      }
+
       const rows = await r.json();
-      if (!rows.length){
+      if (!Array.isArray(rows) || rows.length === 0) {
         $results.innerHTML = '<div class="text-muted">No results.</div>';
         showModalAlert("#addStudentModal","warning","No students matched your search.",{timeout:2500, scroll:false});
         return;
       }
+
       showModalAlert("#addStudentModal","info",`Found ${rows.length} result(s).`,{timeout:2000, scroll:false});
       $results.innerHTML = `
         <table class="table table-sm align-middle">
@@ -537,9 +567,10 @@
               </tr>`).join("")}
           </tbody>
         </table>`;
-    } catch {
+    } catch (err){
+      console.error("Search error:", err);
       $results.innerHTML = "";
-      showModalAlert("#addStudentModal","danger","Network error during search.");
+      showModalAlert("#addStudentModal","danger","Network/parse error during search.");
     }
   }
 
@@ -553,7 +584,7 @@
     const addWasOpen = addEl.classList.contains("show");
     if (addWasOpen) {
       bootstrap.Modal.getInstance(addEl)?.hide();
-      _reopenAddAfterYearLevel = true;   // tell hidden handler to reopen Add modal
+      _reopenAddAfterYearLevel = true;
     } else {
       _reopenAddAfterYearLevel = false;
     }
@@ -589,12 +620,10 @@
         return;
       }
       await loadStudents();
-      rerunSearchIfRelevant();  // refresh search list after add
+      rerunSearchIfRelevant();
 
-      // close year-level, then the hidden handler will re-open Add modal if needed
       bootstrap.Modal.getInstance(document.getElementById("yearLevelModal"))?.hide();
 
-      // show success inside Add modal after it re-opens
       setTimeout(() => {
         if (_reopenAddAfterYearLevel) {
           showModalAlert("#addStudentModal","success","Student added to class.",{timeout:1500});
@@ -610,7 +639,7 @@
   /* Create & Add — disable button on click, strict success check + friendly errors */
   async function createAndAdd(){
     const btn = document.getElementById("create-and-add-btn");
-    if (btn?.disabled) return; // guard against double-clicks
+    if (btn?.disabled) return;
 
     if (!currentClassId){
       showModalAlert("#addStudentModal","warning","Pick a class first.");
@@ -648,7 +677,7 @@
       }
     };
 
-    setButtonBusy(btn, true);   // 🔒 disable + spinner
+    setButtonBusy(btn, true);
 
     try{
       const resp = await fetch(URL_CREATE_AND_ADD, {
@@ -674,14 +703,14 @@
         const el = document.getElementById(id); if (el) el.value = "";
       });
       await loadStudents();
-      rerunSearchIfRelevant();  // refresh search list after create+add
+      rerunSearchIfRelevant();
       showModalAlert("#addStudentModal","success","Student created and added to class.");
 
     } catch (e){
       console.error("Network/JS error in createAndAdd:", e);
       showModalAlert("#addStudentModal","danger","Network error while creating/adding student.");
     } finally {
-      setButtonBusy(btn, false); // 🔓 always re-enable
+      setButtonBusy(btn, false);
     }
   }
 

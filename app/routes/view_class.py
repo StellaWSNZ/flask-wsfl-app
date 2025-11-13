@@ -2146,7 +2146,7 @@ def apply_upload():
                 DECLARE @j NVARCHAR(MAX) = ?,
                         @cid INT         = ?,
                         @dry BIT         = ?;
-                EXEC dbo.FlaskAchievementUpload
+                EXEC  FlaskAchievementUpload
                      @ClassID=@cid, @JsonData=@j, @DryRun=@dry;
                 """,
                 (json_str, class_id, dry_run)
@@ -2437,7 +2437,7 @@ def search_students():
             print("➡️  Executing stored proc FlaskSearchStudentsForSchool_AllTime…")
             rows = conn.execute(
                 text(
-                    "EXEC dbo.FlaskSearchStudentsForSchool_AllTime "
+                    "EXEC  FlaskSearchStudentsForSchool_AllTime "
                     "@MOENumber=:moe, @Query=:q, @ClassID=:cid, @Top=:top"
                 ),
                 {"moe": moe, "q": q, "cid": class_id, "top": 500}
@@ -2617,7 +2617,7 @@ def create_student_and_add():
             conn.exec_driver_sql("""
                 SET NOCOUNT ON;
                 DECLARE @NSN BIGINT = ?;
-                EXEC dbo.FlaskCreateStudentAddToClassAndSeed
+                EXEC  FlaskCreateStudentAddToClassAndSeed
                      @NSN=@NSN OUTPUT,
                      @FirstName=?, @LastName=?, @PreferredName=?, @DateOfBirth=?, @EthnicityID=?,
                      @ClassID=?, @CalendarYear=?, @Term=?, @YearLevelID=?,
@@ -2692,3 +2692,106 @@ def ethnicities():
     with engine.begin() as conn:
         rows = conn.execute(text("EXEC FlaskHelperFunctions @Request='EthnicityDropdown'")).fetchall()
     return jsonify([{"id": r._mapping["EthnicityID"], "desc": r._mapping["Description"]} for r in rows])
+# view_class.py (add imports/lines only where shown)
+from flask import Blueprint, render_template, request, jsonify
+from sqlalchemy import text
+
+
+
+@class_bp.route("/term-manager", methods=["GET", "POST"])
+def term_manager():
+    engine = get_db_engine()
+    years, schools, classes = [], [], []
+
+    selected_year = request.values.get("year", type=int)
+    selected_term = request.values.get("term", type=int)
+    selected_moe  = request.values.get("moe",  type=int)
+
+    try:
+        # 1) Years dropdown (SP)
+        with engine.begin() as conn:
+            years = [r[0] for r in conn.execute(text("EXEC  WSFL_ListYearsWithClasses")).all()]
+
+        # 2) If year & term chosen, load schools (SP)
+        if request.method == "POST" and selected_year and selected_term in (1,2,3,4):
+            with engine.begin() as conn:
+                schools = conn.execute(
+                    text("EXEC  WSFL_ListSchoolsByYearTerm @CalendarYear=:yr, @Term=:t"),
+                    {"yr": selected_year, "t": selected_term}
+                ).mappings().all()
+
+                # 3) If a school chosen, load its classes (SP)
+                if selected_moe:
+                    # Use the SP you created that supports Term filtering.
+                    classes = conn.execute(
+                        text("""
+                            EXEC  WSFL_ListClassesBySchoolYearTerm
+                                 @MOENumber=:moe,
+                                 @CalendarYear=:yr,
+                                 @Term=:t
+                        """),
+                        {"moe": selected_moe, "yr": selected_year, "t": selected_term}
+                    ).mappings().all()
+
+    except Exception as e:
+        traceback.print_exc()
+        return render_template("error.html",
+                               message="Error loading term manager.",
+                               details=str(e)), 500
+
+    return render_template(
+        "term_manager.html",
+        years=years,
+        schools=schools,
+        classes=classes,
+        selected_year=selected_year,
+        selected_term=selected_term,
+        selected_moe=selected_moe,
+    )
+
+@class_bp.route("/api/term-manager/save", methods=["POST"])
+def term_manager_save():
+    from sqlalchemy import text
+    from utils.DAT_database import get_db_engine
+    import traceback
+
+    engine = get_db_engine()
+    try:
+        payload = request.get_json(force=True) or {}
+        changes = payload.get("changes") or []
+        if not changes:
+            return jsonify(ok=True, results=[])
+
+        results = []
+        with engine.begin() as conn:
+            for row in changes:
+                class_id = int(row.get("class_id") or 0)
+                new_term = int(row.get("new_term") or 0)
+                if not class_id or new_term not in (1, 2, 3, 4):
+                    results.append({
+                        "class_id": class_id,
+                        "ok": False,
+                        "error": "Invalid class_id or term"
+                    })
+                    continue
+
+                try:
+                    # get rows as RowMapping...
+                    rows = conn.execute(
+                        text("EXEC dbo.WSFL_UpdateClassTermCascade @ClassID=:cid, @NewTerm=:t"),
+                        {"cid": class_id, "t": new_term}
+                    ).mappings().all()
+
+                    # ...convert RowMapping -> dict for JSON
+                    data = [dict(r) for r in rows] if rows else []
+                    results.append({"class_id": class_id, "ok": True, "result": data})
+
+                except Exception as e:
+                    traceback.print_exc()
+                    results.append({"class_id": class_id, "ok": False, "error": str(e)})
+
+        return jsonify(ok=all(r.get("ok") for r in results), results=results)
+
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify(ok=False, error=str(e)), 500
