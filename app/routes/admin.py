@@ -5,6 +5,7 @@ from math import ceil
 import traceback
 import bcrypt
 import pandas as pd
+import math
 import sqlalchemy.sql
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
@@ -1419,15 +1420,34 @@ def admin_user_entities():
 @admin_bp.route("/get_users")
 @login_required
 def get_users():
+    # Only admins can hit this
     if session.get("user_role") != "ADM":
         abort(403)
 
     try:
         engine = get_db_engine()
+
         with engine.begin() as conn:
-            # If you prefer not to depend on pandas here, switch to .mappings().all()
+            # Pull from your stored proc / query
             df = pd.read_sql("EXEC FlaskGetAllUsers", conn)
-        return jsonify(df.to_dict(orient="records"))
+
+        # 🔹 Replace NaN/NaT with None so JSON is valid
+        df = df.where(pd.notna(df), None)
+
+        # Optional: if you don't care about ID here, you can drop it:
+        # if "ID" in df.columns:
+        #     df = df.drop(columns=["ID"])
+
+        records = df.to_dict(orient="records")
+
+        # Extra safety: normalise any stray float NaN/Inf
+        for row in records:
+            for k, v in row.items():
+                if isinstance(v, float):
+                    if math.isnan(v) or math.isinf(v):
+                        row[k] = None
+
+        return jsonify(records), 200
 
     except Exception as e:
         current_app.logger.exception("❌ get_users failed")
@@ -1440,7 +1460,9 @@ def get_users():
                 message=f"get_users DB error: {str(e)[:1800]}",
             )
         except Exception as log_err:
-            current_app.logger.error(f"⚠️ Failed to log alert (get_users): {log_err}")
+            current_app.logger.error(
+                f"⚠️ Failed to log alert (get_users): {log_err}"
+            )
         return jsonify({"error": "Failed to load users"}), 500
 @admin_bp.route("/update_user_role_entity", methods=["POST"])
 @login_required

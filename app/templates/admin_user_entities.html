@@ -199,22 +199,39 @@
     const cardsHost = document.getElementById("userCards");
     const filterControls = document.getElementById("filterControls");
 
+    // --- initial load of users ---
     fetch("/get_users")
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error("GET /get_users failed with status " + res.status);
+        }
+        return res.json();
+      })
       .then((data) => {
-        allUsers = data;
+        allUsers = data || [];
         populateRoleFilter(allUsers);
         filterControls.style.display = "flex";
-        applyFilters();
+        applyFilters(); // this will call renderViews() and hide the spinner
+      })
+      .catch((err) => {
+        console.error("Error loading users:", err);
+        loading.style.display = "none";
+        emptyMsg.style.display = "block";
+        emptyMsg.textContent =
+          "There was an error loading users. Please try again later.";
+        tableWrapper.style.display = "none";
+        cardsWrapper.style.display = "none";
       });
 
     function renderViews(users) {
-      // shared loading/empty handling
       const hasData = users.length > 0;
+
       loading.style.display = "none";
       emptyMsg.style.display = hasData ? "none" : "block";
+      if (!hasData) {
+        emptyMsg.textContent = "No users match your filters.";
+      }
 
-      // render each view
       renderTable(users);
       renderCards(users);
 
@@ -228,17 +245,17 @@
       users.forEach((u) => {
         const tr = document.createElement("tr");
         tr.innerHTML = `
-        <td>${u.FirstName} ${u.Surname}</td>
-        <td>${u.Email}</td>
-        <td>${u.DisplayRole || "-"}</td>
-        <td>${u.EntityName || "-"}</td>
-        <td>
-          <button class="btn btn-sm btn-primary" onclick="editUser('${
-            u.Email
-          }')" title="Edit">
-            <i class="bi bi-pencil-fill"></i>
-          </button>
-        </td>`;
+          <td>${u.FirstName} ${u.Surname}</td>
+          <td>${u.Email}</td>
+          <td>${u.DisplayRole || "-"}</td>
+          <td>${u.EntityName || "-"}</td>
+          <td>
+            <button class="btn btn-sm btn-primary" onclick="editUser('${
+              u.Email
+            }')" title="Edit">
+              <i class="bi bi-pencil-fill"></i>
+            </button>
+          </td>`;
         frag.appendChild(tr);
       });
       tbody.appendChild(frag);
@@ -251,32 +268,31 @@
       users.forEach((u) => {
         const div = document.createElement("div");
         div.className = "user-card p-3 mb-2 bg-white rounded shadow-sm";
-
         div.innerHTML = `
-      <div class="fw-semibold mb-1">${u.FirstName} ${u.Surname || ""}</div>
+          <div class="fw-semibold mb-1">${u.FirstName} ${u.Surname || ""}</div>
 
-      <div class="d-flex align-items-center mb-2">
-        <span class="text-muted me-1 small">Email:</span>
-        <span class="truncate-email flex-grow-1">${u.Email}</span>
-      </div>
+          <div class="d-flex align-items-center mb-2">
+            <span class="text-muted me-1 small">Email:</span>
+            <span class="truncate-email flex-grow-1">${u.Email}</span>
+          </div>
 
-      <div class="d-flex flex-wrap gap-2 mb-2">
-        <span class="badge rounded-pill badge-role">${
-          u.DisplayRole || "-"
-        }</span>
-        <span class="badge rounded-pill badge-entity">${
-          u.EntityName || "-"
-        }</span>
-      </div>
+          <div class="d-flex flex-wrap gap-2 mb-2">
+            <span class="badge rounded-pill badge-role">${
+              u.DisplayRole || "-"
+            }</span>
+            <span class="badge rounded-pill badge-entity">${
+              u.EntityName || "-"
+            }</span>
+          </div>
 
-      <div class="text-end">
-        <button class="btn btn-sm btn-primary" onclick="editUser('${
-          u.Email
-        }')" title="Edit">
-          <i class="bi bi-pencil-fill me-1"></i>Edit
-        </button>
-      </div>
-    `;
+          <div class="text-end">
+            <button class="btn btn-sm btn-primary" onclick="editUser('${
+              u.Email
+            }')" title="Edit">
+              <i class="bi bi-pencil-fill me-1"></i>Edit
+            </button>
+          </div>
+        `;
         frag.appendChild(div);
       });
 
@@ -294,10 +310,8 @@
     }
 
     function applyFilters() {
-      loading.style.display = "block";
+      // show spinner while filtering if you want, but at minimum hide "no data" msg
       emptyMsg.style.display = "none";
-      tableWrapper.style.display = "none";
-      cardsWrapper.style.display = "none";
 
       const term = (searchInput.value || "").toLowerCase();
       const role = roleFilter.value;
@@ -318,12 +332,16 @@
       clearTimeout(debounceTimer);
       debounceTimer = setTimeout(applyFilters, 300);
     });
+
     roleFilter.addEventListener("change", applyFilters);
+
+    // --- edit modal helpers ---
 
     window.editUser = function (email) {
       const user = allUsers.find((u) => u.Email === email);
       if (!user) return;
       currentUser = user;
+
       document.getElementById("editUserId").value = email;
       document.getElementById("editRole").value = "";
       document.getElementById(
@@ -353,6 +371,7 @@
       } else {
         adminWarningBox.style.display = "none";
       }
+
       new bootstrap.Modal(document.getElementById("editUserModal")).show();
     };
 
@@ -370,11 +389,20 @@
         FUN: "Funder Staff",
         GRP: "Group Staff",
       };
+
       currentUser.DisplayRole = displayRoleMap[selectedRole];
       const entityType = entityTypeMap[selectedRole];
       if (!entityType) return;
-      fetch(`/get_entities?entity_type=${entityType}`)
-        .then((res) => res.json())
+
+      fetch(`/get_entities?entity_type=${encodeURIComponent(entityType)}`)
+        .then((res) => {
+          if (!res.ok) {
+            throw new Error(
+              "GET /get_entities failed with status " + res.status
+            );
+          }
+          return res.json();
+        })
         .then((data) => {
           const entitySelect = document.getElementById("editEntity");
           entitySelect.innerHTML = `<option value="">Select an entity</option>`;
@@ -385,6 +413,10 @@
             opt.setAttribute("data-name", e.name);
             entitySelect.appendChild(opt);
           });
+        })
+        .catch((err) => {
+          console.error("Error loading entities:", err);
+          alert("There was an error loading entities. Please try again.");
         });
     });
 
@@ -392,16 +424,20 @@
       .getElementById("editUserForm")
       .addEventListener("submit", function (e) {
         e.preventDefault();
+
         const role = document.getElementById("editRole").value;
         const entityId = document.getElementById("editEntity").value;
         const entitySelect = document.getElementById("editEntity");
         const selectedEntityName =
-          entitySelect.options[entitySelect.selectedIndex].text;
+          entitySelect.options[entitySelect.selectedIndex]?.text || "";
+
         if (!currentUser.Email || !role || !entityId) {
           alert("All fields are required.");
           return;
         }
+
         document.getElementById("saveButton").disabled = true;
+
         fetch("/update_user_role_entity", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -420,6 +456,11 @@
             const searchParam = encodeURIComponent(searchInput.value || "");
             const roleParam = encodeURIComponent(roleFilter.value || "");
             window.location.href = `${baseUrl}&search=${searchParam}&role=${roleParam}`;
+          })
+          .catch((err) => {
+            console.error("Error saving user:", err);
+            alert("There was an error saving changes. Please try again.");
+            document.getElementById("saveButton").disabled = false;
           });
       });
   });
