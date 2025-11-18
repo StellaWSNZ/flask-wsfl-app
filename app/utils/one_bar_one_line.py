@@ -38,30 +38,51 @@ NATIONAL_KEY = "national rate (ytd)"
 
 def _canon_factory(mode: str):
     mode = (mode or "provider").strip().lower()
-    if mode not in {"provider", "funder", "school"}:
-        raise ValueError("mode must be 'provider' or 'funder' or 'school'")
+    if mode not in {"provider", "funder", "school", "national"}:
+        raise ValueError("mode must be 'provider' or 'funder' or 'school' or 'national'")
 
     # Keep YTD and LY distinct
-    rate_ytd = f"{mode} rate (ytd)"
-    rate_ly  = f"{mode} rate (ly)"
-    psc_ytd  = f"{mode} student count (ytd)"
+    if mode == "national":
+        rate_ytd = "national rate (ytd)"
+        rate_ly  = "national rate (ly)"
+        psc_ytd  = "national student count (ytd)"
+    else:
+        rate_ytd = f"{mode} rate (ytd)"
+        rate_ly  = f"{mode} rate (ly)"
+        psc_ytd  = f"{mode} student count (ytd)"
 
     alias_map = {
-        f"{mode} rate ytd": rate_ytd, f"{mode} rate (ytd)": rate_ytd,
-        f"{mode} rate ly":  rate_ly,  f"{mode} rate (ly)":  rate_ly,
+        # generic mode-specific
+        f"{mode} rate ytd": rate_ytd,
+        f"{mode} rate (ytd)": rate_ytd,
+        f"{mode} rate ly":  rate_ly,
+        f"{mode} rate (ly)":  rate_ly,
 
+        # explicit provider/funder aliases (kept for backwards compat)
         "provider rate ytd": "provider rate (ytd)",
         "provider rate ly":  "provider rate (ly)",
         "funder rate ytd":   "funder rate (ytd)",
         "funder rate ly":    "funder rate (ly)",
 
-        "wsnz target": TARGET_KEY, "target": TARGET_KEY,
-        "national rate ytd": NATIONAL_KEY, "national rate (ytd)": NATIONAL_KEY,
+        # national aliases
+        "national rate ytd": "national rate (ytd)",
+        "national rate (ytd)": "national rate (ytd)",
+        "national rate ly":  "national rate (ly)",
+        "national rate (ly)": "national rate (ly)",
 
+        # target + national canonical forms
+        "wsnz target": TARGET_KEY,
+        "target": TARGET_KEY,
+        "national rate ytd": NATIONAL_KEY,
+        "national rate (ytd)": NATIONAL_KEY,
+
+        # student counts
         "provider student count ytd": "provider student count (ytd)",
         "provider student count (ytd)": "provider student count (ytd)",
         "funder student count ytd":   "funder student count (ytd)",
         "funder student count (ytd)": "funder student count (ytd)",
+        "national student count ytd": "national student count (ytd)",
+        "national student count (ytd)": "national student count (ytd)",
     }
 
     def _canon(s: str) -> str:
@@ -147,7 +168,8 @@ def provider_portrait_with_target(
 
     # pick the bar series key + legend label
     bar_series = (bar_series or "ly").lower()
-    if mode in ("provider", "funder", "school") and bar_series == "ly":
+    if mode in ("provider", "funder", "school", "national") and bar_series == "ly":
+        # treat LY as "use latest YTD" for these modes
         bar_series = "ytd"
     BAR_KEY = RATE_LY_KEY if bar_series == "ly" else RATE_YTD_KEY
     legend_label = f"{mode.title()} Rate ({bar_series.upper()})"
@@ -247,6 +269,10 @@ def provider_portrait_with_target(
             if val is not None:
                 comp_rate[comp] = max(0.0, min(1.0, val))
 
+        # ✅ Fallback WSNZ target if missing (85%)
+        if target_val is None and comp_rate:
+            target_val = 0.85
+
         ordered_items = sorted(comp_rate.items(), key=lambda kv: kv[1], reverse=True)
         groups.append({"yg": yg, "items": ordered_items, "target": target_val})
 
@@ -332,14 +358,22 @@ def build_engine():
 def get_rates(engine, year: int, term: int, subject_id: int, mode: str) -> pd.DataFrame:
     mode = (mode or "").strip().lower()
     with engine.begin() as conn:
-        if mode == "funder":
+        if mode == "national":
+            # 200 = "National" sentinel in GetFunderNationalRatesSmart
+            sql_stmt = text("EXEC GetFunderNationalRatesSmart :year, :term, :funder_id")
+            df = pd.read_sql_query(
+                sql_stmt,
+                conn,
+                params={"year": year, "term": term, "funder_id": 200}
+            )
+        elif mode == "funder":
             sql_stmt = text("EXEC GetFunderNationalRatesSmart :year, :term, :funder_id")
             df = pd.read_sql_query(sql_stmt, conn, params={"year": year, "term": term, "funder_id": subject_id})
         elif mode == "provider":
             sql_stmt = text("EXEC GetProviderNationalRates :year, :term, :provider_id")
             df = pd.read_sql_query(sql_stmt, conn, params={"year": year, "term": term, "provider_id": subject_id})
         else:
-            raise ValueError("mode must be 'provider' or 'funder'")
+            raise ValueError("mode must be 'provider', 'funder', or 'national'")
     return df
 
 def _first_nonempty(*vals):
@@ -351,6 +385,8 @@ def _first_nonempty(*vals):
 def get_subject_name(engine, mode: str, subject_id: int, df_from_proc: Optional[pd.DataFrame] = None) -> Optional[str]:
     mode = mode.strip().lower()
 
+    if mode == "national":
+        return "National"
     # (1) Try in-DF columns
     if isinstance(df_from_proc, pd.DataFrame) and len(df_from_proc):
         col = "ProviderName" if mode == "provider" else "FunderName"
@@ -394,7 +430,7 @@ def get_subject_name(engine, mode: str, subject_id: int, df_from_proc: Optional[
 # ---------- main ----------
 def main():
     ap = argparse.ArgumentParser(description="Render portrait chart (bars vs WSNZ target).")
-    ap.add_argument("--mode", choices=["provider", "funder"], default="provider")
+    ap.add_argument("--mode", choices=["provider", "funder", "national"], default="provider")
     ap.add_argument("--subject-id", type=int, help="Provider/Funder ID (if pulling from DB)")
     ap.add_argument("--csv", type=str, help="Path to CSV file instead of DB query")
     ap.add_argument("--subject-name", type=str, default=None)
@@ -415,7 +451,12 @@ def main():
         engine = build_engine()
         df = get_rates(engine, args.year, args.term, args.subject_id, args.mode)
         print(f"📥 Loaded {len(df)} rows from DB")
-        subject_name = args.subject_name or get_subject_name(engine, args.mode, args.subject_id, df)
+
+        if args.mode == "national":
+            # No subject-id / name lookup needed
+            subject_name = args.subject_name or "National"
+        else:
+            subject_name = args.subject_name or get_subject_name(engine, args.mode, args.subject_id, df)
 
     fig = provider_portrait_with_target(
         df,

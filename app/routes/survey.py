@@ -2,12 +2,14 @@
 # Standard library
 import hashlib
 import json
+import math
 import re
 import traceback
 from collections import namedtuple
 from datetime import timezone
 from zoneinfo import ZoneInfo
-
+import pandas as pd
+from decimal import Decimal
 # Third-party
 from flask import (
     Blueprint,
@@ -16,6 +18,7 @@ from flask import (
     jsonify,
     redirect,
     render_template,
+    render_template_string,
     request,
     session,
     url_for,
@@ -1367,3 +1370,308 @@ def likert_create():
         except Exception:
             pass
         return jsonify({"ok": False, "error": "Failed to create Likert scale"}), 500
+
+# app/routes/bulk_emails.py (or inside your existing survey routes file)
+
+@survey_bp.route("/BulkEmails", methods=["GET"])
+@login_required
+def bulk_emails():
+    """Render the Bulk Emails page with entity list."""
+    role = session.get("user_role")
+    user_id = session.get("user_id")
+    if session.get("user_admin") != 1:
+        current_app.logger.warning("🚫 /set_survey_target unauthorized | user=%s", session.get("user_email"))
+        return "Unauthorized", 403
+    engine = get_db_engine()
+    entities = []
+
+    try:
+        with engine.begin() as conn:
+            result = conn.execute(
+                text(
+                    """
+                    EXEC FlaskGetEntityDropdown
+                         @Role = :Role,
+                         @ID   = :UserID
+                    """
+                ),
+                {"Role": role, "UserID": user_id},
+            )
+
+            for row in result:
+                entities.append(
+                    {
+                        "id": row.id,
+                        "Type": row.Type,
+                        "Description": row.Description,
+                    }
+                )
+
+    except Exception:
+        # This logs full traceback into your Flask logs
+        current_app.logger.exception("Error loading entities for BulkEmails")
+        # you could also flash a message if you like
+
+    return render_template("bulk_email.html", entities=entities)
+
+
+@survey_bp.route("/BulkEmails/preview", methods=["POST"])
+@login_required
+def bulk_emails_preview():
+    """
+    Call FlaskBulkEmailPreview and return matching rows as JSON.
+
+    Front-end sends JSON payload:
+    {
+      "filters": [...],
+      "minModules": <int|null>,
+      "sinceDate": "YYYY-MM-DD" | null,
+      "accountStatus": "all"|"active"|"disabled",
+      "entities": [{ "id": <int>, "type": "Funder" | "Provider" | ... }]
+    }
+    """
+    role = session.get("user_role")
+    user_id = session.get("user_id")
+
+    payload = request.get_json(silent=True) or {}
+    current_app.logger.info("BulkEmails preview payload: %s", payload)
+
+    filters        = payload.get("filters") or []
+    min_modules    = payload.get("minModules")
+    since_date     = payload.get("sinceDate")
+    account_status = payload.get("accountStatus") or "all"
+    entities       = payload.get("entities") or []
+
+    # Flags for SQL
+    use_elearning  = "elearning" in filters
+    use_selfreview = "selfreview" in filters
+    use_entity     = "entity" in filters
+
+    # Nullable BIT for @Active in SQL
+    if account_status == "active":
+        active_bit = 1
+    elif account_status == "disabled":
+        active_bit = 0
+    else:
+        active_bit = None  # all accounts
+
+    entities_json = json.dumps(entities) if entities else None
+
+    engine = get_db_engine()
+    rows   = []
+
+    try:
+        with engine.begin() as conn:
+            result = conn.execute(
+                text(
+                    """
+                    EXEC FlaskBulkEmailPreview
+                         @Role          = :Role,
+                         @UserID        = :UserID,
+                         @UseElearning  = :UseElearning,
+                         @UseSelfReview = :UseSelfReview,
+                         @UseEntity     = :UseEntity,
+                         @MinModules    = :MinModules,
+                         @SinceDate     = :SinceDate,
+                         @EntitiesJSON  = :EntitiesJSON,
+                         @Active        = :Active
+                    """
+                ),
+                {
+                    "Role":          role,
+                    "UserID":        user_id,
+                    "UseElearning":  1 if use_elearning else 0,
+                    "UseSelfReview": 1 if use_selfreview else 0,
+                    "UseEntity":     1 if use_entity else 0,
+                    "MinModules":    min_modules,
+                    "SinceDate":     since_date,
+                    "EntitiesJSON":  entities_json,
+                    "Active":        active_bit,
+                },
+            )
+
+            for row in result:
+                last_review = getattr(row, "LastSelfReviewDate", None)
+                rows.append(
+                    {
+                        "Email":              row.Email,
+                        "FirstName":          row.FirstName,
+                        "Surname":            row.Surname,
+                        "Role":               row.Role,
+                        "EntityType":         row.EntityType,
+                        "EntityID":           row.EntityID,
+                        "EntityDesc":         row.EntityDesc,
+                        "LastSelfReviewDate": (
+                            last_review.isoformat() if last_review else None
+                        ),
+                        "CompletedModules":   getattr(row, "CompletedModules", None),
+                        "IncompleteModules":  getattr(row, "IncompleteModules", None),
+                        "IncompleteCourses":  getattr(row, "IncompleteCourses", None),
+                        "Active":             getattr(row, "Active", None),
+                        "UserID":             getattr(row, "UserID", None),
+                    }
+                )
+
+    except Exception:
+        current_app.logger.exception("FlaskBulkEmailPreview failed")
+        return (
+            jsonify(
+                {
+                    "error": (
+                        "There was an error loading matching users. "
+                        "The issue has been logged."
+                    )
+                }
+            ),
+            500,
+        )
+
+    return jsonify({"rows": rows})
+
+
+@survey_bp.route("/BulkEmails/send", methods=["POST"])
+@login_required
+def bulk_emails_send():
+    """
+    Bulk send:
+      action: 'elearning' or 'selfreview'
+      recipients: [
+        { email, firstname, role, active, user_id? }, ...
+      ]
+
+    The front-end JS posts e.g.:
+
+    {
+      "action": "elearning",
+      "recipients": [
+        {
+          "email": "person@example.com",
+          "firstname": "Person",
+          "role": "PRO",
+          "active": true,
+          "user_id": 123
+        },
+        ...
+      ]
+    }
+    """
+    data       = request.get_json(silent=True) or {}
+    action     = data.get("action")
+    recipients = data.get("recipients") or []
+
+    if not recipients:
+        return jsonify({"ok": False, "error": "No recipients provided."}), 400
+
+    if action not in ("elearning", "selfreview"):
+        return jsonify({"ok": False, "error": "Invalid action."}), 400
+
+    requested_by = (
+        (session.get("user_firstname", "") + " " + session.get("user_surname", ""))
+        .strip()
+        or session.get("user_email")
+        or "WSFL team"
+    )
+    from_org = "WSNZ"  # tweak if needed
+
+    sent   = []
+    failed = []
+
+    engine = get_db_engine()
+
+    for rec in recipients:
+        email     = (rec.get("email") or "").strip()
+        firstname = rec.get("firstname") or ""
+        role      = rec.get("role") or ""
+        active    = rec.get("active")  # 0/1, True/False, or string
+        user_id   = rec.get("user_id")
+
+        if not email:
+            failed.append({"email": None, "error": "Missing email"})
+            continue
+
+        # Normalise 'active' into a real boolean
+        if isinstance(active, bool):
+            is_active = active
+        elif isinstance(active, (int, float)):
+            is_active = bool(active)
+        elif active is None:
+            is_active = False
+        else:
+            is_active = str(active).strip().lower() in ("1", "true", "yes", "y")
+
+        try:
+            if action == "elearning":
+                # Use stored procedure for eLearning status
+                with engine.begin() as conn:
+                    result = conn.execute(
+                        text("EXEC FlaskGetUserELearningStatus :email"),
+                        {"email": email},
+                    )
+                    course_statuses = [
+                        (row.ELearningCourseName, row.ELearningStatus)
+                        for row in result
+                    ]
+
+                send_elearning_reminder_email(
+                    mail=mail,
+                    email=email,
+                    firstname=firstname,
+                    requested_by=requested_by,
+                    from_org=from_org,
+                    course_statuses=course_statuses,
+                )
+
+            elif action == "selfreview":
+                # If account is active -> reminder; if disabled -> invite
+                if is_active:
+                    send_survey_reminder_email(
+                        mail=mail,
+                        email=email,
+                        firstname=firstname,
+                        requested_by=requested_by,
+                        from_org=from_org,
+                    )
+                else:
+                    send_survey_invite_email(
+                        mail=mail,
+                        recipient_email=email,
+                        first_name=firstname,
+                        role=role,
+                        user_id=user_id,
+                        survey_id=1,
+                        invited_by_name=requested_by,
+                    )
+
+            sent.append(email)
+
+        except Exception as e:
+            current_app.logger.exception(
+                "BulkEmails/send failed for %s", email
+            )
+            failed.append({"email": email, "error": str(e)})
+
+            # best-effort alert log
+            try:
+                log_alert(
+                    email=session.get("user_email"),
+                    role=session.get("user_role"),
+                    entity_id=session.get("user_id"),
+                    link=url_for("survey_bp.bulk_emails_send", _external=True),
+                    message=(
+                        f"/BulkEmails/send failed for {email}: {e}\n"
+                        f"{traceback.format_exc()}"
+                    )[:4000],
+                )
+            except Exception:
+                pass
+
+    return jsonify(
+        {
+            "ok": True,
+            "action": action,
+            "sent_count": len(sent),
+            "sent": sent,
+            "failed_count": len(failed),
+            "failed": failed,
+        }
+    )

@@ -36,7 +36,7 @@ def create_app():
         f"/WSFL?driver=ODBC+Driver+18+for+SQL+Server"
     )
 
-    print("🧪 DB_URL =", db_url)
+    # print("🧪 DB_URL =", db_url)
 
     app.config["SQLALCHEMY_DATABASE_URI"] = db_url
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False

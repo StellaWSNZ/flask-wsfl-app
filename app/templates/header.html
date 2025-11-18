@@ -167,7 +167,11 @@
                 aria-expanded="false"
               >Provider Tools</a>
               <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="grpToolsToggle">
+                {% if user_admin == 1 %}
+                <li><a class="dropdown-item py-2" href="{{ url_for('survey_bp.bulk_emails') }}">Email Reminders</a></li>
                 <li><a class="dropdown-item py-2" href="{{ url_for('funder_bp.funder_dashboard') }}">Overview</a></li>
+
+                {%endif%}
                 <li><a class="dropdown-item py-2" href="{{ url_for('report_bp.new_reports') }}">Reporting</a></li>
                 <li><a class="dropdown-item py-2" href="{{ url_for('class_bp.funder_classes') }}">Class Lookup</a></li>
               </ul>
@@ -195,6 +199,8 @@
                 <li><a class="dropdown-item py-2" href="{{ url_for('class_bp.funder_classes') }}">Class Lookup</a></li>
                 {% if session['user_admin'] == 1 %}
                 <li><a class="dropdown-item py-2" href="{{ url_for('admin_bp.provider_maintenance') }}">Provider Maintenance</a></li>
+                <li><a class="dropdown-item py-2" href="{{ url_for('survey_bp.bulk_emails') }}">Email Reminders</a></li>
+
                 {% endif %}
                 <li><a class="dropdown-item py-2" href="{{ url_for('class_bp.achievement_upload') }}">Upload Student Achievements</a></li>
               </ul>
@@ -217,6 +223,8 @@
                 <li><a class="dropdown-item py-2" href="{{ url_for('funder_bp.funder_dashboard') }}">Overview</a></li>
                 <li><a class="dropdown-item py-2" href="{{ url_for('report_bp.new_reports') }}">Reporting</a></li>
                 <li><a class="dropdown-item py-2" href="{{ url_for('class_bp.class_students_page') }}">Edit Class Lists</a></li>
+                <li><a class="dropdown-item py-2" href="{{ url_for('survey_bp.bulk_emails') }}">Email Reminders</a></li>
+
                 {% endif %}
                 <li>
                   <a class="dropdown-item py-2"
@@ -246,6 +254,8 @@
               <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="proToolsToggle">
                 {% if session['user_admin'] == 1 %}
                 <li><a class="dropdown-item py-2" href="{{ url_for('funder_bp.funder_dashboard') }}">Overview</a></li>
+                <li><a class="dropdown-item py-2" href="{{ url_for('survey_bp.bulk_emails') }}">Email Reminders</a></li>
+
                 {% endif %}
                 <li><a class="dropdown-item py-2" href="{{ url_for('report_bp.new_reports') }}">Reporting</a></li>
                 <li><a class="dropdown-item py-2" href="{{ url_for('class_bp.provider_classes') }}">Class Lookup</a></li>
