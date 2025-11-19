@@ -88,18 +88,25 @@
       <button type="submit" class="btn btn-primary w-100 mb-3">Login</button>
 
       <!-- ✅ Help alert section -->
-      <div class="alert alert-info py-3 small text-center mb-0" role="alert">
-        <p class="mb-2">Need help logging in?</p>
+      <div
+        class="alert py-3 small text-center mb-0"
+        style="
+          background-color: #4d544150;
+          color: #4d5441;
+          border: 0px solid #4d5441;
+        "
+      >
+        <p class="mb-2"><strong>Need help logging in?</strong></p>
         <div class="d-flex justify-content-center gap-2 flex-wrap">
           <a
             href="{{ url_for('auth_bp.forgot_password') }}"
-            class="btn btn-sm btn-outline-primary px-3"
+            class="btn btn-sm btn-outline-secondary-w px-3"
           >
             Reset Password
           </a>
           <a
             href="mailto:dbadmin@watersafety.org.nz"
-            class="btn btn-sm btn-outline-primary px-3"
+            class="btn btn-sm btn-outline-secondary-w px-3"
           >
             Email Support
           </a>
