@@ -31,7 +31,11 @@ def compute_has_groups(engine, user_role, user_id):
 @login_required
 def funder_dashboard():
     if session.get("user_admin") != 1:
-        abort(403)
+        return render_template(
+    "error.html",
+    error="You are not authorised to view that page.",
+    code=403
+), 403
 
     try:
         engine    = get_db_engine()

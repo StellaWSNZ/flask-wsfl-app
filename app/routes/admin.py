@@ -39,7 +39,11 @@ def create_user():
     try:
         # ---- perms --------------------------------------------------------
         if not session.get("user_admin"):
-            abort(403)
+            return render_template(
+                "error.html",
+                error="You are not authorised to view that page.",
+                code=403
+            ), 403
 
         # ---- setup --------------------------------------------------------
         engine    = get_db_engine()
@@ -545,7 +549,11 @@ def provider_maintenance():
     user_id   = session.get("user_id")
 
     if not (user_role == "ADM" or (user_role == "FUN" and session.get("user_admin") == 1)):
-        abort(403)
+        return render_template(
+    "error.html",
+    error="You are not authorised to view that page.",
+    code=403
+), 403
 
     selected_funder = (request.form.get("funder") or "").strip()
     selected_term   = request.form.get("term") or session.get("nearest_term")
@@ -789,7 +797,11 @@ def manage_providers():
 
     # --- perms ---
     if not session.get("user_admin"):
-        abort(403)
+        return render_template(
+    "error.html",
+    error="You are not authorised to view that page.",
+    code=403
+), 403
 
     funder_id_raw = (request.args.get("funder_id") or "").strip()
     funder_id = _safe_int(funder_id_raw)
@@ -803,7 +815,11 @@ def manage_providers():
 
     # ADM always allowed; FUN only for own funder_id
     if not (role == "ADM" or (role == "FUN" and uid == funder_id)):
-        abort(403)
+        return render_template(
+    "error.html",
+    error="You are not authorised to view that page.",
+    code=403
+), 403
 
     engine = get_db_engine()
     providers = []
@@ -880,7 +896,11 @@ def manage_providers():
 @login_required
 def update_provider():
     if not session.get("user_admin"):
-        abort(403)
+        return render_template(
+    "error.html",
+    error="You are not authorised to view that page.",
+    code=403
+), 403
 
     pid_raw     = (request.form.get("provider_id") or "").strip()
     new_name    = (request.form.get("new_name") or "").strip()
@@ -971,7 +991,11 @@ def update_provider():
 @login_required
 def delete_provider():
     if not session.get("user_admin"):
-        abort(403)
+        return render_template(
+    "error.html",
+    error="You are not authorised to view that page.",
+    code=403
+), 403
 
     pid_raw = (request.form.get("provider_id") or "").strip()
     try:
@@ -1019,7 +1043,11 @@ def delete_provider():
 @login_required
 def add_provider_details():
     if not session.get("user_admin"):
-        abort(403)
+        return render_template(
+    "error.html",
+    error="You are not authorised to view that page.",
+    code=403
+), 403
 
     funder_id_raw = (request.form.get("funder_id") or "").strip()
     name          = (request.form.get("provider_name") or "").strip()
@@ -1111,7 +1139,11 @@ def get_funder_staff(funder_id):
     role = session.get("user_role")
     uid  = session.get("user_id")
     if not (role == "ADM" or (role == "FUN" and uid == funder_id)):
-        abort(403)
+        return render_template(
+    "error.html",
+    error="You are not authorised to view that page.",
+    code=403
+), 403
 
     try:
         engine = get_db_engine()
@@ -1185,7 +1217,11 @@ def assign_kaiako_staff():
 @login_required
 def edit_school_type():
     if session.get("user_role") != "ADM":
-        abort(403)
+        return render_template(
+    "error.html",
+    error="You are not authorised to view that page.",
+    code=403
+), 403
 
     engine = get_db_engine()
 
@@ -1366,7 +1402,11 @@ def edit_school_type():
 @login_required
 def school_type_glossary_json():
     if session.get("user_role") != "ADM":
-        abort(403)
+        return render_template(
+    "error.html",
+    error="You are not authorised to view that page.",
+    code=403
+), 403
 
     try:
         engine = get_db_engine()
@@ -1422,7 +1462,11 @@ def admin_user_entities():
 def get_users():
     # Only admins can hit this
     if session.get("user_role") != "ADM":
-        abort(403)
+        return render_template(
+    "error.html",
+    error="You are not authorised to view that page.",
+    code=403
+), 403
 
     try:
         engine = get_db_engine()
@@ -1468,7 +1512,11 @@ def get_users():
 @login_required
 def update_user_role_entity():
     if session.get("user_role") != "ADM":
-        abort(403)
+        return render_template(
+    "error.html",
+    error="You are not authorised to view that page.",
+    code=403
+), 403
 
     data = request.get_json(silent=True) or {}
     email        = (data.get("email") or "").strip()

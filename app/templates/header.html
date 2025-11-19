@@ -194,8 +194,9 @@
                 <li><a class="dropdown-item py-2" href="{{ url_for('funder_bp.funder_schools') }}">Overview by School</a></li>
 
                 <li><a class="dropdown-item py-2" href="{{ url_for('funder_bp.funder_dashboard') }}">Overview</a></li>
-                {% endif %}
                 <li><a class="dropdown-item py-2" href="{{ url_for('report_bp.new_reports') }}">Reporting</a></li>
+
+                {% endif %}
                 <li><a class="dropdown-item py-2" href="{{ url_for('class_bp.funder_classes') }}">Class Lookup</a></li>
                 {% if session['user_admin'] == 1 %}
                 <li><a class="dropdown-item py-2" href="{{ url_for('admin_bp.provider_maintenance') }}">Provider Maintenance</a></li>
@@ -222,10 +223,11 @@
                 {% if session['user_admin'] == 1 %}
                 <li><a class="dropdown-item py-2" href="{{ url_for('funder_bp.funder_dashboard') }}">Overview</a></li>
                 <li><a class="dropdown-item py-2" href="{{ url_for('report_bp.new_reports') }}">Reporting</a></li>
-                <li><a class="dropdown-item py-2" href="{{ url_for('class_bp.class_students_page') }}">Edit Class Lists</a></li>
                 <li><a class="dropdown-item py-2" href="{{ url_for('survey_bp.bulk_emails') }}">Email Reminders</a></li>
 
                 {% endif %}
+                <li><a class="dropdown-item py-2" href="{{ url_for('class_bp.class_students_page') }}">Edit Class Lists</a></li>
+
                 <li>
                   <a class="dropdown-item py-2"
                      href="{% if user_role == 'ADM' %}{{ url_for('class_bp.funder_classes') }}{% else %}{{ url_for('class_bp.moe_classes') }}{% endif %}">
@@ -255,9 +257,9 @@
                 {% if session['user_admin'] == 1 %}
                 <li><a class="dropdown-item py-2" href="{{ url_for('funder_bp.funder_dashboard') }}">Overview</a></li>
                 <li><a class="dropdown-item py-2" href="{{ url_for('survey_bp.bulk_emails') }}">Email Reminders</a></li>
+                <li><a class="dropdown-item py-2" href="{{ url_for('report_bp.new_reports') }}">Reporting</a></li>
 
                 {% endif %}
-                <li><a class="dropdown-item py-2" href="{{ url_for('report_bp.new_reports') }}">Reporting</a></li>
                 <li><a class="dropdown-item py-2" href="{{ url_for('class_bp.provider_classes') }}">Class Lookup</a></li>
                 <li><a class="dropdown-item py-2" href="{{ url_for('class_bp.achievement_upload') }}">Upload Student Achievements</a></li>
               </ul>
@@ -319,8 +321,7 @@
                 <li><a class="dropdown-item py-2" href="{{ url_for('funder_bp.admin_dashboard') }}">Overview</a></li>
                 <li><a class="dropdown-item py-2" href="{{ url_for('survey_bp.survey_by_routename', routename='ExternalReview') }}">Complete an External Review</a></li>
                 <li><a class="dropdown-item py-2" href="{{ url_for('survey_bp.list_my_surveys') }}">View Past Forms</a></li>
-                                <li><a class="dropdown-item py-2" href="{{ url_for('survey_bp.bulk_emails') }}">Email Reminders</a></li>
-
+                <li><a class="dropdown-item py-2" href="{{ url_for('survey_bp.bulk_emails') }}">Email Reminders</a></li>
               </ul>
             </li>
             {% endif %}

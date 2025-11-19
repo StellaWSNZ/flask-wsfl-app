@@ -1432,13 +1432,12 @@ def _ensure_authorised_for_class(engine, class_id: int):
     role = session.get("user_role")
     # Example (commented): require login at least
     if role is None:
-        abort(403)
-    # Add stricter checks if needed:
-    # - for PRO: verify provider owns the class
-    # - for MOE: verify class MOENumber matches session user_id
-    # meta = _get_class_meta(engine, class_id)
-    # if role == "MOE" and meta["MOENumber"] != session.get("user_id"):
-    #     abort(403)
+        return render_template(
+    "error.html",
+    error="You are not authorised to view that page.",
+    code=403
+), 403
+
 import traceback
 # ---- Routes used by your Export modal ----
 @class_bp.route("/export_class_excel")

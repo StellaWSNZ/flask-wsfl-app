@@ -80,7 +80,7 @@ def home():
                 cards = [
                     {"title": "Class Lookup", "text": "Search all relevant classes", "href": url_for("class_bp.funder_classes"), "image": "ViewClass.png"},
                     {"title": "Self Review", "text": "Complete your staff review", "href": url_for('survey_bp.survey_by_routename', routename='SelfReview'), "image": "SelfReview.png"},
-                    {"title": "Reporting", "text": "View progress reports", "href": url_for("report_bp.new_reports"), "image": "Reporting.png"},
+                    {"title": "Past Forms", "text": "View past forms", "href":  url_for('survey_bp.list_my_surveys') , "image": "PastForms.png"},
                     {"title": "Profile", "text": "View and update your details", "href": url_for("admin_bp.profile"), "image": "Profile.png"},
                 ]
             if last_login_nzt:
@@ -119,7 +119,7 @@ def home():
             else:
                 cards = [
                     {"title": "Class Lookup", "text": "See your assigned classes", "href": url_for("class_bp.provider_classes"), "image": "ViewClass.png"},
-                    {"title": "Reporting", "text": "Download your provider reports", "href": url_for("report_bp.new_reports"), "image": "Reporting.png"},
+                    {"title": "Past Forms", "text": "View past forms", "href":  url_for('survey_bp.list_my_surveys') , "image": "PastForms.png"},
                     {"title": "Self Review", "text": "Complete self review", "href": url_for('survey_bp.survey_by_routename', routename='SelfReview'), "image": "SelfReview.png"},
                     {"title": "Profile", "text": "View and update your details", "href": url_for("admin_bp.profile"), "image": "Profile.png"},
                 ]
@@ -130,12 +130,20 @@ def home():
             subtitle = f"You are logged in as a Provider Administrator ({desc})"
             if last_login_nzt:
                 subtitle += " Last Logged in: " + datetime.fromisoformat(last_login_nzt).strftime('%A, %d %B %Y, %I:%M %p')
-            cards = [
-                {"title": "Overview", "text": "See provider performance and progress", "href": url_for("funder_bp.funder_dashboard"), "image": "Overview.png"},
-                {"title": "Class Lookup", "text": "Search all relevant classes", "href": url_for("class_bp.funder_classes"), "image": "ViewClass.png"},
-                {"title": "Staff Maintenance", "text": "Manage your school’s staff", "href": url_for("staff_bp.staff_maintenance"), "image": "StaffMaintenance.png"},
-                {"title": "Reporting", "text": "Access provider reports", "href": url_for("report_bp.new_reports"), "image": "Reporting.png"},
-            ]
+            if ad==1:
+                cards = [
+                    {"title": "Overview", "text": "See provider performance and progress", "href": url_for("funder_bp.funder_dashboard"), "image": "Overview.png"},
+                    {"title": "Class Lookup", "text": "Search all relevant classes", "href": url_for("class_bp.funder_classes"), "image": "ViewClass.png"},
+                    {"title": "Staff Maintenance", "text": "Manage your school’s staff", "href": url_for("staff_bp.staff_maintenance"), "image": "StaffMaintenance.png"},
+                    {"title": "Reporting", "text": "Access provider reports", "href": url_for("report_bp.new_reports"), "image": "Reporting.png"},
+                ]
+            else:
+                cards = [
+                        {"title": "Overview", "text": "See provider performance and progress", "href": url_for("funder_bp.funder_dashboard"), "image": "Overview.png"},
+                        {"title": "Class Lookup", "text": "Search all relevant classes", "href": url_for("class_bp.funder_classes"), "image": "ViewClass.png"},
+                        {"title": "Staff Maintenance", "text": "Manage your school’s staff", "href": url_for("staff_bp.staff_maintenance"), "image": "StaffMaintenance.png"},
+                        {"title": "Past Forms", "text": "View past forms", "href":  url_for('survey_bp.list_my_surveys') , "image": "PastForms.png"},
+                    ]
 
         # ---- SPECIAL: only add error cards for Stella
         email = (session.get("user_email") or "").strip().lower()

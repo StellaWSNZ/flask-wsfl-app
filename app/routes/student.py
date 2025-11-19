@@ -21,7 +21,11 @@ def student_search_page():
                 link=request.url,
                 message="403 Forbidden: attempted access to /Students"
             )
-            abort(403)
+            return render_template(
+    "error.html",
+    error="You are not authorised to view that page.",
+    code=403
+), 403
 
         engine = get_db_engine()
         with engine.connect() as conn:

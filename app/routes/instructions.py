@@ -44,18 +44,24 @@ VIDEO_EXTS = {".mp4", ".webm", ".mov"}
 PDF_EXT = ".pdf"
 
 
-def _discover_items_for_role(role_code: str):
+
+def _discover_items_for_role(role_code: str, user_admin: int):
     """
     Scan static/instructions/<ROLE_CODE>/ and pair files by prefix (stem).
-    Returns: list[dict(title, video_url|None, pdf_url|None)]
+
+    Naming rule:
+      - Normal item:     Staff_Maintenance.mp4 / Staff_Maintenance.pdf
+      - Admin only item: ADM_Staff_Maintenance.mp4 / ADM_Staff_Maintenance.pdf
+
+    Admin only items (stem starts with ADM_) are only shown if user_admin is truthy.
+    The ADM_ prefix is removed from the displayed title.
     """
-    static_root = Path(current_app.static_folder)  # e.g. .../static
+    static_root = Path(current_app.static_folder)
     role_dir = static_root / "instructions" / role_code
     if not role_dir.exists():
         return []
 
-    # group files by stem
-    stems = {}
+    stems: dict[str, list[Path]] = {}
     for p in role_dir.rglob("*"):
         if p.is_file():
             stems.setdefault(p.stem, []).append(p)
@@ -71,31 +77,52 @@ def _discover_items_for_role(role_code: str):
             elif suf == PDF_EXT and pdf_path is None:
                 pdf_path = f
 
-        # prettify title from stem
-        title = stem.replace("_", " ").strip()
+        if not (video_path or pdf_path):
+            continue
+
+        # Admin only flag based on stem prefix
+        is_admin_item = stem.upper().startswith("ADM_")
+
+        # Hide admin items for non admin users
+        if is_admin_item and not user_admin:
+            continue
+
+        # Build clean title (strip ADM_ then replace underscores)
+        if is_admin_item:
+            clean_stem = stem[4:]  # drop "ADM_"
+        else:
+            clean_stem = stem
+
+        title = clean_stem.replace("_", " ").strip()
 
         video_url = (
-            url_for("static", filename=str(video_path.relative_to(static_root)).replace("\\", "/"))
-            if video_path else None
+            url_for(
+                "static",
+                filename=str(video_path.relative_to(static_root)).replace("\\", "/"),
+            )
+            if video_path
+            else None
         )
         pdf_url = (
-            url_for("static", filename=str(pdf_path.relative_to(static_root)).replace("\\", "/"))
-            if pdf_path else None
+            url_for(
+                "static",
+                filename=str(pdf_path.relative_to(static_root)).replace("\\", "/"),
+            )
+            if pdf_path
+            else None
         )
 
-        if video_url or pdf_url:
-            items.append(
-                {
-                    "title": title,
-                    "video_url": video_url,
-                    "pdf_url": pdf_url,
-                }
-            )
+        items.append(
+            {
+                "title": title,
+                "video_url": video_url,
+                "pdf_url": pdf_url,
+                "admin_only": bool(is_admin_item),
+            }
+        )
 
-    # stable sort by title
     items.sort(key=lambda x: x["title"].lower())
     return items
-
 
 # ---------- Routes ----------
 @instructions_bp.route("/instructions")
@@ -117,7 +144,11 @@ def instructions_me():
             DEFAULT_ADMIN_LABEL = "Funder"  # or "Provider" / "School" / "ProviderGroup"
             return redirect(url_for("instructions_bp.instructions_for_label", label=DEFAULT_ADMIN_LABEL))
 
-        abort(403)
+        return render_template(
+    "error.html",
+    error="You are not authorised to view that page.",
+    code=403
+), 403
 
     except Exception as e:
         # Log to DB and server logs; never crash the logger
@@ -151,14 +182,19 @@ def instructions_for_label(label):
         # Access control: non-admins can only view their own role
         user_role = (session.get("user_role") or "").upper()
         if user_role != ADMIN_CODE and user_role != role_code:
-            abort(403)
+            return render_template(
+    "error.html",
+    error="You are not authorised to view that page.",
+    code=403
+), 403
 
-        items = _discover_items_for_role(role_code)
+        items = _discover_items_for_role(role_code, session.get("user_admin"))
 
         # Display label (optionally add a space for Provider Group)
         display_label = ROLE_TO_LABEL[role_code]
         if display_label == "ProviderGroup":
             display_label = "Provider Group"
+            role_code = "PRO"
 
         return render_template(
             "instructions.html",   # your template should extend header.html
@@ -191,7 +227,11 @@ def instructions_for_code(role_code):
 
         user_role = (session.get("user_role") or "").upper()
         if user_role != ADMIN_CODE and user_role != role:
-            abort(403)
+            return render_template(
+    "error.html",
+    error="You are not authorised to view that page.",
+    code=403
+), 403
 
         items = _discover_items_for_role(role)
         display_label = ROLE_TO_LABEL[role]

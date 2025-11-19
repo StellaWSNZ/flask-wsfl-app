@@ -43,7 +43,11 @@ def staff_maintenance():
         user_admin = session.get("user_admin")
 
         if not user_role or user_admin != 1:
-            abort(403)
+            return render_template(
+                "error.html",
+                error="You are not authorised to view that page.",
+                code=403
+            ), 403
 
         # NEW: these are used by the new HTML/JS
         funder_id    = user_id if user_role == "FUN" else None

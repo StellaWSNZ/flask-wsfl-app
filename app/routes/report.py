@@ -205,7 +205,12 @@ def is_one_var_vs_target(rows):
 def new_reports():
     role = session.get("user_role")  # "ADM", "FUN", or "PRO"
     print(f"🔑 Session role: {role}")
-
+    if session.get("user_admin") != 1:
+        return render_template(
+            "error.html",
+            error="You are not authorised to view that page.",
+            code=403
+        ), 403
     engine = get_db_engine()
 
     # --------- UI state (defaults shown in form) ----------
