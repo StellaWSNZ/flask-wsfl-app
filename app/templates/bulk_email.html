@@ -63,7 +63,7 @@ block content %}
       <label for="opts">Filters:</label>
       <select class="form-select" id="opts" multiple>
         <option value="elearning">
-          Less than X eLearning modules complete
+          At least __ eLearning modules outstanding
         </option>
         <option value="selfreview">No self review since date</option>
         <option value="entity">Entity</option>
@@ -77,7 +77,13 @@ block content %}
     <!-- eLearning input -->
     <div class="col-md-4 d-none" id="elearningInput">
       <label for="elearningX">Outstanding courses (≥ X):</label>
-      <input type="number" class="form-control" id="elearningX" min="0" />
+      <input
+        type="number"
+        class="form-control"
+        id="elearningX"
+        min="0"
+        max="5"
+      />
     </div>
 
     <!-- Self-review input -->
@@ -583,6 +589,7 @@ block content %}
         "Name",
         "Incomplete courses",
         "Last self review",
+        "Status",
       ].forEach((label) => {
         const th = document.createElement("th");
         th.textContent = label;
@@ -654,13 +661,32 @@ block content %}
         const tdDate = document.createElement("td");
         if (row.LastSelfReviewDate) {
           const d = new Date(row.LastSelfReviewDate);
-          tdDate.textContent = !isNaN(d.getTime())
+          const pretty = !isNaN(d.getTime())
             ? d.toLocaleDateString()
             : row.LastSelfReviewDate;
+
+          tdDate.innerHTML = `
+            <span class="badge rounded-pill bg-dark">${pretty}</span>
+          `;
         } else {
-          tdDate.textContent = "";
+          tdDate.innerHTML = "";
         }
         tr.appendChild(tdDate);
+
+        // normalise Active into a boolean
+        const tdStatus = document.createElement("td");
+
+        const isActive =
+          row.Active === 1 ||
+          row.Active === true ||
+          row.Active === "1" ||
+          row.Active === "true";
+
+        tdStatus.innerHTML = isActive
+          ? `<span class="badge rounded-pill bg-success">Active</span>`
+          : `<span class="badge rounded-pill bg-danger">Disabled</span>`;
+
+        tr.appendChild(tdStatus);
 
         frag.appendChild(tr);
       });
