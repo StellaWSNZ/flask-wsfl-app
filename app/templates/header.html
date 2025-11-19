@@ -291,6 +291,7 @@
                 <li><a class="dropdown-item py-2" href="{{ url_for('admin_bp.edit_school_type') }}">Edit School Type</a></li>
                 <li><a class="dropdown-item py-2" href="{{ url_for('students_bp.student_search_page') }}">Edit Student Record</a></li>
                 <li><a class="dropdown-item py-2" href="{{ url_for('class_bp.class_students_page') }}">Edit Class Lists</a></li>
+                <li><a class="dropdown-item py-2" href="{{ url_for('survey_bp.bulk_emails') }}">Email Reminders</a></li>
 
                 <li><hr class="dropdown-divider" /></li>
 
@@ -318,6 +319,8 @@
                 <li><a class="dropdown-item py-2" href="{{ url_for('funder_bp.admin_dashboard') }}">Overview</a></li>
                 <li><a class="dropdown-item py-2" href="{{ url_for('survey_bp.survey_by_routename', routename='ExternalReview') }}">Complete an External Review</a></li>
                 <li><a class="dropdown-item py-2" href="{{ url_for('survey_bp.list_my_surveys') }}">View Past Forms</a></li>
+                                <li><a class="dropdown-item py-2" href="{{ url_for('survey_bp.bulk_emails') }}">Email Reminders</a></li>
+
               </ul>
             </li>
             {% endif %}

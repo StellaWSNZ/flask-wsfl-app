@@ -2417,7 +2417,6 @@ def get_class_students(class_id):
         })
     return jsonify(out)
 
-
 @class_bp.route("/search_students")
 @login_required
 def search_students():
@@ -2427,6 +2426,7 @@ def search_students():
 
     print(f"🔎 /search_students called: q='{q}', moe={moe}, class_id={class_id}")
 
+    # Require both a school and a non-empty query
     if not (moe and q):
         print("➡️  Missing moe or query → returning empty list")
         return jsonify([])
@@ -2437,10 +2437,10 @@ def search_students():
             print("➡️  Executing stored proc FlaskSearchStudentsForSchool_AllTime…")
             rows = conn.execute(
                 text(
-                    "EXEC  FlaskSearchStudentsForSchool_AllTime "
-                    "@MOENumber=:moe, @Query=:q, @ClassID=:cid, @Top=:top"
+                    "EXEC FlaskSearchStudentsForSchool_AllTime "
+                    "@MOENumber=:moe, @Query=:q, @ClassID=:cid"
                 ),
-                {"moe": moe, "q": q, "cid": class_id, "top": 500}
+                {"moe": moe, "q": q, "cid": class_id},
             ).fetchall()
             print(f"✅ Stored proc returned {len(rows)} rows")
     except Exception as e:
@@ -2452,20 +2452,25 @@ def search_students():
     out = []
     for r in rows:
         m = r._mapping
-        out.append({
-            "NSN": m.get("NSN"),
-            "FirstName": m.get("FirstName"),
-            "PreferredName": m.get("PreferredName"),
-            "LastName": m.get("LastName"),
-            "DateOfBirth": (str(m.get("DateOfBirth"))[:10] if m.get("DateOfBirth") else ""),
-            "EthnicityID": m.get("EthnicityID"),
-            "Ethnicity": m.get("Ethnicity"),
-            "InClass": bool(m.get("InClass")),
-        })
+        out.append(
+            {
+                "NSN": m.get("NSN"),
+                "FirstName": m.get("FirstName"),
+                "PreferredName": m.get("PreferredName"),
+                "LastName": m.get("LastName"),
+                "DateOfBirth": (
+                    str(m.get("DateOfBirth"))[:10]
+                    if m.get("DateOfBirth")
+                    else ""
+                ),
+                "EthnicityID": m.get("EthnicityID"),
+                "Ethnicity": m.get("Ethnicity"),
+                "InClass": bool(m.get("InClass")),
+            }
+        )
 
     print(f"➡️  Returning {len(out)} student records to client")
     return jsonify(out)
-
 
 # ---- API: add existing student to class ----
 @class_bp.route("/add_student", methods=["POST"])
