@@ -1,0 +1,60 @@
+Kia ora {{ firstname or "" }},
+
+Welcome to the Water Skills for Life web application – your place to manage classes, record achievements, and view reports.
+
+
+HOW TO ACTIVATE YOUR ACCOUNT
+1. Go to the login page: {{ login_url }}
+2. Click "Forgot password" and enter your email address
+   (or go directly to: {{ forgot_url }})
+3. Check your inbox for a reset link and choose a new password.
+4. Log in with your email and new password.
+
+
+NEXT STEPS
+
+{% if role == "MOE" %}
+• In "School Tools > Class Lookup", check that all classes are present and correct.
+• In "Staff > Manage My Staff", make sure staff access is up to date.
+• View and record class achievements for the current term.
+• Optional: explore the performance reports to see how your school is tracking.
+{% elif role == "PRO" %}
+• In "Provider Tools > Class Lookup", confirm the classes and schools linked to your provider.
+• If available, check tutor access in "Staff > Manage My Staff".
+• Upload or review student achievements for the classes you support.
+• Optional: explore provider/funder reporting dashboards.
+{% elif role == "FUN" %}
+• Open the Overview dashboards to see which schools and providers are currently active.
+• In "Staff > Manage My Staff", check that staff access is correct.
+• Explore participation and performance reports for your funded schools and providers.
+{% elif role == "GRP" %}
+• Use "Provider Tools > Class Lookup" to review classes linked to your group.
+• If managing multiple tutors or providers, check their access is up to date.
+{% endif %}
+
+{% if make_admin %}
+• You have been granted ADMIN access. This allows you to manage staff and entities in addition to the usual tools.
+{% endif %}
+
+• Check your Profile page to make sure your name, email address, and organisation details are correct.
+• Go to "Forms > View Past Forms" and confirm that any expected self reviews are visible.
+  If something is missing or incorrect, please report it via "Forms > Report an Issue / Submit Feedback".
+
+{% if role in ["PRO", "FUN"] %}
+• Check that your eLearning modules are correctly marked as complete. If anything is missing, please submit an issue through the in-app feedback form.
+{% endif %}
+
+
+Full instructions and videos are available any time at:
+{{ instructions_url }}
+
+If you have trouble logging in, reply to this email.
+For anything that looks wrong (missing classes, staff, forms, or results), please use the in-app feedback form so we can track and resolve it.
+
+
+Ngā mihi,
+Water Skills for Life Administration Team
+
+
+---
+This invitation was sent by {{ invited_by_name }}{% if invited_by_org %} from {{ invited_by_org }}{% endif %}.

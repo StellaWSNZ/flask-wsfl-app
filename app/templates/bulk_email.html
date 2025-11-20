@@ -154,9 +154,25 @@ block content %}
       <button
         type="button"
         id="btnSendSelfReview"
-        class="btn btn-sm btn-outline-primary"
+        class="btn btn-sm btn-outline-primary me-2"
       >
         Send self review reminder
+      </button>
+
+      <!-- NEW: two invite buttons -->
+      <button
+        type="button"
+        id="btnSendInviteStandard"
+        class="btn btn-sm btn-outline-primary d-none me-2"
+      >
+        Send user invitation (no admin access)
+      </button>
+      <button
+        type="button"
+        id="btnSendInviteAdmin"
+        class="btn btn-sm btn-outline-primary d-none"
+      >
+        Send user invitation (with admin access)
       </button>
     </div>
 
@@ -225,7 +241,7 @@ block content %}
     const SELFREVIEW_SUBJECT =
       "Water Skills for Life \u2013 self review reminder";
 
-    // Select2
+    // --- Select2 initialisation ---
     $("#opts").select2({
       placeholder: "Select filters\u2026",
       width: "100%",
@@ -237,6 +253,7 @@ block content %}
       allowClear: true,
     });
 
+    // --- DOM elements ---
     const elearningInput = document.getElementById("elearningInput");
     const selfReviewInput = document.getElementById("selfReviewInput");
     const entityInput = document.getElementById("entityInput");
@@ -259,6 +276,10 @@ block content %}
 
     const btnSendElearning = document.getElementById("btnSendElearning");
     const btnSendSelfReview = document.getElementById("btnSendSelfReview");
+    const btnSendInviteStandard = document.getElementById(
+      "btnSendInviteStandard"
+    );
+    const btnSendInviteAdmin = document.getElementById("btnSendInviteAdmin");
 
     const confirmSendTitle = document.getElementById("confirmSendTitle");
     const confirmMessage = document.getElementById("confirmMessage");
@@ -266,7 +287,7 @@ block content %}
     const confirmSendBtn = document.getElementById("confirmSendBtn");
     const confirmSendModalEl = document.getElementById("confirmSendModal");
 
-    let currentAction = null; // 'elearning' or 'selfreview'
+    let currentAction = null; // 'elearning', 'selfreview', 'invite_standard', 'invite_admin'
     let currentSelected = []; // [{email, firstname, role, active, user_id}, ...]
 
     // For clean status messaging
@@ -386,13 +407,10 @@ block content %}
         selectionSummary.textContent = "";
         bulkActions.classList.add("d-none");
         currentSelected = [];
+        btnSendInviteStandard.classList.add("d-none");
+        btnSendInviteAdmin.classList.add("d-none");
         return;
       }
-
-      const plural = count === 1 ? "user" : "users";
-      selectionSummary.textContent = `${count} ${plural} selected.`;
-      selectionSummary.style.display = "block";
-      bulkActions.classList.remove("d-none");
 
       currentSelected = Array.from(checkboxes).map((cb) => ({
         email: cb.dataset.email || "",
@@ -401,6 +419,22 @@ block content %}
         active: cb.dataset.active === "1" || cb.dataset.active === "true",
         user_id: cb.dataset.userid || null,
       }));
+
+      const plural = count === 1 ? "user" : "users";
+      selectionSummary.textContent = `${count} ${plural} selected.`;
+      selectionSummary.style.display = "block";
+      bulkActions.classList.remove("d-none");
+
+      // Check if all selected users are inactive
+      const allInactive = currentSelected.every((u) => !u.active);
+
+      if (allInactive) {
+        btnSendInviteStandard.classList.remove("d-none");
+        btnSendInviteAdmin.classList.remove("d-none");
+      } else {
+        btnSendInviteStandard.classList.add("d-none");
+        btnSendInviteAdmin.classList.add("d-none");
+      }
     }
 
     // ----- Modal helper -----
@@ -416,9 +450,17 @@ block content %}
       if (action === "elearning") {
         subject = ELEARNING_SUBJECT;
         confirmSendTitle.textContent = "Send eLearning reminder";
-      } else {
+      } else if (action === "selfreview") {
         subject = SELFREVIEW_SUBJECT;
         confirmSendTitle.textContent = "Send self review reminder / invites";
+      } else if (action === "invite_standard") {
+        subject = "Water Skills for Life \u2013 account invitation";
+        confirmSendTitle.textContent =
+          "Send account invitations (no admin access)";
+      } else if (action === "invite_admin") {
+        subject = "Water Skills for Life \u2013 admin account invitation";
+        confirmSendTitle.textContent =
+          "Send account invitations (with admin access)";
       }
 
       confirmMessage.textContent =
@@ -443,7 +485,7 @@ block content %}
       modal.show();
     }
 
-    // Bulk action buttons
+    // ----- Bulk action buttons -----
     btnSendElearning.addEventListener("click", function () {
       updateSelectionSummary();
       if (!currentSelected.length) return;
@@ -456,6 +498,18 @@ block content %}
       openConfirmModal("selfreview");
     });
 
+    btnSendInviteStandard.addEventListener("click", function () {
+      updateSelectionSummary();
+      if (!currentSelected.length) return;
+      openConfirmModal("invite_standard");
+    });
+
+    btnSendInviteAdmin.addEventListener("click", function () {
+      updateSelectionSummary();
+      if (!currentSelected.length) return;
+      openConfirmModal("invite_admin");
+    });
+
     // ----- Confirm send -> POST /BulkEmails/send -----
     confirmSendBtn.addEventListener("click", function () {
       if (!currentAction || !currentSelected.length) return;
@@ -463,6 +517,8 @@ block content %}
       const payload = {
         action: currentAction,
         recipients: currentSelected,
+        // backend can read this to set user_admin + Active = 1
+        grant_admin: currentAction === "invite_admin",
       };
 
       console.log("BulkEmails/send payload:", payload);

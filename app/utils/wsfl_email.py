@@ -9,11 +9,13 @@ Send WSFL welcome/login emails and set temp passwords.
 """
 
 import os, re, ssl, smtplib, bcrypt, time
+import traceback
 from email.message import EmailMessage
 from sqlalchemy import create_engine, text
 from dotenv import load_dotenv
 from html import escape as html_escape  # for safe HTML
-
+from flask import current_app, render_template, url_for
+from app.utils.database import get_db_engine
 # =====================================================
 # .env and constants
 # =====================================================
@@ -197,3 +199,126 @@ def create_user_and_send(first_name, surname, email, moe_number, is_admin=0):
     msg = build_message(email, first_name, school, temp_pw)
     send_email(msg)
     return temp_pw
+from email.message import EmailMessage
+from flask import current_app, url_for, render_template
+from sqlalchemy import text
+from .database import get_db_engine  # or whatever your helper is called
+
+def send_account_invites(
+    recipients,
+    make_admin: bool,
+    invited_by_name: str,
+    invited_by_org: str | None = None,
+):
+    """
+    recipients: iterable of dicts with at least:
+      - email
+      - firstname (optional)
+      - role      (PRO/MOE/FUN/GRP/ADM)
+
+    make_admin: if True, set user_admin = 1 (via stored proc).
+    Returns: (sent_count, failed_count)
+    """
+    engine = get_db_engine()
+    sent = 0
+    failed = 0
+
+    # Build URLs + load logo once
+    with current_app.app_context():
+        login_url = url_for("auth_bp.login", _external=True)
+        forgot_url = url_for("auth_bp.forgot_password", _external=True)
+        instructions_url = url_for("instructions_bp.instructions_me", _external=True)
+
+        logo_path = os.path.join(current_app.static_folder, "WSFLLogo.png")
+        try:
+            with open(logo_path, "rb") as f:
+                logo_bytes = f.read()
+        except OSError:
+            current_app.logger.exception("Could not read WSFLLogo.png at %s", logo_path)
+            logo_bytes = None
+
+        logo_cid = "wsfl-logo"  # used in src="cid:wsfl-logo"
+
+    with engine.begin() as conn:
+        for rec in recipients:
+            email = (rec.get("email") or "").strip()
+            if not email:
+                current_app.logger.warning("Skipping invite with no email: %r", rec)
+                failed += 1
+                continue
+
+            firstname = rec.get("firstname") or ""
+            role = rec.get("role") or ""
+
+            # 1) Activate + (optionally) give admin via stored procedure
+            try:
+                conn.execute(
+                    text(
+                        "EXEC FlaskActivateUserByEmail "
+                        "@Email = :email, @MakeAdmin = :make_admin"
+                    ),
+                    {
+                        "email": email,
+                        "make_admin": 1 if make_admin else 0,
+                    },
+                )
+            except Exception:
+                current_app.logger.exception(
+                    "Failed to activate user via FlaskActivateUserByEmail for %s", email
+                )
+                failed += 1
+                continue
+
+            # 2) Build + send email
+            try:
+                context = {
+                    "firstname": firstname,
+                    "role": role,
+                    "login_url": login_url,
+                    "forgot_url": forgot_url,
+                    "instructions_url": instructions_url,
+                    "make_admin": make_admin,
+                    "logo_cid": logo_cid,
+                    "invited_by_name": invited_by_name,
+                    "invited_by_org": invited_by_org,
+                }
+
+                subject = "Water Skills for Life – account invitation"
+                if make_admin:
+                    subject += " (admin access)"
+
+                text_body = render_template("emails/account_invite.txt", **context)
+                html_body = render_template("emails/account_invite.html", **context)
+
+                msg = EmailMessage()
+                msg["Subject"] = subject
+                msg["From"] = os.getenv("EMAIL")
+                msg["To"] = email
+
+                # Plain text part
+                msg.set_content(text_body)
+
+                # HTML part
+                msg.add_alternative(html_body, subtype="html")
+
+                # Embed logo into the HTML part with CID
+                if logo_bytes:
+                    # payload[0] = text/plain, payload[1] = text/html
+                    html_part = msg.get_payload()[-1]
+                    html_part.add_related(
+                        logo_bytes,
+                        maintype="image",
+                        subtype="png",
+                        cid=f"<{logo_cid}>",
+                        filename="WSFLLogo.png",
+                    )
+
+                # Re-use existing SMTP helper
+                send_email(msg)
+                sent += 1
+
+            except Exception:
+                current_app.logger.exception("Failed to send invite to %s", email)
+                failed += 1
+
+    return sent, failed

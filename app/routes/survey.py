@@ -37,6 +37,7 @@ from app.utils.custom_email import (
     send_survey_reminder_email,
 )
 from app.utils.database import get_db_engine, log_alert
+from app.utils.wsfl_email import send_account_invites
 
 # Blueprint
 survey_bp = Blueprint("survey_bp", __name__)
@@ -828,7 +829,7 @@ def guest_survey_by_id(survey_id):
             f"survey_form_{survey_id}.html",
             questions=questions,
             route_name=f"guest/{survey_id}",
-            impersonated_name=f"{session.get('user_firstname')} from {session.get('desc', 'your organisation')}"
+            impersonated_name=f"{session.get('user_firstname')} from {session.get('desc') or "WSNZ"}"
         )
 
     except Exception as e:
@@ -1528,42 +1529,20 @@ def bulk_emails_preview():
 
     return jsonify({"rows": rows})
 
-
 @survey_bp.route("/BulkEmails/send", methods=["POST"])
 @login_required
 def bulk_emails_send():
-    """
-    Bulk send:
-      action: 'elearning' or 'selfreview'
-      recipients: [
-        { email, firstname, role, active, user_id? }, ...
-      ]
-
-    The front-end JS posts e.g.:
-
-    {
-      "action": "elearning",
-      "recipients": [
-        {
-          "email": "person@example.com",
-          "firstname": "Person",
-          "role": "PRO",
-          "active": true,
-          "user_id": 123
-        },
-        ...
-      ]
-    }
-    """
-    data       = request.get_json(silent=True) or {}
-    action     = data.get("action")
-    recipients = data.get("recipients") or []
+    data        = request.get_json(silent=True) or {}
+    action      = data.get("action")
+    recipients  = data.get("recipients") or []
+    grant_admin = bool(data.get("grant_admin"))
 
     if not recipients:
         return jsonify({"ok": False, "error": "No recipients provided."}), 400
 
-    if action not in ("elearning", "selfreview"):
-        return jsonify({"ok": False, "error": "Invalid action."}), 400
+    valid_actions = ("elearning", "selfreview", "invite_standard", "invite_admin")
+    if action not in valid_actions:
+        return jsonify({"ok": False, "error": f"Invalid action '{action}'."}), 400
 
     requested_by = (
         (session.get("user_firstname", "") + " " + session.get("user_surname", ""))
@@ -1571,12 +1550,60 @@ def bulk_emails_send():
         or session.get("user_email")
         or "WSFL team"
     )
-    from_org = "WSNZ"  # tweak if needed
 
-    sent   = []
-    failed = []
+    raw_desc = session.get("desc")
+    if raw_desc is None:
+        from_org = "Water Safety New Zealand"  # or "WSNZ" or None if you’d prefer to hide it
+    else:
+        s = str(raw_desc).strip()
+        if s.lower() in ("none", "null", ""):
+            from_org = "Water Safety New Zealand"  # or None
+        else:
+            from_org = s
 
     engine = get_db_engine()
+
+    # -------- INVITES (standard/admin) --------
+    if action in ("invite_standard", "invite_admin"):
+        make_admin = (action == "invite_admin") or grant_admin
+        try:
+            sent_count, failed_count = send_account_invites(
+                recipients,
+                make_admin=make_admin,
+                invited_by_name=requested_by,
+                invited_by_org=from_org,
+            )
+        except Exception as e:
+            current_app.logger.exception("BulkEmails/send invites failed")
+            try:
+                log_alert(
+                    email=session.get("user_email"),
+                    role=session.get("user_role"),
+                    entity_id=session.get("user_id"),
+                    link=url_for("survey_bp.bulk_emails_send", _external=True),
+                    message=(
+                        f"/BulkEmails/send (invites) failed: {e}\n"
+                        f"{traceback.format_exc()}"
+                    )[:4000],
+                )
+            except Exception:
+                pass
+
+            return jsonify({"ok": False, "error": str(e)}), 500
+
+        return jsonify(
+            {
+                "ok": True,
+                "action": action,
+                "sent_count": sent_count,
+                "failed_count": failed_count,
+            }
+        )
+
+    # ----------------- ELEARNING / SELF-REVIEW -----------------
+    engine = get_db_engine()
+    sent   = []
+    failed = []
 
     for rec in recipients:
         email     = (rec.get("email") or "").strip()
@@ -1645,12 +1672,10 @@ def bulk_emails_send():
             sent.append(email)
 
         except Exception as e:
-            current_app.logger.exception(
-                "BulkEmails/send failed for %s", email
-            )
+            current_app.logger.exception("BulkEmails/send failed for %s", email)
             failed.append({"email": email, "error": str(e)})
 
-            # best-effort alert log
+            # best-effort alert log with traceback
             try:
                 log_alert(
                     email=session.get("user_email"),

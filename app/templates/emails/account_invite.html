@@ -1,0 +1,128 @@
+<p>Kia ora {{ firstname or "" }},</p>
+
+<p>
+  Welcome to the Water Skills for Life web application – your place to manage
+  classes, record achievements, and view reports.
+</p>
+
+<p><strong>How to activate your account</strong></p>
+<ol>
+  <li>
+    Go to the login page:
+    <a href="{{ login_url }}">{{ login_url }}</a>
+  </li>
+  <li>
+    Click <strong>"Forgot password"</strong> and enter your email address, or go
+    directly to:
+    <a href="{{ forgot_url }}">{{ forgot_url }}</a>
+  </li>
+  <li>Check your inbox for a reset link and choose a new password.</li>
+  <li>Log in with your email and new password.</li>
+</ol>
+
+{# ---------------- UNIFIED NEXT STEPS ---------------- #}
+
+<p><strong>Next steps</strong></p>
+<ul>
+  {# ---------- ROLE-SPECIFIC BLOCKS INSERTED AS BULLETS ---------- #} {% if
+  role == "MOE" %}
+  <li>
+    In <em>School Tools &gt; Class Lookup</em>, check that all classes are
+    present and correct.
+  </li>
+  <li>
+    In <em>Staff &gt; Manage My Staff</em>, make sure staff access is up to
+    date.
+  </li>
+  <li>When ready, view and record class achievements for the current term.</li>
+  <li>
+    Optional: explore performance reports to see how your school is tracking.
+  </li>
+
+  {% elif role == "PRO" %}
+  <li>
+    In <em>Provider Tools &gt; Class Lookup</em>, confirm the classes and
+    schools linked to your provider.
+  </li>
+  <li>
+    If available, check tutor access in <em>Staff &gt; Manage My Staff</em>.
+  </li>
+  <li>Upload or review student achievements for the classes you support.</li>
+  <li>Optional: explore provider/funder reporting dashboards.</li>
+
+  {% elif role == "FUN" %}
+  <li>
+    Open the <em>Overview</em> dashboards to see which schools and providers are
+    currently active.
+  </li>
+  <li>
+    In <em>Staff &gt; Manage My Staff</em>, check that staff access is correct.
+  </li>
+  <li>
+    Explore participation and performance reports for your funded schools and
+    providers.
+  </li>
+
+  {% elif role == "GRP" %}
+  <li>
+    Use <em>Provider Tools &gt; Class Lookup</em> to review classes linked to
+    your group.
+  </li>
+  <li>
+    If you manage multiple tutors or providers, check their access is up to
+    date.
+  </li>
+  {% endif %} {% if make_admin %}
+  <li>
+    You’ve been granted <strong>admin access</strong>, which allows you to
+    manage staff and entities in addition to your usual tools.
+  </li>
+  {% endif %} {# ---------------- UNIVERSAL TASKS ---------------- #}
+
+  <li>
+    Open your <em>Profile</em> page and check your name, email address, and
+    organisation details are correct.
+  </li>
+
+  <li>
+    Go to <em>Forms &gt; View Past Forms</em> and confirm that any expected self
+    reviews are visible. If something is missing or looks incorrect, please
+    report it via <em>Forms &gt; Report an Issue / Submit Feedback</em>.
+  </li>
+
+  {% if role in ["PRO", "FUN"] %}
+  <li>
+    Check that your eLearning modules are correctly marked as complete. If any
+    completions are missing, please submit an issue through the in-app feedback
+    form so we can fix it.
+  </li>
+  {% endif %}
+</ul>
+
+<p>
+  Full instructions and videos are available at:
+  <a href="{{ instructions_url }}">{{ instructions_url }}</a>.
+</p>
+
+<p>
+  If you have any trouble logging in, reply to this email. For anything that
+  seems incorrect (missing classes, staff, forms, or results), please use the
+  in-app feedback form so we can track and resolve it quickly.
+</p>
+
+<p>Ngā mihi,<br />Water Skills for Life Administration Team</p>
+
+<p style="margin-top: 30px; padding-left: 4px">
+  <img
+    src="cid:{{ logo_cid }}"
+    alt="WSFL Logo"
+    style="max-width: 200px; height: auto"
+  />
+</p>
+
+<hr style="margin-top: 20px" />
+
+<p style="font-size: 12px; color: #666">
+  This invitation was sent by {{ invited_by_name }}{% if invited_by_org %} from
+  {{ invited_by_org }}{% endif %}.
+</p>
