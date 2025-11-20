@@ -829,7 +829,10 @@ def guest_survey_by_id(survey_id):
             f"survey_form_{survey_id}.html",
             questions=questions,
             route_name=f"guest/{survey_id}",
-            impersonated_name=f"{session.get('user_firstname')} from {session.get('desc') or "WSNZ"}"
+            impersonated_name = (
+                f"{session.get('user_firstname')} from "
+                f"{session.get('desc') or 'WSNZ'}"
+            )
         )
 
     except Exception as e:
