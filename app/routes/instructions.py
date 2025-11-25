@@ -260,15 +260,11 @@ def instructions_for_code(role_code):
         abort(500)
         
 
-
 def load_faq_rows():
-    """
-    Load FAQs from the Excel file defined in config.FAQ_XLSX_PATH.
-    Expected columns: Question Type, Question, Answer, Tags
-    """
-    # You can set this in your config; this is a fallback default:
-    default_path = Path(current_app.root_path) / "static" / "WSFL_FAQs_Revised.xlsx"
-    xlsx_path = Path(current_app.config.get("FAQ_XLSX_PATH", default_path))
+    # This always points to the correct static folder
+    static_dir = Path(current_app.static_folder)
+
+    xlsx_path = static_dir / "WSFL_FAQs_Revised.xlsx"
 
     if not xlsx_path.exists():
         raise FileNotFoundError(f"FAQ Excel file not found at: {xlsx_path}")
