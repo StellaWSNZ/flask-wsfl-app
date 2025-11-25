@@ -254,7 +254,7 @@ def forgot_password():
             #     pass
             # else:
             if email_count == 0:
-                flash('No account found with that email address.', 'danger')
+                flash('No active account found with that email address.', 'danger')
                 return redirect(url_for('auth_bp.forgot_password'))
 
             # Generate token (expires when you verify it; default max_age checked at use-time)

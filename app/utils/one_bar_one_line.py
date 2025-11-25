@@ -1,6 +1,136 @@
 # one_bar_one_line.py
 # A4 portrait: per-YearGroup sections, bars = subject (YTD or LY), dashed = WSNZ target
 
+"""
+one_bar_one_line.py
+====================
+
+Generates an A4-portrait chart showing competency rates vs the WSNZ target,
+grouped by YearGroup and Competency. Bars represent a chosen rate series
+(e.g. YTD), and a vertical dashed line shows the WSNZ target for each group.
+
+Data can come from:
+  • SQL Server stored procedures (GetProviderNationalRates /
+    GetFunderNationalRatesSmart)
+  • A CSV passed via --csv (bypasses DB)
+
+Output files:
+  <outfile>.png
+  <outfile>.pdf
+
+---------------------------------------------------------------------------
+REQUIRED INPUT COLUMNS (CSV or DB rows)
+---------------------------------------------------------------------------
+YearGroupDesc   – string, e.g. "0–2", "3–4"
+CompetencyDesc  – competency label text
+ResultType      – e.g. "Provider Rate (YTD)", "WSNZ Target", "National Rate (YTD)"
+Rate            – proportion 0–1 (e.g. 0.73 = 73%)
+
+Any row missing these is ignored.
+
+ResultType values are normalised automatically (case-insensitive, space/underscore/
+hyphen tolerant). Student-count rows (e.g. "Provider Student Count (YTD)") are treated
+as 0% for plotting so competencies still appear even if the rate is missing.
+
+---------------------------------------------------------------------------
+COMMAND-LINE ARGUMENTS
+---------------------------------------------------------------------------
+
+--mode               provider | funder | national
+                     Selects which stored procedure and which canonical rate
+                     labels are used.
+
+--subject-id         Integer provider/funder ID for DB mode.
+                     Not required for --mode national.
+
+--csv PATH           Load data from a CSV instead of DB. If set, no DB access
+                     happens and --subject-id is ignored.
+
+--subject-name STR   Overrides display name used in the chart title.
+                     If omitted, the script attempts to derive the name
+                     from DB → stored procs → fallback table lookup.
+
+--year INT           Calendar year (default: 2025)
+
+--term INT           School term (default: 2)
+
+--title STR          Optional custom title. If omitted, a default such as
+                     "CLM vs Target • Term 2, 2025" is generated.
+
+--outfile STR        Base filename (default: "one_bar_one_line")
+                     Produces <outfile>.png and <outfile>.pdf
+
+--fallback-to-national
+                     If set, uses national rates as a fallback when provider/
+                     funder rates are missing.
+
+--debug              Draws debug layout lines (used during development).
+
+--bar-series ytd|ly  Which rate series to use for the bars.
+                     NOTE: LY is currently treated the same as YTD in provider/
+                     funder/national modes.
+
+---------------------------------------------------------------------------
+EXAMPLE CALLS
+---------------------------------------------------------------------------
+
+# 1. NATIONAL YTD chart (Term 2, 2025)
+python one_bar_one_line.py \
+    --mode national \
+    --year 2025 \
+    --term 2 \
+    --bar-series ytd \
+    --outfile National_LastYear_24_25
+
+# 2. FUNDER chart (Aktive example: funder ID 101)
+python one_bar_one_line.py \
+    --mode funder \
+    --subject-id 101 \
+    --year 2025 \
+    --term 2 \
+    --bar-series ytd \
+    --outfile Aktive_T2_2025
+
+# 3. PROVIDER chart with national fallback enabled
+python one_bar_one_line.py \
+    --mode provider \
+    --subject-id 42 \
+    --year 2025 \
+    --term 1 \
+    --bar-series ytd \
+    --fallback-to-national \
+    --outfile Provider42_T1_2025
+
+# 4. CSV-DRIVEN chart (no DB access)
+python one_bar_one_line.py \
+    --csv provider_rates.csv \
+    --subject-name "CLM (All Funders)" \
+    --year 2025 \
+    --term 2 \
+    --bar-series ytd \
+    --outfile CLM_AllFunders_T2_2025
+
+---------------------------------------------------------------------------
+FONT NOTES
+---------------------------------------------------------------------------
+The script loads all .otf/.ttf fonts from app/static/fonts and uses the first
+one it finds (typically PP Mori). If the folder is empty, it raises an error.
+
+---------------------------------------------------------------------------
+TARGET LOGIC
+---------------------------------------------------------------------------
+• Each YearGroup uses its own WSNZ Target if present in data.
+• If missing, the script defaults to 85%.
+• Bars always reflect the chosen canonical series (YTD by default).
+• National fallback may provide a bar value where provider/funder rates
+  are absent.
+
+---------------------------------------------------------------------------
+END OF HEADER
+---------------------------------------------------------------------------
+"""
+
+
 import os, argparse, textwrap
 from typing import Mapping, Optional, Union, Sequence
 
@@ -271,7 +401,7 @@ def provider_portrait_with_target(
 
         # ✅ Fallback WSNZ target if missing (85%)
         if target_val is None and comp_rate:
-            target_val = 0.85
+            target_val = None
 
         ordered_items = sorted(comp_rate.items(), key=lambda kv: kv[1], reverse=True)
         groups.append({"yg": yg, "items": ordered_items, "target": target_val})
@@ -343,8 +473,10 @@ def provider_portrait_with_target(
 
     # Legend with dynamic label (e.g., "Funder Rate (LY)")
     legend_fs = max(8, int(8 * (0.9*scale + 0.1)))
-    _draw_legend(ax, label_subject=legend_label, cx=0.5, cy=LEGEND_CY, fs=legend_fs,
-                 bar_color=bar_color, target_color=target_color, show_bg=True)
+    
+    if(1 == 0):
+        _draw_legend(ax, label_subject=legend_label, cx=0.5, cy=LEGEND_CY, fs=legend_fs,
+                    bar_color=bar_color, target_color=target_color, show_bg=True)
 
     return fig
 

@@ -1,5 +1,6 @@
 # app/routes/instructions.py
 from pathlib import Path
+import traceback
 from flask import (
     Blueprint,
     render_template,
@@ -12,6 +13,7 @@ from flask import (
 )
 from app.routes.auth import login_required
 from app.utils.database import log_alert
+import pandas as pd
 # Create the blueprint
 instructions_bp = Blueprint("instructions_bp", __name__)
 
@@ -256,3 +258,57 @@ def instructions_for_code(role_code):
         )
         current_app.logger.exception("Unhandled error in instructions_for_code(%s)", role_code)
         abort(500)
+        
+
+
+def load_faq_rows():
+    """
+    Load FAQs from the Excel file defined in config.FAQ_XLSX_PATH.
+    Expected columns: Question Type, Question, Answer, Tags
+    """
+    # You can set this in your config; this is a fallback default:
+    default_path = Path(current_app.root_path) / "static" / "WSFL_FAQs_Revised.xlsx"
+    xlsx_path = Path(current_app.config.get("FAQ_XLSX_PATH", default_path))
+
+    if not xlsx_path.exists():
+        raise FileNotFoundError(f"FAQ Excel file not found at: {xlsx_path}")
+
+    df = pd.read_excel(xlsx_path)
+
+    required_cols = ["Question Type", "Question", "Answer", "Tags"]
+    missing = [c for c in required_cols if c not in df.columns]
+    if missing:
+        raise RuntimeError(f"FAQ file is missing required columns: {missing}")
+
+    # Drop completely empty rows just in case
+    df = df.dropna(how="all")
+
+    # Convert to list of dicts
+    records = df.to_dict(orient="records")
+
+    # Group by Question Type for nice headings
+    grouped = {}
+    for row in records:
+        qtype = str(row.get("Question Type") or "General")
+        grouped.setdefault(qtype, []).append(row)
+
+    return grouped
+
+
+
+@instructions_bp.route("/FAQ")
+def faq_page():
+    """
+    FAQ page – reads the Excel each request so changes show as soon as
+    you save the file.
+    """
+    try:
+        faq_groups = load_faq_rows()
+        current_app.logger.info("FAQ groups: %r", faq_groups)
+        return render_template("faq.html", faq_groups=faq_groups)
+    except Exception as e:
+        print("\n=== ERROR IN /FAQ ROUTE ===")
+        print(repr(e))
+        traceback.print_exc()
+        # Re-raise so your global error handler / debug page can still run
+        raise

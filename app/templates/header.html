@@ -83,32 +83,74 @@
         background: rgba(26, 66, 125, 0.92);
       }
 
-      /* Main content */
-      main {
-        min-height: calc(100vh - var(--navbar-h) - env(safe-area-inset-top, 0px));
-        display: flex;
-        flex-direction: column;
-      }
+      .dropdown-menu {
+    max-height: 70vh;      /* adjust as needed */
+    overflow-y: auto;
+}
 
-      /* Uniform buttons */
-      .uniform-btn {
-        min-width: 110px;
-        text-align: center;
-      }
+    /* Help modal theming */
+.help-modal .modal-content {
+  border-radius: 0.75rem;
+  border: none;
+  box-shadow: 0 0.75rem 2rem rgba(0, 0, 0, 0.25);
+  background: rgba(255, 255, 255, 0.97);
+}
 
-      /* Collapsed navbar tweaks */
-      @media (max-width: 991.98px) {
-        .navbar .navbar-nav {
-          align-items: flex-start;
-        }
-        .navbar .uniform-btn {
-          width: auto !important;
-          display: inline-flex;
-        }
-        .navbar .nav-link {
-          width: auto;
-        }
-      }
+.help-modal .modal-header {
+  background: rgba(26, 66, 125, 0.95); /* same tone as .custom-navbar */
+  color: #fff;
+  border-bottom: none;
+}
+
+.help-modal .modal-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.help-modal .modal-title i {
+  font-size: 1.25rem;
+}
+
+.help-modal .modal-body {
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+}
+
+.help-modal .list-group {
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.help-modal .list-group-item {
+  border: 0;
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+}
+
+.help-modal .list-group-item + .list-group-item {
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.help-modal .list-group-item i {
+  font-size: 1.1rem;
+}
+
+.help-modal .list-group-item .item-text-title {
+  font-weight: 500;
+}
+
+.help-modal .list-group-item .item-text-desc {
+  font-size: 0.85rem;
+}
+
+.help-modal .list-group-item-action:hover {
+  background-color: rgba(26, 66, 125, 0.06);
+}
+
+.help-modal .modal-footer {
+  border-top: none;
+}
     </style>
 
     {% block head %}{% endblock %}
@@ -267,43 +309,7 @@
             {% endif %}
 
             {% if user_role == "ADM" and user_email != "megan@watersafety.org.nz" %}
-            <li class="nav-item dropdown">
-              <a
-                id="admToolsToggle"
-                class="nav-link dropdown-toggle {% if 'reporting' in request.path or 'classlistupload' in request.path or 'funder_classes' in request.path %}active{% endif %}"
-                href="#"
-                role="button"
-                aria-haspopup="true"
-                data-bs-toggle="dropdown"
-                aria-expanded="false"
-              >Admin Tools</a>
-              <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="admToolsToggle">
-                <li><h6 class="dropdown-header">Reports &amp; Dashboards</h6></li>
-                <li><a class="dropdown-item py-2" href="{{ url_for('report_bp.new_reports') }}">Reporting</a></li>
-                <li><a class="dropdown-item py-2" href="{{ url_for('funder_bp.funder_dashboard') }}">Overview by Entity</a></li>
-                <li><a class="dropdown-item py-2" href="{{ url_for('funder_bp.funder_schools') }}">Overview by School</a></li>
-                <li><a class="dropdown-item py-2" href="{{ url_for('funder_bp.admin_dashboard') }}">Overview</a></li>
-
-                <li><hr class="dropdown-divider" /></li>
-
-                <li><h6 class="dropdown-header">Entity &amp; User Management</h6></li>
-                <li><a class="dropdown-item py-2" href="{{ url_for('admin_bp.admin_user_entities') }}">Edit User Entity</a></li>
-                <li><a class="dropdown-item py-2" href="{{ url_for('add_user.add_user') }}">Add Teacher</a></li>
-                <li><a class="dropdown-item py-2" href="{{ url_for('admin_bp.provider_maintenance') }}">Provider Maintenance</a></li>
-                <li><a class="dropdown-item py-2" href="{{ url_for('admin_bp.edit_school_type') }}">Edit School Type</a></li>
-                <li><a class="dropdown-item py-2" href="{{ url_for('students_bp.student_search_page') }}">Edit Student Record</a></li>
-                <li><a class="dropdown-item py-2" href="{{ url_for('class_bp.class_students_page') }}">Edit Class Lists</a></li>
-                <li><a class="dropdown-item py-2" href="{{ url_for('survey_bp.bulk_emails') }}">Email Reminders</a></li>
-
-                <li><hr class="dropdown-divider" /></li>
-
-                <li><h6 class="dropdown-header">Data Uploads &amp; Lookup</h6></li>
-                <li><a class="dropdown-item py-2" href="{{ url_for('upload_bp.classlistupload') }}">Upload Class List</a></li>
-                <li><a class="dropdown-item py-2" href="{{ url_for('eLearning_bp.admin_eLearning_upload') }}">Upload eLearning Excel</a></li>
-                <li><a class="dropdown-item py-2" href="{{ url_for('class_bp.funder_classes') }}">Class Lookup</a></li>
-                <li><a class="dropdown-item py-2" href="{{ url_for('class_bp.achievement_upload') }}">Upload Student Achievements</a></li>
-              </ul>
-            </li>
+            <li class="nav-item dropdown"> <a id="admToolsToggle" class="nav-link dropdown-toggle {% if 'reporting' in request.path or 'classlistupload' in request.path or 'funder_classes' in request.path %}active{% endif %}" href="#" role="button" aria-haspopup="true" data-bs-toggle="dropdown" aria-expanded="false" >Admin Tools</a> <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="admToolsToggle"> <li><h6 class="dropdown-header">Reports &amp; Dashboards</h6></li> <li><a class="dropdown-item py-2" href="{{ url_for('report_bp.new_reports') }}">Reporting</a></li> <li><a class="dropdown-item py-2" href="{{ url_for('funder_bp.funder_dashboard') }}">Overview by Entity</a></li> <li><a class="dropdown-item py-2" href="{{ url_for('funder_bp.funder_schools') }}">Overview by School</a></li> <li><a class="dropdown-item py-2" href="{{ url_for('funder_bp.admin_dashboard') }}">Overview</a></li> <li><hr class="dropdown-divider" /></li> <li><h6 class="dropdown-header">Entity &amp; User Management</h6></li> <li><a class="dropdown-item py-2" href="{{ url_for('admin_bp.admin_user_entities') }}">Edit User Entity</a></li> <li><a class="dropdown-item py-2" href="{{ url_for('add_user.add_user') }}">Add Teacher</a></li> <li><a class="dropdown-item py-2" href="{{ url_for('admin_bp.provider_maintenance') }}">Provider Maintenance</a></li> <li><a class="dropdown-item py-2" href="{{ url_for('admin_bp.edit_school_type') }}">Edit School Type</a></li> <li><a class="dropdown-item py-2" href="{{ url_for('students_bp.student_search_page') }}">Edit Student Record</a></li> <li><a class="dropdown-item py-2" href="{{ url_for('class_bp.class_students_page') }}">Edit Class Lists</a></li> <li><a class="dropdown-item py-2" href="{{ url_for('survey_bp.bulk_emails') }}">Email Reminders</a></li> <li><hr class="dropdown-divider" /></li> <li><h6 class="dropdown-header">Data Uploads &amp; Lookup</h6></li> <li><a class="dropdown-item py-2" href="{{ url_for('upload_bp.classlistupload') }}">Upload Class List</a></li> <li><a class="dropdown-item py-2" href="{{ url_for('eLearning_bp.admin_eLearning_upload') }}">Upload eLearning Excel</a></li> <li><a class="dropdown-item py-2" href="{{ url_for('class_bp.funder_classes') }}">Class Lookup</a></li> <li><a class="dropdown-item py-2" href="{{ url_for('class_bp.achievement_upload') }}">Upload Student Achievements</a></li> </ul> </li>
             {% elif user_role == "ADM" and user_email == "megan@watersafety.org.nz" %}
             <li class="nav-item dropdown">
               <a
@@ -394,17 +400,17 @@
               <a class="nav-link" href="{{ url_for('upload_bp.classlistupload') }}">Upload Class List</a>
             </li>
             {% endif %}
-
-            <!-- Action buttons -->
             <li class="nav-item mt-2 mt-lg-0 me-2">
-              <a
-                href="{{ url_for('instructions_bp.instructions_me') }}"
-                class="btn btn-outline-light btn-sm d-flex justify-content-center align-items-center text-center uniform-btn"
-              >
-                <i class="bi bi-question-circle me-1"></i> Help
-              </a>
-            </li>
 
+            <a
+  href="#"
+  class="btn btn-outline-light btn-sm px-3 py-1 d-flex justify-content-center align-items-center text-center uniform-btn"
+  data-bs-toggle="modal"
+  data-bs-target="#helpModal"
+>
+  <i class="bi bi-question-circle me-1"></i> Help
+</a>
+</li>
             <li class="nav-item mt-2 mt-lg-0 me-2">
               <a
                 href="{{ url_for('admin_bp.profile') }}"
@@ -431,6 +437,66 @@
     </nav>
 
     <div id="nav-spacer" style="height: var(--navbar-h);"></div>
+<div class="modal fade" id="helpModal" tabindex="-1" aria-labelledby="helpModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered help-modal">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h5 class="modal-title" id="helpModalLabel">
+          <i class="bi bi-question-circle"></i>
+          Help &amp; Support
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="list-group">
+
+          <a href="{{ url_for('instructions_bp.instructions_me') }}"
+             class="list-group-item list-group-item-action d-flex align-items-start">
+            <i class="bi bi-journal-text me-3 mt-1"></i>
+            <div class="item-text">
+              <div class="item-text-title">My Instructions</div>
+              <div class="item-text-desc text-muted">
+                Step-by-step guidance tailored to your role.
+              </div>
+            </div>
+          </a>
+
+          <a href="{{ url_for('instructions_bp.faq_page') }}"
+             class="list-group-item list-group-item-action d-flex align-items-start">
+            <i class="bi bi-question-square me-3 mt-1"></i>
+            <div class="item-text">
+              <div class="item-text-title">FAQ</div>
+              <div class="item-text-desc text-muted">
+                Common questions about logging in, uploads, and eLearning.
+              </div>
+            </div>
+          </a>
+
+          <a href="{{ url_for('feedback_bp.feedback') }}"
+             class="list-group-item list-group-item-action d-flex align-items-start">
+            <i class="bi bi-exclamation-diamond me-3 mt-1"></i>
+            <div class="item-text">
+              <div class="item-text-title">Report an Issue</div>
+              <div class="item-text-desc text-muted">
+                Let us know about any errors, bugs, or suggestions.
+              </div>
+            </div>
+          </a>
+
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">
+          Close
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
 
     <!-- Main Content -->
     <main class="container-fluid px-2 py-4">
