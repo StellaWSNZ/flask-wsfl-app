@@ -264,7 +264,7 @@ def load_faq_rows():
     # This always points to the correct static folder
     static_dir = Path(current_app.static_folder)
 
-    xlsx_path = static_dir / "WSFL_FAQs_Revised.xlsx"
+    xlsx_path = static_dir / "WSFL_FAQs_REVISED.xlsx"
 
     if not xlsx_path.exists():
         raise FileNotFoundError(f"FAQ Excel file not found at: {xlsx_path}")
