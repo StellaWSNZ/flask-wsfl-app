@@ -90,3 +90,8 @@ def log_alert(email=None, role=None, entity_id=None, link=None, message=None):
         except Exception:
             pass
         
+def get_terms():
+    return list(range(1, 5))
+
+def get_years():
+    return list(range(2024, 2027))

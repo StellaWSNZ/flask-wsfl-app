@@ -1,7 +1,7 @@
 from flask import Blueprint, current_app, render_template, request, session, redirect, jsonify, abort, url_for
 from sqlalchemy import text
 from app.routes.auth import login_required
-from app.utils.database import get_db_engine, log_alert
+from app.utils.database import get_db_engine, log_alert, get_terms, get_years
 import pandas as pd
 from collections import defaultdict
 
@@ -237,8 +237,8 @@ def funder_dashboard():
             schools=school_df.to_dict(orient="records"),
             selected_year=selected_year,
             selected_term=selected_term,
-            available_years=available_years,
-            available_terms=available_terms,
+            available_years=get_years(),
+            available_terms=get_terms(),
             no_eLearning=eLearning_df.empty,
             no_schools=school_df.empty,
             summary_string=summary_string,
@@ -247,6 +247,7 @@ def funder_dashboard():
             entity_type=entity_type,
             title=page_title,
             has_groups=has_groups
+            
         )
 
     except Exception:
@@ -467,9 +468,9 @@ def admin_dashboard():
 
     # ---- Parse inputs with guards ----
     try:
-        term = int(request.args.get("term", 2))
+        term = int(request.args.get("term", 4))
     except Exception:
-        term = 2
+        term = 4
         log_alert(
             email=session.get("user_email"),
             role=session.get("user_role"),
@@ -530,6 +531,8 @@ def admin_dashboard():
                     entity_type=entity_type,
                     term=term,
                     year=year,
+                    terms = get_terms(),
+                    years = get_years(),
                     threshold=threshold,
                     form_submitted=False
                 )

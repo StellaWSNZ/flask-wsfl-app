@@ -5,7 +5,7 @@ import threading
 import warnings
 import pandas as pd
 from flask import Blueprint, current_app, render_template, request, session, flash, redirect, url_for, send_file, jsonify, abort
-from app.utils.database import get_db_engine, log_alert
+from app.utils.database import get_db_engine, log_alert, get_terms, get_years
 from werkzeug.utils import secure_filename
 from app.routes.auth import login_required
 from sqlalchemy import text
@@ -431,6 +431,9 @@ def classlistupload():
             "classlistupload.html",
             funders=funders,
             schools=schools,
+            terms = get_terms(),
+            years = get_years(),
+        
             selected_funder=selected_funder,
             selected_provider =selected_provider,
             selected_school=selected_school,

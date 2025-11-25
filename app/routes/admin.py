@@ -28,7 +28,7 @@ from flask import (
 from app.extensions import mail
 from app.routes.auth import login_required
 from app.utils.custom_email import send_account_setup_email
-from app.utils.database import get_db_engine, log_alert
+from app.utils.database import get_db_engine, log_alert, get_terms, get_years
 
 # Blueprint
 admin_bp = Blueprint("admin_bp", __name__)
@@ -628,6 +628,8 @@ def provider_maintenance():
             schools=schools,
             providers=providers,
             funders=funders,
+            terms = get_terms(),
+            years = get_years(),
             selected_funder=selected_funder_i,
             selected_term=selected_term_i,
             selected_year=selected_year_i,

@@ -37,20 +37,26 @@
       <select id="school-select" class="form-select"></select>
     </div>
     <div class="col-md-2">
-      <label class="form-label">Term</label>
-      <select id="term-select" class="form-select">
-        <option value="1">Term 1</option><option value="2">Term 2</option>
-        <option value="3">Term 3</option><option value="4">Term 4</option>
-      </select>
-    </div>
-    <div class="col-md-2">
-      <label class="form-label">Year</label>
-      <select id="year-input" class="form-select">
-        {% for y in [2024, 2025, 2026] %}
-          <option value="{{ y }}" {{ 'selected' if current_year == y else '' }}>{{ y }}</option>
-        {% endfor %}
-      </select>
-    </div>
+  <label class="form-label">Term</label>
+  <select id="term-select" class="form-select">
+    {% for t in terms %}
+      <option value="{{ t }}" {{ 'selected' if t == current_term else '' }}>
+        Term {{ t }}
+      </option>
+    {% endfor %}
+  </select>
+</div>
+
+<div class="col-md-2">
+  <label class="form-label">Year</label>
+  <select id="year-input" class="form-select">
+    {% for y in years %}
+      <option value="{{ y }}" {{ 'selected' if y == current_year else '' }}>
+        {{ y }}
+      </option>
+    {% endfor %}
+  </select>
+</div>
     <div class="col-md-4">
       <label class="form-label">Class</label>
       <select id="class-select" class="form-select"></select>

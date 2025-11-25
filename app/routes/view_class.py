@@ -45,7 +45,7 @@ from sqlalchemy.exc import DBAPIError, SQLAlchemyError
 # Local
 from app.routes.auth import login_required
 from app.utils.competencyplot import load_competency_rates, make_figure
-from app.utils.database import get_db_engine, log_alert
+from app.utils.database import get_db_engine, log_alert, get_terms, get_years
 from app.utils.fundernationalplot import create_competency_report
 from app.utils.nationalplot import generate_national_report
 
@@ -638,6 +638,8 @@ def provider_classes():
         students=students,
         suggestions=suggestions,
         selected_class_id=selected_class_id,
+        years = get_years(),
+        terms = get_terms(),
         TERM=session.get("nearest_term"),
         YEAR=session.get("nearest_year"),
     user_role=session.get("user_role") 
@@ -738,6 +740,8 @@ def funder_classes():
         "funder_classes.html",
         schools=schools,
         classes=classes,
+        years = get_years(),
+        terms = get_terms(),
         students=students,
         suggestions=suggestions,
         selected_class_id=selected_class_id,
@@ -1226,6 +1230,8 @@ def moe_classes():
             suggestions=suggestions,
             TERM=default_term,
             YEAR=default_year,
+            years = get_years(),
+            terms = get_terms(),
             selected_term=selected_term,
             selected_year=selected_year,
             desc = session.get('desc')
@@ -1905,7 +1911,8 @@ def add_class():
 @login_required
 def achievement_upload():
     try:
-        return render_template("achievement_upload.html", current_year=date.today().year)
+        
+        return render_template("achievement_upload.html", current_year=date.today().year, years = get_years(), terms = get_terms())
     except Exception as e:
         # Print full traceback to console
         traceback.print_exc()
@@ -2354,7 +2361,7 @@ def class_students_page():
     try:
         return render_template(
             "class_students.html",
-            current_year=date.today().year
+            current_year=date.today().year, years = get_years(), terms = get_terms()
         )
     except Exception:
         traceback.print_exc()

@@ -48,7 +48,7 @@
         <label for="term" class="form-label">Term</label>
         <select name="term" id="term" class="form-select" required>
           <option value="" disabled {% if not selected_term %}selected{% endif %}>Select term</option>
-          {% for t in [1, 2, 3, 4] %}
+          {% for t in terms %}
             <option value="{{ t }}" {% if selected_term|string == t|string %}selected{% endif %}>{{ t }}</option>
           {% endfor %}
         </select>
@@ -59,7 +59,7 @@
         <label for="calendaryear" class="form-label">Year</label>
         <select name="calendaryear" id="calendaryear" class="form-select" required>
           <option value="" disabled {% if not selected_year %}selected{% endif %}>Select year</option>
-          {% for y in [2023, 2024, 2025] %}
+          {% for y in years %}
             <option value="{{ y }}" {% if selected_year|string == y|string %}selected{% endif %}>{{ y }}</option>
           {% endfor %}
         </select>

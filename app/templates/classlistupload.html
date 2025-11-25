@@ -63,26 +63,36 @@
       {% endif %}
     </div>
 
-    <div class="col-md-3">
-      <label for="term" class="form-label">Term</label>
-      <select class="form-select" id="term" name="term" required>
-        {% set default_term = selected_term if selected_term else '2' %}
-        {% for t in [1, 2, 3, 4] %}
-          <option value="{{ t }}" {% if default_term == t|string %}selected{% endif %}>Term {{ t }}</option>
-        {% endfor %}
-      </select>
-    </div>
+    <!-- Term -->
+<div class="col-md-3">
+  <label for="term" class="form-label">Term</label>
+  <select class="form-select" id="term" name="term" required>
 
-    <!-- Year -->
-    <div class="col-md-3">
-      <label for="year" class="form-label">Year</label>
-      <select class="form-select" id="year" name="year" required>
-        {% set default_year = selected_year if selected_year else 2025 %}
-        {% for y in range(2023, 2026) %}
-          <option value="{{ y }}" {% if default_year == y %}selected{% endif %}>{{ y }}</option>
-        {% endfor %}
-      </select>
-    </div>
+    {% set default_term = selected_term if selected_term else 2 %}
+
+    {% for t in terms %}
+      <option value="{{ t }}" {{ 'selected' if t == default_term else '' }}>
+        Term {{ t }}
+      </option>
+    {% endfor %}
+  </select>
+</div>
+
+<!-- Year -->
+<div class="col-md-3">
+  <label for="year" class="form-label">Year</label>
+  <select class="form-select" id="year" name="year" required>
+
+    {% set default_year = selected_year if selected_year else years[0] %}
+
+    {% for y in years %}
+      <option value="{{ y }}" {{ 'selected' if y == default_year else '' }}>
+        {{ y }}
+      </option>
+    {% endfor %}
+  </select>
+</div>
+
 
     <!-- Teacher / Class -->
     <div class="col-md-3">

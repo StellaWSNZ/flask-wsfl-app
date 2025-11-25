@@ -27,22 +27,27 @@
 
             <div class="col-6 col-md-4">
               <label for="termSelect" class="form-label">Term</label>
-              <select id="termSelect" class="form-select" required>
-                <option value="1">Term 1</option>
-                <option value="2">Term 2</option>
-                <option value="3" selected>Term 3</option>
-                <option value="4">Term 4</option>
-              </select>
+<select id="termSelect" class="form-select" required>
+  {% for t in terms %}
+    <option value="{{ t }}"
+            {% if t == default_term %}selected{% endif %}>
+      Term {{ t }}
+    </option>
+  {% endfor %}
+</select>
+
             </div>
 
             <div class="col-6 col-md-4">
               <label for="yearSelect" class="form-label">Year</label>
-              <select id="yearSelect" class="form-select" required>
-                {% set cy = current_year or 2025 %}
-                {% for y in [cy, cy-1, cy-2, cy-3, cy-4, cy-5] %}
-                  <option value="{{ y }}" {% if y == cy %}selected{% endif %}>{{ y }}</option>
-                {% endfor %}
-              </select>
+<select id="yearSelect" class="form-select" required>
+  {% for y in years %}
+    <option value="{{ y }}"
+            {% if y == current_year %}selected{% endif %}>
+      {{ y }}
+    </option>
+  {% endfor %}
+</select>
             </div>
           </form>
 
