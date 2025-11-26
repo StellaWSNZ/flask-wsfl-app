@@ -468,7 +468,7 @@ def admin_dashboard():
 
     # ---- Parse inputs with guards ----
     try:
-        term = int(request.args.get("term", 4))
+        term = int(request.args.get("term", session.get("nearest_term")))
     except Exception:
         term = 4
         log_alert(
@@ -480,7 +480,7 @@ def admin_dashboard():
         )
 
     try:
-        year = int(request.args.get("year", 2025))
+        year = int(request.args.get("year", session.get("nearest_year")))
     except Exception:
         year = 2025
         log_alert(

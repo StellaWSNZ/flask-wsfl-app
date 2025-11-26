@@ -126,7 +126,9 @@ def classlistupload():
         funders, schools, providers = [], [], []
         selected_csv = None
         selected_funder = selected_school = selected_school_str = None
-        selected_term = selected_year = selected_teacher = selected_class = None
+        selected_term = session.get("nearest_term")
+        selected_year = session.get("nearest_year")
+        selected_teacher = selected_class = None
         selected_provider = None  # <--- NEW
 
         selected_school = session.get("desc") or ""
@@ -180,7 +182,7 @@ def classlistupload():
             action = request.form.get('action')  # 'preview' or 'validate'
 
             selected_funder = request.form.get('funder')
-            selected_term = request.form.get('term')
+            selected_term = request.form.get('term') 
             selected_year = request.form.get('year')
             selected_teacher = request.form.get('teachername')
             selected_class = request.form.get('classname')
