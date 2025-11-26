@@ -68,10 +68,9 @@
   <label for="term" class="form-label">Term</label>
   <select class="form-select" id="term" name="term" required>
 
-    {% set default_term = selected_term if selected_term else 2 %}
 
     {% for t in terms %}
-      <option value="{{ t }}" {{ 'selected' if t == default_term else '' }}>
+      <option value="{{ t }}" {{ 'selected' if t == selected_term else '' }}>
         Term {{ t }}
       </option>
     {% endfor %}
@@ -83,10 +82,9 @@
   <label for="year" class="form-label">Year</label>
   <select class="form-select" id="year" name="year" required>
 
-    {% set default_year = selected_year if selected_year else years[0] %}
 
     {% for y in years %}
-      <option value="{{ y }}" {{ 'selected' if y == default_year else '' }}>
+      <option value="{{ y }}" {{ 'selected' if y == selected_year else '' }}>
         {{ y }}
       </option>
     {% endfor %}

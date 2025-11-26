@@ -127,6 +127,7 @@ def classlistupload():
         selected_csv = None
         selected_funder = selected_school = selected_school_str = None
         selected_term = session.get("nearest_term")
+        print(selected_term)
         selected_year = session.get("nearest_year")
         selected_teacher = selected_class = None
         selected_provider = None  # <--- NEW
@@ -428,7 +429,7 @@ def classlistupload():
             elif action == "preview":
                 flash("Please upload a valid CSV file.", "danger")
                 return redirect(url_for("upload_bp.classlistupload"))
-        #print(selected_school)
+        print(selected_year)
         return render_template(
             "classlistupload.html",
             funders=funders,

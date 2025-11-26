@@ -1,54 +1,186 @@
-{% extends "header.html" %} {% block title %}Add School User{% endblock %} {%
+{% extends "header.html" %} {% block title %}Add School Users{% endblock %} {%
 block content %}
 <div class="container mt-4">
-  <h2 class="text-center text-primary mb-4">Add a School Staff Member</h2>
+  <h2 class="text-center text-primary mb-4">Add School Staff</h2>
 
-  <form method="post" class="row g-3">
-    <div class="col-md-4">
-      <label class="form-label">First Name</label>
-      <input name="first_name" class="form-control" required />
-    </div>
-    <div class="col-md-4">
-      <label class="form-label">Surname</label>
-      <input name="surname" class="form-control" required />
-    </div>
-    <div class="col-md-4">
-      <label class="form-label">Email</label>
-      <input name="email" type="email" class="form-control" required />
-    </div>
-
+  <form method="post" id="add-users-form" class="row g-3">
     <div class="col-12">
-      <label class="form-label">School</label>
-      <select name="moe_number" class="form-select" required>
-        <option value="">Select a school…</option>
-        {% for moe,name in schools %}
-        <option value="{{ moe }}">{{ name }} ({{ moe }})</option>
-        {% endfor %}
-      </select>
+      <table class="table table-bordered align-middle">
+        <thead>
+          <tr>
+            <th>First name</th>
+            <th>Surname</th>
+            <th>Email</th>
+            <th>School</th>
+            <th>Admin?</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="user-rows">
+          <!-- Initial row (index 0) -->
+          <tr class="user-row" data-index="0">
+            <td>
+              <input name="first_name_0" class="form-control" required />
+            </td>
+            <td>
+              <input name="surname_0" class="form-control" required />
+            </td>
+            <td>
+              <input
+                name="email_0"
+                type="email"
+                class="form-control email-input"
+                placeholder="name@school.nz"
+                required
+              />
+            </td>
+            <td>
+              <select
+                name="moe_number_0"
+                class="form-select school-select"
+                required
+              >
+                <option value="">Select a school…</option>
+                {% for s in schools %}
+                <option
+                  value="{{ s.MOENumber }}"
+                  data-domain="{{ s.Domain | lower }}"
+                >
+                  {{ s.SchoolName }} ({{ s.MOENumber }})
+                </option>
+                {% endfor %}
+              </select>
+            </td>
+            <td class="text-center">
+              <input
+                type="checkbox"
+                name="is_admin_0"
+                class="form-check-input"
+              />
+            </td>
+            <td class="text-center">
+              <button
+                type="button"
+                class="btn btn-sm btn-outline-danger remove-row-btn"
+                title="Remove row"
+              >
+                &times;
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <button type="button" id="add-row-btn" class="btn btn-outline-secondary">
+        + Add another staff member
+      </button>
     </div>
 
-    <!-- Admin toggle -->
-    <div class="col-12">
-      <div class="form-check form-switch mt-2">
-        <input
-          class="form-check-input"
-          type="checkbox"
-          id="is_admin"
-          name="is_admin"
-        />
-        <label class="form-check-label" for="is_admin">
-          Give this user School Admin access
-        </label>
-      </div>
-      <small class="text-muted">
-        Admin users can add/edit other staff and manage class lists.
-      </small>
-    </div>
-
-    <div class="col-12">
-      <button class="btn btn-primary">Create User &amp; Send Email</button>
+    <div class="col-12 mt-3">
+      <button class="btn btn-primary">Create Users &amp; Send Emails</button>
     </div>
   </form>
 </div>
 
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const tbody = document.getElementById("user-rows");
+    const addBtn = document.getElementById("add-row-btn");
+
+    const nextIndex = () => {
+      const rows = tbody.querySelectorAll(".user-row");
+      if (!rows.length) return 0;
+      const indices = Array.from(rows).map((r) =>
+        parseInt(r.dataset.index || "0", 10)
+      );
+      return Math.max(...indices) + 1;
+    };
+
+    const renameRowFields = (row, newIndex) => {
+      row.dataset.index = newIndex;
+      row.querySelectorAll("input, select").forEach((el) => {
+        // base = part before final "_N"
+        const parts = el.name.split("_");
+        const base = parts[0]; // "first_name", "surname", etc.
+        el.name = `${base}_${newIndex}`;
+
+        // reset values
+        if (el.tagName === "INPUT") {
+          if (el.type === "checkbox") {
+            el.checked = false;
+          } else {
+            el.value = "";
+          }
+        }
+        if (el.tagName === "SELECT") {
+          el.selectedIndex = 0;
+        }
+      });
+    };
+
+    // Add new row by cloning the first
+    addBtn.addEventListener("click", () => {
+      const firstRow = tbody.querySelector(".user-row");
+      if (!firstRow) return;
+      const clone = firstRow.cloneNode(true);
+      const idx = nextIndex();
+      renameRowFields(clone, idx);
+      tbody.appendChild(clone);
+    });
+
+    // Remove row (keep at least 1)
+    tbody.addEventListener("click", (e) => {
+      const btn = e.target.closest(".remove-row-btn");
+      if (!btn) return;
+      const rows = tbody.querySelectorAll(".user-row");
+      if (rows.length === 1) return;
+      btn.closest(".user-row").remove();
+    });
+
+    // Domain → school auto-fill, per row
+    const autoFillSchoolFromEmail = (emailInput) => {
+      const val = (emailInput.value || "").trim().toLowerCase();
+      const atPos = val.indexOf("@");
+      if (atPos === -1) return;
+      const domain = val.slice(atPos + 1); // everything after @
+
+      const row = emailInput.closest(".user-row");
+      if (!row) return;
+
+      const schoolSelect = row.querySelector(".school-select");
+      if (!schoolSelect) return;
+
+      // Look for exact domain match in this select's options
+      let matched = false;
+      Array.from(schoolSelect.options).forEach((opt) => {
+        const optDomain = (opt.dataset.domain || "").toLowerCase();
+        if (optDomain && optDomain === domain) {
+          opt.selected = true;
+          matched = true;
+        }
+      });
+
+      // If no exact, you *could* relax to "endsWith" (optional)
+      if (!matched) {
+        Array.from(schoolSelect.options).forEach((opt) => {
+          const optDomain = (opt.dataset.domain || "").toLowerCase();
+          if (!matched && optDomain && domain.endsWith(optDomain)) {
+            opt.selected = true;
+            matched = true;
+          }
+        });
+      }
+    };
+
+    // Delegate blur event for any email input (works for cloned rows)
+    tbody.addEventListener(
+      "blur",
+      (e) => {
+        if (!e.target.classList.contains("email-input")) return;
+        autoFillSchoolFromEmail(e.target);
+      },
+      true
+    );
+  });
+</script>
 {% endblock %}
