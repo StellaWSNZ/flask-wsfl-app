@@ -564,7 +564,7 @@ def provider_classes():
     suggestions = []
     schools = []
     selected_class_id = None
-
+    moe_number = None
     user_role = session.get("user_role")
     user_id = session.get("user_id")
     
@@ -640,6 +640,7 @@ def provider_classes():
         selected_class_id=selected_class_id,
         years = get_years(),
         terms = get_terms(),
+        moe_number = moe_number,
         TERM=session.get("nearest_term"),
         YEAR=session.get("nearest_year"),
     user_role=session.get("user_role") 
@@ -661,7 +662,7 @@ def funder_classes():
     group_entities = session.get("group_entities", {})
     provider_ids = [str(e["id"]) for e in group_entities.get("PRO", [])]
     funder_ids = [str(e["id"]) for e in group_entities.get("FUN", [])]
-
+    moe_number = ""
     default_term = session.get("nearest_term")
     default_year = session.get("nearest_year")
 
@@ -742,6 +743,7 @@ def funder_classes():
         classes=classes,
         years = get_years(),
         terms = get_terms(),
+        moe_number = moe_number,
         students=students,
         suggestions=suggestions,
         selected_class_id=selected_class_id,

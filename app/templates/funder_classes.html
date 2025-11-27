@@ -32,13 +32,15 @@
       <div class="col-md-4" id="school-wrapper" {% if schools %}style="display:block;"{% else %}style="display:none;"{% endif %}>
         <label for="moe_number" class="form-label">School</label>
         <select name="moe_number" id="moe_number" class="form-select" required>
-          <option value="">Select School</option>
-          {% for school in schools %}
-            <option value="{{ school.MOENumber }}" {% if request.form.get('moe_number') == school.MOENumber|string %}selected{% endif %}>
-              {{ school.School }}
-            </option>
-          {% endfor %}
-        </select>
+  <option value="">Select School</option>
+  {% set current_moe = request.form.get('moe_number', moe_number|string) %}
+  {% for school in schools %}
+    <option value="{{ school.MOENumber }}"
+            {% if current_moe == school.MOENumber|string %}selected{% endif %}>
+      {{ school.School }}
+    </option>
+  {% endfor %}
+</select>
       </div>
 
       <!-- Submit -->
@@ -146,6 +148,9 @@
     const term = document.getElementById("term").value;
     const year = document.getElementById("calendaryear").value;
 
+    // 👇 server-side selected MOE (from POST or context)
+    const currentMoe = "{{ moe_number or request.form.get('moe_number', '') or '' }}";
+
     if (!term || !year) return;
 
     let url = "";
@@ -175,11 +180,15 @@
         schoolSelect.appendChild(opt);
       }
 
+      // 🔁 Re-apply selected school if we have one
+      if (currentMoe) {
+        schoolSelect.value = currentMoe;
+      }
+
       schoolWrapper.style.display = "block";
       findBtn.style.display = "block";
     } catch (e) {
       console.error("Failed to load schools:", e);
-      
     }
   }
 
