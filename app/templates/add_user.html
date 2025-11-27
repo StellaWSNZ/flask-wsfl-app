@@ -99,10 +99,15 @@ block content %}
     const renameRowFields = (row, newIndex) => {
       row.dataset.index = newIndex;
       row.querySelectorAll("input, select").forEach((el) => {
-        // base = part before final "_N"
-        const parts = el.name.split("_");
-        const base = parts[0]; // "first_name", "surname", etc.
-        el.name = `${base}_${newIndex}`;
+        const name = el.getAttribute("name");
+        if (!name) return;
+
+        const parts = name.split("_");
+        if (parts.length > 1) {
+          // everything except the last segment is the base
+          const base = parts.slice(0, -1).join("_"); // "first_name", "moe_number", etc.
+          el.name = `${base}_${newIndex}`;
+        }
 
         // reset values
         if (el.tagName === "INPUT") {

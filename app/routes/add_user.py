@@ -5,9 +5,11 @@ from flask import (
 )
 import os
 from sqlalchemy import create_engine, text
+from app.routes.auth import login_required
+from app.utils.database import get_db_engine
 from dotenv import load_dotenv
-from app.utils.wsfl_email import create_user_and_send, send_account_invites
-
+from app.utils.wsfl_email import create_user_and_send, send_account_invites, temp_password
+import bcrypt
 load_dotenv()
 
 # --- DB engine for dropdown queries (schools) ---
@@ -21,10 +23,13 @@ def _clean(s: str) -> str:
     return (s or "").strip()
 
     
-
 @user_bp.route("/add-user", methods=["GET", "POST"])
+@login_required
 def add_user():
     try:
+        # create engine once for this request
+        engine = get_db_engine()
+
         if request.method == "POST":
             form = request.form
 
@@ -37,7 +42,7 @@ def add_user():
 
             if not indices:
                 flash("Please add at least one staff member.", "danger")
-                return redirect(url_for("user_bp.add_user"))
+                return redirect(url_for("add_user.add_user"))
 
             role          = session.get("user_role") or "UNKNOWN"
             is_user_admin = int(session.get("user_admin") or 0)
@@ -57,8 +62,8 @@ def add_user():
             from_org = None  # tweak if you have funder/provider/school name in session
 
             # Build two recipient lists: admins and non-admins
-            admin_recipients: list[dict] = []
-            standard_recipients: list[dict] = []
+            admin_recipients = []
+            standard_recipients = []
 
             row_errors = 0
 
@@ -81,8 +86,6 @@ def add_user():
                         "a valid email, and select a school.",
                         "danger",
                     )
-                    # choose: either skip this row or abort everything.
-                    # here we skip just this row:
                     continue
 
                 # Did they tick "Admin?" for this row?
@@ -96,14 +99,55 @@ def add_user():
                     # treat as standard user instead
                     requested_admin = False
 
+                is_admin = 1 if requested_admin else 0
+
+                # ---- CREATE or UPDATE USER in DB FIRST ----
+                try:
+                    temp_pw = temp_password(sur, moe)  # or (first, moe)
+                    hashed  = bcrypt.hashpw(temp_pw.encode(), bcrypt.gensalt()).decode()
+
+                    with engine.begin() as conn:
+                        conn.execute(
+                            text(
+                                """
+                                EXEC dbo.AddOrUpdateSchoolUser
+                                     @FirstName = :first,
+                                     @Surname   = :sur,
+                                     @Email     = :email,
+                                     @MOENumber = :moe,
+                                     @Hash      = :hash,
+                                     @Admin     = :admin
+                                """
+                            ),
+                            {
+                                "first": first,
+                                "sur":   sur,
+                                "email": email,
+                                "moe":   int(moe),
+                                "hash":  hashed,
+                                "admin": is_admin,
+                            },
+                        )
+                except Exception:
+                    current_app.logger.exception(
+                        "Failed to create/update school user %s (row %s)", email, idx
+                    )
+                    row_errors += 1
+                    flash(
+                        f"Row {int(idx) + 1}: there was a problem creating this user in the database.",
+                        "danger",
+                    )
+                    # Don't add to invite list if we couldn't create the user
+                    continue
+
+                # ---- If DB insert/update succeeded, queue invite ----
                 rec = {
                     "email": email,
                     "firstname": first,
                     "role": "MOE",   # all school staff are MOE users here
-                    # you can add more keys if you later extend send_account_invites
                 }
 
-                if requested_admin:
+                if is_admin:
                     admin_recipients.append(rec)
                 else:
                     standard_recipients.append(rec)
@@ -144,7 +188,7 @@ def add_user():
             if row_errors:
                 flash(f"{row_errors} row(s) had missing or invalid data and were skipped.", "warning")
 
-            return redirect(url_for("user_bp.add_user"))
+            return redirect(url_for("add_user.add_user"))
 
         # -----------------------------
         # GET: populate dropdown
@@ -171,6 +215,7 @@ def add_user():
         # Log alert ONLY on POST to avoid GET-render loops spamming the DB
         try:
             if request.method == "POST":
+                engine = get_db_engine()
                 with engine.begin() as conn:
                     conn.execute(
                         text("""

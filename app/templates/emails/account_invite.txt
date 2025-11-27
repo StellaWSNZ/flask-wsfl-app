@@ -15,21 +15,30 @@ NEXT STEPS
 
 {% if role == "MOE" %}
 • In "School Tools > Class Lookup", check that all classes are present and correct.
+{% if make_admin %}
 • In "Staff > Manage My Staff", make sure staff access is up to date.
+{% endif %}
 • View and record class achievements for the current term.
 • Optional: explore the performance reports to see how your school is tracking.
 {% elif role == "PRO" %}
 • In "Provider Tools > Class Lookup", confirm the classes and schools linked to your provider.
-• If available, check tutor access in "Staff > Manage My Staff".
+{% if make_admin %}
+• In "Staff > Manage My Staff", make sure staff access is up to date.
+{% endif %}
 • Upload or review student achievements for the classes you support.
 • Optional: explore provider/funder reporting dashboards.
 {% elif role == "FUN" %}
 • Open the Overview dashboards to see which schools and providers are currently active.
-• In "Staff > Manage My Staff", check that staff access is correct.
+{% if make_admin %}
+• In "Staff > Manage My Staff", make sure staff access is up to date.
+{% endif %}
 • Explore participation and performance reports for your funded schools and providers.
 {% elif role == "GRP" %}
 • Use "Provider Tools > Class Lookup" to review classes linked to your group.
-• If managing multiple tutors or providers, check their access is up to date.
+{% if make_admin %}
+• In "Staff > Manage My Staff", make sure staff access is up to date.
+{% endif %}
+• If managing multiple providers, check their access is up to date.
 {% endif %}
 
 {% if make_admin %}

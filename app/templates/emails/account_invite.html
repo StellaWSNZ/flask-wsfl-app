@@ -30,10 +30,11 @@
     In <em>School Tools &gt; Class Lookup</em>, check that all classes are
     present and correct.
   </li>
+  {% if make_admin %}
   <li>
-    In <em>Staff &gt; Manage My Staff</em>, make sure staff access is up to
-    date.
+    In <em>Staff &gt; Manage My Staff</em>, check that staff access is correct.
   </li>
+  {%endif%}
   <li>When ready, view and record class achievements for the current term.</li>
   <li>
     Optional: explore performance reports to see how your school is tracking.
@@ -44,9 +45,11 @@
     In <em>Provider Tools &gt; Class Lookup</em>, confirm the classes and
     schools linked to your provider.
   </li>
+  {% if make_admin %}
   <li>
-    If available, check tutor access in <em>Staff &gt; Manage My Staff</em>.
+    In <em>Staff &gt; Manage My Staff</em>, check that staff access is correct.
   </li>
+  {%endif%}
   <li>Upload or review student achievements for the classes you support.</li>
   <li>Optional: explore provider/funder reporting dashboards.</li>
 
@@ -55,9 +58,11 @@
     Open the <em>Overview</em> dashboards to see which schools and providers are
     currently active.
   </li>
+  {% if make_admin %}
   <li>
     In <em>Staff &gt; Manage My Staff</em>, check that staff access is correct.
   </li>
+  {%endif%}
   <li>
     Explore participation and performance reports for your funded schools and
     providers.
@@ -68,11 +73,9 @@
     Use <em>Provider Tools &gt; Class Lookup</em> to review classes linked to
     your group.
   </li>
-  <li>
-    If you manage multiple tutors or providers, check their access is up to
-    date.
-  </li>
-  {% endif %} {% if make_admin %}
+  {% if make_admin %}
+  <li>If you manage multiple providers, check their access is up to date.</li>
+  {%endif %} {% endif %} {% if make_admin %}
   <li>
     You’ve been granted <strong>administration privileges</strong>, which allows
     you to manage staff and entities in addition to your usual tools.
