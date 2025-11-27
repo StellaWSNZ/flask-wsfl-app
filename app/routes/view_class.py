@@ -616,7 +616,7 @@ def provider_classes():
                     )
                     classes = [row._mapping for row in result.fetchall()]
 
-
+                    print(classes)
                     if not classes:
                         suggestion_result = conn.execute(
                              text("""
@@ -636,6 +636,8 @@ def provider_classes():
         schools=schools,
         classes=classes,
         students=students,
+            user_admin=session.get("user_admin", 0),
+
         suggestions=suggestions,
         selected_class_id=selected_class_id,
         years = get_years(),
@@ -727,7 +729,7 @@ def funder_classes():
                     {"request": "ClassesBySchoolTermYear", "moe": moe_number, "term": term, "year": year}
                 )
                 classes = [row._mapping for row in result.fetchall()]
-
+                print(classes)
                 if not classes:
                     suggestion_result = conn.execute(
                         text("""EXEC FlaskHelperFunctionsSpecific 
@@ -741,6 +743,8 @@ def funder_classes():
         "funder_classes.html",
         schools=schools,
         classes=classes,
+                    user_admin=session.get("user_admin", 0),
+
         years = get_years(),
         terms = get_terms(),
         moe_number = moe_number,
@@ -2706,3 +2710,89 @@ def ethnicities():
         rows = conn.execute(text("EXEC FlaskHelperFunctions @Request='EthnicityDropdown'")).fetchall()
     return jsonify([{"id": r._mapping["EthnicityID"], "desc": r._mapping["Description"]} for r in rows])
 
+
+
+@class_bp.route("/move-class", methods=["POST"])
+@login_required
+def move_class():
+  try:
+    data = request.get_json(force=True) or {}
+    class_id = int(data.get("class_id"))
+    new_term = int(data.get("term"))
+    new_year = int(data.get("year"))
+
+    engine = get_db_engine()
+    with engine.begin() as conn:
+      conn.execute(
+        text("""
+          EXEC ChangeClassTerm
+               @ClassID        = :class_id,
+               @NewTerm        = :new_term,
+               @NewCalendarYear = :new_year
+        """),
+        {
+          "class_id": class_id,
+          "new_term": new_term,
+          "new_year": new_year,
+        },
+      )
+
+    return jsonify({"ok": True})
+  except Exception as e:
+    current_app.logger.exception("Move class failed")
+    return jsonify({"ok": False, "error": str(e)}), 500
+
+
+
+
+@class_bp.route("/delete-class", methods=["POST"])
+@login_required
+def delete_class():
+    """
+    AJAX endpoint to delete a class via DeleteClass stored procedure.
+    Expects JSON: {"class_id": <int>}
+    Returns JSON: {"ok": true} or {"ok": false, "error": "..."}
+    """
+
+    # Authorisation: only ADM / FUN / GRP (same pattern as /Classes)
+    role = session.get("user_role")
+    if role not in ("ADM", "FUN", "GRP"):
+        return jsonify({"ok": False, "error": "Not authorised to delete classes."}), 403
+
+    # Parse input
+    try:
+        payload = request.get_json(force=True) or {}
+        class_id = int(payload.get("class_id", 0))
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "error": "Invalid class ID."}), 400
+
+    if class_id <= 0:
+        return jsonify({"ok": False, "error": "Missing or invalid class ID."}), 400
+
+    engine = get_db_engine()
+
+    try:
+        with engine.begin() as conn:
+            conn.execute(
+                text("EXEC dbo.DeleteClass @ClassID = :cid"),
+                {"cid": class_id},
+            )
+
+        # If the proc RAISERRORs, we won't get here (exception is thrown)
+        return jsonify({"ok": True})
+
+    except Exception as e:
+        # Log full stack trace server-side
+        current_app.logger.exception("DeleteClass failed for ClassID=%s", class_id)
+
+        # Try to surface a helpful message to the UI
+        msg = str(e)
+        # If it's a SQLAlchemy DBAPI error, the SQL Server message is often in e.orig
+        try:
+            if hasattr(e, "orig") and hasattr(e.orig, "args") and e.orig.args:
+                msg = str(e.orig.args[0])
+        except Exception:
+            pass
+
+        return jsonify({"ok": False, "error": msg}), 500
+    

@@ -15,6 +15,8 @@
   --bs-primary: #1a427d;
   --bs-primary-rgb: 26, 66, 125;
     --bs-secondary: #4d5441;
+      --bs-info-custom: #2bb4d4; /* NEW third colour */
+  --bs-danger-custom: #d64545; 
 
 }
 
@@ -26,7 +28,29 @@ body, .text-body, .text-dark, .text-muted, .form-label, .form-control {
   color: #171717 !important;
 }
 
+/* Solid info button */
+.btn-info {
+  background-color: var(--bs-info-custom) !important;
+  border-color: var(--bs-info-custom) !important;
+  color: #fff !important;
+  font-weight: 600;
+}
 
+/* Outline info button */
+.btn-outline-info {
+  color: var(--bs-info-custom) !important;
+  border: 2px solid var(--bs-info-custom) !important;
+  background-color: transparent !important;
+  font-weight: 600 !important;
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s !important;
+}
+
+.btn-outline-info:hover {
+  background-color: var(--bs-info-custom) !important;
+  color: #fff !important;
+  border-color: var(--bs-info-custom) !important;
+}
+ 
 .btn-primary {
   background-color: var(--bs-primary) !important;
   border-color: var(--bs-primary) !important;
@@ -90,3 +114,24 @@ thead.custom-header th {
     border-color: #004080 !important;
     text-align: center;
   }
+
+  .btn-danger-custom {
+  background-color: var(--bs-danger-custom) !important;
+  border-color: var(--bs-danger-custom) !important;
+  color: #fff !important;
+  font-weight: 600 !important;
+}
+
+.btn-outline-danger-custom {
+  color: var(--bs-danger-custom) !important;
+  border: 2px solid var(--bs-danger-custom) !important;
+  background-color: transparent !important;
+  font-weight: 600 !important;
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s !important;
+}
+
+.btn-outline-danger-custom:hover {
+  background-color: var(--bs-danger-custom) !important;
+  color: #fff !important;
+  border-color: var(--bs-danger-custom) !important;
+}
