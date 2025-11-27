@@ -605,7 +605,7 @@ def provider_classes():
                                 @Request = :request,
                                 @MOENumber = :moe,
                                 @Term = :term,
-                                @Year = :year
+                                @CalendarYear = :year
                         """),
                         {
                             "request": "ClassesBySchoolTermYear",
@@ -716,7 +716,9 @@ def funder_classes():
             term = request.form.get("term", "").strip()
             year = request.form.get("calendaryear", "").strip()
             moe_number = request.form.get("moe_number", "").strip()
-
+            print(moe_number)
+            print(term)
+            print(year)
             if term.isdigit() and year.isdigit() and moe_number:
                 term, year = int(term), int(year)
 
@@ -725,7 +727,7 @@ def funder_classes():
                             @Request = :request,
                             @MOENumber = :moe,
                             @Term = :term,
-                            @Year = :year"""),
+                            @CalendarYear = :year"""),
                     {"request": "ClassesBySchoolTermYear", "moe": moe_number, "term": term, "year": year}
                 )
                 classes = [row._mapping for row in result.fetchall()]
@@ -1040,7 +1042,7 @@ def get_schools_for_term_year():
     year = request.args.get("year", type=int)
     user_role = session.get("user_role")
     funder_id = session.get("user_id")
-
+    
     if not term or not year:
         return jsonify([])
 
@@ -1197,7 +1199,7 @@ def moe_classes():
                                 @Request   = :Request,
                                 @MOENumber = :moe,
                                 @Term      = :term,
-                                @Year      = :year
+                                @CalendarYear      = :year
                         """),
                         {
                             "Request": "ClassesBySchoolTermYear",
@@ -1842,7 +1844,7 @@ def get_classes_by_school():
                 @Request = :r,
                      @MOENumber = :moe,
                      @Term = :term,
-                     @Year = :year
+                     @CalendarYear = :year
             """)
             rows = conn.execute(stmt, {"r":"AllClassesBySchoolTermYear","moe": moe, "term": term, "year": year}).fetchall()
 
