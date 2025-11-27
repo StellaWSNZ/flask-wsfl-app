@@ -54,569 +54,588 @@ block content %}
   }
 </style>
 
-<h3 class="mb-4 text-center text-primary">Email Reminders</h3>
-
 <div class="container">
-  <div class="row g-4">
-    <!-- Filters selector -->
-    <div class="col-md-4">
-      <label for="opts">Filters:</label>
-      <select class="form-select" id="opts" multiple>
-        <option value="elearning">
-          At least __ eLearning modules outstanding
-        </option>
-        <option value="selfreview">No self review since date</option>
-        <option value="entity">Entity</option>
-        <option value="account">Account status</option>
-      </select>
-      <small class="form-text text-muted">
-        Choose one or more filters to narrow who gets emailed.
-      </small>
-    </div>
-
-    <!-- eLearning input -->
-    <div class="col-md-4 d-none" id="elearningInput">
-      <label for="elearningX">Outstanding courses (≥ X):</label>
-      <input
-        type="number"
-        class="form-control"
-        id="elearningX"
-        min="0"
-        max="5"
-      />
-    </div>
-
-    <!-- Self-review input -->
-    <div class="col-md-4 d-none" id="selfReviewInput">
-      <label for="selfReviewDate">No self review since:</label>
-      <input type="date" class="form-control" id="selfReviewDate" />
-    </div>
-
-    <!-- Entity select -->
-    <div class="col-md-4 d-none" id="entityInput">
-      <label for="entitySelect">Select entity (one or more):</label>
-      <select class="form-select" id="entitySelect" multiple>
-        {% for e in entities %}
-        <option value="{{ e.id }}" data-type="{{ e.Type }}">
-          {{ e.Description }}
-        </option>
-        {% endfor %}
-      </select>
-      <small class="form-text text-muted">
-        Pick the entities you want to target.
-      </small>
-    </div>
-
-    <!-- Account status filter (only visible when 'account' is selected) -->
-    <div class="col-md-4 d-none" id="accountStatusInput">
-      <label for="accountStatus">Account status:</label>
-      <select id="accountStatus" class="form-select">
-        <option value="all">All accounts</option>
-        <option value="active">Active only</option>
-        <option value="disabled">Disabled only</option>
-      </select>
-      <small class="form-text text-muted">
-        Filter by whether the login is active or disabled.
-      </small>
-    </div>
+  <!-- Show only on mobile -->
+  <div class="alert alert-info py-2 px-3 d-md-none mb-3">
+    For the best experience, use this page on a laptop or desktop. The table and
+    filters can be hard to see on a small screen.
   </div>
+  <h3 class="mb-4 text-center text-primary">Email Reminders</h3>
 
-  <!-- Run query -->
-  <div class="row mt-4">
-    <div class="col-md-4">
-      <button type="button" id="runBulkQuery" class="btn btn-primary w-100">
-        Find matching users
-      </button>
-    </div>
-  </div>
-
-  <!-- Results -->
-  <div id="resultsSection" class="mt-4" style="display: none">
-    <!-- Status + selection count -->
-    <div class="d-flex justify-content-between align-items-center mb-2">
-      <div id="resultsStatus" class="text-muted"></div>
-      <div
-        id="selectionSummary"
-        class="text-muted small"
-        style="display: none"
-      ></div>
-    </div>
-
-    <!-- Bulk action buttons -->
-    <div id="bulkActions" class="mb-3 d-none">
-      <button
-        type="button"
-        id="btnSendElearning"
-        class="btn btn-sm btn-outline-primary me-2"
-      >
-        Send eLearning reminder
-      </button>
-      <button
-        type="button"
-        id="btnSendSelfReview"
-        class="btn btn-sm btn-outline-primary me-2"
-      >
-        Send self review reminder
-      </button>
-
-      <!-- NEW: two invite buttons -->
-      <button
-        type="button"
-        id="btnSendInviteStandard"
-        class="btn btn-sm btn-outline-primary d-none me-2"
-      >
-        Send user invitation (no admin access)
-      </button>
-      <button
-        type="button"
-        id="btnSendInviteAdmin"
-        class="btn btn-sm btn-outline-primary d-none"
-      >
-        Send user invitation (with admin access)
-      </button>
-    </div>
-
-    <div id="resultsLoading" class="text-center my-3" style="display: none">
-      <div class="spinner-border text-primary" role="status">
-        <span class="visually-hidden">Loading…</span>
+  <div class="container">
+    <div class="row g-4">
+      <!-- Filters selector -->
+      <div class="col-md-4">
+        <label for="opts">Filters:</label>
+        <select class="form-select" id="opts" multiple>
+          <option value="elearning">
+            At least __ eLearning modules outstanding
+          </option>
+          <option value="selfreview">No self review since date</option>
+          <option value="entity">Entity</option>
+          <option value="account">Account status</option>
+        </select>
+        <small class="form-text text-muted">
+          Choose one or more filters to narrow who gets emailed.
+        </small>
       </div>
-      <p class="text-muted mt-2">Loading matching users…</p>
+
+      <!-- eLearning input -->
+      <div class="col-md-4 d-none" id="elearningInput">
+        <label for="elearningX">Outstanding courses (≥ X):</label>
+        <input
+          type="number"
+          class="form-control"
+          id="elearningX"
+          min="0"
+          max="5"
+        />
+      </div>
+
+      <!-- Self-review input -->
+      <div class="col-md-4 d-none" id="selfReviewInput">
+        <label for="selfReviewDate">No self review since:</label>
+        <input type="date" class="form-control" id="selfReviewDate" />
+      </div>
+
+      <!-- Entity select -->
+      <div class="col-md-4 d-none" id="entityInput">
+        <label for="entitySelect">Select entity (one or more):</label>
+        <select class="form-select" id="entitySelect" multiple>
+          {% for e in entities %}
+          <option value="{{ e.id }}" data-type="{{ e.Type }}">
+            {{ e.Description }}
+          </option>
+          {% endfor %}
+        </select>
+        <small class="form-text text-muted">
+          Pick the entities you want to target.
+        </small>
+      </div>
+
+      <!-- Account status filter (only visible when 'account' is selected) -->
+      <div class="col-md-4 d-none" id="accountStatusInput">
+        <label for="accountStatus">Account status:</label>
+        <select id="accountStatus" class="form-select">
+          <option value="all">All accounts</option>
+          <option value="active">Active only</option>
+          <option value="disabled">Disabled only</option>
+        </select>
+        <small class="form-text text-muted">
+          Filter by whether the login is active or disabled.
+        </small>
+      </div>
     </div>
 
-    <div
-      id="resultsError"
-      class="alert alert-danger py-2 px-3"
-      style="display: none"
-    ></div>
-
-    <div
-      id="resultsTableWrapper"
-      class="table-responsive"
-      style="display: none"
-    >
-      <table
-        class="table table-bordered table-sm align-middle"
-        id="resultsTable"
-      >
-        <thead class="custom-header"></thead>
-        <tbody></tbody>
-      </table>
+    <!-- Run query -->
+    <div class="row mt-4">
+      <div class="col-md-4">
+        <button type="button" id="runBulkQuery" class="btn btn-primary w-100">
+          Find matching users
+        </button>
+      </div>
     </div>
-  </div>
-</div>
 
-<!-- Confirm send modal -->
-<div class="modal fade" id="confirmSendModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="confirmSendTitle">Confirm sending</h5>
+    <!-- Results -->
+    <div id="resultsSection" class="mt-4" style="display: none">
+      <!-- Status + selection count -->
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <div id="resultsStatus" class="text-muted"></div>
+        <div
+          id="selectionSummary"
+          class="text-muted small"
+          style="display: none"
+        ></div>
+      </div>
+
+      <!-- Bulk action buttons -->
+      <div id="bulkActions" class="mb-3 d-none">
         <button
           type="button"
-          class="btn-close"
-          data-bs-dismiss="modal"
-          aria-label="Close"
-        ></button>
-      </div>
-      <div class="modal-body">
-        <p id="confirmMessage" class="mb-2"></p>
-        <p class="mb-1"><strong>Example recipients:</strong></p>
-        <ul id="confirmEmailList" class="small mb-0"></ul>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-          Go back
+          id="btnSendElearning"
+          class="btn btn-sm btn-outline-primary me-2 w-100 w-md-auto mb-2 mb-md-0"
+        >
+          Send eLearning reminder
         </button>
-        <button type="button" id="confirmSendBtn" class="btn btn-primary">
-          Confirm &amp; send
+        <button
+          type="button"
+          id="btnSendSelfReview"
+          class="btn btn-sm btn-outline-primary me-2 w-100 w-md-auto mb-2 mb-md-0"
+        >
+          Send self review reminder
         </button>
+
+        <!-- NEW: two invite buttons -->
+        <button
+          type="button"
+          id="btnSendInviteStandard"
+          class="btn btn-sm btn-outline-primary me-2 w-100 w-md-auto mb-2 mb-md-0"
+        >
+          Send user invitation (no admin access)
+        </button>
+        <button
+          type="button"
+          id="btnSendInviteAdmin"
+          class="btn btn-sm btn-outline-primary me-2 w-100 w-md-auto mb-2 mb-md-0"
+        >
+          Send user invitation (with admin access)
+        </button>
+      </div>
+
+      <div id="resultsLoading" class="text-center my-3" style="display: none">
+        <div class="spinner-border text-primary" role="status">
+          <span class="visually-hidden">Loading…</span>
+        </div>
+        <p class="text-muted mt-2">Loading matching users…</p>
+      </div>
+
+      <div
+        id="resultsError"
+        class="alert alert-danger py-2 px-3"
+        style="display: none"
+      ></div>
+
+      <div
+        id="resultsTableWrapper"
+        class="table-responsive"
+        style="display: none"
+      >
+        <table
+          class="table table-bordered table-sm align-middle"
+          id="resultsTable"
+        >
+          <thead class="custom-header"></thead>
+          <tbody></tbody>
+        </table>
       </div>
     </div>
   </div>
-</div>
 
-<script>
-  document.addEventListener("DOMContentLoaded", function () {
-    const ELEARNING_SUBJECT = "Water Skills for Life \u2013 eLearning reminder";
-    const SELFREVIEW_SUBJECT =
-      "Water Skills for Life \u2013 self review reminder";
+  <!-- Confirm send modal -->
+  <div
+    class="modal fade"
+    id="confirmSendModal"
+    tabindex="-1"
+    aria-hidden="true"
+  >
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="confirmSendTitle">Confirm sending</h5>
+          <button
+            type="button"
+            class="btn-close"
+            data-bs-dismiss="modal"
+            aria-label="Close"
+          ></button>
+        </div>
+        <div class="modal-body">
+          <p id="confirmMessage" class="mb-2"></p>
+          <p class="mb-1"><strong>Example recipients:</strong></p>
+          <ul id="confirmEmailList" class="small mb-0"></ul>
+        </div>
+        <div class="modal-footer">
+          <button
+            type="button"
+            class="btn btn-secondary"
+            data-bs-dismiss="modal"
+          >
+            Go back
+          </button>
+          <button type="button" id="confirmSendBtn" class="btn btn-primary">
+            Confirm &amp; send
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 
-    // --- Select2 initialisation ---
-    $("#opts").select2({
-      placeholder: "Select filters\u2026",
-      width: "100%",
-      allowClear: true,
-    });
-    $("#entitySelect").select2({
-      placeholder: "Select entity\u2026",
-      width: "100%",
-      allowClear: true,
-    });
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const ELEARNING_SUBJECT =
+        "Water Skills for Life \u2013 eLearning reminder";
+      const SELFREVIEW_SUBJECT =
+        "Water Skills for Life \u2013 self review reminder";
 
-    // --- DOM elements ---
-    const elearningInput = document.getElementById("elearningInput");
-    const selfReviewInput = document.getElementById("selfReviewInput");
-    const entityInput = document.getElementById("entityInput");
-    const accountStatusInput = document.getElementById("accountStatusInput");
+      // --- Select2 initialisation ---
+      $("#opts").select2({
+        placeholder: "Select filters\u2026",
+        width: "100%",
+        allowClear: true,
+      });
+      $("#entitySelect").select2({
+        placeholder: "Select entity\u2026",
+        width: "100%",
+        allowClear: true,
+      });
 
-    const elearningX = document.getElementById("elearningX");
-    const selfReviewDate = document.getElementById("selfReviewDate");
-    const entitySelect = document.getElementById("entitySelect");
-    const accountStatusSel = document.getElementById("accountStatus");
+      // --- DOM elements ---
+      const elearningInput = document.getElementById("elearningInput");
+      const selfReviewInput = document.getElementById("selfReviewInput");
+      const entityInput = document.getElementById("entityInput");
+      const accountStatusInput = document.getElementById("accountStatusInput");
 
-    const runBtn = document.getElementById("runBulkQuery");
-    const resultsSection = document.getElementById("resultsSection");
-    const resultsLoading = document.getElementById("resultsLoading");
-    const resultsError = document.getElementById("resultsError");
-    const resultsStatus = document.getElementById("resultsStatus");
-    const resultsTableWrap = document.getElementById("resultsTableWrapper");
-    const resultsTable = document.getElementById("resultsTable");
-    const selectionSummary = document.getElementById("selectionSummary");
-    const bulkActions = document.getElementById("bulkActions");
+      const elearningX = document.getElementById("elearningX");
+      const selfReviewDate = document.getElementById("selfReviewDate");
+      const entitySelect = document.getElementById("entitySelect");
+      const accountStatusSel = document.getElementById("accountStatus");
 
-    const btnSendElearning = document.getElementById("btnSendElearning");
-    const btnSendSelfReview = document.getElementById("btnSendSelfReview");
-    const btnSendInviteStandard = document.getElementById(
-      "btnSendInviteStandard"
-    );
-    const btnSendInviteAdmin = document.getElementById("btnSendInviteAdmin");
+      const runBtn = document.getElementById("runBulkQuery");
+      const resultsSection = document.getElementById("resultsSection");
+      const resultsLoading = document.getElementById("resultsLoading");
+      const resultsError = document.getElementById("resultsError");
+      const resultsStatus = document.getElementById("resultsStatus");
+      const resultsTableWrap = document.getElementById("resultsTableWrapper");
+      const resultsTable = document.getElementById("resultsTable");
+      const selectionSummary = document.getElementById("selectionSummary");
+      const bulkActions = document.getElementById("bulkActions");
 
-    const confirmSendTitle = document.getElementById("confirmSendTitle");
-    const confirmMessage = document.getElementById("confirmMessage");
-    const confirmEmailList = document.getElementById("confirmEmailList");
-    const confirmSendBtn = document.getElementById("confirmSendBtn");
-    const confirmSendModalEl = document.getElementById("confirmSendModal");
-
-    let currentAction = null; // 'elearning', 'selfreview', 'invite_standard', 'invite_admin'
-    let currentSelected = []; // [{email, firstname, role, active, user_id}, ...]
-
-    // For clean status messaging
-    let lastMatchCount = 0;
-    let totalSent = 0;
-    let totalFailed = 0;
-
-    // ----- Dynamic filter visibility -----
-    $("#opts").on("change", function () {
-      const selected = $(this).val() || [];
-
-      elearningInput.classList.toggle(
-        "d-none",
-        !selected.includes("elearning")
+      const btnSendElearning = document.getElementById("btnSendElearning");
+      const btnSendSelfReview = document.getElementById("btnSendSelfReview");
+      const btnSendInviteStandard = document.getElementById(
+        "btnSendInviteStandard"
       );
-      selfReviewInput.classList.toggle(
-        "d-none",
-        !selected.includes("selfreview")
-      );
-      entityInput.classList.toggle("d-none", !selected.includes("entity"));
-      accountStatusInput.classList.toggle(
-        "d-none",
-        !selected.includes("account")
-      );
-    });
+      const btnSendInviteAdmin = document.getElementById("btnSendInviteAdmin");
 
-    // ----- Run preview query -----
-    runBtn.addEventListener("click", function () {
-      const filters = $("#opts").val() || [];
-      const minModules = elearningX.value || null;
-      const sinceDate = selfReviewDate.value || null;
-      const accountStatus = accountStatusSel.value || "all";
+      const confirmSendTitle = document.getElementById("confirmSendTitle");
+      const confirmMessage = document.getElementById("confirmMessage");
+      const confirmEmailList = document.getElementById("confirmEmailList");
+      const confirmSendBtn = document.getElementById("confirmSendBtn");
+      const confirmSendModalEl = document.getElementById("confirmSendModal");
 
-      const selectedEntities = Array.from(entitySelect.selectedOptions).map(
-        (o) => ({
-          id: o.value ? parseInt(o.value, 10) : null,
-          type: o.dataset.type || null,
+      let currentAction = null; // 'elearning', 'selfreview', 'invite_standard', 'invite_admin'
+      let currentSelected = []; // [{email, firstname, role, active, user_id}, ...]
+
+      // For clean status messaging
+      let lastMatchCount = 0;
+      let totalSent = 0;
+      let totalFailed = 0;
+
+      // ----- Dynamic filter visibility -----
+      $("#opts").on("change", function () {
+        const selected = $(this).val() || [];
+
+        elearningInput.classList.toggle(
+          "d-none",
+          !selected.includes("elearning")
+        );
+        selfReviewInput.classList.toggle(
+          "d-none",
+          !selected.includes("selfreview")
+        );
+        entityInput.classList.toggle("d-none", !selected.includes("entity"));
+        accountStatusInput.classList.toggle(
+          "d-none",
+          !selected.includes("account")
+        );
+      });
+
+      // ----- Run preview query -----
+      runBtn.addEventListener("click", function () {
+        const filters = $("#opts").val() || [];
+        const minModules = elearningX.value || null;
+        const sinceDate = selfReviewDate.value || null;
+        const accountStatus = accountStatusSel.value || "all";
+
+        const selectedEntities = Array.from(entitySelect.selectedOptions).map(
+          (o) => ({
+            id: o.value ? parseInt(o.value, 10) : null,
+            type: o.dataset.type || null,
+          })
+        );
+
+        const payload = {
+          filters,
+          minModules: minModules !== "" ? Number(minModules) : null,
+          sinceDate,
+          accountStatus,
+          entities: selectedEntities,
+        };
+
+        console.log("BulkEmails preview payload (frontend):", payload);
+
+        resultsSection.style.display = "block";
+        resultsLoading.style.display = "block";
+        resultsError.style.display = "none";
+        resultsTableWrap.style.display = "none";
+        resultsStatus.textContent = "";
+        selectionSummary.style.display = "none";
+        bulkActions.classList.add("d-none");
+        runBtn.disabled = true;
+
+        fetch("/BulkEmails/preview", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
         })
-      );
+          .then((res) => {
+            if (!res.ok) throw new Error("Server returned " + res.status);
+            return res.json();
+          })
+          .then((data) => {
+            resultsLoading.style.display = "none";
+            runBtn.disabled = false;
 
-      const payload = {
-        filters,
-        minModules: minModules !== "" ? Number(minModules) : null,
-        sinceDate,
-        accountStatus,
-        entities: selectedEntities,
-      };
+            if (data.error) {
+              resultsError.textContent = data.error;
+              resultsError.style.display = "block";
+              return;
+            }
 
-      console.log("BulkEmails preview payload (frontend):", payload);
+            const rows = data.rows || [];
+            if (!rows.length) {
+              lastMatchCount = 0;
+              totalSent = 0;
+              totalFailed = 0;
+              resultsStatus.textContent = "No users match the current filters.";
+              return;
+            }
 
-      resultsSection.style.display = "block";
-      resultsLoading.style.display = "block";
-      resultsError.style.display = "none";
-      resultsTableWrap.style.display = "none";
-      resultsStatus.textContent = "";
-      selectionSummary.style.display = "none";
-      bulkActions.classList.add("d-none");
-      runBtn.disabled = true;
-
-      fetch("/BulkEmails/preview", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      })
-        .then((res) => {
-          if (!res.ok) throw new Error("Server returned " + res.status);
-          return res.json();
-        })
-        .then((data) => {
-          resultsLoading.style.display = "none";
-          runBtn.disabled = false;
-
-          if (data.error) {
-            resultsError.textContent = data.error;
-            resultsError.style.display = "block";
-            return;
-          }
-
-          const rows = data.rows || [];
-          if (!rows.length) {
-            lastMatchCount = 0;
+            // Reset counters on each new preview
+            lastMatchCount = rows.length;
             totalSent = 0;
             totalFailed = 0;
-            resultsStatus.textContent = "No users match the current filters.";
-            return;
-          }
+            resultsStatus.textContent =
+              lastMatchCount + " users match the current filters.";
 
-          // Reset counters on each new preview
-          lastMatchCount = rows.length;
-          totalSent = 0;
-          totalFailed = 0;
-          resultsStatus.textContent =
-            lastMatchCount + " users match the current filters.";
-
-          buildResultsTable(resultsTable, rows);
-          resultsTableWrap.style.display = "block";
-        })
-        .catch((err) => {
-          console.error("BulkEmails preview failed:", err);
-          resultsLoading.style.display = "none";
-          runBtn.disabled = false;
-          resultsError.textContent =
-            "There was an error loading matching users. Please try again.";
-          resultsError.style.display = "block";
-        });
-    });
-
-    // ----- Selection summary + currentSelected -----
-    function updateSelectionSummary() {
-      const checkboxes = resultsTable.querySelectorAll(
-        "tbody .row-select:checked"
-      );
-      const count = checkboxes.length;
-
-      if (!count) {
-        selectionSummary.style.display = "none";
-        selectionSummary.textContent = "";
-        bulkActions.classList.add("d-none");
-        currentSelected = [];
-        btnSendInviteStandard.classList.add("d-none");
-        btnSendInviteAdmin.classList.add("d-none");
-        return;
-      }
-
-      currentSelected = Array.from(checkboxes).map((cb) => ({
-        email: cb.dataset.email || "",
-        firstname: cb.dataset.firstname || "",
-        role: cb.dataset.role || "",
-        active: cb.dataset.active === "1" || cb.dataset.active === "true",
-        user_id: cb.dataset.userid || null,
-      }));
-
-      const plural = count === 1 ? "user" : "users";
-      selectionSummary.textContent = `${count} ${plural} selected.`;
-      selectionSummary.style.display = "block";
-      bulkActions.classList.remove("d-none");
-
-      // Check if all selected users are inactive
-      const allInactive = currentSelected.every((u) => !u.active);
-
-      if (allInactive) {
-        btnSendInviteStandard.classList.remove("d-none");
-        btnSendInviteAdmin.classList.remove("d-none");
-      } else {
-        btnSendInviteStandard.classList.add("d-none");
-        btnSendInviteAdmin.classList.add("d-none");
-      }
-    }
-
-    // ----- Modal helper -----
-    function openConfirmModal(action) {
-      if (!currentSelected.length) return;
-
-      currentAction = action;
-
-      const total = currentSelected.length;
-      const topFive = currentSelected.slice(0, 5);
-
-      let subject;
-      if (action === "elearning") {
-        subject = ELEARNING_SUBJECT;
-        confirmSendTitle.textContent = "Send eLearning reminder";
-      } else if (action === "selfreview") {
-        subject = SELFREVIEW_SUBJECT;
-        confirmSendTitle.textContent = "Send self review reminder / invites";
-      } else if (action === "invite_standard") {
-        subject = "Water Skills for Life \u2013 Web Application Invitation";
-        confirmSendTitle.textContent =
-          "Send account invitations (no admin access)";
-      } else if (action === "invite_admin") {
-        subject = "Water Skills for Life \u2013 Web Application Invitation";
-        confirmSendTitle.textContent =
-          "Send account invitations (with admin access)";
-      }
-
-      confirmMessage.textContent =
-        `Please confirm that you want to send "${subject}" to ` +
-        `${total} recipient${total === 1 ? "" : "s"}.`;
-
-      confirmEmailList.innerHTML = "";
-      topFive.forEach((rec) => {
-        const li = document.createElement("li");
-        li.textContent = rec.email;
-        confirmEmailList.appendChild(li);
-      });
-      if (total > 5) {
-        const li = document.createElement("li");
-        li.textContent = `…and ${total - 5} other email${
-          total - 5 === 1 ? "" : "s"
-        }.`;
-        confirmEmailList.appendChild(li);
-      }
-
-      const modal = new bootstrap.Modal(confirmSendModalEl);
-      modal.show();
-    }
-
-    // ----- Bulk action buttons -----
-    btnSendElearning.addEventListener("click", function () {
-      updateSelectionSummary();
-      if (!currentSelected.length) return;
-      openConfirmModal("elearning");
-    });
-
-    btnSendSelfReview.addEventListener("click", function () {
-      updateSelectionSummary();
-      if (!currentSelected.length) return;
-      openConfirmModal("selfreview");
-    });
-
-    btnSendInviteStandard.addEventListener("click", function () {
-      updateSelectionSummary();
-      if (!currentSelected.length) return;
-      openConfirmModal("invite_standard");
-    });
-
-    btnSendInviteAdmin.addEventListener("click", function () {
-      updateSelectionSummary();
-      if (!currentSelected.length) return;
-      openConfirmModal("invite_admin");
-    });
-
-    // ----- Confirm send -> POST /BulkEmails/send -----
-    confirmSendBtn.addEventListener("click", function () {
-      if (!currentAction || !currentSelected.length) return;
-
-      const payload = {
-        action: currentAction,
-        recipients: currentSelected,
-        // backend can read this to set user_admin + Active = 1
-        grant_admin: currentAction === "invite_admin",
-      };
-
-      console.log("BulkEmails/send payload:", payload);
-
-      confirmSendBtn.disabled = true;
-      confirmSendBtn.textContent = "Sending…";
-
-      fetch("/BulkEmails/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      })
-        .then(async (res) => {
-          const text = await res.text();
-          let data;
-          try {
-            data = JSON.parse(text);
-          } catch {
-            data = null;
-          }
-
-          if (!res.ok) {
-            console.error(
-              "BulkEmails/send HTTP error:",
-              res.status,
-              res.statusText,
-              text
-            );
-            alert(
-              `There was a problem sending emails (HTTP ${res.status}).\n` +
-                (data && data.error ? data.error : text)
-            );
-            throw new Error("HTTP " + res.status);
-          }
-
-          return data;
-        })
-        .then((data) => {
-          console.log("Bulk send result:", data);
-
-          const modalInstance = bootstrap.Modal.getInstance(confirmSendModalEl);
-          if (modalInstance) {
-            modalInstance.hide();
-          }
-
-          confirmSendBtn.disabled = false;
-          confirmSendBtn.textContent = "Confirm & send";
-
-          if (data && data.ok) {
-            const sentCount = data.sent_count || 0;
-            const failedCount = data.failed_count || 0;
-
-            // Update cumulative counters
-            totalSent += sentCount;
-            totalFailed += failedCount;
-
-            let msg = "";
-            if (lastMatchCount > 0) {
-              msg = `${lastMatchCount} user${
-                lastMatchCount === 1 ? "" : "s"
-              } match the current filters. `;
-            }
-
-            msg += `Sent ${totalSent} email${totalSent === 1 ? "" : "s"} total`;
-
-            if (totalFailed > 0) {
-              msg += `, ${totalFailed} failed.`;
-            } else {
-              msg += ".";
-            }
-
-            resultsStatus.textContent = msg;
-          } else if (data && data.error) {
-            resultsError.textContent = data.error;
+            buildResultsTable(resultsTable, rows);
+            resultsTableWrap.style.display = "block";
+          })
+          .catch((err) => {
+            console.error("BulkEmails preview failed:", err);
+            resultsLoading.style.display = "none";
+            runBtn.disabled = false;
+            resultsError.textContent =
+              "There was an error loading matching users. Please try again.";
             resultsError.style.display = "block";
-          }
-        })
-        .catch((err) => {
-          console.error("BulkEmails/send JS error:", err);
-          confirmSendBtn.disabled = false;
-          confirmSendBtn.textContent = "Confirm & send";
+          });
+      });
+
+      // ----- Selection summary + currentSelected -----
+      function updateSelectionSummary() {
+        const checkboxes = resultsTable.querySelectorAll(
+          "tbody .row-select:checked"
+        );
+        const count = checkboxes.length;
+
+        if (!count) {
+          selectionSummary.style.display = "none";
+          selectionSummary.textContent = "";
+          bulkActions.classList.add("d-none");
+          currentSelected = [];
+          btnSendInviteStandard.classList.add("d-none");
+          btnSendInviteAdmin.classList.add("d-none");
+          return;
+        }
+
+        currentSelected = Array.from(checkboxes).map((cb) => ({
+          email: cb.dataset.email || "",
+          firstname: cb.dataset.firstname || "",
+          role: cb.dataset.role || "",
+          active: cb.dataset.active === "1" || cb.dataset.active === "true",
+          user_id: cb.dataset.userid || null,
+        }));
+
+        const plural = count === 1 ? "user" : "users";
+        selectionSummary.textContent = `${count} ${plural} selected.`;
+        selectionSummary.style.display = "block";
+        bulkActions.classList.remove("d-none");
+
+        // Check if all selected users are inactive
+        const allInactive = currentSelected.every((u) => !u.active);
+
+        if (allInactive) {
+          btnSendInviteStandard.classList.remove("d-none");
+          btnSendInviteAdmin.classList.remove("d-none");
+        } else {
+          btnSendInviteStandard.classList.add("d-none");
+          btnSendInviteAdmin.classList.add("d-none");
+        }
+      }
+
+      // ----- Modal helper -----
+      function openConfirmModal(action) {
+        if (!currentSelected.length) return;
+
+        currentAction = action;
+
+        const total = currentSelected.length;
+        const topFive = currentSelected.slice(0, 5);
+
+        let subject;
+        if (action === "elearning") {
+          subject = ELEARNING_SUBJECT;
+          confirmSendTitle.textContent = "Send eLearning reminder";
+        } else if (action === "selfreview") {
+          subject = SELFREVIEW_SUBJECT;
+          confirmSendTitle.textContent = "Send self review reminder / invites";
+        } else if (action === "invite_standard") {
+          subject = "Water Skills for Life \u2013 Web Application Invitation";
+          confirmSendTitle.textContent =
+            "Send account invitations (no admin access)";
+        } else if (action === "invite_admin") {
+          subject = "Water Skills for Life \u2013 Web Application Invitation";
+          confirmSendTitle.textContent =
+            "Send account invitations (with admin access)";
+        }
+
+        confirmMessage.textContent =
+          `Please confirm that you want to send "${subject}" to ` +
+          `${total} recipient${total === 1 ? "" : "s"}.`;
+
+        confirmEmailList.innerHTML = "";
+        topFive.forEach((rec) => {
+          const li = document.createElement("li");
+          li.textContent = rec.email;
+          confirmEmailList.appendChild(li);
         });
-    });
+        if (total > 5) {
+          const li = document.createElement("li");
+          li.textContent = `…and ${total - 5} other email${
+            total - 5 === 1 ? "" : "s"
+          }.`;
+          confirmEmailList.appendChild(li);
+        }
 
-    // ----- Build table -----
-    function buildResultsTable(table, rows) {
-      const thead = table.querySelector("thead");
-      const tbody = table.querySelector("tbody");
-      thead.innerHTML = "";
-      tbody.innerHTML = "";
+        const modal = new bootstrap.Modal(confirmSendModalEl);
+        modal.show();
+      }
 
-      if (!rows || !rows.length) return;
+      // ----- Bulk action buttons -----
+      btnSendElearning.addEventListener("click", function () {
+        updateSelectionSummary();
+        if (!currentSelected.length) return;
+        openConfirmModal("elearning");
+      });
 
-      const headerTr = document.createElement("tr");
+      btnSendSelfReview.addEventListener("click", function () {
+        updateSelectionSummary();
+        if (!currentSelected.length) return;
+        openConfirmModal("selfreview");
+      });
 
-      const thSelect = document.createElement("th");
-      thSelect.classList.add("checkbox-header", "select-col");
-      thSelect.innerHTML = `
+      btnSendInviteStandard.addEventListener("click", function () {
+        updateSelectionSummary();
+        if (!currentSelected.length) return;
+        openConfirmModal("invite_standard");
+      });
+
+      btnSendInviteAdmin.addEventListener("click", function () {
+        updateSelectionSummary();
+        if (!currentSelected.length) return;
+        openConfirmModal("invite_admin");
+      });
+
+      // ----- Confirm send -> POST /BulkEmails/send -----
+      confirmSendBtn.addEventListener("click", function () {
+        if (!currentAction || !currentSelected.length) return;
+
+        const payload = {
+          action: currentAction,
+          recipients: currentSelected,
+          // backend can read this to set user_admin + Active = 1
+          grant_admin: currentAction === "invite_admin",
+        };
+
+        console.log("BulkEmails/send payload:", payload);
+
+        confirmSendBtn.disabled = true;
+        confirmSendBtn.textContent = "Sending…";
+
+        fetch("/BulkEmails/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        })
+          .then(async (res) => {
+            const text = await res.text();
+            let data;
+            try {
+              data = JSON.parse(text);
+            } catch {
+              data = null;
+            }
+
+            if (!res.ok) {
+              console.error(
+                "BulkEmails/send HTTP error:",
+                res.status,
+                res.statusText,
+                text
+              );
+              alert(
+                `There was a problem sending emails (HTTP ${res.status}).\n` +
+                  (data && data.error ? data.error : text)
+              );
+              throw new Error("HTTP " + res.status);
+            }
+
+            return data;
+          })
+          .then((data) => {
+            console.log("Bulk send result:", data);
+
+            const modalInstance =
+              bootstrap.Modal.getInstance(confirmSendModalEl);
+            if (modalInstance) {
+              modalInstance.hide();
+            }
+
+            confirmSendBtn.disabled = false;
+            confirmSendBtn.textContent = "Confirm & send";
+
+            if (data && data.ok) {
+              const sentCount = data.sent_count || 0;
+              const failedCount = data.failed_count || 0;
+
+              // Update cumulative counters
+              totalSent += sentCount;
+              totalFailed += failedCount;
+
+              let msg = "";
+              if (lastMatchCount > 0) {
+                msg = `${lastMatchCount} user${
+                  lastMatchCount === 1 ? "" : "s"
+                } match the current filters. `;
+              }
+
+              msg += `Sent ${totalSent} email${
+                totalSent === 1 ? "" : "s"
+              } total`;
+
+              if (totalFailed > 0) {
+                msg += `, ${totalFailed} failed.`;
+              } else {
+                msg += ".";
+              }
+
+              resultsStatus.textContent = msg;
+            } else if (data && data.error) {
+              resultsError.textContent = data.error;
+              resultsError.style.display = "block";
+            }
+          })
+          .catch((err) => {
+            console.error("BulkEmails/send JS error:", err);
+            confirmSendBtn.disabled = false;
+            confirmSendBtn.textContent = "Confirm & send";
+          });
+      });
+
+      // ----- Build table -----
+      function buildResultsTable(table, rows) {
+        const thead = table.querySelector("thead");
+        const tbody = table.querySelector("tbody");
+        thead.innerHTML = "";
+        tbody.innerHTML = "";
+
+        if (!rows || !rows.length) return;
+
+        const headerTr = document.createElement("tr");
+
+        const thSelect = document.createElement("th");
+        thSelect.classList.add("checkbox-header", "select-col");
+        thSelect.innerHTML = `
         <div class="d-flex justify-content-center align-items-center">
           <button
             type="button"
@@ -637,140 +656,141 @@ block content %}
           </button>
         </div>
       `;
-      headerTr.appendChild(thSelect);
+        headerTr.appendChild(thSelect);
 
-      [
-        "Email",
-        "Entity",
-        "Name",
-        "Incomplete courses",
-        "Last self review",
-        "Status",
-      ].forEach((label) => {
-        const th = document.createElement("th");
-        th.textContent = label;
-        headerTr.appendChild(th);
-      });
+        [
+          "Email",
+          "Entity",
+          "Name",
+          "Incomplete courses",
+          "Last self review",
+          "Status",
+        ].forEach((label) => {
+          const th = document.createElement("th");
+          th.textContent = label;
+          headerTr.appendChild(th);
+        });
 
-      thead.appendChild(headerTr);
+        thead.appendChild(headerTr);
 
-      const frag = document.createDocumentFragment();
+        const frag = document.createDocumentFragment();
 
-      rows.forEach((row) => {
-        const tr = document.createElement("tr");
+        rows.forEach((row) => {
+          const tr = document.createElement("tr");
 
-        const fullName = (
-          (row.FirstName || "") +
-          " " +
-          (row.Surname || "")
-        ).trim();
+          const fullName = (
+            (row.FirstName || "") +
+            " " +
+            (row.Surname || "")
+          ).trim();
 
-        // Checkbox with data attributes
-        const tdSelect = document.createElement("td");
-        tdSelect.classList.add("select-col", "text-center");
-        const cb = document.createElement("input");
-        cb.type = "checkbox";
-        cb.className = "form-check-input row-select";
-        cb.dataset.email = row.Email || "";
-        cb.dataset.firstname = row.FirstName || "";
-        cb.dataset.role = row.Role || "";
-        cb.dataset.active = String(row.Active ?? "");
-        cb.dataset.userid = row.UserID != null ? String(row.UserID) : "";
-        tdSelect.appendChild(cb);
-        tr.appendChild(tdSelect);
+          // Checkbox with data attributes
+          const tdSelect = document.createElement("td");
+          tdSelect.classList.add("select-col", "text-center");
+          const cb = document.createElement("input");
+          cb.type = "checkbox";
+          cb.className = "form-check-input row-select";
+          cb.dataset.email = row.Email || "";
+          cb.dataset.firstname = row.FirstName || "";
+          cb.dataset.role = row.Role || "";
+          cb.dataset.active = String(row.Active ?? "");
+          cb.dataset.userid = row.UserID != null ? String(row.UserID) : "";
+          tdSelect.appendChild(cb);
+          tr.appendChild(tdSelect);
 
-        // Email
-        const tdEmail = document.createElement("td");
-        tdEmail.textContent = row.Email || "";
-        tr.appendChild(tdEmail);
+          // Email
+          const tdEmail = document.createElement("td");
+          tdEmail.textContent = row.Email || "";
+          tr.appendChild(tdEmail);
 
-        // Entity
-        const tdEntity = document.createElement("td");
-        tdEntity.textContent = row.EntityDesc || "";
-        tr.appendChild(tdEntity);
+          // Entity
+          const tdEntity = document.createElement("td");
+          tdEntity.textContent = row.EntityDesc || "";
+          tr.appendChild(tdEntity);
 
-        // Name
-        const tdName = document.createElement("td");
-        tdName.textContent = fullName;
-        tr.appendChild(tdName);
+          // Name
+          const tdName = document.createElement("td");
+          tdName.textContent = fullName;
+          tr.appendChild(tdName);
 
-        // Incomplete courses (badges)
-        const tdInc = document.createElement("td");
-        const courses = (row.IncompleteCourses || "")
-          .split(",")
-          .map((c) => c.trim())
-          .filter((c) => c);
+          // Incomplete courses (badges)
+          const tdInc = document.createElement("td");
+          const courses = (row.IncompleteCourses || "")
+            .split(",")
+            .map((c) => c.trim())
+            .filter((c) => c);
 
-        if (!courses.length) {
-          tdInc.textContent = "";
-        } else {
-          courses.forEach((course) => {
-            const badge = document.createElement("span");
-            badge.className = "badge bg-secondary me-1 mb-1";
-            badge.textContent = course;
-            tdInc.appendChild(badge);
-          });
-        }
-        tr.appendChild(tdInc);
+          if (!courses.length) {
+            tdInc.textContent = "";
+          } else {
+            courses.forEach((course) => {
+              const badge = document.createElement("span");
+              badge.className = "badge bg-secondary me-1 mb-1";
+              badge.textContent = course;
+              tdInc.appendChild(badge);
+            });
+          }
+          tr.appendChild(tdInc);
 
-        // Self review date
-        const tdDate = document.createElement("td");
-        if (row.LastSelfReviewDate) {
-          const d = new Date(row.LastSelfReviewDate);
-          const pretty = !isNaN(d.getTime())
-            ? d.toLocaleDateString()
-            : row.LastSelfReviewDate;
+          // Self review date
+          const tdDate = document.createElement("td");
+          if (row.LastSelfReviewDate) {
+            const d = new Date(row.LastSelfReviewDate);
+            const pretty = !isNaN(d.getTime())
+              ? d.toLocaleDateString()
+              : row.LastSelfReviewDate;
 
-          tdDate.innerHTML = `
+            tdDate.innerHTML = `
             <span class="badge rounded-pill bg-dark">${pretty}</span>
           `;
-        } else {
-          tdDate.innerHTML = "";
-        }
-        tr.appendChild(tdDate);
+          } else {
+            tdDate.innerHTML = "";
+          }
+          tr.appendChild(tdDate);
 
-        // normalise Active into a boolean
-        const tdStatus = document.createElement("td");
+          // normalise Active into a boolean
+          const tdStatus = document.createElement("td");
 
-        const isActive =
-          row.Active === 1 ||
-          row.Active === true ||
-          row.Active === "1" ||
-          row.Active === "true";
+          const isActive =
+            row.Active === 1 ||
+            row.Active === true ||
+            row.Active === "1" ||
+            row.Active === "true";
 
-        tdStatus.innerHTML = isActive
-          ? `<span class="badge rounded-pill bg-success">Active</span>`
-          : `<span class="badge rounded-pill bg-danger">Disabled</span>`;
+          tdStatus.innerHTML = isActive
+            ? `<span class="badge rounded-pill bg-success">Active</span>`
+            : `<span class="badge rounded-pill bg-danger">Disabled</span>`;
 
-        tr.appendChild(tdStatus);
+          tr.appendChild(tdStatus);
 
-        frag.appendChild(tr);
-      });
+          frag.appendChild(tr);
+        });
 
-      tbody.appendChild(frag);
+        tbody.appendChild(frag);
 
-      table.addEventListener("change", function (e) {
-        if (e.target && e.target.classList.contains("row-select")) {
+        table.addEventListener("change", function (e) {
+          if (e.target && e.target.classList.contains("row-select")) {
+            updateSelectionSummary();
+          }
+        });
+
+        document.getElementById("selectAllRows").onclick = () => {
+          table
+            .querySelectorAll("tbody .row-select")
+            .forEach((cb) => (cb.checked = true));
           updateSelectionSummary();
-        }
-      });
+        };
+        document.getElementById("clearAllRows").onclick = () => {
+          table
+            .querySelectorAll("tbody .row-select")
+            .forEach((cb) => (cb.checked = false));
+          updateSelectionSummary();
+        };
 
-      document.getElementById("selectAllRows").onclick = () => {
-        table
-          .querySelectorAll("tbody .row-select")
-          .forEach((cb) => (cb.checked = true));
         updateSelectionSummary();
-      };
-      document.getElementById("clearAllRows").onclick = () => {
-        table
-          .querySelectorAll("tbody .row-select")
-          .forEach((cb) => (cb.checked = false));
-        updateSelectionSummary();
-      };
+      }
+    });
+  </script>
 
-      updateSelectionSummary();
-    }
-  });
-</script>
-
-{% endblock %}
+  {% endblock %}
+</div>
