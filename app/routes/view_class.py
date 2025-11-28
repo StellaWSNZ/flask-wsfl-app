@@ -1847,7 +1847,7 @@ def get_classes_by_school():
                      @CalendarYear = :year
             """)
             rows = conn.execute(stmt, {"r":"AllClassesBySchoolTermYear","moe": moe, "term": term, "year": year}).fetchall()
-
+            print(rows)
         out = [
             {
                 "id": r._mapping["ClassID"],
@@ -1920,7 +1920,7 @@ def add_class():
 def achievement_upload():
     try:
         
-        return render_template("achievement_upload.html", current_year=date.today().year, years = get_years(), terms = get_terms())
+        return render_template("achievement_upload.html", current_year=date.today().year, years = get_years(), terms = get_terms(), term = session.get("nearest_term"), year = session.get("nearest_year"))
     except Exception as e:
         # Print full traceback to console
         traceback.print_exc()
