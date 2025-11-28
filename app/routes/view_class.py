@@ -716,9 +716,7 @@ def funder_classes():
             term = request.form.get("term", "").strip()
             year = request.form.get("calendaryear", "").strip()
             moe_number = request.form.get("moe_number", "").strip()
-            print(moe_number)
-            print(term)
-            print(year)
+
             if term.isdigit() and year.isdigit() and moe_number:
                 term, year = int(term), int(year)
 
