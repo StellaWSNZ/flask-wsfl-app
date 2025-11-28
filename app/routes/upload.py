@@ -176,7 +176,13 @@ def classlistupload():
                         pass  # If SP not available, omit providers here
 
             else:
-                result = conn.execute(text("EXEC FlaskHelperFunctions :Request"), {"Request": "FunderDropdown"})
+                result = conn.execute(
+                    text("EXEC FlaskHelperFunctions :Request, :Number"),
+                    {
+                        "Request": "FunderDropdownSchool",
+                        "Number": session.get("user_id")     # <-- your Python variable
+                    }
+                )
                 funders = [dict(row._mapping) for row in result]
 
         if request.method == 'POST':
