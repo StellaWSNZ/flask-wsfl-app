@@ -567,7 +567,8 @@ def provider_maintenance():
     selected_funder_i = _safe_int(selected_funder)
 
     funders, schools, providers, staff_list = [], [], [], []
-
+    selected_funder_name = session.get("desc")
+    
     try:
         # ---------- DB work ----------
         with engine.begin() as conn:
@@ -578,6 +579,10 @@ def provider_maintenance():
                 ).fetchall()
                 funders = [dict(r._mapping) for r in rows]
 
+                for f in funders:
+                    if f["id"] == selected_funder_i:  # 👈 use the int
+                        selected_funder_name = f["Description"]
+                        break
             if selected_funder_i and selected_term_i and selected_year_i:
                 rows = conn.execute(text("""
                     EXEC FlaskHelperFunctionsSpecific
@@ -631,6 +636,7 @@ def provider_maintenance():
             terms = get_terms(),
             years = get_years(),
             selected_funder=selected_funder_i,
+             selected_funder_name=selected_funder_name,
             selected_term=selected_term_i,
             selected_year=selected_year_i,
             user_role=user_role,
