@@ -22,10 +22,8 @@ from sqlalchemy import text
 # Local
 from app.extensions import mail
 from app.routes.auth import login_required
-from app.utils.custom_email import (
-    send_account_setup_email,
-    send_elearning_reminder_email,
-)
+from app.utils.custom_email import  send_elearning_reminder_email
+
 from app.utils.database import get_db_engine, log_alert, get_years, get_terms
 from app.utils.wsfl_email import send_account_invites
 
@@ -498,6 +496,7 @@ def invite_user():
             trigger_load=1,
         )
     )
+
 @staff_bp.route('/add_staff', methods=['POST'])
 @login_required
 def add_staff():
@@ -507,10 +506,10 @@ def add_staff():
         lastname      = request.form['last_name'].strip()
         selected_role = session.get("user_role")
         selected_id   = request.form.get("entity_id") or session.get("user_id")
-        account_status= request.form['account_status']
+        account_status= request.form['account_status']   # "enable" / "disable"
         entity_type   = request.form.get("entity_type")
         entity_id     = request.form.get("entity_id") or selected_id
-        admin         = 1 if request.form.get("admin") == "1" else 0
+        admin_raw     = request.form.get("admin")        # "1" if ticked, else None
         active        = 1 if account_status == "enable" else 0
 
         # Map UI entity_type → role code used in SP
@@ -525,7 +524,14 @@ def add_staff():
         else:
             selected_role = session.get("user_role")
 
-        hashed_pw  = None
+        # --- admin rules: non-admin staff can't grant admin ----------------
+        current_user_admin = session.get("user_admin") or 0
+        if current_user_admin == 1:
+            admin = 1 if admin_raw == "1" else 0
+        else:
+            admin = 0
+
+        hashed_pw  = None   # invite-only; SP handles NULL
         send_email = (account_status == "enable")
         desc       = session.get("desc")
 
@@ -540,28 +546,32 @@ def add_staff():
 
             if existing:
                 flash("⚠️ Email already exists.", "warning")
-                return redirect(url_for('staff_bp.staff_maintenance',
-                                        entity_type=entity_type, entity_id=entity_id, trigger_load=1))
+                return redirect(url_for(
+                    'staff_bp.staff_maintenance',
+                    entity_type=entity_type,
+                    entity_id=entity_id,
+                    trigger_load=1
+                ))
 
         # Insert
         with engine.begin() as conn:
             conn.execute(
                 text("""
                     EXEC FlaskInsertUser 
-                         @Email       = :email,
-                         @HashPassword= :hash,
-                         @Role        = :role,
-                         @ID          = :id,
-                         @FirstName   = :firstname,
-                         @Surname     = :surname,
-                         @Admin       = :admin,
-                         @Active      = :active
+                         @Email        = :email,
+                         @HashPassword = :hash,
+                         @Role         = :role,
+                         @ID           = :id,
+                         @FirstName    = :firstname,
+                         @Surname      = :surname,
+                         @Admin        = :admin,
+                         @Active       = :active
                 """),
                 {
-                    "email": email,
-                    "hash": hashed_pw,
-                    "role": selected_role,
-                    "id":   selected_id,
+                    "email":     email,
+                    "hash":      hashed_pw,
+                    "role":      selected_role,
+                    "id":        selected_id,
                     "firstname": firstname,
                     "surname":   lastname,
                     "admin":     admin,
@@ -571,17 +581,24 @@ def add_staff():
 
         flash(f"✅ User {email} created.", "success")
 
-        # Optional welcome email
-        if send_email:
+        # Optional welcome email via NEW helper
+        if send_email and active == 1:
             try:
-                send_account_setup_email(
-                    mail=mail,
-                    recipient_email=email,
-                    first_name=firstname,
-                    role=selected_role,
-                    is_admin=admin,
-                    invited_by_name=f"{session.get('user_firstname')} {session.get('user_surname')}",
-                    inviter_desc=desc
+                recipients = [{
+                    "email": email,
+                    "first_name": firstname,
+                    "last_name": lastname,
+                    "role": selected_role,
+                }]
+
+                invited_by_name = f"{session.get('user_firstname')} {session.get('user_surname')}"
+                invited_by_org  = desc
+
+                send_account_invites(
+                    recipients=recipients,
+                    make_admin=bool(admin),
+                    invited_by_name=invited_by_name,
+                    invited_by_org=invited_by_org,
                 )
             except Exception as mail_e:
                 # Log email failure but keep success UX
@@ -592,9 +609,14 @@ def add_staff():
                     link=url_for("staff_bp.add_staff", _external=True),
                     message=f"add_staff: email send failed for {email}: {mail_e}\n{traceback.format_exc()}"[:4000],
                 )
+                flash("User created, but the invite email could not be sent.", "warning")
 
-        return redirect(url_for('staff_bp.staff_maintenance',
-                                entity_type=entity_type, entity_id=entity_id, trigger_load=1))
+        return redirect(url_for(
+            'staff_bp.staff_maintenance',
+            entity_type=entity_type,
+            entity_id=entity_id,
+            trigger_load=1
+        ))
 
     except Exception as e:
         log_alert(
@@ -606,6 +628,7 @@ def add_staff():
         )
         flash("❌ Failed to add user. Please check the logs.", "danger")
         return redirect(url_for('staff_bp.staff_maintenance'))
+
 
 
 

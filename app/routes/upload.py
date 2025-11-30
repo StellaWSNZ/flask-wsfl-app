@@ -138,7 +138,13 @@ def classlistupload():
         with engine.connect() as conn:
             if session.get("user_role") == "FUN":
                 funders = [{"Description": session.get("desc"), "FunderID": session.get("user_id")}]
-
+            elif session.get("user_role") == "ADM":
+                # PRO users: funders supporting this provider
+                result = conn.execute(
+                    text("EXEC FlaskHelperFunctions :Request"),
+                    {"Request": "FunderDropdown"}
+                )
+                funders = [dict(row._mapping) for row in result]
             elif session.get("user_role") == "PRO":
                 # PRO users: funders supporting this provider
                 result = conn.execute(
