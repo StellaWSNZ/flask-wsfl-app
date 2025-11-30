@@ -45,6 +45,7 @@
   </div>
 </form>
 {% endif %}
+
 {% if user_role == "FUN" %}
 <div id="missingSchoolWrapper"
      class="alert alert-info mx-auto text-center py-2 mb-3"
@@ -55,6 +56,7 @@
   to add one.
 </div>
 {% endif %}
+
 {% if selected_entity_name %}
   <h2 class="mb-4 text-center text-primary">{{ selected_entity_name }} – Staff Maintenance</h2>
 {% else %}
@@ -84,32 +86,46 @@
         <div class="modal-dialog">
           <div class="modal-content border-0 shadow">
             <div class="modal-header bg-primary text-white">
-              <h5 class="modal-title" id="inviteLabel_{{ safe_id }}">Invite {{ row.FirstName }} {{ row.Surname }}</h5>
-              <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-              <p>
-                Inviting a user to the app will send them an email with a unique link to set up their account. <br />
-                Would you like this user to have administrator privileges?
-              </p>
-            </div>
-            <div class="modal-footer">
-              <form method="POST" action="{{ url_for('staff_bp.invite_user') }}">
-                <input type="hidden" name="email" value="{{ row.Email }}" />
-                <input type="hidden" name="firstname" value="{{ row.FirstName }}" />
-                <input type="hidden" name="lastname" value="{{ row.Surname }}" />
-                <input type="hidden" name="role" value="{{ row.Role }}" />
-                <input type="hidden" name="admin" value="1" />
-                <button type="submit" class="btn btn-outline-danger">Invite with Privileges</button>
-              </form>
-              <form method="POST" action="{{ url_for('staff_bp.invite_user') }}">
-                <input type="hidden" name="email" value="{{ row.Email }}" />
-                <input type="hidden" name="firstname" value="{{ row.FirstName }}" />
-                <input type="hidden" name="lastname" value="{{ row.Surname }}" />
-                <input type="hidden" name="role" value="{{ row.Role }}" />
-                <input type="hidden" name="admin" value="0" />
-                <button type="submit" class="btn btn-outline-success">Invite without Privileges</button>
-              </form>
+  <h5 class="modal-title" id="inviteLabel_{{ safe_id }}">
+    Sending {{ row.FirstName }} an Invitation
+  </h5>
+  <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+</div>
+
+<div class="modal-body">
+  <p>
+    Inviting {{ row.FirstName }} {{ row.Surname }} to the app will send them an email
+    with instructions on how to set up their account.<br><br>
+    Would you like this user to have <strong>administrator privileges</strong>?
+  </p>
+<div class="d-flex justify-content-between gap-2">
+              <form method="POST" action="{{ url_for('staff_bp.invite_user') }}" class="flex-grow-1 me-2">
+          <input type="hidden" name="email" value="{{ row.Email }}">
+          <input type="hidden" name="firstname" value="{{ row.FirstName }}">
+          <input type="hidden" name="lastname" value="{{ row.Surname }}">
+          <input type="hidden" name="admin" value="1">
+          <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
+          <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
+
+          <button class="btn btn-sm btn-outline-primary w-100">
+            <i class="bi bi-check-lg me-1"></i>Invite with Admin Access
+          </button>
+        </form>
+
+        <!-- NO ADMIN -->
+        <form method="POST" action="{{ url_for('staff_bp.invite_user') }}" class="flex-grow-1 ms-2">
+          <input type="hidden" name="email" value="{{ row.Email }}">
+          <input type="hidden" name="firstname" value="{{ row.FirstName }}">
+          <input type="hidden" name="lastname" value="{{ row.Surname }}">
+          <input type="hidden" name="admin" value="0">
+          <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
+          <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
+
+          <button class="btn btn-sm btn-outline-primary w-100">
+            <i class="bi bi-x-lg me-1"></i>Invite with Standard Access
+          </button>
+        </form>
+        </div>
             </div>
           </div>
         </div>
@@ -157,7 +173,7 @@
                   {% for col in columns if col.startswith("ELearningName_") %}
                     {% set course_id = col.split('_')[1] %}
                     <div class="col">
-                      <!-- UPDATED: responsive flex so badge goes below on phones -->
+                      <!-- phone-friendly tile -->
                       <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center border rounded p-2 bg-light gap-2">
                         <div class="flex-grow-1 pe-0 pe-md-3">
                           <small>{{ row[col] }}</small>
@@ -180,7 +196,7 @@
 
             <div class="row mt-4">
               <div class="col-12">
-                <!-- UPDATED: add action-row for equal-height buttons -->
+                <!-- Action row -->
                 <div class="row g-2 action-row">
                   <div class="col">
                     <form method="POST" action="{{ url_for('survey_bp.send_survey_reminder') if row.Active == 1 else url_for('survey_bp.email_survey_link') }}">
@@ -234,15 +250,15 @@
                   </div>
 
                   {% if row.Active != 1 %}
+                    <!-- OPEN INVITE MODAL -->
                     <div class="col">
-                      <form method="POST" action="{{ url_for('staff_bp.invite_user') }}">
-                        <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
-                        <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
-                        <input type="hidden" name="email" value="{{ row.Email }}" />
-                        <input type="hidden" name="firstname" value="{{ row.FirstName }}">
-                        <input type="hidden" name="admin" value="{{ row.Admin or 0 }}">
-                        <button type="submit" class="btn btn-sm btn-outline-primary w-100">Invite User</button>
-                      </form>
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-primary w-100"
+                        data-bs-toggle="modal"
+                        data-bs-target="#inviteModal_{{ safe_id }}">
+                        Invite User
+                      </button>
                     </div>
                   {% else %}
                     <div class="col">
@@ -454,16 +470,26 @@
               <label class="form-label">Term</label>
               <select class="form-select" id="ms_term" required>
                 <option value="" disabled selected>Choose…</option>
-                <option value="1">Term 1</option>
-                <option value="2">Term 2</option>
-                <option value="3">Term 3</option>
-                <option value="4">Term 4</option>
+                {% for t in terms %}
+                  <option value="{{ t }}" 
+                          {% if term == t %}selected{% endif %}>
+                    Term {{ t }}
+                  </option>
+                {% endfor %}
               </select>
             </div>
+
             <div class="col-md-6">
               <label class="form-label">Calendar Year</label>
-              <input type="number" class="form-control" id="ms_year" min="2000" max="2100"
-                     value="{{ current_year or 2025 }}" required>
+              <select class="form-select" id="ms_year" required>
+                <option value="" disabled selected>Choose…</option>
+                {% for y in years %}
+                  <option value="{{ y }}"
+                          {% if year == y %}selected{% endif %}>
+                    {{ y }}
+                  </option>
+                {% endfor %}
+              </select>
             </div>
           </div>
 
@@ -536,7 +562,7 @@
       ? selectedEntityIDRaw.toString()
       : "";
 
-    if (!entityTypeSelector.value) {
+    if (entityTypeSelector && !entityTypeSelector.value) {
       const role = "{{ user_role }}";
       if (role === "PRO") entityTypeSelector.value = "Provider";
       else if (role === "FUN") entityTypeSelector.value = "Funder";
@@ -546,6 +572,8 @@
     }
 
     function updateLabelAndDropdown() {
+      if (!entityTypeSelector || !entityDropdown || !entityLabel) return;
+
       const selectedType = entityTypeSelector.value;
       entityLabel.textContent = `Select ${selectedType}`;
       entityDropdown.innerHTML = `<option disabled selected>Loading ${selectedType}s...</option>`;

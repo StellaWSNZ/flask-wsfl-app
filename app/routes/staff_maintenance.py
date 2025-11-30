@@ -26,7 +26,8 @@ from app.utils.custom_email import (
     send_account_setup_email,
     send_elearning_reminder_email,
 )
-from app.utils.database import get_db_engine, log_alert
+from app.utils.database import get_db_engine, log_alert, get_years, get_terms
+from app.utils.wsfl_email import send_account_invites
 
 # Blueprint
 staff_bp = Blueprint("staff_bp", __name__)
@@ -51,8 +52,7 @@ def staff_maintenance():
 
         # NEW: these are used by the new HTML/JS
         funder_id    = user_id if user_role == "FUN" else None
-        current_year = datetime.now().year
-
+        
         ROLE_MAP = {"Funder": "FUN", "Provider": "PRO", "School": "MOE", "Group": "GRP"}
 
         selected_entity_type = (request.form.get("entity_type") or request.args.get("entity_type") or "").strip() or None
@@ -174,7 +174,10 @@ def staff_maintenance():
             # NEW: required by the new HTML
             user_id=user_id,
             funder_id=funder_id,
-            current_year=current_year
+            current_year = session.get("nearest_year"),
+        current_term = session.get("nearest_term"),
+        term = get_terms(),
+        years = get_years()
         )
 
     except Exception as e:
@@ -402,19 +405,19 @@ def update_staff():
     return redirect(url_for("staff_bp.staff_maintenance", entity_type=entity_type, entity_id=entity_id))
 
 
-@staff_bp.route('/invite_user', methods=['POST'])
+@staff_bp.route('/invite_user', methods=['POST']) 
 @login_required
 def invite_user():
     """
     Invites a user:
       1) Inserts via FlaskInviteUser
-      2) Sends the invitation email
+      2) Sends the invitation email(s) via wsfl_email.send_account_invites
     All exceptions are logged to AUD_Alerts and surfaced with a friendly flash.
     """
     # Defaults for redirect
     entity_type = request.form.get("entity_type")
     entity_id   = request.form.get("entity_id")
-
+    print(request.form)
     try:
         # Read + normalize inputs
         email      = (request.form.get("email") or "").strip().lower()
@@ -436,26 +439,40 @@ def invite_user():
         if not email:
             raise ValueError("Missing email")
 
-        user_role     = session.get("user_role") or "UNKNOWN"
-        invited_by    = f"{session.get('user_firstname','')} {session.get('user_surname','')}".strip()
-        inviter_desc  = session.get("desc", "")
+        user_role    = session.get("user_role") or "UNKNOWN"
+        invited_by   = f"{session.get('user_firstname','')} {session.get('user_surname','')}".strip()
+        inviter_desc = session.get("desc", "")  # e.g. "Aquatic Survival Skills" / school name
 
         # 1) DB insert
         with get_db_engine().begin() as conn:
             conn.execute(
-                text("EXEC FlaskInviteUser @Email = :email, @Admin = :admin, @PerformedByEmail = :performed_by"),
-                {"email": email, "admin": admin, "performed_by": session.get("user_email")}
+                text(
+                    "EXEC FlaskInviteUser "
+                    "@Email = :email, "
+                    "@Admin = :admin, "
+                    "@PerformedByEmail = :performed_by"
+                ),
+                {
+                    "email": email,
+                    "admin": admin,
+                    "performed_by": session.get("user_email"),
+                },
             )
 
-        # 2) Email
-        send_account_setup_email(
-            mail=mail,
-            recipient_email=email,
-            first_name=firstname,
-            role=user_role,
-            invited_by_name=invited_by,
-            inviter_desc=inviter_desc,
-            is_admin=(admin == 1),
+        # 2) Email via wsfl_email.send_account_invites
+        recipients = [
+            {
+                "email": email,
+                "firstname": firstname,
+                "role": user_role,
+            }
+        ]
+
+        send_account_invites(
+            recipients=recipients,
+            make_admin=(admin == 1),
+            invited_by_name=invited_by or "Water Skills for Life",
+            invited_by_org=inviter_desc or None,
         )
 
         flash(f"✅ Invitation sent to {email}.", "success")
@@ -473,8 +490,14 @@ def invite_user():
         flash("⚠️ Failed to invite user. Please check the logs.", "danger")
 
     # Always return to staff maintenance
-    return redirect(url_for('staff_bp.staff_maintenance', entity_type=entity_type, entity_id=entity_id, trigger_load=1))
-
+    return redirect(
+        url_for(
+            'staff_bp.staff_maintenance',
+            entity_type=entity_type,
+            entity_id=entity_id,
+            trigger_load=1,
+        )
+    )
 @staff_bp.route('/add_staff', methods=['POST'])
 @login_required
 def add_staff():

@@ -457,9 +457,19 @@
             <i class="bi bi-journal-text me-3 mt-1"></i>
             <div class="item-text">
               <div class="item-text-title">My Instructions</div>
+              {% set role_label =
+                  "providers" if user_role in ["PRO", "GRP"]
+                  else "funders" if user_role == "FUN"
+                  else "schools" if user_role == "MOE"
+                  else "users"
+              %}
+
               <div class="item-text-desc text-muted">
-                Step-by-step guidance tailored to your role.
+                Step-by-step guidance tailored to {{ role_label }}.
               </div>
+
+           
+
             </div>
           </a>
 
