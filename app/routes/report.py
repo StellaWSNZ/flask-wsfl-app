@@ -4,7 +4,7 @@ import io
 import traceback
 from base64 import b64decode
 from datetime import date, datetime
-
+import os 
 # Third-party
 import matplotlib
 matplotlib.use("Agg")  # Safe backend for servers
@@ -22,8 +22,11 @@ from flask import (
     send_file,
     session,
     url_for,
+    current_app,
 )
 from sqlalchemy import text
+from app.utils.funder_missing_plot import (create_funder_missing_figure,     add_full_width_footer,)
+
 
 # App utilities
 from app.utils.database import get_db_engine, log_alert
@@ -279,7 +282,30 @@ def new_reports():
                         return redirect(url_for("report_bp.new_reports"))
                     funder_id = row[0] if not hasattr(row, "_mapping") else int(row._mapping.get("FunderID") or row[0])
                     print(f"🔑 resolved funder_id={funder_id}")
-
+                if selected_type == "funder_missing_data" and not selected_funder_name:
+                    msg = "Please choose a funder for the missing data report."
+                    log_alert(
+                        email=session.get("user_email"),
+                        role=session.get("user_role"),
+                        entity_id=None,
+                        link=request.url,
+                        message="/Reports: funder_missing_data selected but no funder chosen",
+                    )
+                    if is_ajax:
+                        return jsonify({"ok": False, "error": msg}), 400
+                    flash(msg, "warning")
+                    return render_template(
+                        "reportingnew.html",
+                        role=role,
+                        funder_name=selected_funder_name,
+                        results=None,
+                        plot_payload=None,
+                        plot_png_b64=None,
+                        selected_term=selected_term,
+                        selected_year=selected_year,
+                        selected_type=selected_type,
+                        entities_url=url_for("funder_bp.get_entities"),
+                    )
                 # Do we need a provider?
                 needs_provider = selected_type in {"provider_ytd_vs_target", "provider_ytd_vs_target_vs_funder"}
                 if needs_provider and not selected_provider_id:
@@ -338,6 +364,7 @@ def new_reports():
                         selected_type=selected_type,
                         entities_url=url_for("funder_bp.get_entities"),
                     )
+                fig = None
 
                 # ===== Execute the selected report =====
                 print(f"▶ executing report type: {selected_type}")
@@ -391,6 +418,67 @@ def new_reports():
                         results = rows
 
                     print("🔎 rows:", len(results))
+                elif selected_type == "funder_missing_data":
+                    # threshold – keep same as your script for now
+                    threshold = 0.5
+
+                    # Pull the same data your standalone script uses
+                    sql = text("""
+                        SET NOCOUNT ON;
+                        EXEC FlaskGetSchoolSummaryAllFunders
+                            @CalendarYear = :CalendarYear,
+                            @Term         = :Term,
+                            @Threshold    = :Threshold,
+                            @Email        = :Email;
+                    """)
+
+                    params = {
+                        "CalendarYear": selected_year,
+                        "Term": selected_term,
+                        "Threshold": threshold,
+                        "Email": session.get("user_email")  # fix: your session key is user_email, not email
+                    }
+
+                    res = conn.execute(sql, params)
+                    rows = res.mappings().all()
+                    results = rows
+
+                    # Convert to DataFrame
+                    import pandas as pd
+                    df_all = pd.DataFrame(rows)
+
+                    # ---- FILTER TO THIS FUNDER ----
+                    if selected_funder_name:
+                        df_funder = df_all[df_all["FunderName"] == selected_funder_name].copy()
+                    else:
+                        df_funder = df_all.copy()  # fallback – probably not needed
+
+                    # If no rows, return friendly error
+                    if df_funder.empty:
+                        msg = f"No data found for funder: {selected_funder_name}"
+                        if is_ajax:
+                            return jsonify({"ok": False, "error": msg}), 400
+                        flash(msg, "warning")
+                        return redirect(url_for("report_bp.new_reports"))
+
+                    # ---- Build the figure ----
+                    fig = create_funder_missing_figure(
+                        df_all=df_funder,                 # <--- THIS is the correct filtered frame
+                        funder_name=selected_funder_name,
+                        term=selected_term,
+                        calendaryear=selected_year,
+                        threshold=threshold,
+                    )
+                    try:
+                        footer_png = os.path.join(current_app.static_folder, "footer.png")
+                        add_full_width_footer(
+                            fig,
+                            footer_png,
+                            bottom_margin_frac=0.0,   # tweak if it clashes with axes
+                            max_footer_height_frac=0.20,
+                        )
+                    except Exception as footer_e:
+                        print(f"⚠ Could not add footer to funder_missing_data figure: {footer_e}")
 
                 elif selected_type == "ly_funder_vs_ly_national_vs_target":
                     ly = selected_year - 1  # (kept for clarity; proc uses constants below)
@@ -519,8 +607,8 @@ def new_reports():
                 }
 
                 # ========= Render figs =========
-                fig = None
-                if results:
+                if results and fig is None:
+
                     if selected_type == "provider_ytd_vs_target_vs_funder":
                         vars_to_plot = ["Provider Rate (YTD)", "Funder Rate (YTD)", "WSNZ Target"]
                         colors_dict = {

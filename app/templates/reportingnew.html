@@ -29,8 +29,7 @@
               <label for="term" class="form-label">Term</label>
               <select name="term" id="term" class="form-select">
                 <option value="3" {% if selected_term == 3 or not selected_term %}selected{% endif %}>3</option>
-                 <option value="4" {% if selected_term == 4 or not selected_term %}selected{% endif %}>4</option>
-
+                <option value="4" {% if selected_term == 4 %}selected{% endif %}>4</option>
               </select>
             </div>
 
@@ -58,6 +57,10 @@
                   <option value="school_ytd_vs_national"
                     {% if selected_type == "school_ytd_vs_national" %}selected{% endif %}>
                     School YTD Performance vs WSNZ Target
+                  </option>
+                   <option value="funder_missing_data"
+                    {% if selected_type == "funder_missing_data"%}selected{% endif %}>
+                    Funder Missing Data
                   </option>
                 {% elif role == "PRO" %}
                   <option value="provider_ytd_vs_target"
@@ -120,7 +123,9 @@
             <input type="hidden" name="school_name" id="school_name" value="">
 
             <div class="d-grid">
-              <button type="submit" name="action" value="show_report" class="btn btn-primary">Show report</button>
+              <button type="submit" name="action" value="show_report" class="btn btn-primary">
+                Show report
+              </button>
             </div>
           </form>
         </div>
@@ -130,7 +135,9 @@
     <!-- ===== Main content ===== -->
     <div class="col-lg-9">
       <div class="card">
-        <div id="report-header" class="card-header text-white d-flex justify-content-between align-items-start" style="background:#1a427d;">
+        <div id="report-header"
+             class="card-header text-white d-flex justify-content-between align-items-start"
+             style="background:#1a427d;">
           <div id="report-header-left">
             {% if funder_name %}{{ funder_name }} • {% endif %}
             {% if selected_term and selected_year %}
@@ -143,7 +150,6 @@
             {% if provider_name %} • {{ provider_name }}{% endif %}
             {% if school_name %} • {{ school_name }}{% endif %}
           </div>
-          <!-- (No buttons in the header) -->
         </div>
 
         <div class="card-body">
@@ -151,7 +157,7 @@
                class="position-relative text-center"
                style="min-height:220px; max-height:85vh; overflow:visible;">
 
-            <!-- Message placeholder -->
+            <!-- Message placeholder (this is usually the LCP element) -->
             <div id="chart-message" style="color:#1a427d; font-weight:600;">
               {% if plot_png_b64 %}
                 <span style="display:none;">Report will appear here once submitted.</span>
@@ -160,14 +166,14 @@
               {% endif %}
             </div>
 
-            <!-- Chart image (no Jinja inside style=) -->
+            <!-- Chart image -->
             <img id="report-img"
                  class="img-fluid mx-auto fade-in {{ 'is-visible d-block' if plot_png_b64 else 'd-none' }}"
                  src="{{ ('data:image/png;base64,' ~ plot_png_b64) if plot_png_b64 else '' }}"
                  alt="Report chart"
                  style="max-width:100%; height:auto; max-height:70vh; object-fit:contain; border:1px solid #eee; border-radius:.5rem;" />
 
-            <!-- Export buttons UNDER the image; toggle with classes instead of inline styles -->
+            <!-- Export buttons UNDER the image -->
             <div id="exportButtons"
                  class="justify-content-center gap-2 mt-3 {{ 'd-flex' if display else 'd-none' }}">
               <a class="btn btn-sm btn-outline-primary" href="{{ url_for('report_bp.download_pdf') }}">Export PDF</a>
@@ -224,7 +230,8 @@
     return [
       'funder_ytd_vs_target',
       'ly_funder_vs_ly_national_vs_target',
-      'provider_ytd_vs_target_vs_funder'
+      'provider_ytd_vs_target_vs_funder',
+      'funder_missing_data'
     ].includes(val);
   }
 
@@ -242,7 +249,9 @@
         if (prevFunderName && f.name === prevFunderName) opt.selected = true;
         funderSel.appendChild(opt);
       }
-      if (!funderSel.value) funderSel.querySelector('option[disabled]')?.setAttribute('selected', 'selected');
+      if (!funderSel.value) {
+        funderSel.querySelector('option[disabled]')?.setAttribute('selected', 'selected');
+      }
     } catch {
       funderSel.innerHTML = '<option value="" disabled>Error loading funders</option>';
     }
@@ -264,10 +273,15 @@
         const opt = document.createElement('option');
         opt.value = p.id;
         opt.textContent = p.name;
-        if (prevProviderId && String(p.id) === String(prevProviderId)) { opt.selected = true; picked = true; }
+        if (prevProviderId && String(p.id) === String(prevProviderId)) {
+          opt.selected = true;
+          picked = true;
+        }
         providerSel.appendChild(opt);
       }
-      if (!providerSel.value) providerSel.querySelector('option[disabled]')?.setAttribute('selected', 'selected');
+      if (!providerSel.value) {
+        providerSel.querySelector('option[disabled]')?.setAttribute('selected', 'selected');
+      }
 
       const txt = providerSel.options[providerSel.selectedIndex]?.textContent || '';
       providerNameInput.value = picked ? txt : '';
@@ -290,10 +304,15 @@
         const opt = document.createElement('option');
         opt.value = s.id;
         opt.textContent = s.name;
-        if (prevSchoolId && String(s.id) === String(prevSchoolId)) { opt.selected = true; picked = true; }
+        if (prevSchoolId && String(s.id) === String(prevSchoolId)) {
+          opt.selected = true;
+          picked = true;
+        }
         schoolSel.appendChild(opt);
       }
-      if (!schoolSel.value) schoolSel.querySelector('option[disabled]')?.setAttribute('selected', 'selected');
+      if (!schoolSel.value) {
+        schoolSel.querySelector('option[disabled]')?.setAttribute('selected', 'selected');
+      }
 
       const txt = schoolSel.options[schoolSel.selectedIndex]?.textContent || '';
       schoolNameInput.value = picked ? txt : '';
@@ -303,25 +322,33 @@
     }
   }
 
+  // Avoid immediate fetches on initial load; only load when user interacts
+  let initialising = true;
+  let fundersLoaded = false;
+  let providersLoaded = false;
+  let schoolsLoaded = false;
+
   async function toggleEntityBlocks() {
     const val = reportSel.value;
 
     // Funder
-    const wantFunder = needsFunder(val);
-    if (funderBlock) {
-      funderBlock.style.display = wantFunder ? 'block' : 'none';
-      if (wantFunder && "{{ role }}" === 'ADM') {
-        loadFunders();
-      } else if (!wantFunder && "{{ role }}" === 'ADM' && funderSel) {
-        funderSel.selectedIndex = 0; // optional clear
-      }
-    }
+    // Funder
+const wantFunder = needsFunder(val);
+if (funderBlock) {
+  funderBlock.style.display = wantFunder ? 'block' : 'none';
+  if (wantFunder && ROLE === 'ADM' && !fundersLoaded) {
+    fundersLoaded = true;
+    loadFunders();
+  }
+}
 
     // Provider
     const wantProvider = needsProvider(val);
     providerBlock.style.display = wantProvider ? 'block' : 'none';
-    if (wantProvider) loadProviders();
-    else {
+    if (wantProvider && !initialising && !providersLoaded) {
+      providersLoaded = true;
+      loadProviders();
+    } else if (!wantProvider) {
       providerSel.innerHTML = '<option value="" disabled>Choose provider…</option>';
       providerNameInput.value = '';
     }
@@ -329,8 +356,10 @@
     // School
     const wantSchool = needsSchool(val);
     schoolBlock.style.display = wantSchool ? 'block' : 'none';
-    if (wantSchool) loadSchools();
-    else {
+    if (wantSchool && !initialising && !schoolsLoaded) {
+      schoolsLoaded = true;
+      loadSchools();
+    } else if (!wantSchool) {
       schoolSel.innerHTML = '<option value="" disabled>Choose school…</option>';
       schoolNameInput.value = '';
     }
@@ -340,14 +369,19 @@
     const txt = providerSel.options[providerSel.selectedIndex]?.textContent || '';
     providerNameInput.value = txt;
   });
+
   schoolSel?.addEventListener('change', () => {
     const txt = schoolSel.options[schoolSel.selectedIndex]?.textContent || '';
     schoolNameInput.value = txt;
   });
 
-  reportSel.addEventListener('change', toggleEntityBlocks);
+  // On first change, drop the initialising guard and allow fetches
+  reportSel.addEventListener('change', () => {
+    initialising = false;
+    toggleEntityBlocks();
+  });
 
-  // Initial state
+  // Initial state: just show/hide blocks, no network calls
   toggleEntityBlocks();
 })();
 </script>
@@ -368,9 +402,18 @@
     e.preventDefault();
 
     // Loading state
-    if (msg) { msg.textContent = 'Loading report, please wait…'; msg.style.display = 'block'; }
-    if (reportImg) { reportImg.classList.remove('is-visible'); reportImg.classList.add('d-none'); }
-    if (btns) { btns.classList.remove('d-flex'); btns.classList.add('d-none'); }
+    if (msg) {
+      msg.textContent = 'Loading report, please wait…';
+      msg.style.display = 'block';
+    }
+    if (reportImg) {
+      reportImg.classList.remove('is-visible');
+      reportImg.classList.add('d-none');
+    }
+    if (btns) {
+      btns.classList.remove('d-flex');
+      btns.classList.add('d-none');
+    }
 
     try {
       const fd = new FormData(form);
@@ -397,8 +440,13 @@
 
       // Toggle export buttons
       if (btns) {
-        if (data.display) { btns.classList.remove('d-none'); btns.classList.add('d-flex'); }
-        else { btns.classList.remove('d-flex'); btns.classList.add('d-none'); }
+        if (data.display) {
+          btns.classList.remove('d-none');
+          btns.classList.add('d-flex');
+        } else {
+          btns.classList.remove('d-flex');
+          btns.classList.add('d-none');
+        }
       }
 
       // Header HTML refresh
@@ -409,7 +457,10 @@
     } catch (err) {
       console.error(err);
       if (msg) msg.textContent = 'Sorry — there was a problem loading the report.';
-      if (btns) { btns.classList.remove('d-flex'); btns.classList.add('d-none'); }
+      if (btns) {
+        btns.classList.remove('d-flex');
+        btns.classList.add('d-none');
+      }
     }
   });
 })();
