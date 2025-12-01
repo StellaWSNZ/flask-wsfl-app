@@ -50,67 +50,14 @@ from app.utils.one_bar_one_line import (
 
 # Routes / auth
 from app.routes.auth import login_required
+import uuid
+from pathlib import Path
 
+REPORT_DIR = Path("/tmp/wsfl_reports")
+REPORT_DIR.mkdir(parents=True, exist_ok=True)
 # Blueprint
 report_bp = Blueprint("report_bp", __name__)
 
-def fig_to_png_b64(fig, *, dpi=200) -> str:
-    """
-    Best-effort: returns base64 PNG; logs error to AUD_Alerts on failure.
-    """
-    try:
-        buf = io.BytesIO()
-        # keep your tight layout choice
-        plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
-        fig.savefig(buf, format="png", dpi=dpi)
-        plt.close(fig)
-        return base64.b64encode(buf.getvalue()).decode("ascii")
-    except Exception as e:
-        # Log to DB, but don't raise (return empty string so caller can handle)
-        err_text = f"fig_to_png_b64 failed: {e}\n{traceback.format_exc()}"
-        log_alert(
-            email=session.get("user_email"),
-            role=session.get("user_role"),
-            entity_id=None,
-            link="fig_to_png_b64",
-            message=err_text[:4000],  # keep it sane
-        )
-        try:
-            plt.close(fig)
-        except Exception:
-            pass
-        return ""
-
-def fig_to_pdf_b64(fig) -> str:
-    """
-    Best-effort: returns base64 PDF; logs error to AUD_Alerts on failure.
-    """
-    try:
-        buf = io.BytesIO()
-        plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
-        fig.savefig(buf, format="pdf")
-        plt.close(fig)
-        return base64.b64encode(buf.getvalue()).decode("ascii")
-    except Exception as e:
-        err_text = f"fig_to_pdf_b64 failed: {e}\n{traceback.format_exc()}"
-        log_alert(
-            email=session.get("user_email"),
-            role=session.get("user_role"),
-            entity_id=None,
-            link="fig_to_pdf_b64",
-            message=err_text[:4000],
-        )
-        try:
-            plt.close(fig)
-        except Exception:
-            pass
-        return ""
-
-# Store raw bytes to avoid "I/O on closed file" errors
-last_pdf_bytes = None
-last_pdf_filename = None
-last_png_bytes = None
-last_png_filename = None
 
 def get_available_terms(nearest_year, nearest_term):
     options = [(nearest_year, nearest_term)]
@@ -127,23 +74,31 @@ def get_available_terms(nearest_year, nearest_term):
 @login_required
 def download_pdf():
     try:
-        pdf_data = session.get("report_pdf_bytes")
-        pdf_name = session.get("report_pdf_filename") or "report.pdf"
-        if not pdf_data:
-            # Not an error per se; just tell user
+        report_id = session.get("report_id")
+        pdf_name  = session.get("report_pdf_filename") or "report.pdf"
+
+        # No report generated this session
+        if not report_id:
             flash("No PDF report has been generated yet.", "warning")
             return redirect(url_for("report_bp.new_reports"))
 
+        pdf_path = REPORT_DIR / f"{report_id}.pdf"
+
+        # File missing on disk (restart / cleanup / expired)
+        if not pdf_path.exists():
+            flash("The PDF report has expired. Please run the report again.", "warning")
+            return redirect(url_for("report_bp.new_reports"))
+
         return send_file(
-            io.BytesIO(b64decode(pdf_data)),
+            pdf_path,
             download_name=pdf_name,
             as_attachment=True,
-            mimetype='application/pdf'
+            mimetype="application/pdf",
         )
+
     except Exception as e:
         err_text = f"/Reporting/download_pdf failed: {e}\n{traceback.format_exc()}"
         print("❌ Error in /download_pdf:", e)
-        # ✅ log to DB
         log_alert(
             email=session.get("user_email"),
             role=session.get("user_role"),
@@ -155,21 +110,29 @@ def download_pdf():
         return redirect(url_for("report_bp.new_reports"))
 
 
+
 @report_bp.route('/Reporting/download_png')
 @login_required
 def download_png():
     try:
-        png_data = session.get("report_png_bytes")
-        png_name = session.get("report_png_filename") or "report.png"
-        if not png_data:
+        report_id = session.get("report_id")
+        if not report_id:
             flash("No PNG report has been generated yet.", "warning")
             return redirect(url_for("report_bp.new_reports"))
 
+        png_name = session.get("report_png_filename") or "report.png"
+        png_path = REPORT_DIR / f"{report_id}.png"
+
+        if not png_path.exists():
+            flash("Report image has expired. Please re-run the report.", "warning")
+            return redirect(url_for("report_bp.new_reports"))
+
         return send_file(
-            io.BytesIO(b64decode(png_data)),
+            png_path,
             download_name=png_name,
             as_attachment=True,
-            mimetype='image/png'
+                mimetype="image/png",
+
         )
     except Exception as e:
         err_text = f"/Reporting/download_png failed: {e}\n{traceback.format_exc()}"
@@ -750,13 +713,21 @@ def new_reports():
                         )
 
                 if fig is not None:
-                    png_b64 = fig_to_png_b64(fig)
-                    pdf_b64 = fig_to_pdf_b64(fig)
-                    session["report_png_bytes"] = png_b64
+                    report_id = uuid.uuid4().hex
+
+                    png_path = REPORT_DIR / f"{report_id}.png"
+                    pdf_path = REPORT_DIR / f"{report_id}.pdf"
+
+                    # save *once* per format
+                    fig.savefig(png_path, format="png", dpi=200)
+                    fig.savefig(pdf_path, format="pdf")
+                    plt.close(fig)
+
+                    session["report_id"] = report_id
                     session["report_png_filename"] = f"Report_{selected_type}_{selected_term}_{selected_year}.png"
-                    session["report_pdf_bytes"] = pdf_b64
                     session["report_pdf_filename"] = f"Report_{selected_type}_{selected_term}_{selected_year}.pdf"
-                    plot_png_b64 = png_b64
+
+                    plot_png_b64 = base64.b64encode(png_path.read_bytes()).decode("ascii")  # for inline display only
                     display = True
 
                 # ===== AJAX response (no full reload) =====
