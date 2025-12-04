@@ -191,8 +191,8 @@ def add_full_width_footer_svg(
         all_y.extend(verts[:, 1])
 
         style = path_el.attrib.get("style", "")
-        stroke = path_el.attrib.get("stroke", "#1a427d80")
-        fill = path_el.attrib.get("fill", "none")
+        stroke = path_el.attrib.get("stroke", "#1a427d")
+        fill = path_el.attrib.get("none", "none")
 
         if "fill:" in style:
             m_fill = re.search(r"fill:([^;]+)", style)
@@ -207,7 +207,7 @@ def add_full_width_footer_svg(
             mpl_path,
             facecolor=None if fill in ("none", "transparent") else fill,
             edgecolor=None if stroke in ("none", "transparent") else stroke,
-            linewidth=0.7,
+            linewidth=0,
         )
         ax.add_patch(patch)
 
