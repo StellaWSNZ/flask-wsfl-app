@@ -25,7 +25,7 @@ from flask import (
     current_app,
 )
 from sqlalchemy import text
-from app.utils.funder_missing_plot import (create_funder_missing_figure,     add_full_width_footer,)
+from app.utils.funder_missing_plot import (add_full_width_footer_svg, create_funder_missing_figure,     add_full_width_footer,)
 
 
 # App utilities
@@ -433,12 +433,13 @@ def new_reports():
                         threshold=threshold,
                     )
                     try:
-                        footer_png = os.path.join(current_app.static_folder, "footer.png")
-                        add_full_width_footer(
+                        footer_png = os.path.join(current_app.static_folder, "footer.svg")
+                        add_full_width_footer_svg(
                             fig,
                             footer_png,
                             bottom_margin_frac=0.0,   # tweak if it clashes with axes
                             max_footer_height_frac=0.20,
+                            
                         )
                     except Exception as footer_e:
                         print(f"⚠ Could not add footer to funder_missing_data figure: {footer_e}")
