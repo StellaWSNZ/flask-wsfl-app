@@ -23,13 +23,13 @@ TERM = 2
 CALENDARYEAR = 2025
 
 # Choose the 3 series (in order) you want to plot + their colors
-vars_to_plot = [
+DEFAULT_VARS_TO_PLOT = [
     "National Rate (YTD)",
     "Funder Rate (YTD)",
     "WSNZ Target",
 ]
 
-colors_dict = {
+DEFAULT_COLORS_DICT = {
     "Funder Rate (YTD)": "#2EBDC2",
     "WSNZ Target": "#356FB6",
     "National Rate (YTD)": "#BBE6E9",
@@ -233,6 +233,9 @@ def make_yeargroup_plot(ax, x, y_top, cell_height, title, df_relcomp, df_results
     rate_spacing = 0.035
     y_current = y_start
 
+    
+
+        # 🔹 Only draw bars for series that actually exist for this competency
     for comp_value in df['CompetencyDesc'].unique():
         comp_rows = df[df['CompetencyDesc'] == comp_value]
         center_of_three_rates = y_current - (rate_spacing * (len(vars_to_plot) / 2))
@@ -247,15 +250,22 @@ def make_yeargroup_plot(ax, x, y_top, cell_height, title, df_relcomp, df_results
         )
 
         for var_value in vars_to_plot:
+            # rows for this competency + this intended series
             rate_row = comp_rows[comp_rows['ResultType'] == var_value]
+ 
             if not rate_row.empty:
-                value = rate_row['Rate'].iloc[0]
+                # Use the actual ResultType from the data as the colour key
+                result_type = str(rate_row['ResultType'].iloc[0])
+                value = float(rate_row['Rate'].iloc[0])
                 formatted_value = f"{value * 100:.2f}%"
+                colour_key = result_type
             else:
-                value = 0  # no bar
-                formatted_value = ""  # leave empty or "—"
-
-            # Always draw the percentage text (even if blank)
+                # No row for this series → treat as 0% but keep its slot
+                value = 0.0
+                formatted_value = ""
+                colour_key = var_value   # fall back to the intended series
+         
+            # Percentage text (always shown, may be blank)
             ax.text(
                 percent_text_x,
                 y_current,
@@ -264,20 +274,22 @@ def make_yeargroup_plot(ax, x, y_top, cell_height, title, df_relcomp, df_results
                 fontsize=9
             )
 
-            # Always draw a bar (width=0 if missing)
+            # Bar (width 0 if value is 0)
             bar_height = 0.025
             bar_spacing = 0.005
             ax.add_patch(plt.Rectangle(
                 (bar_start_x, y_current - 0.02 - bar_spacing),
-                max(0.0, float(value)) * bar_max_width,
+                max(0.0, value) * bar_max_width,
                 bar_height,
-                facecolor=colors_dict.get(var_value, "#CCCCCC"),
+                facecolor=colors_dict.get(colour_key, "#CCCCCC"),
                 edgecolor='none'
             ))
 
-            y_current -= rate_spacing  # move down even if missing
+            # Move down for the next series
+            y_current -= rate_spacing
 
         y_current -= competency_spacing
+
 
 
     # Legend under the last item in this cell

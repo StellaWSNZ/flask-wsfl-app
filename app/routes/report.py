@@ -180,8 +180,8 @@ def new_reports():
     engine = get_db_engine()
 
     # --------- UI state (defaults shown in form) ----------
-    selected_year  = None
-    selected_term  = None
+    selected_year  = session.get("nearest_year")
+    selected_term  = session.get("nearest_term")
     selected_type  = None
     selected_funder_name = None
 
@@ -493,8 +493,7 @@ def new_reports():
                     results = filtered_rows
 
                 elif selected_type == "provider_ytd_vs_target_vs_funder":
-                    if(role=="ADM"):
-                        funder_id = None
+                    
                     sql = text("""
                         SET NOCOUNT ON;
                         EXEC dbo.GetProviderNationalRates
@@ -610,6 +609,13 @@ def new_reports():
                             "WSNZ Target": "#356FB6",
                             "Funder Rate (YTD)": "#BBE6E9",
                         }
+                        print("DEBUG ResultTypes in results:")
+                        print(
+                                sorted(
+                                    set(r.get("ResultType") for r in results if r.get("ResultType"))
+                                )
+                            )
+
                         provider_display_name = (
                             request.form.get("provider_name")
                             or next((r.get("ProviderName") or r.get("Provider")
@@ -842,5 +848,7 @@ def new_reports():
         selected_type=selected_type,
         entities_url=url_for("funder_bp.get_entities"),
         display=display,
+
+
         no_data_banner=no_data_banner,  # 🆕 optional template banner
     )
