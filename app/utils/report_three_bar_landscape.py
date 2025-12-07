@@ -301,6 +301,8 @@ def create_competency_report(term, year, funder_id, vars_to_plot, colors_dict,
         funder_name = load_funder_name(con, funder_id)
 
     fig, ax = plt.subplots(figsize=PAGE_SIZE)
+    ax.set_position([0.0, 0.0, 1.0, 1.0])
+
     make_grid(
         ax, N_COLS, N_ROWS, ROW_HEIGHTS,
         TITLE_SPACE, SUBTITLE_SPACE,

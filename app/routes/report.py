@@ -224,6 +224,8 @@ def new_reports():
                 print(f"effective funder_name: {selected_funder_name}")
 
                 funder_id = None
+                provider_id = None
+                school_id = None 
                 if selected_funder_name:
                     row = conn.execute(
                         text("EXEC FlaskHelperFunctions @Request='FunderIDDescription', @Text=:t"),
@@ -301,7 +303,7 @@ def new_reports():
                         )
 
                 # Do we need a school?  🆕
-                needs_school = selected_type in {"school_ytd_vs_national"}
+                needs_school = selected_type in {"school_ytd_vs_target"}
                 if needs_school and not selected_school_id:
                     msg = "Please choose a school."
                     # ✅ log it (validation miss)
@@ -445,28 +447,54 @@ def new_reports():
                         print(f"⚠ Could not add footer to funder_missing_data figure: {footer_e}")
 
                 elif selected_type == "ly_funder_vs_ly_national_vs_target":
-                    ly = selected_year - 1  # (kept for clarity; proc uses constants below)
+                    ly = selected_year - 1  # just for clarity in case you use it later
+
                     sql = text("""
                         SET NOCOUNT ON;
                         EXEC dbo.GetFunderNationalRates_All
                             @Term = :Term,
                             @CalendarYear = :CalendarYear;
                     """)
+
+                    # whatever "last year" actually is for this report:
                     params = {"Term": 2, "CalendarYear": 2025}
                     res = conn.execute(sql, params)
-                    rows = res.mappings().all()
 
-                    if funder_id:
-                        rows = [
-                            r for r in rows
-                            if int(r.get("FunderID", 0) or 0) == funder_id
+                    # RowMapping objects (read-only)
+                    raw_rows = res.mappings().all()
+
+                    filtered_rows = []
+                    for r in raw_rows:
+                        funder_matches = (
+                            not funder_id or
+                            int(r.get("FunderID", 0) or 0) == funder_id
+                        )
+                        keep = (
+                            funder_matches
                             or r.get("Funder") == "National"
                             or r.get("ResultType") == "WSNZ Target"
                             or r.get("ResultType") == "National Rate (YTD)"
-                        ]
-                    results = rows
+                            or r.get("ResultType") == "Funder Rate (YTD)"
+                        )
+                        if not keep:
+                            continue
+
+                        # 🔁 copy to a mutable dict
+                        d = dict(r)
+
+                        # 🔁 relabel YTD → LY for this report
+                        if d.get("ResultType") == "National Rate (YTD)":
+                            d["ResultType"] = "National Rate (LY)"
+                        elif d.get("ResultType") == "Funder Rate (YTD)":
+                            d["ResultType"] = "Funder Rate (LY)"
+
+                        filtered_rows.append(d)
+
+                    results = filtered_rows
 
                 elif selected_type == "provider_ytd_vs_target_vs_funder":
+                    if(role=="ADM"):
+                        funder_id = None
                     sql = text("""
                         SET NOCOUNT ON;
                         EXEC dbo.GetProviderNationalRates
@@ -496,6 +524,8 @@ def new_reports():
                     results = rows
 
                 elif selected_type == "provider_ytd_vs_target":
+                    if(role=="ADM"):
+                        funder_id = None
                     sql = text("""
                         SET NOCOUNT ON;
                         EXEC dbo.GetProviderNationalRates
@@ -525,7 +555,7 @@ def new_reports():
                     results = rows
 
                 # 🆕 SCHOOL: YTD vs National
-                elif selected_type == "school_ytd_vs_national":
+                elif selected_type == "school_ytd_vs_target":
                     sql = text("""
                         SET NOCOUNT ON;
                         EXEC dbo.GetSchoolNationalRates
@@ -591,7 +621,7 @@ def new_reports():
                         fig = r3.create_competency_report(
                             term=selected_term,
                             year=selected_year,
-                            funder_id=funder_id or 0,
+                            funder_id=funder_id ,
                             rows=results,
                             vars_to_plot=vars_to_plot,
                             colors_dict=colors_dict,
@@ -599,15 +629,15 @@ def new_reports():
                         )
 
                     elif selected_type == "ly_funder_vs_ly_national_vs_target":
-                        vars_to_plot = ["National Rate (YTD)", "Funder Rate (YTD)", "WSNZ Target"]
+                        vars_to_plot = ["National Rate (LY)", "Funder Rate (LY)", "WSNZ Target"]
                         colors_dict = {
-                            "Funder Rate (YTD)": "#2EBDC2",
+                            "Funder Rate (LY)": "#2EBDC2",
                             "WSNZ Target": "#356FB6",
-                            "National Rate (YTD)": "#BBE6E9",
+                            "National Rate (LY)": "#BBE6E9",
                         }
                         fig = r3.create_competency_report(
-                            term=2,
-                            year=2025,
+                            term=selected_term,
+                            year=selected_year,
                             funder_id=funder_id or 0,
                             rows=results,
                             vars_to_plot=vars_to_plot,
@@ -646,7 +676,7 @@ def new_reports():
                         if not provider_rows:
                             print("⚠️ No 'provider rate' rows found in results for provider_ytd_vs_target")
                             no_data_banner = (
-                                f"⚠️ No YTD provider data found for {subject_name} "
+                                f"No YTD provider data found for {subject_name} "
                                 f"(Term {selected_term}, {selected_year}). Showing national/target series only."
                             )
                             filtered_results = [r for r in results if not _is_provider_row(r)]
@@ -666,12 +696,20 @@ def new_reports():
                             try:
                                 ax = fig.gca()
                                 ax.annotate(
-                                    no_data_banner,
-                                    xy=(0.5, 1.02),
-                                    xycoords="axes fraction",
-                                    ha="center", va="bottom", fontsize=10,
-                                    bbox=dict(boxstyle="round,pad=0.4", fc="#fff3cd", ec="#ffeeba")
-                                )
+    no_data_banner,
+    xy=(0.5, 1.02),
+    xycoords="axes fraction",
+    ha="center", va="bottom",
+    fontsize=10,
+    fontweight="bold",
+    color="white",
+    bbox=dict(
+        boxstyle="round,pad=0.4",
+        fc="#1a427d",   # dark blue fill
+        ec="#1a427d"    # matching border
+    )
+)
+
                             except Exception as _e:
                                 print(f"⚠️ Could not annotate no-data banner: {_e}")
 
@@ -688,7 +726,7 @@ def new_reports():
                         )
 
                     # 🆕 School portrait (one var + target)
-                    elif selected_type == "school_ytd_vs_national":
+                    elif selected_type == "school_ytd_vs_target":
                         try:
                             use_ppmori("app/static/fonts")
                         except Exception as font_e:
@@ -703,7 +741,7 @@ def new_reports():
                             year=selected_year,
                             mode="school",
                             subject_name=school_name,
-                            title=f"{school_name or 'School'} YTD vs National"
+                            title=f"{school_name or 'School'} YTD vs WSNZ Target"
                         )
 
                     else:
@@ -743,7 +781,7 @@ def new_reports():
                         left_bits.append(selected_funder_name)
                     left_bits.append(f"Term {selected_term}, {selected_year}")
 
-                    if selected_type == "school_ytd_vs_national" and (school_name or school_id):
+                    if selected_type == "school_ytd_vs_target" and (school_name or school_id):
                         left_bits.append(school_name or f"School MOE {school_id}")
                     elif provider_name:
                         left_bits.append(provider_name)
@@ -788,6 +826,8 @@ def new_reports():
 
             flash(user_msg, "danger")
             return redirect(url_for("report_bp.new_reports"))
+    if results and isinstance(results, list) and "CompetencyDesc" in results[0]:
+        results = sorted(results, key=lambda x: (x.get("CompetencyDesc") or ""))
 
     # GET, or POST without show_report → just render the page; dropdowns loaded via AJAX
     return render_template(

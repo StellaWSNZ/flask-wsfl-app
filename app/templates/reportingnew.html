@@ -54,8 +54,8 @@
                     {% if selected_type == "provider_ytd_vs_target_vs_funder" %}selected{% endif %}>
                     Provider YTD vs Funder YTD vs Target
                   </option>
-                  <option value="school_ytd_vs_national"
-                    {% if selected_type == "school_ytd_vs_national" %}selected{% endif %}>
+                  <option value="school_ytd_vs_target"
+                    {% if selected_type == "school_ytd_vs_target" %}selected{% endif %}>
                     School YTD Performance vs WSNZ Target
                   </option>
                    <option value="funder_missing_data"
@@ -67,8 +67,8 @@
                     {% if selected_type == "provider_ytd_vs_target" or not selected_type %}selected{% endif %}>
                     YTD Performance vs WSNZ Target
                   </option>
-                  <option value="school_ytd_vs_national"
-                    {% if selected_type == "school_ytd_vs_national" %}selected{% endif %}>
+                  <option value="school_ytd_vs_target"
+                    {% if selected_type == "school_ytd_vs_target" %}selected{% endif %}>
                     School YTD Performance vs WSNZ Target
                   </option>
                 {% elif role == "GRP" %}
@@ -76,13 +76,13 @@
                     {% if selected_type == "provider_ytd_vs_target" or not selected_type %}selected{% endif %}>
                     Provider YTD Performance vs WSNZ Target
                   </option>
-                  <option value="school_ytd_vs_national"
-                    {% if selected_type == "school_ytd_vs_national" %}selected{% endif %}>
+                  <option value="school_ytd_vs_target"
+                    {% if selected_type == "school_ytd_vs_target" %}selected{% endif %}>
                     School YTD Performance vs WSNZ Target
                   </option>
                 {% elif role == "MOE" %}
-                  <option value="school_ytd_vs_national"
-                    {% if selected_type == "school_ytd_vs_national" or not selected_type %}selected{% endif %}>
+                  <option value="school_ytd_vs_target"
+                    {% if selected_type == "school_ytd_vs_target" or not selected_type %}selected{% endif %}>
                     YTD Performance vs WSNZ Target
                   </option>
                 {% endif %}
@@ -224,7 +224,7 @@
     return ['provider_ytd_vs_target', 'provider_ytd_vs_target_vs_funder'].includes(val);
   }
   function needsSchool(val) {
-    return ['school_ytd_vs_national', 'school_ytd_vs_target'].includes(val);
+    return ['school_ytd_vs_target', 'school_ytd_vs_target'].includes(val);
   }
   function needsFunder(val) {
     return [

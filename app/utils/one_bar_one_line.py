@@ -311,7 +311,7 @@ def provider_portrait_with_target(
     # ---------- Figure ----------
     fig = plt.figure(figsize=A4_PORTRAIT)
     ax = fig.add_subplot(111); ax.set_xlim(0,1); ax.set_ylim(0,1); ax.axis("off")
-
+    ax.set_position([0.0, 0.0, 1.0, 0.97])
     # Title
     base_title_fs = 14
     subject_label = subject_name or mode.title()
