@@ -5,6 +5,8 @@ import traceback
 from base64 import b64decode
 from datetime import date, datetime
 import os 
+import re
+
 # Third-party
 import matplotlib
 matplotlib.use("Agg")  # Safe backend for servers
@@ -57,6 +59,18 @@ REPORT_DIR = Path("/tmp/wsfl_reports")
 REPORT_DIR.mkdir(parents=True, exist_ok=True)
 # Blueprint
 report_bp = Blueprint("report_bp", __name__)
+
+def slugify_filename(label: str, fallback: str = "report") -> str:
+    """
+    Turn a human label into a filesystem-safe filename chunk.
+    """
+    label = (label or "").strip()
+    if not label:
+        return fallback
+    label = label.replace("&", "and")
+    label = re.sub(r"[^A-Za-z0-9\-_]+", "_", label)
+    label = re.sub(r"_+", "_", label).strip("_")
+    return label or fallback
 
 
 def get_available_terms(nearest_year, nearest_term):
@@ -763,17 +777,58 @@ def new_reports():
                     png_path = REPORT_DIR / f"{report_id}.png"
                     pdf_path = REPORT_DIR / f"{report_id}.pdf"
 
-                    # save *once* per format
                     fig.savefig(png_path, format="png", dpi=200)
                     fig.savefig(pdf_path, format="pdf")
                     plt.close(fig)
 
-                    session["report_id"] = report_id
-                    session["report_png_filename"] = f"Report_{selected_type}_{selected_term}_{selected_year}.png"
-                    session["report_pdf_filename"] = f"Report_{selected_type}_{selected_term}_{selected_year}.pdf"
+                    # ----- nicer filenames for download -----
+                    # Try to pick up provider / school names if they exist
+                    provider_name = (request.form.get("provider_name") or "").strip()
+                    school_name   = (request.form.get("school_name") or "").strip()
 
-                    plot_png_b64 = base64.b64encode(png_path.read_bytes()).decode("ascii")  # for inline display only
+                    if not provider_name and results:
+                        provider_name = next(
+                            (
+                                (r.get("ProviderName") or r.get("Provider") or r.get("ProviderDesc"))
+                                for r in results
+                                if r.get("ProviderName") or r.get("Provider") or r.get("ProviderDesc")
+                            ),
+                            "",
+                        )
+
+                    if not school_name and results:
+                        school_name = next(
+                            (r.get("SchoolName") for r in results if r.get("SchoolName")),
+                            "",
+                        )
+
+                    base_label = ""
+
+                    if selected_type == "funder_missing_data":
+                        base_label = f"MissingData_{selected_funder_name or 'Funder'}"
+                    elif selected_type == "funder_ytd_vs_target":
+                        base_label = f"FunderYTDvsTarget_{selected_funder_name or 'Funder'}"
+                    elif selected_type == "ly_funder_vs_ly_national_vs_target":
+                        base_label = f"FunderLY_vs_National_vs_Target_{selected_funder_name or 'Funder'}"
+                    elif selected_type == "provider_ytd_vs_target_vs_funder":
+                        base_label = f"ProviderVsFunder_{provider_name or 'Provider'}_{selected_funder_name or 'Funder'}"
+                    elif selected_type == "provider_ytd_vs_target":
+                        base_label = f"ProviderYTDvsTarget_{provider_name or 'Provider'}"
+                    elif selected_type == "school_ytd_vs_target":
+                        base_label = f"SchoolYTDvsTarget_{school_name or f'MOE_{selected_school_id}'}"
+                    else:
+                        base_label = f"Report_{selected_type or 'Unknown'}"
+
+                    base_label = slugify_filename(base_label, fallback="WSFL_Report")
+                    base_label = f"{base_label}_T{selected_term}_{selected_year}"
+
+                    session["report_id"] = report_id
+                    session["report_png_filename"] = f"{base_label}.png"
+                    session["report_pdf_filename"] = f"{base_label}.pdf"
+
+                    plot_png_b64 = base64.b64encode(png_path.read_bytes()).decode("ascii")
                     display = True
+
 
                 # ===== AJAX response (no full reload) =====
                 if is_ajax:

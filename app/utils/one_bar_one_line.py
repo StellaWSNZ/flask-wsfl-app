@@ -360,8 +360,8 @@ def provider_portrait_with_target(
     GROUP_BOT_PAD = BASE["GROUP_BOT_PAD"]*scale
     SUBTITLE_GAP  = BASE["SUBTITLE_GAP"]*scale
 
-    label_fs   = max(8.0, BASE["LABEL_FS"]*(0.9*scale+0.1))
-    target_fs  = max(6.0, BASE["TARGET_FS"]*(0.9*scale+0.1))
+    label_fs   = max(10, BASE["LABEL_FS"]*(0.9*scale+0.1))
+    target_fs  = max(8, BASE["TARGET_FS"]*(0.9*scale+0.1))
     subtitle_fs= max(9.0, BASE["SUBTITLE_FS"]*(0.9*scale+0.1))
 
     LEFT_LABEL_X = BARS_LEFT_X - LABEL_PAD
@@ -403,7 +403,10 @@ def provider_portrait_with_target(
         if target_val is None and comp_rate:
             target_val = None
 
-        ordered_items = sorted(comp_rate.items(), key=lambda kv: kv[1], reverse=True)
+        ordered_items = sorted(
+            comp_rate.items(),
+            key=lambda kv: str(kv[0]).lower()  # kv[0] = CompetencyDesc
+        )
         groups.append({"yg": yg, "items": ordered_items, "target": target_val})
 
     # ---------- Row grid ----------
