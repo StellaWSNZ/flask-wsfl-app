@@ -490,7 +490,8 @@ def new_reports():
                         filtered_rows.append(d)
 
                     results = filtered_rows
-                    print(results)
+
+                    
                 elif selected_type == "provider_ytd_vs_target_vs_funder":
                     
                     sql = text("""
