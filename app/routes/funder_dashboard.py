@@ -188,13 +188,14 @@ def funder_dashboard():
                 params={"id_val": selected_entity_id, "email": session.get("user_email") or "unknown@example.com"}
             )
             school_df_all = pd.read_sql(
-                text(f"EXEC {proc_summary} @{id_param_name} = :id_val, @CalendarYear = :CalendarYear, @Term = :Term, @Email = :Email"),
+                text(f"EXEC {proc_summary} @{id_param_name} = :id_val, @CalendarYear = :CalendarYear, @Term = :Term, @Email = :Email, @Threshold = :t"),
                 conn,
                 params={
                     "id_val": selected_entity_id,
                     "CalendarYear": None,
                     "Term": None,
-                    "Email": session.get("user_email") or "unknown@example.com"
+                    "Email": session.get("user_email") or "unknown@example.com",
+                    "t": 0.6,
                 }
             )
             try:
