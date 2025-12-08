@@ -228,7 +228,14 @@ def classlistupload():
                 or f"{session.get('desc')} ({session.get('user_id')})"
             )
             selected_school = selected_school_str
-
+            # persist choices into session for /submitclass
+            session["selected_funder"]   = selected_funder
+            session["selected_term"]     = selected_term
+            session["selected_year"]     = selected_year
+            session["selected_teacher"]  = selected_teacher
+            session["selected_class"]    = selected_class
+            session["selected_provider"] = selected_provider
+            session["selected_school"]   = selected_school_str  # optional, for later use
             # Parse MOE number
             try:
                 if selected_school_str.isdigit():
