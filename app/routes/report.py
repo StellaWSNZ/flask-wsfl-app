@@ -433,6 +433,7 @@ def new_reports():
                         term=selected_term,
                         calendaryear=selected_year,
                         threshold=threshold,
+                        debug=False,
                     )
                     try:
                         footer_png = os.path.join(current_app.static_folder, "footer.svg")

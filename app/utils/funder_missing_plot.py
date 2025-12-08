@@ -1,12 +1,17 @@
 # app/utils/funder_missing_plot.py
 
 from pathlib import Path
+import os
+import re
+import xml.etree.ElementTree as ET
+
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 import matplotlib.patches as mpatches
-import os
-from app.report_utils.DAT_dataframes import provider_missing_data
+import matplotlib.patches as patches
+from svgpath2mpl import parse_path
+
 from app.report_utils.TAB_DataframeTable import (
     build_dynamic_columns,
     draw_dataframe_table,
@@ -17,7 +22,6 @@ from app.report_utils.SHP_RoundRect import rounded_rect_polygon
 from app.report_utils.FNT_PolygonText import draw_text_in_polygon
 from app.report_utils.helpers import get_display_name, load_ppmori_fonts
 
-import matplotlib.pyplot as plt
 
 def add_full_width_footer(
     fig: plt.Figure,
@@ -57,13 +61,6 @@ def add_full_width_footer(
     ax_img = fig.add_axes([0.0, y0, 1.0, footer_h])
     ax_img.imshow(img, aspect="auto", extent=[0, 1, 0, 1])
     ax_img.axis("off")
-
-import re
-import xml.etree.ElementTree as ET
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-from svgpath2mpl import parse_path
-
 
 
 def _parse_svg_viewbox(svg_path: str, debug: bool = False):
@@ -116,6 +113,7 @@ def _parse_svg_viewbox(svg_path: str, debug: bool = False):
     # Final fallback; arbitrary box
     return 0.0, 0.0, 100.0, 20.0
 
+
 def add_full_width_footer_svg(
     fig: plt.Figure,
     footer_svg: str,
@@ -158,11 +156,11 @@ def add_full_width_footer_svg(
             print("[svg-footer] Footer height <= 0; not adding footer.")
         return
 
-    # 1️⃣ Axes for footer (position on the figure)
+    # 1) Axes for footer (position on the figure)
     ax = fig.add_axes([0.0, y0, 1.0, footer_h])
     ax.axis("off")
 
-    # 2️⃣ Draw all paths
+    # 2) Draw all paths
     tree = ET.parse(footer_svg)
     root = tree.getroot()
 
@@ -215,13 +213,13 @@ def add_full_width_footer_svg(
         print(f"[svg-footer] Total <path> elements drawn: {path_count}")
 
     if path_count > 0:
-        # 🔹 Tighten limits exactly to the drawn paths
+        # Tighten limits exactly to the drawn paths
         xmin, xmax = min(all_x), max(all_x)
         ymin, ymax = min(all_y), max(all_y)
         ax.set_xlim(xmin, xmax)
         ax.set_ylim(ymax, ymin)  # invert y
 
-        # 🔹 No extra padding
+        # No extra padding
         ax.margins(0, 0)
 
         # keep shapes from getting weirdly stretched vertically
@@ -229,39 +227,148 @@ def add_full_width_footer_svg(
     else:
         if debug:
             print("[svg-footer] ⚠ No <path> elements found in SVG.")
-        
+
 def create_funder_missing_figure(
     df_all: pd.DataFrame,
     funder_name: str,
     term: int,
     calendaryear: int,
     threshold: float = 0.5,
+    debug: bool = False,
 ):
     """
     Build a single-page portrait figure for 'funder_missing_data'.
     Returns a Matplotlib Figure (no file I/O).
     """
+    if debug:
+        print("▶ create_funder_missing_figure called")
+        print(f"  funder_name={funder_name!r}, term={term}, calendaryear={calendaryear}, threshold={threshold}")
+        print(f"  df_all shape={df_all.shape}")
+        print(f"  df_all columns={df_all.columns.tolist()}")
+
     load_ppmori_fonts("app/static/fonts")
-    # ---- Filter to this funder ----
-    dfd = (
-        df_all.loc[
-            df_all["FunderName"] == funder_name,
-            ["Provider", "SchoolName", "NumClasses", "EditedClasses"],
-        ]
-        .sort_values(["Provider", "SchoolName"])
-        .reset_index(drop=True)
-    )
-    if dfd.empty:
+
+    # ---- Filter to this funder (base df) ----
+    df_funder = df_all.loc[df_all["FunderName"] == funder_name].copy()
+    if debug:
+        print("  ▶ after funder filter")
+        print(f"    df_funder shape={df_funder.shape}")
+        print(f"    df_funder columns={df_funder.columns.tolist()}")
+
+    if df_funder.empty:
+        if debug:
+            print("  ⚠ df_funder is empty for this funder – returning None")
         return None  # Caller decides how to message "no data"
 
-    provider_df = provider_missing_data(dfd)
+    # ------------------------------------------------------------------
+    # 1) FIRST TABLE (school-level view)
+    # ------------------------------------------------------------------
+    try:
+        if debug:
+            print("  ▶ building schools_df from df_funder")
 
-    # ---- Create a portrait A4-style figure ----
-    # A4 in inches ~ (8.27, 11.69)
-    fig, ax = plt.subplots(figsize=(8.27, 11.69))
+        schools_df = df_funder[
+            ["Provider", "SchoolName", "NumClasses", "EditedClasses", "TotalStudentsUnedited"]
+        ].copy()
+
+        if debug:
+            print("    schools_df shape:", schools_df.shape)
+            print("    schools_df columns:", schools_df.columns.tolist())
+
+        # Classes edited (edited/total)
+        schools_df["Classes edited (edited/total)"] = (
+            schools_df["EditedClasses"].fillna(0).astype(int).astype(str)
+            + " / "
+            + schools_df["NumClasses"].fillna(0).astype(int).astype(str)
+        )
+
+        # Students in unedited classes
+        schools_df["Students in unedited classes"] = (
+            schools_df["TotalStudentsUnedited"].fillna(0).astype(int)
+        )
+
+        # Only keep display columns for the first table
+        dfd_schools = (
+            schools_df[
+                [
+                    "Provider",
+                    "SchoolName",
+                    "Classes edited (edited/total)",
+                    "Students in unedited classes",
+                ]
+            ]
+            .sort_values(["Provider", "SchoolName"])
+            .reset_index(drop=True)
+        )
+
+        if debug:
+            print("  ▶ dfd_schools ready")
+            print("    dfd_schools shape:", dfd_schools.shape)
+            print("    dfd_schools columns:", dfd_schools.columns.tolist())
+
+    except KeyError as ke:
+        print("❌ ERROR building school-level table (dfd_schools)")
+        print("   Missing column:", ke)
+        print("   df_funder columns were:", df_funder.columns.tolist())
+        raise
+    except Exception as e:
+        print("❌ Unexpected error while building dfd_schools:", repr(e))
+        print("   df_funder shape/cols:", df_funder.shape, df_funder.columns.tolist())
+        raise
+
+    # ------------------------------------------------------------------
+    # 2) SECOND TABLE (provider-level summary)
+    # ------------------------------------------------------------------
+    try:
+        if debug:
+            print("  ▶ building provider_df summary")
+
+        tmp = df_funder.copy()
+        tmp["MissingClasses"] = (
+            tmp["NumClasses"].fillna(0) - tmp["EditedClasses"].fillna(0)
+        ).clip(lower=0)
+
+        if debug:
+            print("    tmp shape:", tmp.shape)
+            print("    tmp columns:", tmp.columns.tolist())
+            print("    sample MissingClasses:", tmp["MissingClasses"].head().tolist())
+
+        provider_df = (
+            tmp.groupby("Provider", as_index=False)
+            .agg(
+                **{
+                    "Schools with Classes Yet to Submit Data": (
+                        "MissingClasses",
+                        lambda s: int((s > 0).sum()),
+                    ),
+                    "Total Classes Yet to Submit Data": ("MissingClasses", "sum"),
+                }
+            )
+            .sort_values("Provider")
+            .reset_index(drop=True)
+        )
+
+        if debug:
+            print("  ▶ provider_df ready")
+            print("    provider_df shape:", provider_df.shape)
+            print("    provider_df columns:", provider_df.columns.tolist())
+
+    except KeyError as ke:
+        print("❌ ERROR building provider-level table (provider_df)")
+        print("   Missing column:", ke)
+        print("   df_funder columns were:", df_funder.columns.tolist())
+        raise
+    except Exception as e:
+        print("❌ Unexpected error while building provider_df:", repr(e))
+        print("   df_funder shape/cols:", df_funder.shape, df_funder.columns.tolist())
+        raise
+
+    # ------------------------------------------------------------------
+    # 3) Build the figure + header
+    # ------------------------------------------------------------------
+    fig, ax = plt.subplots(figsize=(8.27, 11.69))  # A4 portrait
     ax.set_axis_off()
 
-    # ---- Header band (polygon) ----
     poly = rounded_rect_polygon(
         cx=0.5,
         cy=0.955,       # near top
@@ -300,33 +407,65 @@ def create_funder_missing_figure(
         zorder=6,
     )
 
-    # ---- Column layouts ----
-    cols_school = build_dynamic_columns(
-        ax,
-        dfd,
-        table_x_axes=0.06,
-        table_width_axes=0.88,
-        pad_x_frac=0.01,
-        header_fontfamily="PP Mori",
-        header_fontsize=10,
-        header_fontweight="semibold",
-        body_fontfamily="PP Mori",
-        body_fontsize=10,
-        min_numeric_col_px=84,
-        min_text_col_px=140,
-        max_text_total_frac=0.82,
-    )
+    # ------------------------------------------------------------------
+    # 4) Column definitions (FIXED to match dfd_schools columns)
+    # ------------------------------------------------------------------
+    cols_school = [
+        {
+            "key": "SchoolName",
+            "label": "School",
+            "width_frac": 0.35,
+            "align": "left",
+        },
+        {
+            "key": "Provider",
+            "label": "Provider",
+            "width_frac": 0.25,
+            "align": "left",
+        },
+        {
+            "key": "Classes edited (edited/total)",
+            "label": "Classes edited (edited/total)",
+            "width_frac": 0.20,
+            "align": "center",
+        },
+        {
+            "key": "Students in unedited classes",
+            "label": "Students in unedited classes",
+            "width_frac": 0.20,
+            "align": "center",
+        },
+    ]
 
     cols_provider = [
-        {"key": "Provider",                   "label": "Provider",                   "width_frac": 0.40, "align": "left"},
-        {"key": "Schools with Classes Yet to Submit Data", "label": "Schools with Classes Yet to Submit Data", "width_frac": 0.30, "align": "center"},
-        {"key": "Total Classes Yet to Submit Data",      "label": "Total Classes Yet to Submit Data",      "width_frac": 0.30, "align": "center"},
+        {
+            "key": "Provider",
+            "label": "Provider",
+            "width_frac": 0.40,
+            "align": "left",
+        },
+        {
+            "key": "Schools with Classes Yet to Submit Data",
+            "label": "Schools with Classes Yet to Submit Data",
+            "width_frac": 0.30,
+            "align": "center",
+        },
+        {
+            "key": "Total Classes Yet to Submit Data",
+            "label": "Total Classes Yet to Submit Data",
+            "width_frac": 0.30,
+            "align": "center",
+        },
     ]
 
     blocks = [
-        Block(df=dfd,         columns=cols_school,   header_height_frac=0.05, key="schools"),
+        Block(df=dfd_schools, columns=cols_school,   header_height_frac=0.05, key="schools"),
         Block(df=provider_df, columns=cols_provider, header_height_frac=0.10, key="providers"),
     ]
+
+    if debug:
+        print("  ▶ layout_tables_by_rows")
+        print("    blocks:", [(b.key, None if b.df is None else b.df.shape) for b in blocks])
 
     poses = layout_tables_by_rows(
         blocks,
@@ -340,8 +479,14 @@ def create_funder_missing_figure(
     FIXED_HEADER_AXES = 0.045  # absolute header height in axes units
 
     for b, p in zip(blocks, poses):
+        if debug:
+            print(f"  ▶ drawing block {b.key!r}")
+            print(f"    height={p.height}, y={p.y}")
+            if b.df is not None:
+                print(f"    df shape={b.df.shape}, df columns={b.df.columns.tolist()}")
+                print(f"    column keys={[c['key'] for c in b.columns]}")
+
         if b.df is None or b.df.empty or p.height <= 0:
-            # Placeholder if no data for this block
             ax.add_patch(
                 Rectangle(
                     (0.06, p.y),
@@ -369,46 +514,59 @@ def create_funder_missing_figure(
         header_height_frac = FIXED_HEADER_AXES / max(p.height, 1e-6)
         header_height_frac = max(0.02, min(header_height_frac, 0.40))
 
-        draw_dataframe_table(
-            ax,
-            df=b.df,
-            x=0.06,
-            y=p.y,
-            width=0.88,
-            height=p.height,
-            columns=b.columns,
-            header_height_frac=header_height_frac,
-            header_facecolor="#1a427d",
-            header_textcolor="#ffffff",
-            header_fontfamily="PP Mori",
-            header_fontsize=10,
-            header_fontweight="semibold",
-            body_fontfamily="PP Mori",
-            body_fontsize=10,
-            body_textcolor="#101828",
-            row_alt_facecolor="#f2f5fb",
-            row_facecolor="#ffffff",
-            show_grid=True,
-            grid_color="#cdd6e6",
-            grid_linewidth=0.6,
-            border_color="#1a427d",
-            border_linewidth=1.0,
-            pad_x_frac=0.01,
-            pad_y_frac=0.005,
-            default_align="left",
-            wrap=True,
-            max_wrap_lines=3,
-            footer=(
-                f"* refers to class lists with more than {threshold*100:.0f}% of students changed"
-                if b.key == "schools"
-                else None
-            ),
-            footer_align="left",
-            footer_fontsize=9,
-            footer_color="#667085",
-            footer_gap_frac=0.005,
-            DEBUG=False,
-        )
+        try:
+            draw_dataframe_table(
+                ax,
+                df=b.df,
+                x=0.06,
+                y=p.y,
+                width=0.88,
+                height=p.height,
+                columns=b.columns,
+                header_height_frac=header_height_frac,
+                header_facecolor="#1a427d",
+                header_textcolor="#ffffff",
+                header_fontfamily="PP Mori",
+                header_fontsize=10,
+                header_fontweight="semibold",
+                body_fontfamily="PP Mori",
+                body_fontsize=10,
+                body_textcolor="#101828",
+                row_alt_facecolor="#f2f5fb",
+                row_facecolor="#ffffff",
+                show_grid=True,
+                grid_color="#cdd6e6",
+                grid_linewidth=0.6,
+                border_color="#1a427d",
+                border_linewidth=1.0,
+                pad_x_frac=0.01,
+                pad_y_frac=0.005,
+                default_align="left",
+                wrap=True,
+                max_wrap_lines=3,
+                footer=(
+                    f"Edited = classes with over {threshold*100:.0f}% of students changed. Unedited students = total students in those classes."
+                    if b.key == "schools"
+                    else None
+                ),
+                footer_align="left",
+                footer_fontsize=9,
+                footer_color="#667085",
+                footer_gap_frac=0.005,
+                DEBUG=False,
+            )
+        except KeyError as ke:
+            print(f"❌ KeyError inside draw_dataframe_table for block={b.key!r}: {ke}")
+            print("   df columns:", list(b.df.columns))
+            print("   column keys:", [c["key"] for c in b.columns])
+            raise
+        except Exception as e:
+            print(f"❌ Unexpected error drawing block {b.key!r}: {repr(e)}")
+            print("   df shape/cols:", b.df.shape, list(b.df.columns))
+            print("   column keys:", [c["key"] for c in b.columns])
+            raise
 
     fig.tight_layout()
+    if debug:
+        print("✅ create_funder_missing_figure completed successfully")
     return fig
