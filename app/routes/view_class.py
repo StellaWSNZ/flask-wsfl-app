@@ -2756,7 +2756,7 @@ def delete_class():
 
     # Authorisation: only ADM / FUN / GRP (same pattern as /Classes)
     role = session.get("user_role")
-    if role not in ("ADM", "FUN", "GRP"):
+    if role not in ("ADM", "FUN", "GRP","MOE"):
         return jsonify({"ok": False, "error": "Not authorised to delete classes."}), 403
 
     # Parse input
