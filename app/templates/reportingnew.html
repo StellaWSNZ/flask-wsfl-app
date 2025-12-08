@@ -37,6 +37,12 @@
             <div class="mb-3">
               <label for="report_option" class="form-label">Report Type</label>
               <select name="report_option" id="report_option" class="form-select">
+                {% if role in ["ADM"] %}
+                <option value="national_ly_vs_national_ytd_vs_target"
+                    {% if selected_type == "national_ly_vs_national_ytd_vs_target" or not selected_type %}selected{% endif %}>
+                    National YTD vs National LY vs WSNZ Target
+                  </option>
+                {% endif %}
                 {% if role in ["ADM","FUN"] %}
                   <option value="funder_ytd_vs_target"
                     {% if selected_type == "funder_ytd_vs_target" or not selected_type %}selected{% endif %}>

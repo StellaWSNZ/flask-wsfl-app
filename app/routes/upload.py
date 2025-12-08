@@ -192,23 +192,36 @@ def classlistupload():
                 funders = [dict(row._mapping) for row in result]
 
         if request.method == 'POST':
-            action = request.form.get('action')  # 'preview' or 'validate'
+            action = request.form.get('action')
 
             selected_funder = request.form.get('funder')
-            selected_term = request.form.get('term') 
-            selected_year = request.form.get('year')
-            selected_teacher = request.form.get('teachername')
-            selected_class = request.form.get('classname')
+            selected_term_raw = request.form.get('term')
+            selected_year_raw = request.form.get('year')
 
-            # NEW: capture provider from form (may be None if not shown)
-            selected_provider = request.form.get('provider')
+            print("🔍 raw POST term:", repr(selected_term_raw))
+            print("🔍 raw POST year:", repr(selected_year_raw))
 
-            session["selected_class"] = selected_class
-            session["selected_teacher"] = selected_teacher
-            session["selected_year"] = selected_year
-            session["selected_term"] = selected_term
-            session["selected_funder"] = selected_funder
-            session["selected_provider"] = selected_provider  # <--- NEW
+            selected_teacher   = request.form.get('teachername')
+            selected_class     = request.form.get('classname')
+            selected_provider  = request.form.get('provider')
+
+            # ---- Normalise funder/term/year/provider as ints safely ----
+            def to_int_or_default(value, default):
+                """Convert value to int if possible, otherwise return default."""
+                try:
+                    if value is None:
+                        return default
+                    if isinstance(value, int):
+                        return value
+                    s = str(value).strip()
+                    return int(s)
+                except (ValueError, TypeError):
+                    return default
+
+            selected_funder   = to_int_or_default(selected_funder, None)
+            selected_term     = to_int_or_default(selected_term_raw, session.get("nearest_term"))
+            selected_year     = to_int_or_default(selected_year_raw, session.get("nearest_year"))
+            selected_provider = to_int_or_default(selected_provider, None)
 
             selected_school_str = (
                 request.form.get("school")
@@ -233,13 +246,7 @@ def classlistupload():
             file = request.files.get('csv_file')
             selected_csv = file if file and file.filename else None
 
-            if selected_funder and selected_funder.isdigit():
-                selected_funder = int(selected_funder)
-            if selected_year and selected_year.isdigit():
-                selected_year = int(selected_year)
-            # NEW: normalise selected_provider type
-            if selected_provider and str(selected_provider).isdigit():
-                selected_provider = int(selected_provider)
+            
 
             # Populate school dropdown (unchanged)
             if selected_funder and session.get("user_role") != "MOE":

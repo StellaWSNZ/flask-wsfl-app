@@ -397,6 +397,19 @@ def new_reports():
                         results = rows
 
                     print("🔎 rows:", len(results))
+                elif selected_type == "national_ly_vs_national_ytd_vs_target":
+                    sql = text("""
+                        SET NOCOUNT ON;
+                        EXEC GetNationalRates
+                            @CalendarYear = :CalendarYear,
+                            @Term         = :Term;
+                    """)
+
+                    params = {
+                        "CalendarYear": selected_year,
+                        "Term": selected_term,
+                        
+                    }
                 elif selected_type == "funder_missing_data":
                     # threshold – keep same as your script for now
                     threshold = 0.5
@@ -664,7 +677,20 @@ def new_reports():
                             colors_dict=colors_dict,
                             funder_name=selected_funder_name
                         )
-
+                    elif selected_type == "national_ly_vs_national_ytd_vs_target":
+                        vars_to_plot = ["National Rate (LY)", "National Rate (YTD)", "WSNZ Target"]
+                        colors_dict = {
+                            "National Rate (YTD)": "#2EBDC2",
+                            "WSNZ Target": "#356FB6",
+                            "National Rate (LY)": "#BBE6E9",
+                        }
+                        fig = r3.create_competency_report(
+                            term=selected_term,
+                            year=selected_year,
+                            rows=results,
+                            vars_to_plot=vars_to_plot,
+                            colors_dict=colors_dict,
+                        )
                     elif selected_type == "provider_ytd_vs_target":
                         try:
                             use_ppmori("app/static/fonts")
