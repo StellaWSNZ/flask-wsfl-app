@@ -463,7 +463,7 @@ def new_reports():
 
                     # RowMapping objects (read-only)
                     raw_rows = res.mappings().all()
-
+                    print(funder_id)
                     filtered_rows = []
                     for r in raw_rows:
                         funder_matches = (
@@ -471,11 +471,9 @@ def new_reports():
                             int(r.get("FunderID", 0) or 0) == funder_id
                         )
                         keep = (
-                            funder_matches
-                            or r.get("Funder") == "National"
+                            (funder_matches and r.get("ResultType") == "Funder Rate (YTD)")
                             or r.get("ResultType") == "WSNZ Target"
                             or r.get("ResultType") == "National Rate (YTD)"
-                            or r.get("ResultType") == "Funder Rate (YTD)"
                         )
                         if not keep:
                             continue
@@ -492,7 +490,7 @@ def new_reports():
                         filtered_rows.append(d)
 
                     results = filtered_rows
-
+                    print(results)
                 elif selected_type == "provider_ytd_vs_target_vs_funder":
                     
                     sql = text("""
