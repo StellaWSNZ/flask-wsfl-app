@@ -410,6 +410,9 @@ def new_reports():
                         "Term": selected_term,
                         
                     }
+                    res = conn.execute(sql, params)
+                    rows = res.mappings().all()
+                    results = rows
                 elif selected_type == "funder_missing_data":
                     # threshold – keep same as your script for now
                     threshold = 0.5
@@ -690,6 +693,7 @@ def new_reports():
                             rows=results,
                             vars_to_plot=vars_to_plot,
                             colors_dict=colors_dict,
+                            funder_id=None
                         )
                     elif selected_type == "provider_ytd_vs_target":
                         try:
@@ -842,6 +846,8 @@ def new_reports():
                         base_label = f"ProviderYTDvsTarget_{provider_name or 'Provider'}"
                     elif selected_type == "school_ytd_vs_target":
                         base_label = f"SchoolYTDvsTarget_{school_name or f'MOE_{selected_school_id}'}"
+                    elif selected_type == "national_ly_vs_national_ytd_vs_target":
+                        base_label = f"NationalLYvsNationalYTDvsTarget"
                     else:
                         base_label = f"Report_{selected_type or 'Unknown'}"
 

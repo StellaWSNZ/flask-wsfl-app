@@ -309,9 +309,11 @@ def create_competency_report(term, year, funder_id, vars_to_plot, colors_dict,
     else:
         df_results = load_funder_results(con, year, term, [funder_id])
 
-    if funder_name is None:
+    if funder_name is None and funder_id is not None:
         funder_name = load_funder_name(con, funder_id)
-
+        title = "Competency Report for {funder_name}"
+    else:
+        title = "National Result (LY) vs National Result (YTD) vs WSNZ Target"
     fig, ax = plt.subplots(figsize=PAGE_SIZE)
     ax.set_position([0.0, 0.0, 1.0, 1.0])
 
@@ -323,7 +325,7 @@ def create_competency_report(term, year, funder_id, vars_to_plot, colors_dict,
     )
 
     ax.text(N_COLS/2, N_ROWS + (TITLE_SPACE/2),
-            f"Competency Report for {funder_name}",
+            title,
             ha='center', va='center', fontsize=14, weight='bold')
     ax.text(N_COLS/2, N_ROWS + (TITLE_SPACE/2) - 0.04,
             f"Term {term}, {year}  |  Generated {get_nz_datetime_string()}",
