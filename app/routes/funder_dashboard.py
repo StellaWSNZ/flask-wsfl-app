@@ -216,11 +216,12 @@ def funder_dashboard():
         total_students = school_df.get("TotalStudents", pd.Series(dtype=int)).fillna(0).astype(int).sum() if not school_df.empty else 0
         total_schools  = school_df.get("SchoolName", pd.Series(dtype=object)).nunique() if not school_df.empty else 0
 
-        school_df = school_df.drop(columns=["TotalStudents", "CalendarYear", "Term"], errors="ignore")
+        school_df = school_df.drop(columns=["CalendarYear", "Term"], errors="ignore")
         school_df = school_df.rename(columns={
             "SchoolName":   "School",
             "NumClasses":   "Number of Classes",
-            "EditedClasses":"Classes Edited"
+            "EditedClasses":"Classes Edited",
+            "TotalStudents":"Total Students"
         })
 
         subject = f"{entity_desc} is" if user_role in ["ADM","FUN"] else "You are"
