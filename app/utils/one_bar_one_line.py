@@ -131,6 +131,7 @@ END OF HEADER
 """
 
 
+import datetime
 import os, argparse, textwrap
 from typing import Mapping, Optional, Union, Sequence
 
@@ -317,23 +318,38 @@ def provider_portrait_with_target(
     subject_label = subject_name or mode.title()
     default_title = f"{subject_label} vs Target • Term {term}, {year}"
     ttl = title or default_title
-    TITLE_Y = 0.985
+    TITLE_Y = 0.99
     ax.text(0.5, TITLE_Y, ttl, ha="center", va="top", fontsize=base_title_fs, weight="bold")
+    import pytz  # at top of file
+    from datetime import datetime
+    nz = pytz.timezone("Pacific/Auckland")
+    generated_str = datetime.now(nz).strftime("%d %b %Y, %I:%M %p")
+    caption = f"Term {term}, {year} | Generated {generated_str}"
 
+    CAPTION_Y = TITLE_Y - 0.02  # small gap under the title
+    ax.text(
+        0.5,
+        CAPTION_Y,
+        caption,
+        ha="center",
+        va="top",
+        fontsize=9.5,
+        color="#555555",
+    )
     # ---------- Base layout ----------
     BASE = {
-        "LEFT_MARGIN": 0.02,
+        "LEFT_MARGIN": 0.00,
         "BARS_LEFT_X": 0.50,
         "RIGHT_MARGIN": 0.06,
         "LABEL_PAD": 0.012,
 
         "BAR_H": 0.08, "BAR_GAP": 0.015, "ITEM_GAP": 0,
-        "GROUP_TOP_PAD": 0.030,
+        "GROUP_TOP_PAD": 0.025,
         "GROUP_BOT_PAD": 0.00,
         "SUBTITLE_GAP": 0.020,
 
-        "TOP_MARGIN": 0.05, "BOTTOM_MARGIN": 0.0,
-        "LABEL_FS": 10.0, "TARGET_FS": 7.5, "SUBTITLE_FS": 11.5,
+        "TOP_MARGIN": 0.05 ,"BOTTOM_MARGIN": 0.0,
+        "LABEL_FS": 7.0, "TARGET_FS": 7.5, "SUBTITLE_FS": 11.5,
     }
 
     rows_by_yg = {}
@@ -362,7 +378,7 @@ def provider_portrait_with_target(
 
     label_fs   = max(10, BASE["LABEL_FS"]*(0.9*scale+0.1))
     target_fs  = max(8, BASE["TARGET_FS"]*(0.9*scale+0.1))
-    subtitle_fs= max(9.0, BASE["SUBTITLE_FS"]*(0.9*scale+0.1))
+    subtitle_fs= max(8.0, BASE["SUBTITLE_FS"]*(0.9*scale+0.1))
 
     LEFT_LABEL_X = BARS_LEFT_X - LABEL_PAD
 
