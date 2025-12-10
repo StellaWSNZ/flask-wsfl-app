@@ -102,9 +102,11 @@ def is_mobile() -> bool:
 @upload_bp.route('/ClassUpload', methods=['GET', 'POST'])
 @login_required
 def classlistupload():
+    role = (session.get("user_role") or "").strip().upper()
+
     try:
         validated = False
-        if session.get("user_role") not in ["ADM", "FUN", "MOE", "PRO", "GRP"]:
+        if role  not in ["ADM", "FUN", "MOE", "PRO", "GRP"]:
             flash("You don’t have permission to access the class upload page.", "danger")
             return redirect(url_for("home_bp.home"))
         if is_mobile():
@@ -136,16 +138,16 @@ def classlistupload():
         selected_moe = None
 
         with engine.connect() as conn:
-            if session.get("user_role") == "FUN":
+            if role== "FUN":
                 funders = [{"Description": session.get("desc"), "FunderID": session.get("user_id")}]
-            elif session.get("user_role") == "ADM":
+            elif role== "ADM":
                 # PRO users: funders supporting this provider
                 result = conn.execute(
                     text("EXEC FlaskHelperFunctions :Request"),
                     {"Request": "FunderDropdown"}
                 )
                 funders = [dict(row._mapping) for row in result]
-            elif session.get("user_role") == "PRO":
+            elif role== "PRO":
                 # PRO users: funders supporting this provider
                 result = conn.execute(
                     text("EXEC FlaskHelperFunctions :Request, @Number=:Number"),
@@ -157,7 +159,7 @@ def classlistupload():
                 providers = [{"Description": session.get("desc"), "ProviderID": session.get("user_id")}]
                 selected_provider = session.get("user_id")
 
-            elif session.get("user_role") == "GRP":
+            elif role== "GRP":
                 stmt = text("""
                     EXEC FlaskHelperFunctionsSpecific 
                         @Request = 'FunderIDsFromGroupEntities', 
@@ -203,7 +205,12 @@ def classlistupload():
 
             selected_teacher   = request.form.get('teachername')
             selected_class     = request.form.get('classname')
-            selected_provider  = request.form.get('provider')
+            if role== "PRO":
+                # force provider to be the logged-in provider
+                selected_provider = session.get("user_id")
+            else:
+                # everyone else reads from dropdown
+                selected_provider = request.form.get('provider')
 
             # ---- Normalise funder/term/year/provider as ints safely ----
             def to_int_or_default(value, default):
@@ -221,8 +228,15 @@ def classlistupload():
             selected_funder   = to_int_or_default(selected_funder, None)
             selected_term     = to_int_or_default(selected_term_raw, session.get("nearest_term"))
             selected_year     = to_int_or_default(selected_year_raw, session.get("nearest_year"))
-            selected_provider = to_int_or_default(selected_provider, None)
-
+            print(selected_provider)
+            if role== "PRO":
+                # ensure it's an int from session
+                selected_provider = to_int_or_default(session.get("user_id"), None)
+            else:
+                selected_provider = to_int_or_default(selected_provider, None)
+            
+            print(session.get("user_id"))
+            print("🧩 selected_provider:", selected_provider)
             selected_school_str = (
                 request.form.get("school")
                 or f"{session.get('desc')} ({session.get('user_id')})"
@@ -256,7 +270,7 @@ def classlistupload():
             
 
             # Populate school dropdown (unchanged)
-            if selected_funder and session.get("user_role") != "MOE":
+            if selected_funder and role!= "MOE":
                 with engine.connect() as conn:
                     result = conn.execute(
                         text("EXEC FlaskHelperFunctions :Request, @Number=:Number"),
@@ -267,7 +281,7 @@ def classlistupload():
                 schools = []
 
             # NEW: Populate providers when a funder is chosen (for ADM/FUN/MOE/GRP users)
-            if selected_funder and session.get("user_role") in ["ADM", "FUN", "MOE", "GRP"]:
+            if selected_funder and role in ["ADM", "FUN", "MOE", "GRP"]:
                 try:
                     with engine.connect() as conn:
                         # Replace with your actual SP if different
@@ -726,6 +740,10 @@ def submitclass():
         if not preview_data: missing.append("preview_data")
 
         user_role = session.get("user_role")
+
+        if user_role == "PRO":
+            # Force provider to be the logged-in provider
+            selected_provider = session.get("user_id")
         if user_role in {"FUN","GRP"} and not selected_provider:
             missing.append("provider")
 
