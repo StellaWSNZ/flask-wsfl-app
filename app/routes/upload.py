@@ -24,6 +24,9 @@ last_error_df = pd.DataFrame()
 processing_status = {"current": 0, "total": 0, "done": False}
 
 def sanitize_filename(s):
+    if s is None:
+        return ""
+    s = str(s)  # <--- convert anything to a string first
     return s.replace(" ", "_").replace("/", "_")  # remove problematic characters
 
 def remove_macrons(s):
@@ -630,6 +633,7 @@ def classlistdownload():
                 worksheet.set_row(row, None, wrap_top_format)
 
         output.seek(0)
+        print(session)
         classname   = sanitize_filename(session.get("selected_class"))
         teachername = sanitize_filename(session.get("selected_teacher"))
         year        = sanitize_filename(session.get("selected_year"))
@@ -689,7 +693,7 @@ def classlistdownload_csv():
         output = BytesIO()
         df[columns_to_write].to_csv(output, index=False)
         output.seek(0)
-
+        
         classname   = sanitize_filename(session.get("selected_class"))
         teachername = sanitize_filename(session.get("selected_teacher"))
         year        = sanitize_filename(session.get("selected_year"))
@@ -721,6 +725,7 @@ def classlistdownload_csv():
 def submitclass():
     engine = get_db_engine()
     try:
+        
         funder_id   = session.get("selected_funder")
         moe_number  = session.get("selected_moe")
         term        = session.get("selected_term")
