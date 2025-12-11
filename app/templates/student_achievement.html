@@ -318,6 +318,33 @@ select option { white-space: normal; word-break: break-word; }
 
 </div> <!-- END .page-wrapper -->
 
+<!-- Unsaved changes modal -->
+<div class="modal fade" id="unsavedModal" tabindex="-1" aria-labelledby="unsavedModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content text-center">
+      <div class="modal-header">
+        <h5 class="modal-title" id="unsavedModalLabel">Unsaved changes</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p id="unsaved-message" class="mb-0">
+          You have recent updates still saving.<br>
+          If you leave this page now, the last
+          <strong><span id="unsaved-count">1</span> action(s)</strong> may not be saved.
+        </p>
+      </div>
+      <div class="modal-footer justify-content-center">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">
+          Stay on this page
+        </button>
+        <button type="button" id="unsaved-leave-btn" class="btn btn-danger btn-sm">
+          Leave anyway
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Modals (Mark All, Help, Scenarios, Fullscreen) -->
 <div class="modal fade" id="markAllConfirmModal" tabindex="-1" aria-labelledby="markAllConfirmLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
@@ -401,7 +428,91 @@ const classId     = JSON.parse('{{ class_id     | tojson }}');
 const term        = JSON.parse('{{ term         | tojson }}');
 const year        = JSON.parse('{{ year         | tojson }}');
 
-/* ===== Desktop handlers (unchanged) ===== */
+/* ===== Global saving tracking + refresh / nav blocking ===== */
+let pendingSaves = 0;
+let isSaving = false;
+let pendingNavigation = null;  // { type: 'href'|'form', href?|form? }
+
+function updateUnsavedModalText() {
+  const countSpan = document.getElementById("unsaved-count");
+  if (countSpan) countSpan.textContent = String(pendingSaves);
+}
+
+function startSaving() {
+  pendingSaves += 1;
+  isSaving = pendingSaves > 0;
+  updateUnsavedModalText();
+}
+
+function finishSaving() {
+  pendingSaves = Math.max(0, pendingSaves - 1);
+  isSaving = pendingSaves > 0;
+  updateUnsavedModalText();
+}
+
+// Browser-level refresh / close -> native confirm (cannot use Bootstrap here)
+window.addEventListener("beforeunload", function (e) {
+  if (!isSaving) return;
+  e.preventDefault();
+  e.returnValue = "";
+});
+
+function openUnsavedModal(navInfo) {
+  pendingNavigation = navInfo; // {type:'href', href} or {type:'form', form}
+  updateUnsavedModalText();
+  const modalEl = document.getElementById("unsavedModal");
+  if (!modalEl) return;
+  const modal = new bootstrap.Modal(modalEl);
+  modal.show();
+}
+
+document.getElementById("unsaved-leave-btn").addEventListener("click", function () {
+  const modalEl = document.getElementById("unsavedModal");
+  const modal = bootstrap.Modal.getInstance(modalEl);
+  modal?.hide();
+
+  // Allow navigation to proceed without another warning
+  pendingSaves = 0;
+  isSaving = false;
+
+  if (!pendingNavigation) return;
+  if (pendingNavigation.type === "href") {
+    window.location.href = pendingNavigation.href;
+  } else if (pendingNavigation.type === "form") {
+    // Submit the stored form
+    pendingNavigation.form.submit();
+  }
+  pendingNavigation = null;
+});
+
+// Intercept link clicks that navigate away while saving
+document.addEventListener("click", function (e) {
+  const link = e.target.closest("a[href]");
+  if (!link) return;
+
+  const href = link.getAttribute("href");
+  if (!href || href.startsWith("#")) return;
+
+  // Links opening in new tab are safe, let them through
+  if (link.target && link.target === "_blank") return;
+
+  // Internal navigation while saving -> show modal
+  if (isSaving) {
+    e.preventDefault();
+    openUnsavedModal({ type: "href", href: link.href });
+  }
+});
+
+// Intercept form submissions while saving
+document.addEventListener("submit", function (e) {
+  const form = e.target;
+  if (isSaving) {
+    e.preventDefault();
+    openUnsavedModal({ type: "form", form });
+  }
+});
+
+/* ===== Desktop handlers ===== */
 function toggleEditMode(editing) {
   const displayBox = document.getElementById("class-info-display");
   const editBox = document.getElementById("class-info-edit");
@@ -424,6 +535,7 @@ function exitFullScreenViaModal() {
 function submitClassInfo(classId) {
   const className = document.getElementById("edit-class-name").value.trim();
   const teacherName = document.getElementById("edit-teacher-name").value.trim();
+  startSaving();
   fetch("/update_class_info", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -447,6 +559,9 @@ function submitClassInfo(classId) {
   .catch(err => {
     console.error("Update failed:", err);
     alert("❌ An error occurred.");
+  })
+  .finally(() => {
+    finishSaving();
   });
 }
 
@@ -457,6 +572,8 @@ document.addEventListener("DOMContentLoaded", function () {
       const nsn = this.dataset.nsn;
       const headerName = this.dataset.competency;
       const status = this.checked ? 1 : 0;
+
+      startSaving();
       fetch('/update_competency', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -478,7 +595,10 @@ document.addEventListener("DOMContentLoaded", function () {
           alert("❌ Failed to update competency.");
         }
       })
-      .catch(err => console.error("Competency update error:", err));
+      .catch(err => console.error("Competency update error:", err))
+      .finally(() => {
+        finishSaving();
+      });
     });
   });
 
@@ -488,6 +608,8 @@ document.addEventListener("DOMContentLoaded", function () {
       const nsn = this.dataset.nsn;
       const headerName = this.dataset.header;
       const value = parseInt(this.value);
+
+      startSaving();
       fetch('/update_scenario', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -497,7 +619,10 @@ document.addEventListener("DOMContentLoaded", function () {
       .then(data => {
         if (!data.success) alert("❌ Failed to update scenario.");
       })
-      .catch(err => console.error("Scenario update error:", err));
+      .catch(err => console.error("Scenario update error:", err))
+      .finally(() => {
+        finishSaving();
+      });
     });
   });
 });
@@ -566,6 +691,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   btn.addEventListener("click", async () => {
     try {
+      startSaving();
       statusEl?.classList.remove("d-none");
       statusEl.textContent = "Preparing export…";
 
@@ -618,6 +744,8 @@ document.addEventListener("DOMContentLoaded", () => {
       console.error(err);
       statusEl.textContent = "Export failed.";
       alert("Export failed. Please try again.");
+    } finally {
+      finishSaving();
     }
   });
 });
@@ -636,9 +764,18 @@ function normalizeColKey(raw) { return String(raw).replace(/&lt;br&gt;|<br\s*\/?
 function isScenarioCol(col)   { return /Scenario (One|Two)\s*-\s*Selected/i.test(col); }
 
 async function postJSON(url, payload) {
-  const res = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
+  startSaving();
+  try {
+    const res = await fetch(url, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  } finally {
+    finishSaving();
+  }
 }
 
 /* BY STUDENT */
@@ -800,25 +937,25 @@ function renderCompetency(rawCol) {
   });
 
   compList.querySelectorAll('[data-type="scenario"]').forEach((sel) => {
-  sel.addEventListener('change', async function () {
-    try {
-      const nsn = this.dataset.nsn;
-      const header = this.dataset.header;
-      const value = Number.parseInt(this.value, 10);
-      await postJSON('/update_scenario', {
-        nsn,
-        header,
-        value,
-        class_id: _classId,
-        term: _term,
-        year: _year
-      });
-    } catch (e) {
-      alert('Update failed');
-      console.error(e);
-    }
+    sel.addEventListener('change', async function () {
+      try {
+        const nsn = this.dataset.nsn;
+        const header = this.dataset.header;
+        const value = Number.parseInt(this.value, 10);
+        await postJSON('/update_scenario', {
+          nsn,
+          header,
+          value,
+          class_id: _classId,
+          term: _term,
+          year: _year
+        });
+      } catch (e) {
+        alert('Update failed');
+        console.error(e);
+      }
+    });
   });
-});
 
   // --- Mobile "Mark all" / "Clear all" (hidden for scenario columns)
   if (!scenarioMode) {

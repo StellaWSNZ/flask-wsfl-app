@@ -209,7 +209,7 @@ def view_class(class_id, term, year):
         cache_key   = f"{class_id}_{term}_{year}_{filter_type}"
         class_cache = session.get("class_cache", {})
         cached      = class_cache.get(cache_key)
-
+        cached = None
         # ⏳ Cache expiry check
         if cached:
             expires_str = cached.get("expires")
