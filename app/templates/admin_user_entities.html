@@ -394,7 +394,12 @@
       const entityType = entityTypeMap[selectedRole];
       if (!entityType) return;
 
-      fetch(`/get_entities?entity_type=${encodeURIComponent(entityType)}`)
+      // 🔁 use the blueprint URL + new payload shape
+      fetch(
+        `{{ url_for('api_bp.get_entities') }}?entity_type=${encodeURIComponent(
+          entityType
+        )}`
+      )
         .then((res) => {
           if (!res.ok) {
             throw new Error(
@@ -406,11 +411,15 @@
         .then((data) => {
           const entitySelect = document.getElementById("editEntity");
           entitySelect.innerHTML = `<option value="">Select an entity</option>`;
-          data.forEach((e) => {
+
+          // we know the API returns { ok, entities: [ { id, description }, ... ] }
+          const list = data.entities || [];
+
+          list.forEach((e) => {
             const opt = document.createElement("option");
-            opt.value = e.id;
-            opt.textContent = e.name;
-            opt.setAttribute("data-name", e.name);
+            opt.value = e.id; // numeric ID
+            opt.textContent = e.description; // display text
+            opt.setAttribute("data-name", e.description);
             entitySelect.appendChild(opt);
           });
         })

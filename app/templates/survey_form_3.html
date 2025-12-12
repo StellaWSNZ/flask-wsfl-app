@@ -454,19 +454,24 @@
       }
     }
 
-    // ---- Load Schools (Q1) ----
+    // 🔧 FIXED: Load Schools (Q1) using new /api/get_entities shape
     document.addEventListener("DOMContentLoaded", async () => {
+      if (!schoolSel) return;
+      setSelectLoading(schoolSel, "Loading schools…");
       try {
-        const schools = await fetchJSON(`/get_entities?entity_type=School`);
-        fillSelect(
-          schoolSel,
-          "Select a school…",
-          Array.isArray(schools) ? schools : [],
-          (s) => ({ value: s.id, label: s.name, id: s.id })
+        const data = await fetchJSON(
+          "{{ url_for('api_bp.get_entities') }}?entity_type=School"
         );
+        const schools = Array.isArray(data.entities) ? data.entities : [];
+
+        fillSelect(schoolSel, "Select a school…", schools, (s) => ({
+          value: s.id, // from get_entities: {id, description}
+          label: s.description,
+          id: s.id,
+        }));
         schoolSel.disabled = false;
       } catch (e) {
-        console.error(e);
+        console.error("Failed to load schools", e);
         setSelectEmpty(schoolSel, "Failed to load schools");
       }
     });

@@ -12,7 +12,7 @@
   data-update-student="{{ url_for('class_bp.update_student') }}"
   data-remove-from-class="{{ url_for('class_bp.remove_from_class') }}"
   data-create-student-and-add="{{ url_for('class_bp.create_student_and_add') }}"
-  data-get-entities="{{ url_for('funder_bp.get_entities') }}?entity_type=School"
+  data-get-entities="{{ url_for('api_bp.get_entities') }}?entity_type=School"
   data-ethnicities="{{ url_for('class_bp.ethnicities') }}"
 ></div>
 
@@ -343,12 +343,39 @@
 
   /* Loads */
   async function loadSchools(){
+  try {
+    $school.innerHTML = '<option value="">Loading schools…</option>';
+
     const r = await fetch(URL_GET_ENTITIES, { credentials:"same-origin" });
-    if (!r.ok) return;
-    const rows = await r.json();
-    $school.innerHTML = rows.map(e => `<option value="${e.id}">${e.name}</option>`).join("");
+    if (!r.ok) {
+      $school.innerHTML = '<option value="">Failed to load schools</option>';
+      return;
+    }
+
+    const data = await r.json();
+    // New shape: { entities: [ { id, description, ... }, ... ] }
+    const rows = Array.isArray(data.entities)
+      ? data.entities
+      : (Array.isArray(data) ? data : []);
+
+    if (!rows.length) {
+      $school.innerHTML = '<option value="">No schools found</option>';
+      return;
+    }
+
+    $school.innerHTML =
+      rows.map(e =>
+        `<option value="${e.id}">${escapeHtml(e.description || e.name || String(e.id))}</option>`
+      ).join("");
+
+    // Auto-load classes once the first school is selected
     if ($school.value) await loadClasses();
+  } catch (err) {
+    console.error("loadSchools error:", err);
+    $school.innerHTML = '<option value="">Failed to load schools</option>';
   }
+}
+
 
   async function loadEthnicities(){
     const r = await fetch(URL_ETHNICITIES, { credentials:"same-origin" });

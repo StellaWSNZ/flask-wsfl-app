@@ -717,8 +717,7 @@ def _call_get_entities(entity_type: str):
         print("❌ /get_entities call failed:", e)
         return []
 
-
-@staff_bp.route("/StaffeLearning", methods=["GET", "POST"])
+@staff_bp.route("/StaffeLearning", methods=["GET"])
 @login_required
 def staff_eLearning():
     try:
@@ -728,20 +727,30 @@ def staff_eLearning():
         user_email  = session.get("user_email")
         desc        = session.get("desc")
 
+        # What did the user actually send in the query string?
         selected_entity_type = request.args.get("entity_type")
         selected_entity_id   = request.args.get("entity_id")
+        has_query_params     = bool(request.args)  # True only after user hits "View"
 
+        # ---- Role → default entity_type / entity_id (but no auto for ADM on first load) ----
         if user_role == "PRO":
+            # Provider always sees their own provider
             selected_entity_type = "Provider"
             selected_entity_id   = str(user_id)
+
         elif user_role == "FUN":
+            # Default type = Funder; default ID = self, but only if nothing chosen yet
             if not selected_entity_type:
                 selected_entity_type = "Funder"
             if not selected_entity_id and selected_entity_type == "Funder":
                 selected_entity_id = str(user_id)
+
         elif user_role == "ADM":
+            # Admin: default to "Funder" type, but DO NOT auto-pick an ID on first load
             selected_entity_type = selected_entity_type or "Funder"
+
         elif user_role == "GRP":
+            # Group users always see their own group; they don't pick
             selected_entity_type = "Group"
         else:
             flash("Please select an entity to view staff eLearning.", "warning")
@@ -753,33 +762,50 @@ def staff_eLearning():
                 selected_entity_id=None,
                 entity_list=[],
                 name="Staff eLearning",
-                user_role=user_role
+                user_role=user_role,
             )
 
-        # Load dropdown entities via existing endpoint
+        # ---- Load dropdown entities via existing helper ----
         entity_list = _call_get_entities(selected_entity_type) if selected_entity_type else []
 
+        # ---- If there is still no selected_entity_id, decide what to do ----
         if not selected_entity_id:
-            if user_role in ("GRP", "FUN", "ADM"):
-                if entity_list:
-                    if user_role == "FUN" and selected_entity_type == "Funder":
-                        self_row = next((e for e in entity_list if str(e.get("id")) == str(user_id)), None)
-                        selected_entity_id = str((self_row or entity_list[0]).get("id"))
-                    else:
-                        selected_entity_id = str(entity_list[0].get("id"))
-                else:
-                    flash("No entities available for your selection.", "warning")
-                    return render_template(
-                        "staff_elearning.html",
-                        staff_eLearning_data={},
-                        course_ids=[],
-                        selected_entity_type=selected_entity_type,
-                        selected_entity_id=None,
-                        entity_list=entity_list,
-                        name="Staff eLearning",
-                        user_role=user_role
-                    )
+            # Case 1: first page load, no query string → just show the filters, no data
+            if not has_query_params and user_role == "ADM":
+                return render_template(
+                    "staff_elearning.html",
+                    staff_eLearning_data={},
+                    course_ids=[],
+                    selected_entity_type=selected_entity_type,
+                    selected_entity_id=None,
+                    entity_list=entity_list,
+                    name="Staff eLearning",
+                    user_role=user_role,
+                )
 
+            # Case 2: group users (or others) might still have a single entity
+            if user_role in ("GRP", "FUN") and entity_list:
+                # for FUN/GRP we’re happy to pick the first entity if needed
+                if user_role == "FUN" and selected_entity_type == "Funder":
+                    self_row = next((e for e in entity_list if str(e.get("id")) == str(user_id)), None)
+                    selected_entity_id = str((self_row or entity_list[0]).get("id"))
+                else:
+                    selected_entity_id = str(entity_list[0].get("id"))
+            else:
+                # No entity_id and nothing sensible to default to
+                flash("No entities available for your selection.", "warning")
+                return render_template(
+                    "staff_elearning.html",
+                    staff_eLearning_data={},
+                    course_ids=[],
+                    selected_entity_type=selected_entity_type,
+                    selected_entity_id=None,
+                    entity_list=entity_list,
+                    name="Staff eLearning",
+                    user_role=user_role,
+                )
+
+        # Normalise to str for comparisons
         selected_entity_id = str(selected_entity_id)
 
         try:
@@ -796,7 +822,7 @@ def staff_eLearning():
             with engine.connect().execution_options(timeout=150) as conn:
                 el_rows = conn.execute(
                     text("EXEC FlaskGetStaffeLearning :RoleType, :ID, :Email"),
-                    {"RoleType": role_code, "ID": selected_entity_id, "Email": user_email}
+                    {"RoleType": role_code, "ID": selected_entity_id, "Email": user_email},
                 ).fetchall()
 
                 active_courses = conn.execute(
@@ -813,15 +839,17 @@ def staff_eLearning():
                         "Email": em,
                         "FirstName": r.FirstName,
                         "Surname": r.Surname,
-                        "Courses": {}
+                        "Courses": {},
                     }
                 grouped[em]["Courses"][str(r.CourseID)] = {
                     "CourseName": r.CourseName,
-                    "Status": r.Status
+                    "Status": r.Status,
                 }
 
-            selected_name = next((e["name"] for e in entity_list if str(e["id"]) == selected_entity_id),
-                                 desc if user_role == "PRO" else "Selected")
+            selected_name = next(
+                (e["name"] for e in entity_list if str(e["id"]) == selected_entity_id),
+                desc if user_role == "PRO" else "Selected",
+            )
 
             return render_template(
                 "staff_elearning.html",
@@ -831,17 +859,19 @@ def staff_eLearning():
                 selected_entity_id=selected_entity_id,
                 entity_list=entity_list,
                 name=selected_name,
-                user_role=user_role
+                user_role=user_role,
             )
 
         except Exception as inner_e:
-            # Log the inner render/data error
             log_alert(
                 email=session.get("user_email"),
                 role=session.get("user_role"),
                 entity_id=session.get("user_id"),
                 link=url_for("staff_bp.staff_eLearning", _external=True),
-                message=f"staff_eLearning inner failure for entity {selected_entity_type}/{selected_entity_id}: {inner_e}\n{traceback.format_exc()}"[:4000],
+                message=(
+                    f"staff_eLearning inner failure for entity "
+                    f"{selected_entity_type}/{selected_entity_id}: {inner_e}\n{traceback.format_exc()}"
+                )[:4000],
             )
             return "500 Template Error", 500
 

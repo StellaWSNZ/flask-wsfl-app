@@ -37,15 +37,17 @@
             <div class="mb-3">
               <label for="report_option" class="form-label">Report Type</label>
               <select name="report_option" id="report_option" class="form-select">
+                <option value="" disabled {% if not selected_type %} selected {% endif %}>-- Select a report --</option>
+
                 {% if role in ["ADM"] %}
-                <option value="national_ly_vs_national_ytd_vs_target"
-                    {% if selected_type == "national_ly_vs_national_ytd_vs_target" or not selected_type %}selected{% endif %}>
+                  <option value="national_ly_vs_national_ytd_vs_target"
+                    {% if selected_type == "national_ly_vs_national_ytd_vs_target"  %}selected{% endif %}>
                     National YTD vs National LY vs WSNZ Target
                   </option>
                 {% endif %}
                 {% if role in ["ADM","FUN"] %}
                   <option value="funder_ytd_vs_target"
-                    {% if selected_type == "funder_ytd_vs_target" or not selected_type %}selected{% endif %}>
+                    {% if selected_type == "funder_ytd_vs_target"  %}selected{% endif %}>
                     YTD Funder Performance vs WSNZ Target
                   </option>
                   <option value="ly_funder_vs_ly_national_vs_target"
@@ -64,14 +66,14 @@
                     {% if selected_type == "school_ytd_vs_target" %}selected{% endif %}>
                     School YTD Performance vs WSNZ Target
                   </option>
-                   <option value="funder_missing_data"
+                  <option value="funder_missing_data"
                     {% if selected_type == "funder_missing_data"%}selected{% endif %}>
                     Funder Missing Data
                   </option>
                 {% elif role == "PRO" %}
                   <option value="provider_ytd_vs_target"
-                    {% if selected_type == "provider_ytd_vs_target" or not selected_type %}selected{% endif %}>
-                    YTD Performance vs WSNZ Target
+                    {% if selected_type == "provider_ytd_vs_target"  %}selected{% endif %}>
+                    Provider YTD Performance vs WSNZ Target
                   </option>
                   <option value="school_ytd_vs_target"
                     {% if selected_type == "school_ytd_vs_target" %}selected{% endif %}>
@@ -79,7 +81,7 @@
                   </option>
                 {% elif role == "GRP" %}
                   <option value="provider_ytd_vs_target"
-                    {% if selected_type == "provider_ytd_vs_target" or not selected_type %}selected{% endif %}>
+                    {% if selected_type == "provider_ytd_vs_target" %}selected{% endif %}>
                     Provider YTD Performance vs WSNZ Target
                   </option>
                   <option value="school_ytd_vs_target"
@@ -88,7 +90,7 @@
                   </option>
                 {% elif role == "MOE" %}
                   <option value="school_ytd_vs_target"
-                    {% if selected_type == "school_ytd_vs_target" or not selected_type %}selected{% endif %}>
+                    {% if selected_type == "school_ytd_vs_target"  %}selected{% endif %}>
                     YTD Performance vs WSNZ Target
                   </option>
                 {% endif %}
@@ -102,6 +104,11 @@
                 <select name="selected_funder" id="selected_funder" class="form-select">
                   <option value="" disabled selected>Loading funders…</option>
                 </select>
+                <!-- Hidden: funder name for titles -->
+                <input type="hidden"
+                       name="funder_name"
+                       id="funder_name"
+                       value="{{ request.form.get('funder_name', '') }}">
               {% elif role == "FUN" and funder_name %}
                 <label class="form-label">Funder</label>
                 <input class="form-control" value="{{ funder_name }}" readonly>
@@ -210,6 +217,7 @@
 
   const funderBlock       = document.getElementById('funderBlock');
   const funderSel         = document.getElementById('selected_funder'); // ADM only
+  const funderNameInput   = document.getElementById('funder_name');
 
   const providerBlock     = document.getElementById('providerBlock');
   const providerSel       = document.getElementById('provider_id');
@@ -219,9 +227,10 @@
   const schoolSel         = document.getElementById('school_id');
   const schoolNameInput   = document.getElementById('school_name');
 
-  const prevProviderId = "{{ request.form.get('provider_id', '') }}";
-  const prevFunderName = "{{ request.form.get('selected_funder', funder_name or '') }}";
-  const prevSchoolId   = "{{ request.form.get('school_id', '') }}";
+  const prevProviderId  = "{{ request.form.get('provider_id', '') }}";
+  const prevFunderId    = "{{ request.form.get('selected_funder', '') }}";
+  const prevFunderName  = "{{ request.form.get('funder_name', funder_name or '') }}";
+  const prevSchoolId    = "{{ request.form.get('school_id', '') }}";
 
   // prevent accidental submit with Enter
   form.addEventListener('keydown', (e) => { if (e.key === 'Enter') e.preventDefault(); });
@@ -244,54 +253,97 @@
   async function loadFunders() {
     if (!funderSel) return;
     funderSel.innerHTML = '<option value="" disabled>Loading funders…</option>';
+
     try {
-      const res = await fetch(ENTITIES_URL + '?entity_type=Funder', { credentials: 'same-origin' });
-      const items = await res.json();
+      const res = await fetch(ENTITIES_URL + '?entity_type=Funder', {
+        credentials: 'same-origin'
+      });
+      const data = await res.json();
+
+      if (!data.ok) {
+        throw new Error(data.error || 'Failed to load funders');
+      }
+
+      const items = data.entities || [];
+
       funderSel.innerHTML = '<option value="" disabled>Choose funder…</option>';
+      let picked = false;
+
       for (const f of items) {
         const opt = document.createElement('option');
-        opt.value = f.name;
-        opt.textContent = f.name;
-        if (prevFunderName && f.name === prevFunderName) opt.selected = true;
+        opt.value = f.id;                // ID for POST
+        opt.textContent = f.description; // label
+        if (prevFunderId && String(f.id) === String(prevFunderId)) {
+          opt.selected = true;
+          picked = true;
+        }
         funderSel.appendChild(opt);
       }
+
       if (!funderSel.value) {
-        funderSel.querySelector('option[disabled]')?.setAttribute('selected', 'selected');
+        funderSel
+          .querySelector('option[disabled]')
+          ?.setAttribute('selected', 'selected');
       }
-    } catch {
+
+      // Set hidden funder_name
+      if (funderNameInput) {
+        if (picked) {
+          const txt = funderSel.options[funderSel.selectedIndex]?.textContent || '';
+          funderNameInput.value = txt;
+        } else if (prevFunderName) {
+          funderNameInput.value = prevFunderName;
+        } else {
+          funderNameInput.value = '';
+        }
+      }
+    } catch (err) {
+      console.error('Error loading funders:', err);
       funderSel.innerHTML = '<option value="" disabled>Error loading funders</option>';
+      if (funderNameInput) funderNameInput.value = '';
     }
   }
 
   async function loadProviders() {
     providerSel.innerHTML = '<option value="" disabled>Loading providers…</option>';
-    try {
-      const funderName = (funderSel && funderSel.value) ? funderSel.value : FUNDER_NAME;
-      const qs = new URLSearchParams({ entity_type: 'Provider' });
-      if (funderName) qs.set('funder_name', funderName);
 
-      const res = await fetch(ENTITIES_URL + '?' + qs.toString(), { credentials: 'same-origin' });
-      const items = await res.json();
+    try {
+      const qs = new URLSearchParams({ entity_type: 'Provider' });
+      const res = await fetch(ENTITIES_URL + '?' + qs.toString(), {
+        credentials: 'same-origin'
+      });
+      const data = await res.json();
+
+      if (!data.ok) {
+        throw new Error(data.error || 'Failed to load providers');
+      }
+
+      const items = data.entities || [];
 
       providerSel.innerHTML = '<option value="" disabled>Choose provider…</option>';
       let picked = false;
+
       for (const p of items) {
         const opt = document.createElement('option');
-        opt.value = p.id;
-        opt.textContent = p.name;
+        opt.value = p.id;                // ID for POST
+        opt.textContent = p.description; // label
         if (prevProviderId && String(p.id) === String(prevProviderId)) {
           opt.selected = true;
           picked = true;
         }
         providerSel.appendChild(opt);
       }
+
       if (!providerSel.value) {
-        providerSel.querySelector('option[disabled]')?.setAttribute('selected', 'selected');
+        providerSel
+          .querySelector('option[disabled]')
+          ?.setAttribute('selected', 'selected');
       }
 
       const txt = providerSel.options[providerSel.selectedIndex]?.textContent || '';
       providerNameInput.value = picked ? txt : '';
-    } catch {
+    } catch (err) {
+      console.error('Error loading providers:', err);
       providerSel.innerHTML = '<option value="" disabled>Error loading providers</option>';
       providerNameInput.value = '';
     }
@@ -299,54 +351,67 @@
 
   async function loadSchools() {
     schoolSel.innerHTML = '<option value="" disabled>Loading schools…</option>';
+
     try {
       const qs = new URLSearchParams({ entity_type: 'School' });
-      const res = await fetch(ENTITIES_URL + '?' + qs.toString(), { credentials: 'same-origin' });
-      const items = await res.json();
+      const res = await fetch(ENTITIES_URL + '?' + qs.toString(), {
+        credentials: 'same-origin'
+      });
+      const data = await res.json();
+
+      if (!data.ok) {
+        throw new Error(data.error || 'Failed to load schools');
+      }
+
+      const items = data.entities || [];
 
       schoolSel.innerHTML = '<option value="" disabled>Choose school…</option>';
       let picked = false;
+
       for (const s of items) {
         const opt = document.createElement('option');
-        opt.value = s.id;
-        opt.textContent = s.name;
+        opt.value = s.id;                // MOENumber as ID
+        opt.textContent = s.description; // SchoolName
         if (prevSchoolId && String(s.id) === String(prevSchoolId)) {
           opt.selected = true;
           picked = true;
         }
         schoolSel.appendChild(opt);
       }
+
       if (!schoolSel.value) {
-        schoolSel.querySelector('option[disabled]')?.setAttribute('selected', 'selected');
+        schoolSel
+          .querySelector('option[disabled]')
+          ?.setAttribute('selected', 'selected');
       }
 
       const txt = schoolSel.options[schoolSel.selectedIndex]?.textContent || '';
       schoolNameInput.value = picked ? txt : '';
-    } catch {
+    } catch (err) {
+      console.error('Error loading schools:', err);
       schoolSel.innerHTML = '<option value="" disabled>Error loading schools</option>';
       schoolNameInput.value = '';
     }
   }
 
   // Avoid immediate fetches on initial load; only load when user interacts
-  let initialising = true;
-  let fundersLoaded = false;
+  let initialising   = true;
+  let fundersLoaded  = false;
   let providersLoaded = false;
-  let schoolsLoaded = false;
+  let schoolsLoaded  = false;
 
   async function toggleEntityBlocks() {
     const val = reportSel.value;
 
     // Funder
-    // Funder
-const wantFunder = needsFunder(val);
-if (funderBlock) {
-  funderBlock.style.display = wantFunder ? 'block' : 'none';
-  if (wantFunder && ROLE === 'ADM' && !fundersLoaded) {
-    fundersLoaded = true;
-    loadFunders();
-  }
-}
+    const wantFunder = needsFunder(val);
+    if (funderBlock) {
+      funderBlock.style.display = wantFunder ? 'block' : 'none';
+      if (wantFunder && ROLE === 'ADM' && !fundersLoaded) {
+        fundersLoaded = true;
+        loadFunders();
+      }
+    }
 
     // Provider
     const wantProvider = needsProvider(val);
@@ -381,6 +446,13 @@ if (funderBlock) {
     schoolNameInput.value = txt;
   });
 
+  funderSel?.addEventListener('change', () => {
+    const txt = funderSel.options[funderSel.selectedIndex]?.textContent || '';
+    if (funderNameInput) {
+      funderNameInput.value = txt;
+    }
+  });
+
   // On first change, drop the initialising guard and allow fetches
   reportSel.addEventListener('change', () => {
     initialising = false;
@@ -407,6 +479,27 @@ if (funderBlock) {
 
     e.preventDefault();
 
+     const funderSel       = document.getElementById('selected_funder');
+  const funderNameInput = document.getElementById('funder_name');
+  const providerSel     = document.getElementById('provider_id');
+  const providerNameInp = document.getElementById('provider_name');
+  const schoolSel       = document.getElementById('school_id');
+  const schoolNameInp   = document.getElementById('school_name');
+
+  if (funderSel && funderNameInput && funderSel.selectedIndex >= 0) {
+    funderNameInput.value =
+      funderSel.options[funderSel.selectedIndex]?.textContent?.trim() || '';
+  }
+  if (providerSel && providerNameInp && providerSel.selectedIndex >= 0) {
+    providerNameInp.value =
+      providerSel.options[providerSel.selectedIndex]?.textContent?.trim() || '';
+  }
+  if (schoolSel && schoolNameInp && schoolSel.selectedIndex >= 0) {
+    schoolNameInp.value =
+      schoolSel.options[schoolSel.selectedIndex]?.textContent?.trim() || '';
+  }
+
+  
     // Loading state
     if (msg) {
       msg.textContent = 'Loading report, please wait…';

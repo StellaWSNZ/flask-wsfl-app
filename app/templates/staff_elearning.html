@@ -3,7 +3,6 @@
 
 {% block content %}
 <div class="container mt-5">
-  <h2 class="mb-4 text-primary text-center">{{ name }}</h2>
 
   <div class="d-flex justify-content-center mb-4">
     <div class="mx-auto" style="max-width: 1000px; width: 100%;">
@@ -54,7 +53,10 @@
   </div>
 
   {% set count = staff_eLearning_data|length %}
+
   {% if count > 0 %}
+      <h2 class="mb-4 text-primary text-center">{{ name }}</h2>
+
   <div class="row">
     {% for email, details in staff_eLearning_data.items() %}
     <div class="col-12 mb-4">
@@ -131,10 +133,10 @@
     </div>
     {% endfor %}
   </div>
-  {% else %}
+  {% elif count == 0 and name %}
   <div class="d-flex justify-content-center">
     <div class="alert alert-warning text-center w-100" style="max-width: 600px;">
-      No eLearning data found for this selection.
+      No eLearning data found for {{name}} ({{selected_entity_type}}).
     </div>
   </div>
   {% endif %}
@@ -147,6 +149,27 @@
     const entityLabel      = document.getElementById("entityLabel");
     const selectedEntityId = "{{ selected_entity_id }}";
     const userRole         = "{{ user_role }}";
+    const filterForm       = document.getElementById("filterForm");
+
+    // 🔒 Prevent auto-submit on load – only allow if user clicks the button
+    if (filterForm) {
+      let submitAllowed = false;
+      const submitBtn = filterForm.querySelector('button[type="submit"]');
+
+      if (submitBtn) {
+        submitBtn.addEventListener("click", () => {
+          submitAllowed = true;  // mark as user-initiated
+        });
+      }
+
+      filterForm.addEventListener("submit", (e) => {
+        if (!submitAllowed) {
+          e.preventDefault();   // block any programmatic/auto submit
+        }
+        // reset flag so we don't accidentally allow future auto-submits
+        submitAllowed = false;
+      });
+    }
 
     function loadEntities(selectedType) {
       if (!entityIdSelect) return;
@@ -159,17 +182,35 @@
       entityLabel && (entityLabel.textContent = `Select ${selectedType}`);
       entityIdSelect.innerHTML = '<option value="">Loading...</option>';
 
-      fetch(`/get_entities?entity_type=${encodeURIComponent(selectedType)}`)
-        .then(res => res.json())
+      fetch(`/api/get_entities?entity_type=${encodeURIComponent(selectedType)}`)
+        .then(res => {
+          if (!res.ok) {
+            throw new Error("GET /api/get_entities failed with status " + res.status);
+          }
+          return res.json();
+        })
         .then(data => {
+          const list = Array.isArray(data.entities)
+            ? data.entities
+            : (Array.isArray(data) ? data : []);
+
           entityIdSelect.innerHTML = '<option value="">-- Choose --</option>';
-          data.forEach(d => {
+
+          if (!list.length) {
+            entityIdSelect.innerHTML = '<option value="">-- No entities found --</option>';
+            return;
+          }
+
+          list.forEach(d => {
             const option = document.createElement("option");
             option.value = d.id;
-            option.textContent = d.name;
+            option.textContent = d.description || d.name || d.id;
             entityIdSelect.appendChild(option);
           });
-          if (selectedEntityId) entityIdSelect.value = selectedEntityId;
+
+          if (selectedEntityId) {
+            entityIdSelect.value = selectedEntityId;
+          }
         })
         .catch(err => {
           console.error("Error loading entities:", err);
@@ -185,4 +226,5 @@
     }
   });
 </script>
+
 {% endblock %}

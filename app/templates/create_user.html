@@ -164,7 +164,6 @@
   }
 </style>
 {% endblock %}
-
 {% block scripts %}
 <script>
 document.addEventListener("DOMContentLoaded", function () {
@@ -193,11 +192,9 @@ document.addEventListener("DOMContentLoaded", function () {
       "GRP": groupSection,
       "ADM": null
     };
-    // hide all
     [funderSection, providerSection, schoolSection, groupSection].forEach(sec => {
       if (sec) sec.style.display = "none";
     });
-    // show current
     const sec = map[role];
     if (sec) sec.style.display = "block";
   }
@@ -209,17 +206,17 @@ document.addEventListener("DOMContentLoaded", function () {
     else if (role === "PRO" && providerSelect)  selectedIdInput.value = providerSelect.value || "";
     else if (role === "MOE" && schoolSelect)    selectedIdInput.value = schoolSelect.value || "";
     else if (role === "GRP" && groupSelect)     selectedIdInput.value = groupSelect.value || "";
-    else if (role === "ADM")                    selectedIdInput.value = ""; // no target entity
+    else if (role === "ADM")                    selectedIdInput.value = "";
     else                                        selectedIdInput.value = "";
   }
 
   // --- Helper: toggle Admin checkbox for ADM role
   function updateAdminCheckboxVisibility() {
     if (roleSelect?.value === "ADM") {
-      if (adminWrap)    adminWrap.style.display = "none";
+      if (adminWrap)     adminWrap.style.display = "none";
       if (adminCheckbox) adminCheckbox.checked  = true;
     } else {
-      if (adminWrap)    adminWrap.style.display = "block";
+      if (adminWrap)     adminWrap.style.display = "block";
     }
   }
 
@@ -232,11 +229,11 @@ document.addEventListener("DOMContentLoaded", function () {
     return o;
   }
 
-  // --- Fetch & fill a select from get_entities
+  // --- Fetch & fill a select from api_bp.get_entities
   async function loadEntities(entityType, targetSelect, extraParams = {}, selectedValue = null) {
     if (!targetSelect) return;
 
-    const url = new URL("{{ url_for('funder_bp.get_entities') }}", window.location.origin);
+    const url = new URL("{{ url_for('api_bp.get_entities') }}", window.location.origin);
     url.searchParams.set("entity_type", entityType);
     for (const [k, v] of Object.entries(extraParams)) {
       if (v != null && v !== "") url.searchParams.set(k, v);
@@ -247,22 +244,30 @@ document.addEventListener("DOMContentLoaded", function () {
     targetSelect.disabled = true;
 
     try {
-      const res  = await fetch(url, { headers: { "Accept": "application/json" } });
+      const res = await fetch(url, { headers: { "Accept": "application/json" } });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
       const data = await res.json();
-      const list = Array.isArray(data) ? data : (data.entities || []);
+      const list = Array.isArray(data?.entities)
+        ? data.entities
+        : (Array.isArray(data) ? data : []);
 
       targetSelect.innerHTML = "";
+      if (!list.length) {
+        targetSelect.appendChild(opt("", "No options available"));
+        targetSelect.disabled = false;
+        return;
+      }
+
       for (const item of list) {
-        const id = item.id ?? item.ProviderID ?? item.FunderID ?? item.GroupID ?? item.SchoolID;
-        const name = item.name ?? item.Description ?? item.ProviderName ?? item.GroupName ?? item.SchoolName ?? item.description;
+        const id   = item.id;
+        const name = item.description || item.name || String(item.id);
         if (id == null || !name) continue;
         targetSelect.appendChild(opt(id, name, selectedValue));
       }
 
       targetSelect.disabled = false;
 
-      // If nothing selected by server/form, set first item (if any)
       if (!targetSelect.value && targetSelect.options.length > 0) {
         targetSelect.selectedIndex = 0;
       }
@@ -281,19 +286,12 @@ document.addEventListener("DOMContentLoaded", function () {
     toggleSectionsByRole(role);
     updateAdminCheckboxVisibility();
 
-    // You can pass filters your API supports in extraParams (examples commented)
     if (role === "FUN") {
       await loadEntities("Funder", funderSelect, {}, "{{ request.form.get('selected_id') }}");
     } else if (role === "PRO") {
-      await loadEntities("Provider", providerSelect, {
-        // funder_id: funderSelect?.value,
-        // group_id:  groupSelect?.value,
-      }, "{{ request.form.get('selected_id') }}");
+      await loadEntities("Provider", providerSelect, {}, "{{ request.form.get('selected_id') }}");
     } else if (role === "MOE") {
-      await loadEntities("School", schoolSelect, {
-        // provider_id: providerSelect?.value,
-        // funder_id:   funderSelect?.value,
-      }, "{{ request.form.get('selected_id') }}");
+      await loadEntities("School", schoolSelect, {}, "{{ request.form.get('selected_id') }}");
     } else if (role === "GRP") {
       await loadEntities("Group", groupSelect, {}, "{{ request.form.get('selected_id') }}");
     }
@@ -308,10 +306,8 @@ document.addEventListener("DOMContentLoaded", function () {
   schoolSelect?.addEventListener("change", updateSelectedId);
   groupSelect?.addEventListener("change", updateSelectedId);
 
-  // Initial paint:
-  // 1) If the server pre-populated lists, we just show the right section and sync IDs.
-  // 2) If you want to ALWAYS refresh from API on load, set forceAjax = true.
-  const forceAjax = false;
+  // Initial paint
+  const forceAjax = false;  // flip to true if you want to always reload from API
   if (forceAjax) {
     onRoleChange();
   } else {

@@ -274,7 +274,7 @@ def _validate_required_entities(
             selected_term=selected_term,
             selected_year=selected_year,
             selected_type=selected_type,
-            entities_url=url_for("funder_bp.get_entities"),
+            entities_url=url_for("api_bp.get_entities"),
             display=False,
             no_data_banner=None,
         )
@@ -312,7 +312,7 @@ def _validate_required_entities(
             selected_term=selected_term,
             selected_year=selected_year,
             selected_type=selected_type,
-            entities_url=url_for("funder_bp.get_entities"),
+            entities_url=url_for("api_bp.get_entities"),
             display=False,
             no_data_banner=None,
         )
@@ -345,7 +345,7 @@ def _validate_required_entities(
             selected_term=selected_term,
             selected_year=selected_year,
             selected_type=selected_type,
-            entities_url=url_for("funder_bp.get_entities"),
+            entities_url=url_for("api_bp.get_entities"),
             display=False,
             no_data_banner=None,
         )
@@ -998,8 +998,9 @@ def new_reports():
                 )
 
                 # Resolve funder from ADM dropdown (FUN is implied from session, PRO has none)
+                print(request.form)
                 if role == "ADM":
-                    selected_funder_name = request.form.get("selected_funder") or None
+                    selected_funder_name = request.form.get("funder_name") or None
                 print(f"effective funder_name: {selected_funder_name}")
 
                 funder_id = None
@@ -1069,7 +1070,7 @@ def new_reports():
                         selected_term=selected_term,
                         selected_year=selected_year,
                         selected_type=selected_type,
-                        entities_url=url_for("funder_bp.get_entities"),
+                        entities_url=url_for("api_bp.get_entities"),
                         display=False,
                         no_data_banner=None,
                     )
@@ -1242,7 +1243,7 @@ def new_reports():
         selected_term=selected_term,
         selected_year=selected_year,
         selected_type=selected_type,
-        entities_url=url_for("funder_bp.get_entities"),
+        entities_url=url_for("api_bp.get_entities"),
         display=display,
         no_data_banner=no_data_banner,
     )

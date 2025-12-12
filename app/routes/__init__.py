@@ -1,6 +1,7 @@
 # app/routes/__init__.py
 from flask import Flask, render_template
 
+from .api import api_bp
 from .auth import auth_bp
 from .home import home_bp
 from .upload import upload_bp
@@ -17,6 +18,7 @@ from app.routes.add_user import user_bp
 from app.routes.instructions import instructions_bp
 
 def register_routes(app):
+    app.register_blueprint(api_bp, url_prefix="/api")
     app.register_blueprint(auth_bp, url_prefix="/auth")  # So /auth/login is the login page
     app.register_blueprint(home_bp)                      # Leave this without a prefix
     app.register_blueprint(upload_bp)

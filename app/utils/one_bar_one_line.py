@@ -423,8 +423,16 @@ def provider_portrait_with_target(
             comp_rate.items(),
             key=lambda kv: str(kv[0]).lower()  # kv[0] = CompetencyDesc
         )
+        if not ordered_items:
+            continue
         groups.append({"yg": yg, "items": ordered_items, "target": target_val})
+        all_yeargroups      = set(rows_by_yg.keys())        # all YGs that appeared in raw data
+        present_yeargroups  = {g["yg"] for g in groups}     # YGs we actually plotted
+        missing_yeargroups  = all_yeargroups - present_yeargroups
 
+        if missing_yeargroups:
+            # Slight bump — tweak factor to taste (e.g. 1.2 if you want louder)
+            subtitle_fs = subtitle_fs * 1.15
     # ---------- Row grid ----------
     baseline_step = max(2*BAR_H + BAR_GAP, ITEM_GAP)
     gap_rows      = max(0, int(round(GROUP_TOP_PAD / max(1e-6, baseline_step))))

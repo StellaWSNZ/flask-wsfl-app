@@ -372,19 +372,23 @@ document.addEventListener("DOMContentLoaded", function () {
     setDisabled(true); showSpinner(true);
 
     try {
-      const url = "{{ url_for('funder_bp.get_entities') }}?entity_type=" + encodeURIComponent(type);
+      const url = "{{ url_for('api_bp.get_entities') }}?entity_type=" + encodeURIComponent(type);
       const res = await fetch(url, { headers: { "Accept": "application/json" } });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      const list = Array.isArray(data) ? data : (data.entities || []);
+if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-      entityIdSel.replaceChildren(makeOpt(`-- Choose a ${type} --`, ""));
-      for (const item of list) {
-        const id   = item.id   ?? item.ProviderID ?? item.FunderID ?? item.GroupID;
-        const name = item.name ?? item.ProviderName ?? item.Description ?? item.GroupName;
-        if (!id || !name) continue;
-        entityIdSel.appendChild(makeOpt(name, id));
-      }
+const data = await res.json();
+
+// We know our API returns: { ok, entities: [ { id, description }, ... ] }
+const list = data.entities || [];
+
+entityIdSel.replaceChildren(makeOpt(`-- Choose a ${type} --`, ""));
+
+for (const item of list) {
+  const id   = item.id;
+  const name = item.description;
+  if (id == null || name == null) continue;  // safety check
+  entityIdSel.appendChild(makeOpt(name, id));
+}
 
       setDisabled(false);
     } catch (err) {

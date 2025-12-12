@@ -182,26 +182,49 @@ document.addEventListener("DOMContentLoaded", function () {
   const selectedEntityId = "{{ selected_entity_id }}";
 
   function loadEntities(type){
-    if(!type) return;
+    if (!type) return;
     entityLabel.textContent = `Select ${type}`;
     entityIdSelect.innerHTML = '<option value="">Loading...</option>';
-    fetch(`/get_entities?entity_type=${encodeURIComponent(type)}`)
-      .then(r=>r.json())
-      .then(data=>{
+
+    fetch(`{{ url_for('api_bp.get_entities') }}?entity_type=${encodeURIComponent(type)}`)
+      .then(r => {
+        if (!r.ok) {
+          throw new Error("GET /api/get_entities failed with status " + r.status);
+        }
+        return r.json();
+      })
+      .then(data => {
+        const list = (data && data.entities) ? data.entities : [];
+
         entityIdSelect.innerHTML = '<option value="">-- Choose --</option>';
-        (data||[]).forEach(e=>{
+
+        list.forEach(e => {
           const o = document.createElement("option");
-          o.value = e.id;
-          o.textContent = e.name || e.label || e.id;
-          if(String(e.id) === selectedEntityId) o.selected = true;
+          o.value = e.id;                // numeric ID from API
+          o.textContent = e.description; // display text from API
+          if (String(e.id) === selectedEntityId) o.selected = true;
           entityIdSelect.appendChild(o);
         });
+
+        if (!list.length) {
+          entityIdSelect.innerHTML = '<option value="">-- No entities found --</option>';
+        }
       })
-      .catch(()=>{ entityIdSelect.innerHTML = '<option value="">-- Failed to load --</option>'; });
+      .catch(err => {
+        console.error("Error loading entities:", err);
+        entityIdSelect.innerHTML = '<option value="">-- Failed to load --</option>';
+      });
   }
-  if (entityTypeSelect){
+
+  if (entityTypeSelect && entityIdSelect) {
+    // Initial load based on current selected entity_type
     loadEntities(entityTypeSelect.value);
-    entityTypeSelect.addEventListener("change", ()=> loadEntities(entityTypeSelect.value));
+
+    // Reload when entity type changes
+    entityTypeSelect.addEventListener("change", () => {
+      entityIdSelect.innerHTML = '<option value="">-- Choose --</option>';
+      loadEntities(entityTypeSelect.value);
+    });
   }
 
   /* ---- Filters shared by table + cards ---- */
@@ -283,4 +306,3 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 </script>
 {% endblock %}
- 

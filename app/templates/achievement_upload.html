@@ -119,13 +119,12 @@
     </div>
   </div>
 </div>
-
 <script>
   // ---------- Utilities ----------
   function show(el) { el.classList.remove('d-none'); }
   function hide(el) { el.classList.add('d-none'); }
   const plural = (n) => n === 1 ? '' : 's';
-  const word = (n, singular, plural) => (n === 1 ? singular : plural);
+  const word = (n, singular, pluralWord) => (n === 1 ? singular : pluralWord);
   const wasWere = (n) => (n === 1 ? 'was' : 'were');
   async function readJsonOrText(res) {
     const raw = await res.text();
@@ -171,6 +170,7 @@
 
   const PREVIEW_URL = "{{ url_for('class_bp.preview_upload') }}";
   const APPLY_URL   = "{{ url_for('class_bp.apply_upload') }}";
+  const SCHOOLS_URL = "{{ url_for('api_bp.get_entities') }}?entity_type=School";
 
   // ---------- State ----------
   let schoolMap = new Map();
@@ -186,21 +186,40 @@
   // ---------- Loaders ----------
   async function loadSchools() {
     try {
-      const res = await fetch('{{ url_for("funder_bp.get_entities") }}?entity_type=School', { credentials: 'same-origin' });
+      const res = await fetch(SCHOOLS_URL, { credentials: 'same-origin' });
       const { ok, data } = await readJsonOrText(res);
-      if (!ok) throw new Error(data.error || 'Failed to load schools');
-      const schools = data;
+      if (!ok) {
+        throw new Error(data.error || 'Failed to load schools');
+      }
 
-      schoolSelect.innerHTML = '<option value="" selected disabled>Select a school…</option>';
-      schools.forEach(s => {
-        schoolMap.set(String(s.id), s.name);
+      // Support both { entities: [...] } and bare [...]
+      const list = Array.isArray(data?.entities)
+        ? data.entities
+        : (Array.isArray(data) ? data : []);
+
+      if (!list.length) {
+        schoolSelect.innerHTML =
+          '<option value="" selected disabled>No schools available</option>';
+        return;
+      }
+
+      schoolSelect.innerHTML =
+        '<option value="" selected disabled>Select a school…</option>';
+
+      list.forEach(s => {
+        const id   = s.id;
+        const name = s.description || s.name || String(s.id);
+
+        schoolMap.set(String(id), name);
         const opt = document.createElement('option');
-        opt.value = s.id; opt.textContent = s.name;
+        opt.value = id;
+        opt.textContent = name;
         schoolSelect.appendChild(opt);
       });
     } catch (e) {
-      schoolSelect.innerHTML = '<option value="" disabled selected>Could not load schools</option>';
-      console.error(e);
+      console.error('loadSchools error:', e);
+      schoolSelect.innerHTML =
+        '<option value="" disabled selected>Could not load schools</option>';
     }
   }
 
@@ -235,13 +254,15 @@
         hide(noClassesBox); // ensure blue alert disappears when dropdown appears
       }
     } catch (e) {
-      classSelect.innerHTML = '<option value="" selected disabled>Could not load classes</option>';
+      classSelect.innerHTML =
+        '<option value="" selected disabled>Could not load classes</option>';
       show(noClassesBox);
       console.error(e);
     }
   }
 
-  [schoolSelect, termSelect, yearSelect].forEach(el => el.addEventListener('change', loadClasses));
+  [schoolSelect, termSelect, yearSelect]
+    .forEach(el => el.addEventListener('change', loadClasses));
 
   classSelect.addEventListener('change', () => {
     hide(noClassesBox);
@@ -254,7 +275,8 @@
 
     hide(previewContainer); hide(previewInfoBox);
     uploadStatus.className = 'mt-3 alert alert-secondary';
-    uploadStatus.textContent = 'Uploading and parsing…'; uploadStatus.classList.remove('d-none');
+    uploadStatus.textContent = 'Uploading and parsing…';
+    uploadStatus.classList.remove('d-none');
 
     const file = fileInput.files && fileInput.files[0];
     if (!file) {
@@ -269,15 +291,21 @@
       return;
     }
 
-    const fd = new FormData(); fd.append('file', file);
-   
+    const fd = new FormData();
+    fd.append('file', file);
+
     try {
-      const res = await fetch(PREVIEW_URL, { method: 'POST', credentials: 'same-origin', body: fd });
+      const res = await fetch(PREVIEW_URL, {
+        method: 'POST',
+        credentials: 'same-origin',
+        body: fd
+      });
       const { ok, data } = await readJsonOrText(res);
       if (!ok || !data.ok) throw new Error(data.error || 'Could not parse file');
 
       renderPreviewTable(data.columns_combined || data.columns, data.rows);
-      previewMeta.textContent = `Showing ${data.sample_rows} of ${data.total_rows} row${plural(data.total_rows)}.`;
+      previewMeta.textContent =
+        `Showing ${data.sample_rows} of ${data.total_rows} row${plural(data.total_rows)}.`;
       uploadStatus.className = 'mt-3 alert alert-success';
       uploadStatus.textContent = 'Preview ready.';
       previewContainer.classList.remove('d-none');
@@ -290,7 +318,8 @@
       uploadStatus.className = 'mt-3 alert alert-danger';
       uploadStatus.textContent = err.message || 'Error parsing file.';
       hide(previewContainer); hide(previewInfoBox);
-      lastPayloadJson = null; applyBtn.disabled = true;
+      lastPayloadJson = null;
+      applyBtn.disabled = true;
       console.error(err);
     }
   });
@@ -298,17 +327,20 @@
   clearPreviewBtn.addEventListener('click', () => {
     fileInput.value = '';
     hide(previewContainer); hide(previewInfoBox);
-    uploadStatus.textContent = ''; uploadStatus.className = 'mt-3 d-none';
+    uploadStatus.textContent = '';
+    uploadStatus.className = 'mt-3 d-none';
     previewTable.querySelector('thead').innerHTML = '';
     previewTable.querySelector('tbody').innerHTML = '';
     previewMeta.textContent = '';
-    lastPayloadJson = null; applyBtn.disabled = true;
+    lastPayloadJson = null;
+    applyBtn.disabled = true;
   });
 
   function renderPreviewTable(columns, rows) {
     const thead = previewTable.querySelector('thead');
     const tbody = previewTable.querySelector('tbody');
-    thead.innerHTML = ''; tbody.innerHTML = '';
+    thead.innerHTML = '';
+    tbody.innerHTML = '';
 
     const trHead = document.createElement('tr');
     columns.forEach(col => {
@@ -337,17 +369,21 @@
     const received = [...new Set(Object.values(mapping).filter(Boolean))];
     received.sort((a,b) => canonOrder.indexOf(a) - canonOrder.indexOf(b));
 
-    // Competency columns = total columns - start index (when detected)
     const compStart = data.competency_starts_at;
     const colCount  = (data.columns_combined || data.columns || []).length;
-    const compCount = (typeof compStart === 'number' && compStart >= 0) ? Math.max(0, colCount - compStart) : 0;
+    const compCount = (typeof compStart === 'number' && compStart >= 0)
+      ? Math.max(0, colCount - compStart)
+      : 0;
 
     let msg = received.length
       ? `Received columns: <strong>${received.join(", ")}</strong>`
       : `No recognised non-competency columns detected`;
 
-    if (compCount > 0) msg += ` + <strong>${compCount}</strong> competency column${plural(compCount)}.`;
-    else msg += '.';
+    if (compCount > 0) {
+      msg += ` + <strong>${compCount}</strong> competency column${plural(compCount)}.`;
+    } else {
+      msg += '.';
+    }
 
     previewInfoBox.className = 'alert alert-info mt-3';
     previewInfoBox.innerHTML = msg;
@@ -369,7 +405,6 @@
       json_data: lastPayloadJson
     };
 
-    // Disable button during submit
     applying = true;
     const oldHtml = applyBtn.innerHTML;
     applyBtn.disabled = true;
@@ -384,24 +419,22 @@
       });
 
       const { ok, data } = await readJsonOrText(res);
-      if (!ok) throw new Error(data.error || 'Upload failed'); // only HTTP/network is fatal
+      if (!ok) throw new Error(data.error || 'Upload failed');
 
-      // Build banner (with link on partial failures)
       const validCount      = (data.valid_students || []).length;
       const unexpectedCount = (data.unexpected_students || []).length;
       const totalCount      = validCount + unexpectedCount;
 
       const term = termSelect.value;
       const year = yearSelect.value;
-      const classUrl = `/Class/${encodeURIComponent(classId)}/${encodeURIComponent(term)}/${encodeURIComponent(year)}`;
+      const classUrl =
+        `/Class/${encodeURIComponent(classId)}/${encodeURIComponent(term)}/${encodeURIComponent(year)}`;
 
       let type, html;
       if (unexpectedCount === 0) {
-        // success grammar → "1 row was processed" vs "2 rows were processed"
         type = 'success';
         html = `${totalCount} ${word(totalCount, 'row', 'rows')} ${wasWere(totalCount)} processed successfully.`;
       } else {
-        // error grammar + explanation + link
         type = 'danger';
         html =
           `Unable to process file — ${unexpectedCount} ${word(unexpectedCount, 'row', 'rows')} ` +
@@ -412,7 +445,7 @@
       }
 
       sessionStorage.setItem('achvUploadBanner', JSON.stringify({ type, html }));
-      window.location.href = window.location.pathname; // reload to show banner
+      window.location.href = window.location.pathname;
 
     } catch (err) {
       sessionStorage.setItem('achvUploadBanner', JSON.stringify({
@@ -422,11 +455,11 @@
       window.location.href = window.location.pathname;
 
     } finally {
-      // In case navigation fails, restore button
       applyBtn.disabled = false;
       applyBtn.innerHTML = oldHtml;
       applying = false;
     }
   });
 </script>
+
 {% endblock %}
