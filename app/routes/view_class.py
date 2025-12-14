@@ -1,29 +1,26 @@
 # app/routes/view_class.py
+
+# ---------------------------
 # Standard library
-import ast
+# ---------------------------
 import base64
-import csv
 import io
 import json
-import os
 import re
-import sys
-import time
 import traceback
-import urllib.parse
 from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
-from io import BytesIO
+import qrcode
+import csv
+import xlrd
 
+# ---------------------------
 # Third-party
+# ---------------------------
 import matplotlib
 matplotlib.use("Agg")  # Prevent GUI backend errors on servers
-import matplotlib.pyplot as plt
 import pandas as pd
-import pyodbc  # For error type
-import qrcode
-import xlrd
-from dateutil.parser import isoparse
+import pyodbc
 from flask import (
     Blueprint,
     abort,
@@ -37,20 +34,9 @@ from flask import (
     session,
     url_for,
 )
-from flask_login import current_user
 from openpyxl import load_workbook
 from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError, SQLAlchemyError
-
-# Local
-from app.routes.auth import login_required
-from app.utils.competencyplot import load_competency_rates, make_figure
-from app.utils.database import get_db_engine, log_alert, get_terms, get_years
-from app.utils.fundernationalplot import create_competency_report
-from app.utils.nationalplot import generate_national_report
-
-# Blueprint
-class_bp = Blueprint("class_bp", __name__)
 
 # Optional: Playwright (conditionally available)
 try:
@@ -58,30 +44,285 @@ try:
 except Exception:
     sync_playwright = None
 
+# ---------------------------
+# Local imports
+# ---------------------------
+from app.routes.auth import login_required
+from app.utils.database import get_db_engine, get_terms, get_years, log_alert
 
+# ---------------------------
+# Blueprint
+# ---------------------------
 class_bp = Blueprint("class_bp", __name__)
 
-from datetime import datetime, timedelta
-from dateutil.parser import isoparse
-from collections import defaultdict
-from flask import request, jsonify
-from sqlalchemy import text
-import time, traceback
+# =========================
+# Tiny Helpers
+# =========================
+
+def _require_int(v, name):
+    try:
+        return int(v)
+    except (TypeError, ValueError):
+        raise ValueError(f"Invalid {name}")
+
+def _safe_filename(name: str) -> str:
+    name = re.sub(r'[\\/*?:"<>|]+', "-", str(name))
+    name = re.sub(r"\s+", " ", name).strip()
+    return name[:200]
+
+def friendly_sql_error(exc: Exception) -> tuple[int, str, int | None]:
+    """
+    Returns (http_status, user_message, sql_error_number) for a DB exception.
+    Works with pyodbc/SQL Server via SQLAlchemy.
+    """
+    raw = str(getattr(exc, "orig", exc))
+
+    # Best-effort extract of SQL Server native error number:
+    # e.g. "... (50010) (SQLExecDirectW)"
+    m = re.search(r"\((\d{5,7})\)\s*\(SQL", raw)  # preferred
+    code = int(m.group(1)) if m else None
+    if code is None:
+        # Fallback: grab a 4–7 digit number if present anywhere
+        m2 = re.search(r"\b(\d{4,7})\b", raw)
+        code = int(m2.group(1)) if m2 else None
+
+    MAP = {
+        50001: (400, "NSN must be numeric."),
+        50002: (400, "First name and last name are required."),
+        50003: (400, "That class could not be found."),
+        50004: (400, "That class is missing its year/term setup."),
+        50006: (500, "We couldn't save the student record. Please try again."),
+        50007: (500, "We couldn't add the student to the class. Please try again."),
+        50008: (409, "Another user updated this student at the same time. Please try again."),
+        50010: (409, "That NSN already exists. Use Search → Add to put them into this class."),
+    }
+    if code in MAP:
+        http, msg = MAP[code]
+        return http, msg, code
+
+    # Common SQL Server duplicate key
+    if code in (2627, 2601):
+        return 409, "A record with this key already exists.", code
+
+    # Uncommittable transaction (3930) message text
+    if "cannot be committed and cannot support operations" in raw:
+        return 500, "We hit a database error and rolled back your changes. Please try again.", code
+
+    # Fallback
+    return 500, "Something went wrong saving this student. Please try again.", code
+
+def _json_error(msg, code=400):
+    return jsonify({"ok": False, "error": msg}), code
+
+# =========================
+# Role / device / request helpers
+# =========================
+def _require_moe_or_adm():
+    role = session.get("user_role")
+    admin = int(session.get("user_admin") or 0)
+    return (role == "MOE" and admin == 1)or role == "ADM"
+
+def _require_moe_or_adm2():
+    role = session.get("user_role")
+    admin = int(session.get("user_admin") or 0)
+    return (role == "MOE")or role == "ADM"
+
+def is_mobile() -> bool:
+    """Very simple UA sniff to block phones/tablets."""
+    try:
+        ua = (request.headers.get("User-Agent") or "").lower()
+    except Exception as e:
+        current_app.logger.debug("UA read failed: %r", e)
+        return False
+    return any(k in ua for k in ("iphone", "android", "ipad", "mobile"))
 
 
-from datetime import datetime, timedelta, timezone
-from collections import defaultdict
-import traceback
-import pandas as pd
-from sqlalchemy import text
-from dateutil.parser import isoparse
+# =========================
+# DB “service” helper
+# =========================
+def _ensure_authorised_for_class(engine, class_id: int) -> None:
+    if session.get("user_role") is None:
+        abort(403, description="You are not authorised to view that page.")
 
-from datetime import datetime, timedelta, timezone
-from collections import defaultdict
-import traceback
-import pandas as pd
-from sqlalchemy import text
-import re as _re
+def _get_class_meta(engine, class_id: int):
+    # Try proc (preferred)
+    try:
+        with engine.begin() as conn:
+            row = conn.execute(
+                text("EXEC FlaskGetClassMeta @ClassID = :cid"),
+                {"cid": class_id}
+            ).mappings().first()
+        if row:
+            return {
+                "ClassName": row.get("ClassName") or f"Class {class_id}",
+                "TeacherName": row.get("TeacherName") or "",
+                "SchoolName": row.get("SchoolName") or "",
+                "MOENumber": row.get("MOENumber"),
+            }
+    except SQLAlchemyError:
+        pass
+    except Exception:
+        pass
+
+    return {"ClassName": f"Class {class_id}", "TeacherName": "", "SchoolName": "", "MOENumber": None}
+
+def _load_class_list_df(engine, class_id: int, term: int, year: int) -> pd.DataFrame:
+    """Replace this EXEC with your real exporter for class list."""
+    print(session.get("user_role"))
+    with engine.begin() as conn:
+        df = pd.read_sql(
+            text("EXEC FlaskExportClassList @ClassID=:cid, @Term=:t, @CalendarYear=:y, @Role=:r")
+,
+            conn, params={"cid": class_id, "t": term, "y": year, "r":session.get("user_role")}
+        )
+    # Optional: preferred ordering
+    #lead = [c for c in ["NSN","LastName","FirstName","PreferredName","YearLevelID","DateOfBirth"] if c in df.columns]
+    #rest = [c for c in df.columns if c not in lead]
+    return  df
+
+def _load_achievements_df(engine, class_id: int, term: int, year: int) -> pd.DataFrame:
+    """Replace this EXEC with your real exporter for achievements table (one row per student)."""
+    with engine.begin() as conn:
+        df = pd.read_sql(
+            text("EXEC FlaskExportAchievements @ClassID=:cid, @Term=:t, @Year=:y"),
+            conn, params={"cid": class_id, "t": term, "y": year}
+        )
+    # Bring identity columns to the front if present
+    lead = [c for c in ["NSN","LastName","PreferredName","YearLevelID"] if c in df.columns]
+    rest = [c for c in df.columns if c not in lead]
+    return df[lead + rest] if lead else df
+
+
+# =========================
+# Export/format helpers
+# =========================
+def generate_qr_code_png(data, box_size=2):
+    qr = qrcode.QRCode(box_size=box_size, border=1)
+    qr.add_data(data)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white").convert("RGB")
+    
+    buffered = io.BytesIO()
+    img.save(buffered, format="PNG")
+    img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
+    return f"data:image/png;base64,{img_str}"
+
+def excel_bytes_writer(df: pd.DataFrame, sheet_name: str = "Sheet1"):
+    """
+    Writes a compact, readable Excel:
+    - Wrapped headers (supports \n in header text)
+    - Narrow default widths (12), slightly wider for name columns
+    - Centered numbers/booleans, wrapped text for others
+    """
+    bio = io.BytesIO()
+    sheet = (sheet_name or "Sheet1")[:31]
+
+    try:
+        with pd.ExcelWriter(bio, engine="xlsxwriter") as writer:
+            df.to_excel(writer, index=False, sheet_name=sheet)
+
+            wb = writer.book
+            ws = writer.sheets[sheet]
+
+            # Formats
+            header_fmt = wb.add_format({
+                "bold": True, "valign": "top", "text_wrap": True,
+                "border": 1, "bg_color": "#F2F2F2"
+            })
+            text_fmt   = wb.add_format({"valign": "top", "text_wrap": True})
+            num_fmt    = wb.add_format({"valign": "vcenter", "align": "center"})
+
+            # Re-write headers with wrapping (supports \n inserted earlier)
+            for j, col in enumerate(df.columns):
+                ws.write(0, j, str(col), header_fmt)
+
+            # Make header row a bit taller for wraps
+            ws.set_row(0, 32)
+
+            # Column width plan
+            default_width = 12
+            width_map = {
+                "NSN": 8,
+                "YearLevelID": 8,
+                "LastName": 16,
+                "Surname": 16,
+                "FirstName": 14,
+                "PreferredName": 14,
+                "DateOfBirth": 11,
+            }
+
+            # Apply widths + sensible default cell formats
+            for j, col in enumerate(df.columns):
+                col_name = str(col)
+                width = width_map.get(col_name, default_width)
+
+                # Choose a default format for the column
+                series = df[col]
+                if pd.api.types.is_numeric_dtype(series) or pd.api.types.is_bool_dtype(series):
+                    col_fmt = num_fmt
+                else:
+                    col_fmt = text_fmt
+
+                ws.set_column(j, j, width, col_fmt)
+
+            # Freeze header
+            ws.freeze_panes(1, 0)
+
+        bio.seek(0)
+        return bio
+
+    except Exception:
+        # Fallback (no styling) if xlsxwriter is missing
+        bio = io.BytesIO()
+        with pd.ExcelWriter(bio, engine="openpyxl") as writer:
+            df.to_excel(writer, index=False, sheet_name=sheet)
+            # Optional: set simple widths in openpyxl
+            try:
+                from openpyxl.utils import get_column_letter
+                ws = writer.sheets[sheet]
+                for j, col in enumerate(df.columns, start=1):
+                    col_name = str(col)
+                    width = width_map.get(col_name, default_width)
+                    ws.column_dimensions[get_column_letter(j)].width = width
+            except Exception:
+                pass
+        bio.seek(0)
+        return bio
+
+# =========================
+# Print/ PDF Pipeline Helpers
+# =========================
+def _render_print_html(engine, class_id: int, term: int, year: int, filter_type: str, order_by: str) -> str:
+    # Reuse your existing context builder; you already had this idea earlier
+    # If you don't have a _build_print_context yet, we can synthesize a tiny wrapper
+    ctx = _build_print_context(engine, class_id, term, year, filter_type, order_by)
+    return render_template("print_view.html", **ctx)
+
+def _html_to_pdf_bytes_with_playwright(html: str, base_url: str | None = None) -> bytes | None:
+    """
+    Returns PDF bytes using Playwright/Chromium, or None if Playwright isn't available
+    or PDF rendering fails for any reason.
+    """
+    if not sync_playwright:
+        return None
+
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True, args=["--no-sandbox"])
+            context = browser.new_context()
+            page = context.new_page()
+            # set_content supports base_url so relative assets resolve
+            page.set_content(html, base_url=base_url, wait_until="load")
+            pdf_bytes = page.pdf(
+                format="A4",
+                print_background=True,
+                margin={"top": "10mm", "right": "10mm", "bottom": "10mm", "left": "10mm"},
+            )
+            browser.close()
+            return pdf_bytes
+    except Exception:
+        current_app.logger.exception("Playwright PDF generation failed")
+        return None
 
 def _build_print_context(engine, class_id: int, term: int, year: int, filter_type: str, order_by: str):
     """
@@ -197,7 +438,10 @@ def _build_print_context(engine, class_id: int, term: int, year: int, filter_typ
     }
 
 
-@class_bp.route('/Class/<int:class_id>/<int:term>/<int:year>')
+# =========================
+# Page Routes
+# =========================
+@class_bp.route('/Classes/<int:class_id>/<int:term>/<int:year>')
 @login_required
 def view_class(class_id, term, year):
     try:
@@ -209,61 +453,7 @@ def view_class(class_id, term, year):
         cache_key   = f"{class_id}_{term}_{year}_{filter_type}"
         class_cache = session.get("class_cache", {})
         cached      = class_cache.get(cache_key)
-        cached = None
-        # ⏳ Cache expiry check
-        if cached:
-            expires_str = cached.get("expires")
-            try:
-                if expires_str and datetime.now(timezone.utc) > isoparse(expires_str):
-                    print(f"🕒 Cache expired for {cache_key}")
-                    class_cache.pop(cache_key, None)
-                    cached = None
-                    session["class_cache"] = class_cache
-            except Exception as e:
-                print("⚠️ Failed to parse cache expiry:", e)
-                class_cache.pop(cache_key, None)
-                cached = None
-                session["class_cache"] = class_cache
-
-        # ✅ Serve from cache (if valid)
-        if cached and "student_competencies" in cached:
-            try:
-                print("✅ Using cached student_competencies")
-                df_combined = pd.DataFrame(cached["student_competencies"])
-
-                key_col = "PreferredName" if order_by == "first" else "LastName"
-                if key_col in df_combined.columns:
-                    df_combined = df_combined.sort_values(
-                        by=key_col,
-                        key=lambda col: col.astype(str).str.lower().fillna('')
-                    )
-
-                comp_df = pd.DataFrame(cached.get("competencies", []))
-                competency_id_map = {}
-                if not comp_df.empty and {"label","CompetencyID"} <= set(comp_df.columns):
-                    competency_id_map = comp_df.set_index("label")["CompetencyID"].to_dict()
-
-                return render_template(
-                    "student_achievement.html",
-                    students=df_combined.to_dict(orient="records"),
-                    columns=[c for c in df_combined.columns if c not in ["DateOfBirth", "Ethnicity", "FirstName", "NSN"]],
-                    competency_id_map=competency_id_map,
-                    scenarios=cached.get("scenarios", []),
-                    class_id=class_id,
-                    class_name=cached.get("class_name", "(Unknown)"),
-                    teacher_name=cached.get("teacher_name", "(Unknown)"),
-                    school_name=cached.get("school_name", "(Unknown)"),
-                    class_title=f"Class Name: {cached.get('class_name', '')} | Teacher Name: {cached.get('teacher_name', '')} | School Name: {cached.get('school_name', '')}",
-                    edit=session.get("user_admin"),
-                    autofill_map=cached.get("autofill_map", {}),
-                    term=term,
-                    year=year,
-                    order_by=order_by,
-                    filter_type=filter_type
-                )
-            except Exception:
-                print("⚠️ Error while rendering from cache:")
-                traceback.print_exc()
+        
 
         # ❌ No valid cache → fetch from DB
         engine = get_db_engine()
@@ -275,24 +465,7 @@ def view_class(class_id, term, year):
             )
             scenarios = [dict(row._mapping) for row in scenario_result]
 
-            # Main data
-            print(
-                text("""
-                    EXEC FlaskGetClassStudentAchievement 
-                        @ClassID = :class_id, 
-                        @Term = :term, 
-                        @CalendarYear = :year, 
-                        @Email = :email, 
-                        @FilterType = :filter
-                """),
-                {
-                    "class_id": class_id,
-                    "term": term,
-                    "year": year,
-                    "email": session.get("user_email"),
-                    "filter": filter_type
-                }
-            )
+           
             result = conn.execute(
                 text("""
                     EXEC FlaskGetClassStudentAchievement 
@@ -387,7 +560,8 @@ def view_class(class_id, term, year):
             if key_col in pivot_df.columns:
                 pivot_df = pivot_df.sort_values(
                     by=key_col,
-                    key=lambda col: col.astype(str).str.lower().fillna('')
+                    key=lambda col: col.fillna("").astype(str).str.lower()
+
                 )
 
             # Rename scenario columns (only if present)
@@ -462,13 +636,10 @@ def view_class(class_id, term, year):
             session["class_cache"] = class_cache
             target = "Basic awareness of potential water-related hazards"
             cols_list = list(pivot_df.columns)
-            #print("🧱 Ordered columns (first 20):", cols_list[:20])
-            #print("🔎 Has 'Basic awareness...' column? ->", any(c.startswith(target) for c in cols_list))
 
             # Also log what the template will receive:
             render_cols = [c for c in pivot_df.columns if c not in ["DateOfBirth","Ethnicity","FirstName","NSN"]]
-            #print("🧾 Columns passed to template (first 20):", render_cols[:20])
-            #print("🔎 In render_cols? ->", any(c.startswith(target) for c in render_cols))
+            
             # Render
             return render_template(
                 "student_achievement.html",
@@ -518,39 +689,100 @@ def view_class(class_id, term, year):
         # user-facing response unchanged
         return "An internal error occurred. Check logs for details.", 500
 
-
-@class_bp.route("/update_class_info", methods=["POST"])
+@class_bp.route('/SchoolClasses', methods=['GET', 'POST'])
 @login_required
-def update_class_info():
-    if session.get("user_admin") != 1:
-        return jsonify(success=False, error="Unauthorized"), 403
-
-    data = request.get_json()
-    class_id = data.get("class_id")
-    class_name = data.get("class_name", "").strip()
-    teacher_name = data.get("teacher_name", "").strip()
+def moe_classes():
+    if session.get("user_role") != "MOE":
+        flash("Unauthorized access", "danger")
+        return redirect(url_for("home_bp.home"))
 
     engine = get_db_engine()
-    with engine.begin() as conn:
-        conn.execute(
-            text("""
-                EXEC FlaskHelperFunctionsSpecific 
-                    @Request = :request,
-                    @ClassID = :class_id,
-                    @ClassName = :class_name,
-                    @TeacherName = :teacher_name
-            """),
-            {
-                "request": "UpdateClassInfo",
-                "class_id": class_id,
-                "class_name": class_name,
-                "teacher_name": teacher_name
-            }
+
+    classes = []
+    students = []
+    suggestions = []
+
+    moe_number   = session.get("user_id")
+    default_term = session.get("nearest_term")
+    default_year = session.get("nearest_year")
+
+    # ✅ Always define these for the template
+    selected_term = default_term
+    selected_year = default_year
+
+    if request.method == "POST":
+        raw_term = (request.form.get("term") or "").strip()
+        raw_year = (request.form.get("calendaryear") or "").strip()
+
+        try:
+            term = int(raw_term)
+            year = int(raw_year)
+            # keep for template
+            selected_term = term
+            selected_year = year
+        except ValueError:
+            flash("Please select a valid term and year.", "warning")
+        else:
+            try:
+                with engine.connect() as conn:
+                    result = conn.execute(
+                        text("""
+                            EXEC FlaskHelperFunctionsSpecific 
+                                @Request   = :Request,
+                                @MOENumber = :moe,
+                                @Term      = :term,
+                                @CalendarYear      = :year
+                        """),
+                        {
+                            "Request": "ClassesBySchoolTermYear",
+                            "moe": moe_number,
+                            "term": term,
+                            "year": year
+                        }
+                    )
+                    classes = [dict(r) for r in result.mappings().all()]
+
+                    if not classes:
+                        sres = conn.execute(
+                            text("""
+                                EXEC FlaskHelperFunctionsSpecific 
+                                    @Request   = :Request,
+                                    @MOENumber = :moe
+                            """),
+                            {"Request": "DistinctTermsForSchool", "moe": moe_number}
+                        )
+                        srows = [dict(r) for r in sres.mappings().all()]
+                        suggestions = [f"{r.get('CalendarYear')} Term {r.get('Term')}" for r in srows]
+
+            except Exception as e:
+                print("\n========== ERROR during DB work (/SchoolClasses) ==========")
+                traceback.print_exc()
+                print("===========================================================\n")
+                current_app.logger.exception("DB error in /SchoolClasses")
+                flash(f"Error loading classes: {e}", "danger")
+
+    # Render (now with selected_term/selected_year)
+    try:
+        return render_template(
+            "moe_classes.html",
+            classes=classes,
+            students=students,
+            suggestions=suggestions,
+            TERM=default_term,
+            YEAR=default_year,
+            years = get_years(),
+            terms = get_terms(),
+            selected_term=selected_term,
+            selected_year=selected_year,
+            desc = session.get('desc')
         )
-    return jsonify(success=True)
-
-
-
+    except Exception as e:
+        print("\n========== ERROR during render_template(moe_classes.html) ==========")
+        traceback.print_exc()
+        print("===================================================================\n")
+        current_app.logger.exception("Template error in moe_classes.html")
+        return (f"<h3>Template rendering failed</h3><pre>{e}</pre>", 500)
+  
 @class_bp.route('/ProviderClasses', methods=['GET', 'POST'])
 @login_required
 def provider_classes():
@@ -616,7 +848,6 @@ def provider_classes():
                     )
                     classes = [row._mapping for row in result.fetchall()]
 
-                    print(classes)
                     if not classes:
                         suggestion_result = conn.execute(
                              text("""
@@ -673,9 +904,7 @@ def funder_classes():
     # ========================
     with engine.connect() as conn:
         if user_role == "GRP":
-            print(group_entities)
-            print(provider_ids)
-            print(funder_ids)
+
             if provider_ids:
                 csv_providers = ",".join(provider_ids)
                 result = conn.execute(
@@ -729,7 +958,7 @@ def funder_classes():
                     {"request": "ClassesBySchoolTermYear", "moe": moe_number, "term": term, "year": year}
                 )
                 classes = [row._mapping for row in result.fetchall()]
-                print(classes)
+
                 if not classes:
                     suggestion_result = conn.execute(
                         text("""EXEC FlaskHelperFunctionsSpecific 
@@ -755,6 +984,105 @@ def funder_classes():
         YEAR=default_year,
         user_role=user_role
     )
+
+@class_bp.route("/Class/print/<int:class_id>/<int:term>/<int:year>")
+@login_required
+def print_class_view(class_id, term, year):
+    try:
+        filter_type = request.args.get("filter") or session.get("last_filter_used", "all")
+        order_by    = request.args.get("order_by", "last")
+
+        engine = get_db_engine()
+        ctx = _build_print_context(engine, class_id, term, year, filter_type, order_by)
+
+        # If no data, you can redirect or render a minimal page:
+        return render_template("print_view.html", **ctx)
+
+    except Exception as e:
+        print("❌ Unhandled error in print_class_view:", e)
+        traceback.print_exc()
+        return "Internal Server Error (print view)", 500
+
+@class_bp.route("/EditClass")
+@login_required
+def class_students_page():
+    # role check
+    if not _require_moe_or_adm2():
+        return _json_error("Forbidden", 403)
+
+    # device check
+    if is_mobile():
+        try:
+            return render_template(
+                "error.html",
+                message="This page is not available on mobile devices.",
+                code=900
+            ), 900
+        except Exception as e:
+            current_app.logger.warning("error.html render failed: %r", e)
+            abort(403, description="This page is not available on mobile devices.")
+
+
+    # normal desktop flow
+    try:
+        return render_template(
+            "class_students.html",
+            current_year=date.today().year, years = get_years(), terms = get_terms()
+        )
+    except Exception:
+        traceback.print_exc()
+        return "<pre>" + traceback.format_exc() + "</pre>", 500
+
+    
+@class_bp.route("/UploadAchievement")
+@login_required
+def achievement_upload():
+    try:
+        
+        return render_template("achievement_upload.html", current_year=date.today().year, years = get_years(), terms = get_terms(), term = session.get("nearest_term"), year = session.get("nearest_year"))
+    except Exception as e:
+        # Print full traceback to console
+        traceback.print_exc()
+        # Optionally, return the traceback in the browser (only in dev!)
+        return f"<pre>{traceback.format_exc()}</pre>", 500
+    
+
+
+# =========================
+# Mutating AJAX routes
+# =========================
+
+@class_bp.route("/update_class_info", methods=["POST"])
+@login_required
+def update_class_info():
+    if session.get("user_admin") != 1:
+        return jsonify(success=False, error="Unauthorized"), 403
+
+    data = request.get_json()
+    class_id = data.get("class_id")
+    class_name = data.get("class_name", "").strip()
+    teacher_name = data.get("teacher_name", "").strip()
+
+    engine = get_db_engine()
+    with engine.begin() as conn:
+        conn.execute(
+            text("""
+                EXEC FlaskHelperFunctionsSpecific 
+                    @Request = :request,
+                    @ClassID = :class_id,
+                    @ClassName = :class_name,
+                    @TeacherName = :teacher_name
+            """),
+            {
+                "request": "UpdateClassInfo",
+                "class_id": class_id,
+                "class_name": class_name,
+                "teacher_name": teacher_name
+            }
+        )
+    return jsonify(success=True)
+
+
 @class_bp.route('/update_competency', methods=['POST'])
 @login_required
 def update_competency():
@@ -812,7 +1140,6 @@ def update_competency():
         print("❌ Exception occurred during update_competency:")
         traceback.print_exc()
         return jsonify({"success": False, "error": str(e)}), 500
-
 
 @class_bp.route("/update_scenario", methods=["POST"])
 @login_required
@@ -874,131 +1201,492 @@ def update_scenario():
         traceback.print_exc()
         return jsonify(success=False, error=str(e)), 500
 
-
-@class_bp.route('/Reporting', methods=["GET", "POST"])
+@class_bp.route("/class_bp/add_class", methods=["POST"])
 @login_required
-def reporting():
-    global last_pdf_generated, last_pdf_filename, last_png_generated, last_png_filename
+def add_class():
+    data = request.get_json(silent=True) or {}
+    moe   = data.get("moenumber")
+    term  = data.get("term")
+    year  = data.get("year")
+    cname = (data.get("class_name") or "").strip()
+    tname = (data.get("teacher_name") or "").strip()
+
+    # Basic validation
+    try:
+        if not moe:
+            return _json_error("Missing 'moenumber'")
+        term = _require_int(term, "term")
+        year = _require_int(year, "year")
+        if not cname:
+            return _json_error("Missing 'class_name'")
+        if not tname:
+            return _json_error("teacher_name is required")
+    except ValueError as e:
+        return _json_error(str(e))
 
     engine = get_db_engine()
-    role = session.get("user_role")
-    user_id = session.get("user_id")
+    try:
+        with engine.begin() as conn:
+            # Use an OUTPUT parameter pattern to get new ClassID
+            # We capture it with a temp table and select it.
+            stmt = text("""
+                EXEC FlaskHelperFunctionsSpecific
+                    @Request = 'AddClass',
+                    @MOENumber = :moe,
+                    @Term = :term,
+                    @CalendarYear = :year,
+                    @ClassName = :cname,
+                    @TeacherName = :tname
+            """)
+            row = conn.execute(stmt, {
+                "moe": moe,
+                "term": term,
+                "year": year,
+                "cname": cname,
+                "tname": tname
+            }).fetchone()
 
-    funders = []
-    competencies = []
-    img_data = None
-    report_type = None
-    term = None
-    year = None
-    funder_name = None
-    dropdown_string = None
+            new_id = row._mapping["NewClassID"] if row else None
 
-    with engine.connect() as conn:
-        if role == "ADM":
-            result = conn.execute(text("EXEC FlaskHelperFunctions :Request"), {"Request": "FunderDropdown"})
-            funders = [row.Description for row in result]
+        if not new_id:
+            return _json_error("Class was not created (no id returned).", 500)
 
-        result = conn.execute(text("EXEC FlaskHelperFunctions :Request"), {"Request": "CompetencyDropdown"})
-        competencies = [row.Competency for row in result]
-    #print("Session dump:", dict(session), file=sys.stderr)
+        return jsonify({"ok": True, "class_id": new_id, "name": cname, "teacher": tname})
+    except SQLAlchemyError as e:
+        return _json_error(f"Database error adding class: {str(e)}", 500)
 
-    if request.method == "POST":
-        report_type = request.form.get("report_type")
-        term = int(request.form.get("term"))
-        year = int(request.form.get("year"))
-        funder_name = request.form.get("funder") or session.get("desc")
-        #print(request.form.get("funder"))
-        #print(session.get("desc"))
-        if report_type == "Funder":
-            with engine.connect() as conn:
-                result = conn.execute(
-                    text("EXEC FlaskHelperFunction @Request =:Request, Text = :Description"),
-                    {"Request":"FunderIDDescription","Description": funder_name}
-                )
-                row = result.fetchone()
-
-            if not row:
-                flash("Funder not found.", "danger")
-                return redirect(url_for("class_bp.reporting"))
-
-            funder_id = int(row.FunderID)
-            fig = create_competency_report(term, year, funder_id, funder_name)
-
-            png_buf = io.BytesIO()
-            plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
-            fig.savefig(png_buf, format="png")
-            png_buf.seek(0)
-            img_data = base64.b64encode(png_buf.getvalue()).decode("utf-8")
-
-            last_png_generated = io.BytesIO(png_buf.getvalue())
-
-            pdf_buf = io.BytesIO()
-            fig.savefig(pdf_buf, format="pdf")
-            pdf_buf.seek(0)
-            last_pdf_generated = pdf_buf
-            last_pdf_filename = f"{report_type}_Report_{funder_name}_{term}_{year}.pdf"
-
-            plt.close(fig)
-
-        elif report_type == "Competency":
-            dropdown_string = request.form.get("competency")
-
-            with engine.connect() as conn:
-                result = conn.execute(
-                    text("EXEC GetCompetencyIDsFromDropdown :DropdownValue"),
-                    {"DropdownValue": dropdown_string}
-                )
-                row = result.fetchone()
-
-            if not row:
-                flash("Invalid competency selected.", "danger")
-                return redirect(url_for("class_bp.reporting"))
-
-            competency_id = row.CompetencyID
-            year_group_id = row.YearGroupID
-
-            df = load_competency_rates(engine, year, term, competency_id, year_group_id)
-            if df.empty:
-                flash("No data found.", "warning")
-                return redirect(url_for("class_bp.reporting"))
-
-            title = f"{df['CompetencyDesc'].iloc[0]} ({df['YearGroupDesc'].iloc[0]})"
-            fig = make_figure(df, title)
-
-            png_buf = io.BytesIO()
-            plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
-            fig.savefig(png_buf, format="png")
-            png_buf.seek(0)
-            img_data = base64.b64encode(png_buf.read()).decode("utf-8")
-
-            last_png_generated = io.BytesIO(png_buf.getvalue())
-            last_png_filename = f"{report_type}_Report_{dropdown_string.replace(' ', '_')}_{term}_{year}.png"
-
-            pdf_buf = io.BytesIO()
-            fig.savefig(pdf_buf, format="pdf")
-            pdf_buf.seek(0)
-            last_pdf_generated = pdf_buf
-            last_pdf_filename = f"{report_type}_Report_{dropdown_string.replace(' ', '_')}_{term}_{year}.pdf"
-
-            plt.close(fig)
-
-    return render_template(
-        "reporting.html",
-        funders=funders,
-        competencies=competencies,
-        selected_report_type=report_type,
-        selected_term=term,
-        selected_year=year,
-        selected_funder=funder_name,
-        selected_competency=dropdown_string,
-        img_data=img_data,
-        user_role=role
-    )
-
-@class_bp.route("/comingsoon")
+@class_bp.route("/add_student", methods=["POST"])
 @login_required
-def comingsoon():
-    return render_template("comingsoon.html")
+def add_student_to_class():
+
+    if not _require_moe_or_adm():
+        return _json_error("Forbidden", 403)
+
+    # --- Parse body without consuming the stream ---
+    # get_data() defaults cache=True, so get_json() can still read it.
+    raw = request.get_data(as_text=True)
+
+    data = request.get_json(silent=True)
+    if data is None and raw:
+        # Fallback: try manual JSON load (handles wrong Content-Type)
+        try:
+            data = json.loads(raw)
+        except Exception as e:
+            return _json_error("Invalid JSON", 400)
+    elif data is None:
+        return _json_error("Invalid JSON", 400)
+
+
+    nsn = data.get("nsn")
+    class_id = data.get("class_id")
+    year_level = data.get("year_level")
+
+    # normalize year_level: empty string -> None
+    if year_level in ("", None):
+        year_level = None
+
+   
+
+    if not (nsn and class_id):
+        return _json_error("nsn and class_id are required")
+
+    try:
+        engine = get_db_engine()
+        sql = "EXEC FlaskAddStudentToClass @NSN=:n, @ClassID=:cid, @YearLevelID=:yl"
+        params = {"n": nsn, "cid": class_id, "yl": year_level}
+
+        with engine.begin() as conn:
+            conn.execute(text(sql), params)
+
+        return jsonify({"ok": True})
+    except Exception as e:
+        traceback.print_exc()
+        return _json_error("Failed to add student to class", 500)
+
+@class_bp.route("/create_student_and_add", methods=["POST"])
+@login_required
+def create_student_and_add():
+    if not _require_moe_or_adm():
+        return _json_error("Forbidden", 403)
+
+    d = request.get_json(silent=True) or {}
+    class_id   = d.get("class_id")
+    student    = d.get("student") or {}
+    year_level = d.get("year_level")
+    term_in    = d.get("term")   # may be None; proc can derive
+    year_in    = d.get("year")   # may be None; proc can derive
+
+    if not class_id:
+        return _json_error("class_id is required")
+    nsn = student.get("NSN")
+    if nsn in (None, "", []):
+        return _json_error("NSN is required and must be numeric")
+    try:
+        nsn = int(str(nsn).strip())
+    except ValueError:
+        return _json_error("NSN must be numeric")
+    if not (student.get("FirstName") and student.get("LastName")):
+        return _json_error("Student FirstName and LastName are required")
+    print(student)
+    first = (student.get("FirstName") or "").strip()
+    last  = (student.get("LastName")  or "").strip()
+    pref  = (student.get("PreferredName") or None)
+    dob   = (student.get("DateOfBirth") or None)
+    eth   = (student.get("EthnicityID") or 0)
+    yl    = (year_level if year_level not in ("", None) else None)
+    term  = None if term_in in ("", None) else str(term_in)
+    year  = year_in  # pass through (None is fine)
+
+    eng = get_db_engine()
+    try:
+        with eng.begin() as conn:
+            # Optional: stamp session context for SQL audit triggers
+            try:
+                acting = getattr(current_user, "email", None) or session.get("user_email") or "flaskuser"
+                conn.exec_driver_sql(
+                    "EXEC sys.sp_set_session_context @key=N'wsfl_user', @value=?",
+                    (acting,)
+                )
+            except Exception:
+                pass
+
+            conn.exec_driver_sql("""
+                SET NOCOUNT ON;
+                DECLARE @NSN BIGINT = ?;
+                EXEC  FlaskCreateStudentAddToClassAndSeed
+                     @NSN=@NSN OUTPUT,
+                     @FirstName=?, @LastName=?, @PreferredName=?, @DateOfBirth=?, @EthnicityID=?,
+                     @ClassID=?, @CalendarYear=?, @Term=?, @YearLevelID=?,
+                     @SeedScenarios=1, @SeedCompetencies=1;
+            """, (nsn, first, last, pref, dob, eth, class_id, year, term, yl))
+
+        return jsonify({"ok": True, "nsn": nsn, "class_id": class_id})
+
+    except DBAPIError as e:
+        status, friendly, sql_code = friendly_sql_error(e)
+        current_app.logger.exception("create_student_and_add failed (sql=%s)", sql_code)
+        return jsonify({"ok": False, "error": friendly, "sql_error": sql_code}), status
+    except Exception as e:
+        current_app.logger.exception("create_student_and_add failed (non-DB)")
+        return jsonify({"ok": False, "error": "Unexpected error. Please try again."}), 500
+    
+@class_bp.route("/apply_upload", methods=["POST"])
+@login_required
+def apply_upload():
+    """
+    Body:
+      { "class_id": 123, "dry_run": 1, "json_data": [ {...}, ... ] }
+
+    Returns JSON the UI can show:
+      {
+        "ok": true/false,
+        "status": {"ok": true/false, "message": "...", "count": N},
+        "dry_run": 1,
+        "term_context": {...},              # from TERM_CONTEXT
+        "unexpected_students": [...],       # Info = UNEXPECTED_STUDENT
+        "valid_students": [...],            # Info = VALID_STUDENT
+        "competency_rows": [...],           # Info = COMPETENCY_ROWS
+        "scenario_rows": [...],             # Info = SCENARIO_ROWS
+        "merge_preview": []                 # kept for backward UI compatibility
+      }
+    """
+
+    engine = get_db_engine()
+
+    def _row_to_dict(cols, row):
+        d = {}
+        for k, v in zip(cols, row):
+            # Make dates/datetimes JSON serializable
+            if hasattr(v, "isoformat"):
+                v = v.isoformat()
+            d[k] = v
+        return d
+
+    try:
+        payload  = request.get_json(silent=True) or {}
+        class_id = int(payload.get("class_id") or 0)
+        dry_run  = 0 
+        rows     = payload.get("json_data")
+        if not class_id:
+            return jsonify({"ok": False, "error": "Missing class_id"}), 400
+        if not isinstance(rows, list) or not rows:
+            return jsonify({"ok": False, "error": "json_data must be a non-empty array"}), 400
+
+        json_str = json.dumps(rows, ensure_ascii=False)
+
+        # Buckets for proc outputs
+        term_context         = {}
+        unexpected_students  = []
+        valid_students       = []
+        competency_rows      = []
+        scenario_rows        = []
+        merge_preview        = []   # keep for UI compatibility
+        status_rows_raw      = []   # if proc ever returns Ok/Message/Count again
+
+        conn = engine.raw_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                DECLARE @j NVARCHAR(MAX) = ?,
+                        @cid INT         = ?,
+                        @dry BIT         = ?;
+                EXEC  FlaskAchievementUpload
+                     @ClassID=@cid, @JsonData=@j, @DryRun=@dry;
+                """,
+                (json_str, class_id, dry_run)
+            )
+
+            while True:
+                if cursor.description:
+                    cols = [c[0] for c in cursor.description]
+                    rows_rs = cursor.fetchall()
+
+                    # Route by "Info" label when present
+                    if "Info" in cols and rows_rs:
+                        info_idx = cols.index("Info")
+                        info_val = str(rows_rs[0][info_idx] or "")
+
+                        # helper: strip Info key from dicts
+                        def _rows_without_info():
+                            out = []
+                            for r in rows_rs:
+                                d = _row_to_dict(cols, r)
+                                d.pop("Info", None)
+                                out.append(d)
+                            return out
+
+                        if info_val == "TERM_CONTEXT":
+                            # single row expected
+                            d = _row_to_dict(cols, rows_rs[0])
+                            d.pop("Info", None)
+                            term_context = d
+
+                        elif info_val == "UNEXPECTED_STUDENT":
+                            unexpected_students.extend(_rows_without_info())
+
+                        elif info_val == "VALID_STUDENT":
+                            valid_students.extend(_rows_without_info())
+
+                        elif info_val == "COMPETENCY_ROWS":
+                            competency_rows.extend(_rows_without_info())
+
+                        elif info_val == "SCENARIO_ROWS":
+                            scenario_rows.extend(_rows_without_info())
+
+                        else:
+                            # Unknown Info label; ignore or log
+                            pass
+
+                    # Legacy status rows (Ok/Message/Count) if they ever show up
+                    elif {"Ok", "Message"}.issubset(set(cols)):
+                        for r in rows_rs:
+                            d = _row_to_dict(cols, r)
+                            status_rows_raw.append(d)
+
+                    # Old "merge preview" (not emitted by current proc) – keep for safety
+                    elif {"Action", "NSN", "CompetencyID", "YearGroupID"}.issubset(set(cols)):
+                        for r in rows_rs:
+                            d = _row_to_dict(cols, r)
+                            d.pop("Info", None)
+                            merge_preview.append(d)
+
+                if not cursor.nextset():
+                    break
+
+            cursor.close()
+            conn.commit()
+        finally:
+            conn.close()
+
+        # Compute status:
+        # Not OK if there are unexpected students; otherwise OK.
+        if unexpected_students:
+            status_obj = {
+                "ok": False,
+                "message": "Some uploaded students are not linked to this class.",
+                "count": len(unexpected_students)
+            }
+            overall_ok = False
+        else:
+            status_obj = {
+                "ok": True,
+                "message": "Ready to apply.",
+                "count": len(valid_students)
+            }
+            overall_ok = True
+
+        # If the proc DID return Ok/Message/Count, you could override with the last row:
+        if status_rows_raw:
+            last = status_rows_raw[-1]
+            status_obj = {
+                "ok": bool(last.get("Ok")),
+                "message": last.get("Message"),
+                "count": int(last.get("Count") or 0),
+            }
+            overall_ok = status_obj["ok"]
+
+        valid_count      = len(valid_students)
+        unexpected_count = len(unexpected_students)
+        total_count      = valid_count + unexpected_count
+
+        summary = {
+            "success": unexpected_count == 0,  # True when all rows are valid
+            "dry_run": bool(dry_run),
+            "total_rows": total_count,
+            "valid_rows": valid_count,
+            "unexpected_rows": unexpected_count,
+        }
+
+        return jsonify({
+            "ok": overall_ok,                 # keep for compatibility; UI shouldn't throw on False
+            "status": status_obj,
+            "dry_run": dry_run,
+            "term_context": term_context,
+            "unexpected_students": unexpected_students,
+            "valid_students": valid_students,
+            "competency_rows": competency_rows,
+            "scenario_rows": scenario_rows,
+            "merge_preview": merge_preview,
+            "summary": summary,              # <-- new, drives the simple banner
+        })
+
+    except pyodbc.ProgrammingError as e:
+        traceback.print_exc()
+        return jsonify({"ok": False, "error": str(e)}), 500
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+# ---- API: remove student from class ----
+@class_bp.route("/remove_from_class", methods=["POST"])
+@login_required
+def remove_from_class():
+    if not _require_moe_or_adm():
+        return _json_error("Forbidden", 403)
+
+    d = request.get_json(force=True)
+    nsn = d.get("nsn")
+    class_id = d.get("class_id")
+    if not (nsn and class_id):
+        return _json_error("nsn and class_id are required")
+
+    engine = get_db_engine()
+    with engine.begin() as conn:
+        conn.execute(
+            text("EXEC FlaskRemoveStudentFromClass @NSN=:n, @ClassID=:cid, @PerformedByEmail=:em"),
+            {"n": nsn, "cid": class_id, "em": session.get("user_email")}
+        )
+    return jsonify({"ok": True})
+
+@class_bp.route("/move-class", methods=["POST"])
+@login_required
+def move_class():
+  try:
+    data = request.get_json(force=True) or {}
+    class_id = int(data.get("class_id"))
+    new_term = int(data.get("term"))
+    new_year = int(data.get("year"))
+
+    engine = get_db_engine()
+    with engine.begin() as conn:
+      conn.execute(
+        text("""
+          EXEC ChangeClassTerm
+               @ClassID        = :class_id,
+               @NewTerm        = :new_term,
+               @NewCalendarYear = :new_year
+        """),
+        {
+          "class_id": class_id,
+          "new_term": new_term,
+          "new_year": new_year,
+        },
+      )
+
+    return jsonify({"ok": True})
+  except Exception as e:
+    current_app.logger.exception("Move class failed")
+    return jsonify({"ok": False, "error": str(e)}), 500
+
+@class_bp.route("/delete-class", methods=["POST"])
+@login_required
+def delete_class():
+    """
+    AJAX endpoint to delete a class via DeleteClass stored procedure.
+    Expects JSON: {"class_id": <int>}
+    Returns JSON: {"ok": true} or {"ok": false, "error": "..."}
+    """
+
+    # Parse input
+    try:
+        payload = request.get_json(force=True) or {}
+        class_id = int(payload.get("class_id", 0))
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "error": "Invalid class ID."}), 400
+
+    if class_id <= 0:
+        return jsonify({"ok": False, "error": "Missing or invalid class ID."}), 400
+
+    engine = get_db_engine()
+
+    try:
+        with engine.begin() as conn:
+            conn.execute(
+                text("EXEC dbo.DeleteClass @ClassID = :cid"),
+                {"cid": class_id},
+            )
+
+        # If the proc RAISERRORs, we won't get here (exception is thrown)
+        return jsonify({"ok": True})
+
+    except Exception as e:
+        # Log full stack trace server-side
+        current_app.logger.exception("DeleteClass failed for ClassID=%s", class_id)
+
+        # Try to surface a helpful message to the UI
+        msg = str(e)
+        # If it's a SQLAlchemy DBAPI error, the SQL Server message is often in e.orig
+        try:
+            if hasattr(e, "orig") and hasattr(e.orig, "args") and e.orig.args:
+                msg = str(e.orig.args[0])
+        except Exception:
+            pass
+
+        return jsonify({"ok": False, "error": msg}), 500
+ 
+# =========================
+# Read only API Routes
+# =========================
+@class_bp.route("/update_student", methods=["POST"])
+@login_required
+def update_student():
+    if not _require_moe_or_adm():
+        return _json_error("Forbidden", 403)
+
+    d = request.get_json(force=True)
+    # expects NSN + updated fields (FirstName, LastName, PreferredName, EthnicityID)
+    engine = get_db_engine()
+    with engine.begin() as conn:
+        conn.execute(
+            text("""
+                EXEC FlaskUpdateStudent
+                    @NSN=:nsn,
+                    @FirstName=:fn,
+                    @LastName=:ln,
+                    @PreferredName=:pn,
+                    @EthnicityID=:eth
+            """),
+            {
+                "nsn": d.get("NSN"),
+                "fn": d.get("FirstName"),
+                "ln": d.get("LastName"),
+                "pn": d.get("PreferredName"),
+                "eth": d.get("EthnicityID"),
+            }
+        )
+    return jsonify({"ok": True})
+
 
 @class_bp.route("/get_schools_by_group")
 @login_required
@@ -1112,7 +1800,6 @@ def get_schools_by_provider():
         schools = [dict(row._mapping) for row in result]
     return jsonify(schools)
 
-
 @class_bp.route('/get_schools_by_funder')
 @login_required
 def get_schools_by_funder():
@@ -1155,304 +1842,174 @@ def get_schools_by_funder():
         schools = [dict(row._mapping) for row in result]
     return jsonify(schools)
 
-@class_bp.route('/SchoolClasses', methods=['GET', 'POST'])
+@class_bp.route("/class_bp/get_classes_by_school")
 @login_required
-def moe_classes():
-    if session.get("user_role") != "MOE":
-        flash("Unauthorized access", "danger")
-        return redirect(url_for("home_bp.home"))
+def get_classes_by_school():
+    moe  = request.args.get("moe")
+    term = request.args.get("term")
+    year = request.args.get("year")
+
+    try:
+        if not moe:
+            return _json_error("Missing 'moe'")
+        term = _require_int(term, "term")
+        year = _require_int(year, "year")
+    except ValueError as e:
+        return _json_error(str(e))
 
     engine = get_db_engine()
-
-    classes = []
-    students = []
-    suggestions = []
-
-    moe_number   = session.get("user_id")
-    default_term = session.get("nearest_term")
-    default_year = session.get("nearest_year")
-
-    # ✅ Always define these for the template
-    selected_term = default_term
-    selected_year = default_year
-
-    if request.method == "POST":
-        raw_term = (request.form.get("term") or "").strip()
-        raw_year = (request.form.get("calendaryear") or "").strip()
-
-        try:
-            term = int(raw_term)
-            year = int(raw_year)
-            # keep for template
-            selected_term = term
-            selected_year = year
-        except ValueError:
-            flash("Please select a valid term and year.", "warning")
-        else:
-            try:
-                with engine.connect() as conn:
-                    result = conn.execute(
-                        text("""
-                            EXEC FlaskHelperFunctionsSpecific 
-                                @Request   = :Request,
-                                @MOENumber = :moe,
-                                @Term      = :term,
-                                @CalendarYear      = :year
-                        """),
-                        {
-                            "Request": "ClassesBySchoolTermYear",
-                            "moe": moe_number,
-                            "term": term,
-                            "year": year
-                        }
-                    )
-                    classes = [dict(r) for r in result.mappings().all()]
-
-                    if not classes:
-                        sres = conn.execute(
-                            text("""
-                                EXEC FlaskHelperFunctionsSpecific 
-                                    @Request   = :Request,
-                                    @MOENumber = :moe
-                            """),
-                            {"Request": "DistinctTermsForSchool", "moe": moe_number}
-                        )
-                        srows = [dict(r) for r in sres.mappings().all()]
-                        suggestions = [f"{r.get('CalendarYear')} Term {r.get('Term')}" for r in srows]
-
-            except Exception as e:
-                print("\n========== ERROR during DB work (/SchoolClasses) ==========")
-                traceback.print_exc()
-                print("===========================================================\n")
-                app.logger.exception("DB error in /SchoolClasses")
-                flash(f"Error loading classes: {e}", "danger")
-
-    # Render (now with selected_term/selected_year)
-    try:
-        return render_template(
-            "moe_classes.html",
-            classes=classes,
-            students=students,
-            suggestions=suggestions,
-            TERM=default_term,
-            YEAR=default_year,
-            years = get_years(),
-            terms = get_terms(),
-            selected_term=selected_term,
-            selected_year=selected_year,
-            desc = session.get('desc')
-        )
-    except Exception as e:
-        print("\n========== ERROR during render_template(moe_classes.html) ==========")
-        traceback.print_exc()
-        print("===================================================================\n")
-        app.logger.exception("Template error in moe_classes.html")
-        return (f"<h3>Template rendering failed</h3><pre>{e}</pre>", 500)
-def generate_qr_code_png(data, box_size=2):
-    qr = qrcode.QRCode(box_size=box_size, border=1)
-    qr.add_data(data)
-    qr.make(fit=True)
-    img = qr.make_image(fill_color="black", back_color="white").convert("RGB")
-    
-    buffered = BytesIO()
-    img.save(buffered, format="PNG")
-    img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
-    return f"data:image/png;base64,{img_str}"
-@class_bp.route("/Class/print/<int:class_id>/<int:term>/<int:year>")
-@login_required
-def print_class_view(class_id, term, year):
-    try:
-        filter_type = request.args.get("filter") or session.get("last_filter_used", "all")
-        order_by    = request.args.get("order_by", "last")
-
-        engine = get_db_engine()
-        ctx = _build_print_context(engine, class_id, term, year, filter_type, order_by)
-
-        # If no data, you can redirect or render a minimal page:
-        return render_template("print_view.html", **ctx)
-
-    except Exception as e:
-        print("❌ Unhandled error in print_class_view:", e)
-        traceback.print_exc()
-        return "Internal Server Error (print view)", 500
-
-# =========================
-# ⭐ Add to app/routes/class.py (where class_bp is defined)
-# =========================
-import io
-import re
-from datetime import datetime
-
-import pandas as pd
-from sqlalchemy import text
-from flask import request, send_file, render_template, render_template_string, session, abort
-
-from app.utils.database import get_db_engine
-
-# ---- helpers ----
-SAFE_FN = re.compile(r"[^-_.() a-zA-Z0-9]+")
-
-def safe_filename(s: str) -> str:
-    s = (s or "").strip() or "export"
-    s = SAFE_FN.sub("_", s)
-    return s[:140]
-def excel_bytes_writer(df: pd.DataFrame, sheet_name: str = "Sheet1"):
-    """
-    Writes a compact, readable Excel:
-    - Wrapped headers (supports \n in header text)
-    - Narrow default widths (12), slightly wider for name columns
-    - Centered numbers/booleans, wrapped text for others
-    """
-    bio = io.BytesIO()
-    sheet = (sheet_name or "Sheet1")[:31]
-
-    try:
-        with pd.ExcelWriter(bio, engine="xlsxwriter") as writer:
-            df.to_excel(writer, index=False, sheet_name=sheet)
-
-            wb = writer.book
-            ws = writer.sheets[sheet]
-
-            # Formats
-            header_fmt = wb.add_format({
-                "bold": True, "valign": "top", "text_wrap": True,
-                "border": 1, "bg_color": "#F2F2F2"
-            })
-            text_fmt   = wb.add_format({"valign": "top", "text_wrap": True})
-            num_fmt    = wb.add_format({"valign": "vcenter", "align": "center"})
-
-            # Re-write headers with wrapping (supports \n inserted earlier)
-            for j, col in enumerate(df.columns):
-                ws.write(0, j, str(col), header_fmt)
-
-            # Make header row a bit taller for wraps
-            ws.set_row(0, 32)
-
-            # Column width plan
-            default_width = 12
-            width_map = {
-                "NSN": 8,
-                "YearLevelID": 8,
-                "LastName": 16,
-                "Surname": 16,
-                "FirstName": 14,
-                "PreferredName": 14,
-                "DateOfBirth": 11,
-            }
-
-            # Apply widths + sensible default cell formats
-            for j, col in enumerate(df.columns):
-                col_name = str(col)
-                width = width_map.get(col_name, default_width)
-
-                # Choose a default format for the column
-                series = df[col]
-                if pd.api.types.is_numeric_dtype(series) or pd.api.types.is_bool_dtype(series):
-                    col_fmt = num_fmt
-                else:
-                    col_fmt = text_fmt
-
-                ws.set_column(j, j, width, col_fmt)
-
-            # Freeze header
-            ws.freeze_panes(1, 0)
-
-        bio.seek(0)
-        return bio
-
-    except Exception:
-        # Fallback (no styling) if xlsxwriter is missing
-        bio = io.BytesIO()
-        with pd.ExcelWriter(bio, engine="openpyxl") as writer:
-            df.to_excel(writer, index=False, sheet_name=sheet)
-            # Optional: set simple widths in openpyxl
-            try:
-                from openpyxl.utils import get_column_letter
-                ws = writer.sheets[sheet]
-                for j, col in enumerate(df.columns, start=1):
-                    col_name = str(col)
-                    width = width_map.get(col_name, default_width)
-                    ws.column_dimensions[get_column_letter(j)].width = width
-            except Exception:
-                pass
-        bio.seek(0)
-        return bio
-
-def _get_class_meta(engine, class_id: int):
-    """Fetch class/teacher/school names. Falls back if SELECT is denied."""
-    # TRY a proc first (if you add one later, this will just start working)
     try:
         with engine.begin() as conn:
-            row = conn.execute(
-                text("EXEC FlaskGetClassMeta @ClassID = :cid"),
-                {"cid": class_id}
-            ).mappings().first()
-        if row:
-            return {
-                "ClassName":   row.get("ClassName")  or f"Class {class_id}",
-                "TeacherName": row.get("TeacherName") or "",
-                "SchoolName":  row.get("SchoolName") or "",
-                "MOENumber":   row.get("MOENumber"),
+            # Stored proc returns: ClassID, ClassName, TeacherName
+            stmt = text("""
+                EXEC [FlaskHelperFunctionsSpecific]
+                @Request = :r,
+                     @MOENumber = :moe,
+                     @Term = :term,
+                     @CalendarYear = :year
+            """)
+            rows = conn.execute(stmt, {"r":"AllClassesBySchoolTermYear","moe": moe, "term": term, "year": year}).fetchall()
+            print(rows)
+        out = [
+            {
+                "id": r._mapping["ClassID"],
+                "name": r._mapping["ClassName"],
+                "teacher": r._mapping.get("TeacherName")
             }
+            for r in rows
+        ]
+        return jsonify(out)
+    except SQLAlchemyError as e:
+        return _json_error(f"Database error loading classes: {str(e)}", 500)
+
+# ---- API: classes for a school/term/year ----
+@class_bp.route("/classes_for_term")
+@login_required
+def classes_for_term():
+    if not _require_moe_or_adm():
+        return _json_error("Forbidden", 403)
+
+    try:
+        moe = int(request.args["moe"])       # MOENumber (School ID)
+        term = request.args["term"]
+        year = int(request.args["year"])
     except Exception:
-        pass  # proc doesn't exist or not permitted—fall through to SELECT attempt
+        return _json_error("Missing or invalid parameters")
 
-    
-    except SQLAlchemyError:
-        # SELECT permission denied or other error—fallback
-        pass
-
-    # FINAL FALLBACK: no metadata available
-    return {
-        "ClassName":   f"Class {class_id}",
-        "TeacherName": "",
-        "SchoolName":  "",
-        "MOENumber":   None,
-    }
-
-def _load_class_list_df(engine, class_id: int, term: int, year: int) -> pd.DataFrame:
-    """Replace this EXEC with your real exporter for class list."""
-    print(session.get("user_role"))
+    engine = get_db_engine()
     with engine.begin() as conn:
-        df = pd.read_sql(
-            text("EXEC FlaskExportClassList @ClassID=:cid, @Term=:t, @CalendarYear=:y, @Role=:r")
-,
-            conn, params={"cid": class_id, "t": term, "y": year, "r":session.get("user_role")}
-        )
-    # Optional: preferred ordering
-    #lead = [c for c in ["NSN","LastName","FirstName","PreferredName","YearLevelID","DateOfBirth"] if c in df.columns]
-    #rest = [c for c in df.columns if c not in lead]
-    return  df
+        # You create this proc to list classes by school/term/year
+        rows = conn.execute(
+            text("EXEC FlaskGetClassesForTerm @MOENumber=:m, @Term=:t, @CalendarYear=:y"),
+            {"m": moe, "t": term, "y": year}
+        ).fetchall()
 
-def _load_achievements_df(engine, class_id: int, term: int, year: int) -> pd.DataFrame:
-    """Replace this EXEC with your real exporter for achievements table (one row per student)."""
+    out = [{"id": r._mapping["ClassID"], "name": r._mapping["ClassName"]} for r in rows]
+    return jsonify(out)
+
+# ---- API: get students in a class ----
+@class_bp.route("/students/<int:class_id>")
+@login_required
+def get_class_students(class_id):
+    if not _require_moe_or_adm():
+        return _json_error("Forbidden", 403)
+
+    engine = get_db_engine()
     with engine.begin() as conn:
-        df = pd.read_sql(
-            text("EXEC FlaskExportAchievements @ClassID=:cid, @Term=:t, @Year=:y"),
-            conn, params={"cid": class_id, "t": term, "y": year}
+        rows = conn.execute(
+            text("EXEC FlaskGetClassStudents @ClassID=:cid"),
+            {"cid": class_id}
+        ).fetchall()
+
+    # expected columns from your proc:
+    # NSN, FirstName, PreferredName, LastName, YearLevel, Ethnicity, DateOfBirth
+    out = []
+    for r in rows:
+        m = r._mapping
+        out.append({
+            "NSN": m.get("NSN"),
+            "FirstName": m.get("FirstName"),
+            "PreferredName": m.get("PreferredName"),
+            "LastName": m.get("LastName"),
+            "YearLevel": m.get("YearLevelID"),
+            "Ethnicity": m.get("Ethnicity"),
+            "DateOfBirth": str(m.get("DateOfBirth") or "")[:10],
+            "Deletable": m.get("Deletable")
+        })
+    return jsonify(out)
+
+@class_bp.route("/search_students")
+@login_required
+def search_students():
+    q        = (request.args.get("q") or "").strip()
+    moe      = request.args.get("moe", type=int)
+    class_id = request.args.get("class_id", type=int)
+
+    print(f"🔎 /search_students called: q='{q}', moe={moe}, class_id={class_id}")
+
+    # Require both a school and a non-empty query
+    if not (moe and q):
+        print("➡️  Missing moe or query → returning empty list")
+        return jsonify([])
+
+    eng = get_db_engine()
+    try:
+        with eng.begin() as conn:
+            print("➡️  Executing stored proc FlaskSearchStudentsForSchool_AllTime…")
+            rows = conn.execute(
+                text(
+                    "EXEC FlaskSearchStudentsForSchool_AllTime "
+                    "@MOENumber=:moe, @Query=:q, @ClassID=:cid"
+                ),
+                {"moe": moe, "q": q, "cid": class_id},
+            ).fetchall()
+            print(f"✅ Stored proc returned {len(rows)} rows")
+    except Exception as e:
+        # This will surface any SQL or connection errors
+        print("💥 DB call failed:", e)
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+    out = []
+    for r in rows:
+        m = r._mapping
+        out.append(
+            {
+                "NSN": m.get("NSN"),
+                "FirstName": m.get("FirstName"),
+                "PreferredName": m.get("PreferredName"),
+                "LastName": m.get("LastName"),
+                "DateOfBirth": (
+                    str(m.get("DateOfBirth"))[:10]
+                    if m.get("DateOfBirth")
+                    else ""
+                ),
+                "EthnicityID": m.get("EthnicityID"),
+                "Ethnicity": m.get("Ethnicity"),
+                "InClass": bool(m.get("InClass")),
+            }
         )
-    # Bring identity columns to the front if present
-    lead = [c for c in ["NSN","LastName","PreferredName","YearLevelID"] if c in df.columns]
-    rest = [c for c in df.columns if c not in lead]
-    return df[lead + rest] if lead else df
 
-def _ensure_authorised_for_class(engine, class_id: int):
-    """
-    If you need to restrict access (e.g., PRO only their classes, MOE only their school),
-    add checks here using session role/id.
-    """
-    role = session.get("user_role")
-    # Example (commented): require login at least
-    if role is None:
-        return render_template(
-    "error.html",
-    error="You are not authorised to view that page.",
-    code=403
-), 403
+    print(f"➡️  Returning {len(out)} student records to client")
+    return jsonify(out)
 
-import traceback
-# ---- Routes used by your Export modal ----
+
+@class_bp.route("/ethnicities")
+@login_required
+def ethnicities():
+    engine = get_db_engine()
+    with engine.begin() as conn:
+        rows = conn.execute(text("EXEC FlaskHelperFunctions @Request='EthnicityDropdown'")).fetchall()
+    return jsonify([{"id": r._mapping["EthnicityID"], "desc": r._mapping["Description"]} for r in rows])
+
+   
+   
+# =========================
+# Export Routes
+# =========================
+
 @class_bp.route("/export_class_excel")
+@login_required
 def export_class_excel():
     try:
         engine  = get_db_engine()
@@ -1472,7 +2029,7 @@ def export_class_excel():
             df = pd.DataFrame(columns=["No results"])
 
         bio = excel_bytes_writer(df, sheet_name="Class List")
-        fname = safe_filename(f"{meta['SchoolName']} - {meta['ClassName']} - Class List (T{term} {year}).xlsx")
+        fname =_safe_filename(f"{meta['SchoolName']} - {meta['ClassName']} - Class List (T{term} {year}).xlsx")
         return send_file(
             bio,
             mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -1484,11 +2041,6 @@ def export_class_excel():
         # Return something visible in the browser while you’re debugging
         return jsonify({"success": False, "error": "Export failed. See server logs for details."}), 500
 
-
-from flask import request, send_file, jsonify
-import pandas as pd
-import io, ast, re, traceback
-from sqlalchemy import text
 @class_bp.route("/export_achievements_excel", methods=["GET", "POST"])
 @login_required
 def export_achievements_excel():
@@ -1688,77 +2240,6 @@ def export_achievements_excel():
         print("❌ export_achievements_excel failed:\n" + traceback.format_exc())
         return jsonify({"success": False, "error": "Export failed. See server logs for details."}), 500
 
-
-def _safe_filename(name: str) -> str:
-    name = re.sub(r'[\\/*?:"<>|]+', "-", str(name))
-    name = re.sub(r"\s+", " ", name).strip()
-    return name[:200]
-
-# ---- PDF via Playwright (Chromium) ----
-def _html_to_pdf_bytes_with_playwright(html: str, base_url: str) -> bytes | None:
-    try:
-        from playwright.sync_api import sync_playwright
-    except Exception:
-        return None  # Playwright not installed
-
-    # Ensure relative /static/... works by injecting a <base href="...">
-    import re
-    def inject_base(h: str, base: str) -> str:
-        # insert right after <head> … keep simple & robust
-        return re.sub(r"<head(\s*)>", f"<head\\1><base href=\"{base}\">", h, count=1, flags=re.I)
-
-    html = inject_base(html, base_url.rstrip("/") + "/")
-
-    with sync_playwright() as p:
-        browser = p.chromium.launch(args=["--no-sandbox", "--disable-dev-shm-usage"])
-        try:
-            page = browser.new_page()
-            # Load the HTML directly; assets resolve thanks to <base href>
-            page.set_content(html, wait_until="networkidle")
-            pdf = page.pdf(
-                format="A4",
-                print_background=True,
-                margin={"top": "18mm", "right": "15mm", "bottom": "18mm", "left": "15mm"},
-            )
-            return pdf
-        finally:
-            browser.close()
-
-def _render_print_html(engine, class_id: int, term: int, year: int, filter_type: str, order_by: str) -> str:
-    # Reuse your existing context builder; you already had this idea earlier
-    # If you don't have a _build_print_context yet, we can synthesize a tiny wrapper
-    ctx = _build_print_context(engine, class_id, term, year, filter_type, order_by)
-    return render_template("print_view.html", **ctx)
-
-
-
-def _html_to_pdf_bytes_with_playwright(html: str, base_url: str | None = None) -> bytes | None:
-    """
-    Returns PDF bytes using Playwright/Chromium, or None if Playwright isn't available
-    or PDF rendering fails for any reason.
-    """
-    if not sync_playwright:
-        return None
-
-    try:
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True, args=["--no-sandbox"])
-            context = browser.new_context()
-            page = context.new_page()
-            # set_content supports base_url so relative assets resolve
-            page.set_content(html, base_url=base_url, wait_until="load")
-            pdf_bytes = page.pdf(
-                format="A4",
-                print_background=True,
-                margin={"top": "10mm", "right": "10mm", "bottom": "10mm", "left": "10mm"},
-            )
-            browser.close()
-            return pdf_bytes
-    except Exception:
-        app.logger.exception("Playwright PDF generation failed")
-        return None
-
-
 @class_bp.route("/export_achievements_pdf", methods=["GET"])
 @login_required
 def export_achievements_pdf():
@@ -1803,131 +2284,14 @@ def export_achievements_pdf():
         )
 
     except Exception:
-        app.logger.exception("export_achievements_pdf failed")
+        current_app.logger.exception("export_achievements_pdf failed")
         return jsonify({"success": False, "error": "Export failed. See server logs for details."}), 500
     
-    
-    
-def _bad(msg, code=400):
-    return jsonify({"ok": False, "error": msg}), code
+ # ---------- 2) POST add class (name + teacher) ----------
 
-def _require_int(v, name):
-    try:
-        return int(v)
-    except (TypeError, ValueError):
-        raise ValueError(f"Invalid {name}")
-
-# ---------- 1) GET classes by school / term / year ----------
-@class_bp.route("/class_bp/get_classes_by_school")
-@login_required
-def get_classes_by_school():
-    moe  = request.args.get("moe")
-    term = request.args.get("term")
-    year = request.args.get("year")
-
-    try:
-        if not moe:
-            return _bad("Missing 'moe'")
-        term = _require_int(term, "term")
-        year = _require_int(year, "year")
-    except ValueError as e:
-        return _bad(str(e))
-
-    engine = get_db_engine()
-    try:
-        with engine.begin() as conn:
-            # Stored proc returns: ClassID, ClassName, TeacherName
-            stmt = text("""
-                EXEC [FlaskHelperFunctionsSpecific]
-                @Request = :r,
-                     @MOENumber = :moe,
-                     @Term = :term,
-                     @CalendarYear = :year
-            """)
-            rows = conn.execute(stmt, {"r":"AllClassesBySchoolTermYear","moe": moe, "term": term, "year": year}).fetchall()
-            print(rows)
-        out = [
-            {
-                "id": r._mapping["ClassID"],
-                "name": r._mapping["ClassName"],
-                "teacher": r._mapping.get("TeacherName")
-            }
-            for r in rows
-        ]
-        return jsonify(out)
-    except SQLAlchemyError as e:
-        return _bad(f"Database error loading classes: {str(e)}", 500)
-
-# ---------- 2) POST add class (name + teacher) ----------
-@class_bp.route("/class_bp/add_class", methods=["POST"])
-@login_required
-def add_class():
-    data = request.get_json(silent=True) or {}
-    moe   = data.get("moenumber")
-    term  = data.get("term")
-    year  = data.get("year")
-    cname = (data.get("class_name") or "").strip()
-    tname = (data.get("teacher_name") or "").strip()
-
-    # Basic validation
-    try:
-        if not moe:
-            return _bad("Missing 'moenumber'")
-        term = _require_int(term, "term")
-        year = _require_int(year, "year")
-        if not cname:
-            return _bad("Missing 'class_name'")
-        if not tname:
-            return _bad("teacher_name is required")
-    except ValueError as e:
-        return _bad(str(e))
-
-    engine = get_db_engine()
-    try:
-        with engine.begin() as conn:
-            # Use an OUTPUT parameter pattern to get new ClassID
-            # We capture it with a temp table and select it.
-            stmt = text("""
-                EXEC FlaskHelperFunctionsSpecific
-                    @Request = 'AddClass',
-                    @MOENumber = :moe,
-                    @Term = :term,
-                    @CalendarYear = :year,
-                    @ClassName = :cname,
-                    @TeacherName = :tname
-            """)
-            row = conn.execute(stmt, {
-                "moe": moe,
-                "term": term,
-                "year": year,
-                "cname": cname,
-                "tname": tname
-            }).fetchone()
-
-            new_id = row._mapping["NewClassID"] if row else None
-
-        if not new_id:
-            return _bad("Class was not created (no id returned).", 500)
-
-        return jsonify({"ok": True, "class_id": new_id, "name": cname, "teacher": tname})
-    except SQLAlchemyError as e:
-        return _bad(f"Database error adding class: {str(e)}", 500)
-    
-@class_bp.route("/UploadAchievement")
-@login_required
-def achievement_upload():
-    try:
-        
-        return render_template("achievement_upload.html", current_year=date.today().year, years = get_years(), terms = get_terms(), term = session.get("nearest_term"), year = session.get("nearest_year"))
-    except Exception as e:
-        # Print full traceback to console
-        traceback.print_exc()
-        # Optionally, return the traceback in the browser (only in dev!)
-        return f"<pre>{traceback.format_exc()}</pre>", 500
 @class_bp.route("/preview_upload", methods=["POST"])
 @login_required
 def preview_upload():
-
 
     MAX_PREVIEW_ROWS = 200
     MAX_PAYLOAD_ROWS = 10000  # safety cap
@@ -1962,7 +2326,7 @@ def preview_upload():
         "Ethnicity": {"ethnicity"},
     }
     def norm(s):
-        return _re.sub(r'[^a-z0-9]+', '', str(s or '').lower())
+        return re.sub(r'[^a-z0-9]+', '', str(s or '').lower())
 
     try:
         f = request.files.get("file")
@@ -1997,7 +2361,6 @@ def preview_upload():
                 total_rows = _count_xlsx_rows(io.BytesIO(raw))
             else:
                 return jsonify({"ok": False, "error": "Unsupported file type"}), 400
-        total_rows = total_rows - 1
         df = df.fillna("")
 
         # Detect “x-y” row that holds the group labels
@@ -2097,702 +2460,3 @@ def preview_upload():
     except Exception as e:
         traceback.print_exc()
         return jsonify({"ok": False, "error": str(e)}), 500
-@class_bp.route("/apply_upload", methods=["POST"])
-@login_required
-def apply_upload():
-    """
-    Body:
-      { "class_id": 123, "dry_run": 1, "json_data": [ {...}, ... ] }
-
-    Returns JSON the UI can show:
-      {
-        "ok": true/false,
-        "status": {"ok": true/false, "message": "...", "count": N},
-        "dry_run": 1,
-        "term_context": {...},              # from TERM_CONTEXT
-        "unexpected_students": [...],       # Info = UNEXPECTED_STUDENT
-        "valid_students": [...],            # Info = VALID_STUDENT
-        "competency_rows": [...],           # Info = COMPETENCY_ROWS
-        "scenario_rows": [...],             # Info = SCENARIO_ROWS
-        "merge_preview": []                 # kept for backward UI compatibility
-      }
-    """
-
-    engine = get_db_engine()
-
-    def _row_to_dict(cols, row):
-        d = {}
-        for k, v in zip(cols, row):
-            # Make dates/datetimes JSON serializable
-            if hasattr(v, "isoformat"):
-                v = v.isoformat()
-            d[k] = v
-        return d
-
-    try:
-        payload  = request.get_json(silent=True) or {}
-        class_id = int(payload.get("class_id") or 0)
-        dry_run  = 0 
-        rows     = payload.get("json_data")
-        if not class_id:
-            return jsonify({"ok": False, "error": "Missing class_id"}), 400
-        if not isinstance(rows, list) or not rows:
-            return jsonify({"ok": False, "error": "json_data must be a non-empty array"}), 400
-
-        json_str = json.dumps(rows, ensure_ascii=False)
-
-        # Buckets for proc outputs
-        term_context         = {}
-        unexpected_students  = []
-        valid_students       = []
-        competency_rows      = []
-        scenario_rows        = []
-        merge_preview        = []   # keep for UI compatibility
-        status_rows_raw      = []   # if proc ever returns Ok/Message/Count again
-
-        conn = engine.raw_connection()
-        try:
-            cursor = conn.cursor()
-            cursor.execute(
-                """
-                DECLARE @j NVARCHAR(MAX) = ?,
-                        @cid INT         = ?,
-                        @dry BIT         = ?;
-                EXEC  FlaskAchievementUpload
-                     @ClassID=@cid, @JsonData=@j, @DryRun=@dry;
-                """,
-                (json_str, class_id, dry_run)
-            )
-
-            while True:
-                if cursor.description:
-                    cols = [c[0] for c in cursor.description]
-                    rows_rs = cursor.fetchall()
-
-                    # Route by "Info" label when present
-                    if "Info" in cols and rows_rs:
-                        info_idx = cols.index("Info")
-                        info_val = str(rows_rs[0][info_idx] or "")
-
-                        # helper: strip Info key from dicts
-                        def _rows_without_info():
-                            out = []
-                            for r in rows_rs:
-                                d = _row_to_dict(cols, r)
-                                d.pop("Info", None)
-                                out.append(d)
-                            return out
-
-                        if info_val == "TERM_CONTEXT":
-                            # single row expected
-                            d = _row_to_dict(cols, rows_rs[0])
-                            d.pop("Info", None)
-                            term_context = d
-
-                        elif info_val == "UNEXPECTED_STUDENT":
-                            unexpected_students.extend(_rows_without_info())
-
-                        elif info_val == "VALID_STUDENT":
-                            valid_students.extend(_rows_without_info())
-
-                        elif info_val == "COMPETENCY_ROWS":
-                            competency_rows.extend(_rows_without_info())
-
-                        elif info_val == "SCENARIO_ROWS":
-                            scenario_rows.extend(_rows_without_info())
-
-                        else:
-                            # Unknown Info label; ignore or log
-                            pass
-
-                    # Legacy status rows (Ok/Message/Count) if they ever show up
-                    elif {"Ok", "Message"}.issubset(set(cols)):
-                        for r in rows_rs:
-                            d = _row_to_dict(cols, r)
-                            status_rows_raw.append(d)
-
-                    # Old "merge preview" (not emitted by current proc) – keep for safety
-                    elif {"Action", "NSN", "CompetencyID", "YearGroupID"}.issubset(set(cols)):
-                        for r in rows_rs:
-                            d = _row_to_dict(cols, r)
-                            d.pop("Info", None)
-                            merge_preview.append(d)
-
-                if not cursor.nextset():
-                    break
-
-            cursor.close()
-            conn.commit()
-        finally:
-            conn.close()
-
-        # Compute status:
-        # Not OK if there are unexpected students; otherwise OK.
-        if unexpected_students:
-            status_obj = {
-                "ok": False,
-                "message": "Some uploaded students are not linked to this class.",
-                "count": len(unexpected_students)
-            }
-            overall_ok = False
-        else:
-            status_obj = {
-                "ok": True,
-                "message": "Ready to apply.",
-                "count": len(valid_students)
-            }
-            overall_ok = True
-
-        # If the proc DID return Ok/Message/Count, you could override with the last row:
-        if status_rows_raw:
-            last = status_rows_raw[-1]
-            status_obj = {
-                "ok": bool(last.get("Ok")),
-                "message": last.get("Message"),
-                "count": int(last.get("Count") or 0),
-            }
-            overall_ok = status_obj["ok"]
-
-        valid_count      = len(valid_students)
-        unexpected_count = len(unexpected_students)
-        total_count      = valid_count + unexpected_count
-
-        summary = {
-            "success": unexpected_count == 0,  # True when all rows are valid
-            "dry_run": bool(dry_run),
-            "total_rows": total_count,
-            "valid_rows": valid_count,
-            "unexpected_rows": unexpected_count,
-        }
-
-        return jsonify({
-            "ok": overall_ok,                 # keep for compatibility; UI shouldn't throw on False
-            "status": status_obj,
-            "dry_run": dry_run,
-            "term_context": term_context,
-            "unexpected_students": unexpected_students,
-            "valid_students": valid_students,
-            "competency_rows": competency_rows,
-            "scenario_rows": scenario_rows,
-            "merge_preview": merge_preview,
-            "summary": summary,              # <-- new, drives the simple banner
-        })
-
-    except pyodbc.ProgrammingError as e:
-        traceback.print_exc()
-        return jsonify({"ok": False, "error": str(e)}), 500
-    except Exception as e:
-        traceback.print_exc()
-        return jsonify({"ok": False, "error": str(e)}), 500
-
-    
-def _count_csv_rows(b, encoding=None):
-    b.seek(0)
-    if encoding:
-        text = io.TextIOWrapper(b, encoding=encoding)
-    else:
-        text = io.TextIOWrapper(b, encoding="utf-8")
-    reader = csv.reader(text)
-    # Count rows (excluding header if any); cheapest is sum(1 for _ in reader) - 1
-    # But we don't know if there's a header; we’ll just return total lines - 1 safely
-    total = sum(1 for _ in reader)
-    # Reset stream position for caller safety
-    try:
-        text.detach()
-    except Exception:
-        pass
-    return max(total - 1, 0)
-
-
-def _count_xlsx_rows(b):
-    b.seek(0)
-    wb = load_workbook(b, read_only=True)
-    ws = wb.active
-    return ws.max_row - 1 if ws.max_row else 0
-
-
-def _count_xls_rows(b):
-    b.seek(0)
-    wb = xlrd.open_workbook(file_contents=b.read())
-    sh = wb.sheet_by_index(0)
-    nrows = sh.nrows
-    return nrows - 1 if nrows else 0
-
-
-
-def _require_moe_or_adm():
-    role = session.get("user_role")
-    admin = int(session.get("user_admin") or 0)
-    return (role == "MOE" and admin == 1)or role == "ADM"
-
-def _require_moe_or_adm2():
-    role = session.get("user_role")
-    admin = int(session.get("user_admin") or 0)
-    return (role == "MOE")or role == "ADM"
-def _json_error(msg, code=400):
-    return jsonify({"ok": False, "error": msg}), code
-# at the top of this module
-
-
-def is_mobile() -> bool:
-    """Very simple UA sniff to block phones/tablets."""
-    try:
-        ua = (request.headers.get("User-Agent") or "").lower()
-    except Exception as e:
-        current_app.logger.debug("UA read failed: %r", e)
-        return False
-    return any(k in ua for k in ("iphone", "android", "ipad", "mobile"))
-
-@class_bp.route("/EditClass")
-@login_required
-def class_students_page():
-    # role check
-    if not _require_moe_or_adm2():
-        return _json_error("Forbidden", 403)
-
-    # device check
-    if is_mobile():
-        try:
-            return render_template(
-                "error.html",
-                message="This page is not available on mobile devices.",
-                code=900
-            ), 900
-        except Exception as e:
-            current_app.logger.warning("error.html render failed: %r", e)
-            abort(403, description="This page is not available on mobile devices.")
-
-
-    # normal desktop flow
-    try:
-        return render_template(
-            "class_students.html",
-            current_year=date.today().year, years = get_years(), terms = get_terms()
-        )
-    except Exception:
-        traceback.print_exc()
-        return "<pre>" + traceback.format_exc() + "</pre>", 500
-
-# ---- API: classes for a school/term/year ----
-@class_bp.route("/classes_for_term")
-@login_required
-def classes_for_term():
-    if not _require_moe_or_adm():
-        return _json_error("Forbidden", 403)
-
-    try:
-        moe = int(request.args["moe"])       # MOENumber (School ID)
-        term = request.args["term"]
-        year = int(request.args["year"])
-    except Exception:
-        return _json_error("Missing or invalid parameters")
-
-    engine = get_db_engine()
-    with engine.begin() as conn:
-        # You create this proc to list classes by school/term/year
-        rows = conn.execute(
-            text("EXEC FlaskGetClassesForTerm @MOENumber=:m, @Term=:t, @CalendarYear=:y"),
-            {"m": moe, "t": term, "y": year}
-        ).fetchall()
-
-    out = [{"id": r._mapping["ClassID"], "name": r._mapping["ClassName"]} for r in rows]
-    return jsonify(out)
-
-# ---- API: get students in a class ----
-@class_bp.route("/students/<int:class_id>")
-@login_required
-def get_class_students(class_id):
-    if not _require_moe_or_adm():
-        return _json_error("Forbidden", 403)
-
-    engine = get_db_engine()
-    with engine.begin() as conn:
-        rows = conn.execute(
-            text("EXEC FlaskGetClassStudents @ClassID=:cid"),
-            {"cid": class_id}
-        ).fetchall()
-
-    # expected columns from your proc:
-    # NSN, FirstName, PreferredName, LastName, YearLevel, Ethnicity, DateOfBirth
-    out = []
-    for r in rows:
-        m = r._mapping
-        out.append({
-            "NSN": m.get("NSN"),
-            "FirstName": m.get("FirstName"),
-            "PreferredName": m.get("PreferredName"),
-            "LastName": m.get("LastName"),
-            "YearLevel": m.get("YearLevelID"),
-            "Ethnicity": m.get("Ethnicity"),
-            "DateOfBirth": str(m.get("DateOfBirth") or "")[:10],
-            "Deletable": m.get("Deletable")
-        })
-    return jsonify(out)
-
-@class_bp.route("/search_students")
-@login_required
-def search_students():
-    q        = (request.args.get("q") or "").strip()
-    moe      = request.args.get("moe", type=int)
-    class_id = request.args.get("class_id", type=int)
-
-    print(f"🔎 /search_students called: q='{q}', moe={moe}, class_id={class_id}")
-
-    # Require both a school and a non-empty query
-    if not (moe and q):
-        print("➡️  Missing moe or query → returning empty list")
-        return jsonify([])
-
-    eng = get_db_engine()
-    try:
-        with eng.begin() as conn:
-            print("➡️  Executing stored proc FlaskSearchStudentsForSchool_AllTime…")
-            rows = conn.execute(
-                text(
-                    "EXEC FlaskSearchStudentsForSchool_AllTime "
-                    "@MOENumber=:moe, @Query=:q, @ClassID=:cid"
-                ),
-                {"moe": moe, "q": q, "cid": class_id},
-            ).fetchall()
-            print(f"✅ Stored proc returned {len(rows)} rows")
-    except Exception as e:
-        # This will surface any SQL or connection errors
-        print("💥 DB call failed:", e)
-        traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
-
-    out = []
-    for r in rows:
-        m = r._mapping
-        out.append(
-            {
-                "NSN": m.get("NSN"),
-                "FirstName": m.get("FirstName"),
-                "PreferredName": m.get("PreferredName"),
-                "LastName": m.get("LastName"),
-                "DateOfBirth": (
-                    str(m.get("DateOfBirth"))[:10]
-                    if m.get("DateOfBirth")
-                    else ""
-                ),
-                "EthnicityID": m.get("EthnicityID"),
-                "Ethnicity": m.get("Ethnicity"),
-                "InClass": bool(m.get("InClass")),
-            }
-        )
-
-    print(f"➡️  Returning {len(out)} student records to client")
-    return jsonify(out)
-
-# ---- API: add existing student to class ----
-@class_bp.route("/add_student", methods=["POST"])
-@login_required
-def add_student_to_class():
-    # who + where
-    try:
-        uid = getattr(current_user, "id", None)
-        uemail = getattr(current_user, "email", None)
-    except Exception:
-        uid = uemail = None
-
-    if not _require_moe_or_adm():
-        return _json_error("Forbidden", 403)
-
-    # --- Parse body without consuming the stream ---
-    # get_data() defaults cache=True, so get_json() can still read it.
-    raw = request.get_data(as_text=True)
-
-    data = request.get_json(silent=True)
-    if data is None and raw:
-        # Fallback: try manual JSON load (handles wrong Content-Type)
-        try:
-            data = json.loads(raw)
-        except Exception as e:
-            return _json_error("Invalid JSON", 400)
-    elif data is None:
-        return _json_error("Invalid JSON", 400)
-
-
-    nsn = data.get("nsn")
-    class_id = data.get("class_id")
-    year_level = data.get("year_level")
-
-    # normalize year_level: empty string -> None
-    if year_level in ("", None):
-        year_level = None
-
-   
-
-    if not (nsn and class_id):
-        return _json_error("nsn and class_id are required")
-
-    try:
-        engine = get_db_engine()
-        sql = "EXEC FlaskAddStudentToClass @NSN=:n, @ClassID=:cid, @YearLevelID=:yl"
-        params = {"n": nsn, "cid": class_id, "yl": year_level}
-
-        with engine.begin() as conn:
-            conn.execute(text(sql), params)
-
-        return jsonify({"ok": True})
-    except Exception as e:
-        traceback.print_exc()
-        return _json_error("Failed to add student to class", 500)
-
-
-
-
-def friendly_sql_error(exc: Exception) -> tuple[int, str, int | None]:
-    """
-    Returns (http_status, user_message, sql_error_number) for a DB exception.
-    Works with pyodbc/SQL Server via SQLAlchemy.
-    """
-    raw = str(getattr(exc, "orig", exc))
-
-    # Best-effort extract of SQL Server native error number:
-    # e.g. "... (50010) (SQLExecDirectW)"
-    m = re.search(r"\((\d{5,7})\)\s*\(SQL", raw)  # preferred
-    code = int(m.group(1)) if m else None
-    if code is None:
-        # Fallback: grab a 4–7 digit number if present anywhere
-        m2 = re.search(r"\b(\d{4,7})\b", raw)
-        code = int(m2.group(1)) if m2 else None
-
-    MAP = {
-        50001: (400, "NSN must be numeric."),
-        50002: (400, "First name and last name are required."),
-        50003: (400, "That class could not be found."),
-        50004: (400, "That class is missing its year/term setup."),
-        50006: (500, "We couldn't save the student record. Please try again."),
-        50007: (500, "We couldn't add the student to the class. Please try again."),
-        50008: (409, "Another user updated this student at the same time. Please try again."),
-        50010: (409, "That NSN already exists. Use Search → Add to put them into this class."),
-    }
-    if code in MAP:
-        http, msg = MAP[code]
-        return http, msg, code
-
-    # Common SQL Server duplicate key
-    if code in (2627, 2601):
-        return 409, "A record with this key already exists.", code
-
-    # Uncommittable transaction (3930) message text
-    if "cannot be committed and cannot support operations" in raw:
-        return 500, "We hit a database error and rolled back your changes. Please try again.", code
-
-    # Fallback
-    return 500, "Something went wrong saving this student. Please try again.", code
-
-
-@class_bp.route("/create_student_and_add", methods=["POST"])
-@login_required
-def create_student_and_add():
-    if not _require_moe_or_adm():
-        return _json_error("Forbidden", 403)
-
-    d = request.get_json(silent=True) or {}
-    class_id   = d.get("class_id")
-    student    = d.get("student") or {}
-    year_level = d.get("year_level")
-    term_in    = d.get("term")   # may be None; proc can derive
-    year_in    = d.get("year")   # may be None; proc can derive
-
-    if not class_id:
-        return _json_error("class_id is required")
-    nsn = student.get("NSN")
-    if nsn in (None, "", []):
-        return _json_error("NSN is required and must be numeric")
-    try:
-        nsn = int(str(nsn).strip())
-    except ValueError:
-        return _json_error("NSN must be numeric")
-    if not (student.get("FirstName") and student.get("LastName")):
-        return _json_error("Student FirstName and LastName are required")
-    print(student)
-    first = (student.get("FirstName") or "").strip()
-    last  = (student.get("LastName")  or "").strip()
-    pref  = (student.get("PreferredName") or None)
-    dob   = (student.get("DateOfBirth") or None)
-    eth   = (student.get("EthnicityID") or 0)
-    yl    = (year_level if year_level not in ("", None) else None)
-    term  = None if term_in in ("", None) else str(term_in)
-    year  = year_in  # pass through (None is fine)
-
-    eng = get_db_engine()
-    try:
-        with eng.begin() as conn:
-            # Optional: stamp session context for SQL audit triggers
-            try:
-                acting = getattr(current_user, "email", None) or session.get("user_email") or "flaskuser"
-                conn.exec_driver_sql(
-                    "EXEC sys.sp_set_session_context @key=N'wsfl_user', @value=?",
-                    (acting,)
-                )
-            except Exception:
-                pass
-
-            conn.exec_driver_sql("""
-                SET NOCOUNT ON;
-                DECLARE @NSN BIGINT = ?;
-                EXEC  FlaskCreateStudentAddToClassAndSeed
-                     @NSN=@NSN OUTPUT,
-                     @FirstName=?, @LastName=?, @PreferredName=?, @DateOfBirth=?, @EthnicityID=?,
-                     @ClassID=?, @CalendarYear=?, @Term=?, @YearLevelID=?,
-                     @SeedScenarios=1, @SeedCompetencies=1;
-            """, (nsn, first, last, pref, dob, eth, class_id, year, term, yl))
-
-        return jsonify({"ok": True, "nsn": nsn, "class_id": class_id})
-
-    except DBAPIError as e:
-        status, friendly, sql_code = friendly_sql_error(e)
-        current_app.logger.exception("create_student_and_add failed (sql=%s)", sql_code)
-        return jsonify({"ok": False, "error": friendly, "sql_error": sql_code}), status
-    except Exception as e:
-        current_app.logger.exception("create_student_and_add failed (non-DB)")
-        return jsonify({"ok": False, "error": "Unexpected error. Please try again."}), 500
-# ---- API: update student info (modal save) ----
-@class_bp.route("/update_student", methods=["POST"])
-@login_required
-def update_student():
-    if not _require_moe_or_adm():
-        return _json_error("Forbidden", 403)
-
-    d = request.get_json(force=True)
-    # expects NSN + updated fields (FirstName, LastName, PreferredName, EthnicityID)
-    engine = get_db_engine()
-    with engine.begin() as conn:
-        conn.execute(
-            text("""
-                EXEC FlaskUpdateStudent
-                    @NSN=:nsn,
-                    @FirstName=:fn,
-                    @LastName=:ln,
-                    @PreferredName=:pn,
-                    @EthnicityID=:eth
-            """),
-            {
-                "nsn": d.get("NSN"),
-                "fn": d.get("FirstName"),
-                "ln": d.get("LastName"),
-                "pn": d.get("PreferredName"),
-                "eth": d.get("EthnicityID"),
-            }
-        )
-    return jsonify({"ok": True})
-
-# ---- API: remove student from class ----
-@class_bp.route("/remove_from_class", methods=["POST"])
-@login_required
-def remove_from_class():
-    if not _require_moe_or_adm():
-        return _json_error("Forbidden", 403)
-
-    d = request.get_json(force=True)
-    nsn = d.get("nsn")
-    class_id = d.get("class_id")
-    if not (nsn and class_id):
-        return _json_error("nsn and class_id are required")
-
-    engine = get_db_engine()
-    with engine.begin() as conn:
-        conn.execute(
-            text("EXEC FlaskRemoveStudentFromClass @NSN=:n, @ClassID=:cid, @PerformedByEmail=:em"),
-            {"n": nsn, "cid": class_id, "em": session.get("user_email")}
-        )
-    return jsonify({"ok": True})
-
-# ---- API: ethnicity dropdown for edit modal ----
-@class_bp.route("/ethnicities")
-@login_required
-def ethnicities():
-    engine = get_db_engine()
-    with engine.begin() as conn:
-        rows = conn.execute(text("EXEC FlaskHelperFunctions @Request='EthnicityDropdown'")).fetchall()
-    return jsonify([{"id": r._mapping["EthnicityID"], "desc": r._mapping["Description"]} for r in rows])
-
-
-
-@class_bp.route("/move-class", methods=["POST"])
-@login_required
-def move_class():
-  try:
-    data = request.get_json(force=True) or {}
-    class_id = int(data.get("class_id"))
-    new_term = int(data.get("term"))
-    new_year = int(data.get("year"))
-
-    engine = get_db_engine()
-    with engine.begin() as conn:
-      conn.execute(
-        text("""
-          EXEC ChangeClassTerm
-               @ClassID        = :class_id,
-               @NewTerm        = :new_term,
-               @NewCalendarYear = :new_year
-        """),
-        {
-          "class_id": class_id,
-          "new_term": new_term,
-          "new_year": new_year,
-        },
-      )
-
-    return jsonify({"ok": True})
-  except Exception as e:
-    current_app.logger.exception("Move class failed")
-    return jsonify({"ok": False, "error": str(e)}), 500
-
-
-
-
-@class_bp.route("/delete-class", methods=["POST"])
-@login_required
-def delete_class():
-    """
-    AJAX endpoint to delete a class via DeleteClass stored procedure.
-    Expects JSON: {"class_id": <int>}
-    Returns JSON: {"ok": true} or {"ok": false, "error": "..."}
-    """
-
-    # Authorisation: only ADM / FUN / GRP (same pattern as /Classes)
-    role = session.get("user_role")
-    if role not in ("ADM", "FUN", "GRP","MOE"):
-        return jsonify({"ok": False, "error": "Not authorised to delete classes."}), 403
-
-    # Parse input
-    try:
-        payload = request.get_json(force=True) or {}
-        class_id = int(payload.get("class_id", 0))
-    except (TypeError, ValueError):
-        return jsonify({"ok": False, "error": "Invalid class ID."}), 400
-
-    if class_id <= 0:
-        return jsonify({"ok": False, "error": "Missing or invalid class ID."}), 400
-
-    engine = get_db_engine()
-
-    try:
-        with engine.begin() as conn:
-            conn.execute(
-                text("EXEC dbo.DeleteClass @ClassID = :cid"),
-                {"cid": class_id},
-            )
-
-        # If the proc RAISERRORs, we won't get here (exception is thrown)
-        return jsonify({"ok": True})
-
-    except Exception as e:
-        # Log full stack trace server-side
-        current_app.logger.exception("DeleteClass failed for ClassID=%s", class_id)
-
-        # Try to surface a helpful message to the UI
-        msg = str(e)
-        # If it's a SQLAlchemy DBAPI error, the SQL Server message is often in e.orig
-        try:
-            if hasattr(e, "orig") and hasattr(e.orig, "args") and e.orig.args:
-                msg = str(e.orig.args[0])
-        except Exception:
-            pass
-
-        return jsonify({"ok": False, "error": msg}), 500
-    

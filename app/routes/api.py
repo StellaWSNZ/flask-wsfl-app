@@ -6,11 +6,17 @@ from app.utils.database import get_db_engine, log_alert
 
 api_bp = Blueprint("api_bp", __name__)
 
+def get_terms():
+    return list(range(1, 5))
+
+def get_years():
+    return list(range(2024, 2027))
+
 
 @api_bp.route("/get_entities", methods=["GET"])
 @login_required
 def get_entities():
-    debug = True
+    debug = False
 
     try:
         # ----------------------------
@@ -134,3 +140,13 @@ def get_entities():
             "ok": False,
             "error": "Failed to load entities"
         }), 500
+
+
+# ---- API: ethnicity dropdown for edit modal ----
+@api_bp.route("/ethnicities")
+@login_required
+def ethnicities():
+    engine = get_db_engine()
+    with engine.begin() as conn:
+        rows = conn.execute(text("EXEC FlaskHelperFunctions @Request='EthnicityDropdown'")).fetchall()
+    return jsonify([{"id": r._mapping["EthnicityID"], "desc": r._mapping["Description"]} for r in rows])

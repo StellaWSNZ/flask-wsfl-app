@@ -128,12 +128,7 @@ select option { white-space: normal; word-break: break-word; }
         <input id="edit-teacher-name" type="text" value="{{ teacher_name }}"
                class="form-control form-control-sm d-inline-block" style="width: 200px;" />
         <strong>School:</strong> {{ school_name }}
-<button
-  class="btn btn-sm btn-success ms-2"
-  onclick="submitClassInfo(JSON.parse('{{ class_id|tojson }}'))"
->
-  Save
-</button>
+        <button class="btn btn-sm btn-success ms-2" onclick="submitClassInfo(JSON.parse('{{ class_id|tojson }}'))">Save</button>
         <button class="btn btn-sm btn-secondary" onclick="toggleEditMode(false)">Cancel</button>
       </div>
 
@@ -183,7 +178,7 @@ select option { white-space: normal; word-break: break-word; }
     </div>
   </div>
 
-  <!-- DESKTOP: Scrollable Table (unchanged, just wrapped) -->
+  <!-- DESKTOP: Scrollable Table -->
   <div id="desktop-table">
     <div class="scroll-table-wrapper">
       <div class="scroll-table-inner">
@@ -193,6 +188,7 @@ select option { white-space: normal; word-break: break-word; }
               <th class="col-0">Last Name</th>
               <th class="col-1">Preferred Name</th>
               <th class="col-2">Year Level</th>
+
               {% for col in columns[3:] %}
                 {% set normalized_col = col|replace('&lt;br&gt;', '<br>') %}
                 <th>
@@ -204,7 +200,7 @@ select option { white-space: normal; word-break: break-word; }
                         <button type="button"
                                 class="btn btn-xs btn-outline-success mt-1 mark-all-btn"
                                 data-colraw="{{ col }}"
-                                data-competencyid="{{ competency_id_map[normalized_col] if normalized_col in competency_id_map else '' }}">
+                                data-competencyid="{{ competency_id_map.get(normalized_col, '') }}">
                           Mark All
                         </button>
                       {% elif "Scenario" in col and "Selected" in col %}
@@ -217,6 +213,7 @@ select option { white-space: normal; word-break: break-word; }
               {% endfor %}
             </tr>
           </thead>
+
           <tbody>
             {% for student in students %}
               {% set row_index = loop.index0 %}
@@ -224,6 +221,7 @@ select option { white-space: normal; word-break: break-word; }
                 <td class="col-0">{{ student.LastName }}</td>
                 <td class="col-1">{{ student.PreferredName }}</td>
                 <td class="col-2">{{ student.YearLevelID }}</td>
+
                 {% for col in columns[3:] %}
                   {% set val = student[col]|default('')|string|trim %}
                   {% set unescaped_col = col|replace('&lt;br&gt;', '<br>') %}
@@ -249,8 +247,7 @@ select option { white-space: normal; word-break: break-word; }
                             name="competency"
                             data-nsn="{{ student.NSN }}"
                             data-competency="{{ col }}"
-                            data-competencyid="{{ competency_id_map[unescaped_col]['CompetencyID'] if unescaped_col in competency_id_map else '' }}"
-                            data-yeargroupid="{{ competency_id_map[unescaped_col]['YearGroupID'] if unescaped_col in competency_id_map else '' }}"
+                            data-competencyid="{{ competency_id_map.get(unescaped_col, '') }}"
                             {% if val in ["Y", "1", 1] %}checked{% endif %} />
                     {% endif %}
                   </td>
@@ -268,7 +265,7 @@ select option { white-space: normal; word-break: break-word; }
     </div>
   </div><!-- /#desktop-table -->
 
-  <!-- MOBILE: Two views (By Student / By Competency) -->
+  <!-- MOBILE: Two views -->
   <div id="mobile-views" class="container px-2 pb-4">
     <!-- Toggle -->
     <div class="mob-stuck bg-transparent mb-3">
@@ -293,9 +290,7 @@ select option { white-space: normal; word-break: break-word; }
         <div class="mob-subtle mt-1">{{ students|length }} student(s)</div>
       </div>
 
-      <div id="mobStudentCard" class="mob-card p-2">
-        <!-- JS injects the selected student's competencies here -->
-      </div>
+      <div id="mobStudentCard" class="mob-card p-2"></div>
     </div>
 
     <!-- BY COMPETENCY -->
@@ -310,9 +305,7 @@ select option { white-space: normal; word-break: break-word; }
         <div class="mob-subtle mt-1">{{ students|length }} student(s)</div>
       </div>
 
-      <div id="mobCompList" class="mob-card">
-        <!-- JS injects rows of students for the selected competency here -->
-      </div>
+      <div id="mobCompList" class="mob-card"></div>
     </div>
   </div><!-- /#mobile-views -->
 
@@ -334,18 +327,14 @@ select option { white-space: normal; word-break: break-word; }
         </p>
       </div>
       <div class="modal-footer justify-content-center">
-        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">
-          Stay on this page
-        </button>
-        <button type="button" id="unsaved-leave-btn" class="btn btn-danger btn-sm">
-          Leave anyway
-        </button>
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Stay on this page</button>
+        <button type="button" id="unsaved-leave-btn" class="btn btn-danger btn-sm">Leave anyway</button>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Modals (Mark All, Help, Scenarios, Fullscreen) -->
+<!-- Mark All confirm -->
 <div class="modal fade" id="markAllConfirmModal" tabindex="-1" aria-labelledby="markAllConfirmLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content text-center">
@@ -366,7 +355,7 @@ select option { white-space: normal; word-break: break-word; }
   </div>
 </div>
 
-<!-- HELP: content is injected per device -->
+<!-- HELP -->
 <div class="modal fade" id="helpModal" tabindex="-1" aria-labelledby="helpModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
@@ -374,13 +363,12 @@ select option { white-space: normal; word-break: break-word; }
         <h5 class="modal-title" id="helpModalLabel">Help</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <div id="helpModalBody" class="modal-body small">
-        <!-- JS fills this with phone vs desktop content -->
-      </div>
+      <div id="helpModalBody" class="modal-body small"></div>
     </div>
   </div>
 </div>
 
+<!-- Scenarios -->
 <div class="modal fade" id="scenarioModal" tabindex="-1" aria-labelledby="scenarioModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-scrollable">
     <div class="modal-content">
@@ -402,6 +390,7 @@ select option { white-space: normal; word-break: break-word; }
   </div>
 </div>
 
+<!-- Fullscreen -->
 <div class="modal fade" id="fullscreenModal" tabindex="-1" aria-labelledby="fullscreenModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content text-center">
@@ -437,20 +426,9 @@ function updateUnsavedModalText() {
   const countSpan = document.getElementById("unsaved-count");
   if (countSpan) countSpan.textContent = String(pendingSaves);
 }
+function startSaving() { pendingSaves += 1; isSaving = pendingSaves > 0; updateUnsavedModalText(); }
+function finishSaving(){ pendingSaves = Math.max(0, pendingSaves - 1); isSaving = pendingSaves > 0; updateUnsavedModalText(); }
 
-function startSaving() {
-  pendingSaves += 1;
-  isSaving = pendingSaves > 0;
-  updateUnsavedModalText();
-}
-
-function finishSaving() {
-  pendingSaves = Math.max(0, pendingSaves - 1);
-  isSaving = pendingSaves > 0;
-  updateUnsavedModalText();
-}
-
-// Browser-level refresh / close -> native confirm (cannot use Bootstrap here)
 window.addEventListener("beforeunload", function (e) {
   if (!isSaving) return;
   e.preventDefault();
@@ -458,58 +436,37 @@ window.addEventListener("beforeunload", function (e) {
 });
 
 function openUnsavedModal(navInfo) {
-  pendingNavigation = navInfo; // {type:'href', href} or {type:'form', form}
+  pendingNavigation = navInfo;
   updateUnsavedModalText();
   const modalEl = document.getElementById("unsavedModal");
   if (!modalEl) return;
-  const modal = new bootstrap.Modal(modalEl);
-  modal.show();
+  new bootstrap.Modal(modalEl).show();
 }
 
 document.getElementById("unsaved-leave-btn").addEventListener("click", function () {
   const modalEl = document.getElementById("unsavedModal");
-  const modal = bootstrap.Modal.getInstance(modalEl);
-  modal?.hide();
+  bootstrap.Modal.getInstance(modalEl)?.hide();
 
-  // Allow navigation to proceed without another warning
   pendingSaves = 0;
   isSaving = false;
 
   if (!pendingNavigation) return;
-  if (pendingNavigation.type === "href") {
-    window.location.href = pendingNavigation.href;
-  } else if (pendingNavigation.type === "form") {
-    // Submit the stored form
-    pendingNavigation.form.submit();
-  }
+  if (pendingNavigation.type === "href") window.location.href = pendingNavigation.href;
+  if (pendingNavigation.type === "form") pendingNavigation.form.submit();
   pendingNavigation = null;
 });
 
-// Intercept link clicks that navigate away while saving
 document.addEventListener("click", function (e) {
   const link = e.target.closest("a[href]");
   if (!link) return;
-
   const href = link.getAttribute("href");
   if (!href || href.startsWith("#")) return;
-
-  // Links opening in new tab are safe, let them through
   if (link.target && link.target === "_blank") return;
-
-  // Internal navigation while saving -> show modal
-  if (isSaving) {
-    e.preventDefault();
-    openUnsavedModal({ type: "href", href: link.href });
-  }
+  if (isSaving) { e.preventDefault(); openUnsavedModal({ type: "href", href: link.href }); }
 });
 
-// Intercept form submissions while saving
 document.addEventListener("submit", function (e) {
-  const form = e.target;
-  if (isSaving) {
-    e.preventDefault();
-    openUnsavedModal({ type: "form", form });
-  }
+  if (isSaving) { e.preventDefault(); openUnsavedModal({ type: "form", form: e.target }); }
 });
 
 /* ===== Desktop handlers ===== */
@@ -528,8 +485,7 @@ function exitFullScreenViaModal() {
   document.querySelector(".scroll-table-inner")?.classList.remove("fullscreen");
   const fsBtn = document.getElementById("fullscreen-btn");
   if (fsBtn) fsBtn.textContent = "🖥️ Full Screen";
-  const modal = bootstrap.Modal.getInstance(document.getElementById('fullscreenModal'));
-  modal?.hide();
+  bootstrap.Modal.getInstance(document.getElementById('fullscreenModal'))?.hide();
 }
 
 function submitClassInfo(classId) {
@@ -556,13 +512,8 @@ function submitClassInfo(classId) {
       alert("❌ Failed to update class info");
     }
   })
-  .catch(err => {
-    console.error("Update failed:", err);
-    alert("❌ An error occurred.");
-  })
-  .finally(() => {
-    finishSaving();
-  });
+  .catch(err => { console.error("Update failed:", err); alert("❌ An error occurred."); })
+  .finally(() => finishSaving());
 }
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -579,7 +530,7 @@ document.addEventListener("DOMContentLoaded", function () {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nsn, header_name: headerName, status, class_id: classId, term: term, year: year })
       })
-      .then(response => response.json())
+      .then(r => r.json())
       .then(data => {
         if (data.success && status === 1 && autofillMap[headerName]) {
           autofillMap[headerName].forEach(postHeader => {
@@ -596,9 +547,7 @@ document.addEventListener("DOMContentLoaded", function () {
         }
       })
       .catch(err => console.error("Competency update error:", err))
-      .finally(() => {
-        finishSaving();
-      });
+      .finally(() => finishSaving());
     });
   });
 
@@ -615,30 +564,23 @@ document.addEventListener("DOMContentLoaded", function () {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nsn, header: headerName, value, class_id: classId, term: term, year: year })
       })
-      .then(response => response.json())
-      .then(data => {
-        if (!data.success) alert("❌ Failed to update scenario.");
-      })
+      .then(r => r.json())
+      .then(data => { if (!data.success) alert("❌ Failed to update scenario."); })
       .catch(err => console.error("Scenario update error:", err))
-      .finally(() => {
-        finishSaving();
-      });
+      .finally(() => finishSaving());
     });
   });
 });
 
-// Fullscreen toggle (guarded if button hidden)
+// Fullscreen toggle
 function toggleFullScreen() {
   const scrollInner = document.querySelector(".scroll-table-inner");
   const btn = document.getElementById("fullscreen-btn");
   const isNowFull = !document.body.classList.contains("fullscreen-mode");
   document.body.classList.toggle("fullscreen-mode", isNowFull);
-  scrollInner.classList.toggle("fullscreen", isNowFull);
+  scrollInner?.classList.toggle("fullscreen", isNowFull);
   if (btn) btn.textContent = isNowFull ? "↩️ Exit Full Screen" : "🖥️ Full Screen";
-  if (isNowFull) {
-    const modal = new bootstrap.Modal(document.getElementById('fullscreenModal'));
-    modal.show();
-  }
+  if (isNowFull) new bootstrap.Modal(document.getElementById('fullscreenModal')).show();
 }
 
 // Bottom scrollbar sync
@@ -652,38 +594,27 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 });
 
-// Fake wide element to size bottom scrollbar
+// Fake wide element to size bottom scrollbar + mark-all hooks
 document.addEventListener("DOMContentLoaded", function () {
   const studentsTable = document.getElementById("studentsTable");
   const scrollSyncBar = document.getElementById("scroll-sync-bar");
-  if (studentsTable && scrollSyncBar) {
-    scrollSyncBar.style.width = studentsTable.scrollWidth + "px";
-  }
+  if (studentsTable && scrollSyncBar) scrollSyncBar.style.width = studentsTable.scrollWidth + "px";
 
-  // ===== Desktop header "Mark All" — now uses unified confirm flow =====
   document.querySelectorAll(".mark-all-btn").forEach(btn => {
     btn.addEventListener("click", function () {
       const headerLabel = this.closest("th").querySelector(".header-label");
       const colRaw = this.dataset.colraw;
-
-      // Clean display name (strip <br> and button)
       const temp = headerLabel.cloneNode(true);
       temp.querySelectorAll("br")?.forEach(el => el.remove());
       temp.querySelector("button")?.remove();
       const displayName = temp.textContent.trim();
-
       const dependents = autofillMap[colRaw] || [];
-      openMarkAllConfirm({
-        source: 'desktop-mark',
-        displayName,
-        colRaw,
-        dependents
-      });
+      openMarkAllConfirm({ source:'desktop-mark', displayName, colRaw, dependents });
     });
   });
 });
 
-// === Achievements export via POST JSON (no giant GET) ===
+// Achievements export via POST JSON
 document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("export-achievements-btn");
   const statusEl = document.getElementById("export-ach-status");
@@ -717,8 +648,6 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       const blob = await res.blob();
-
-      // Try to use filename from Content-Disposition; fallback
       let filename = "achievements.xlsx";
       const disp = res.headers.get("Content-Disposition") || res.headers.get("content-disposition");
       if (disp) {
@@ -737,8 +666,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
       statusEl.textContent = "Export ready ✔";
       setTimeout(() => statusEl.classList.add("d-none"), 1500);
-
-      // Close modal
       bootstrap.Modal.getInstance(document.getElementById('exportModal'))?.hide();
     } catch (err) {
       console.error(err);
@@ -760,8 +687,7 @@ const _classId   = JSON.parse('{{ class_id  | tojson }}');
 const _term      = JSON.parse('{{ term      | tojson }}');
 const _year      = JSON.parse('{{ year      | tojson }}');
 
-function normalizeColKey(raw) { return String(raw).replace(/&lt;br&gt;|<br\s*\/?>/gi, '<br>'); }
-function isScenarioCol(col)   { return /Scenario (One|Two)\s*-\s*Selected/i.test(col); }
+function isScenarioCol(col){ return /Scenario (One|Two)\s*-\s*Selected/i.test(col); }
 
 async function postJSON(url, payload) {
   startSaving();
@@ -791,7 +717,7 @@ function renderStudent(index) {
       <div class="h6 mb-0">${s.PreferredName} ${s.LastName}</div>
       <div class="mob-subtle">Year ${s.YearLevelID}</div>
     </div>
-  `; // NSN intentionally not shown
+  `;
 
   _compCols.forEach((rawCol) => {
     const val = (s[rawCol] ?? '').toString().trim();
@@ -826,7 +752,6 @@ function renderStudent(index) {
 
   studentCard.innerHTML = html;
 
-  // wire events
   studentCard.querySelectorAll('[data-type="checkbox"]').forEach(cb => {
     cb.addEventListener('change', async function() {
       try {
@@ -917,7 +842,6 @@ function renderCompetency(rawCol) {
   html += `</div>`;
   compList.innerHTML = html;
 
-  // wire events
   compList.querySelectorAll('[data-type="checkbox"]').forEach(cb => {
     cb.addEventListener('change', async function() {
       try {
@@ -927,7 +851,6 @@ function renderCompetency(rawCol) {
         await postJSON('/update_competency', { nsn, header_name: header, status, class_id:_classId, term:_term, year:_year });
 
         if (status === 1 && _autofill[header]) {
-          // Mark dependents for THIS student server-side quietly
           for (const dep of _autofill[header]) {
             await postJSON('/update_competency', { nsn, header_name: dep, status: 1, class_id:_classId, term:_term, year:_year });
           }
@@ -942,46 +865,21 @@ function renderCompetency(rawCol) {
         const nsn = this.dataset.nsn;
         const header = this.dataset.header;
         const value = Number.parseInt(this.value, 10);
-        await postJSON('/update_scenario', {
-          nsn,
-          header,
-          value,
-          class_id: _classId,
-          term: _term,
-          year: _year
-        });
+        await postJSON('/update_scenario', { nsn, header, value, class_id:_classId, term:_term, year:_year });
       } catch (e) {
-        alert('Update failed');
-        console.error(e);
+        alert('Update failed'); console.error(e);
       }
     });
   });
 
-  // --- Mobile "Mark all" / "Clear all" (hidden for scenario columns)
   if (!scenarioMode) {
     const markBtn  = document.getElementById('mobMarkAllBtn');
     const clearBtn = document.getElementById('mobClearAllBtn');
-
     const displayName = rawCol.replace(/<br\s*\/?>/gi, ' ').trim();
     const dependents  = _autofill[rawCol] || [];
 
-    markBtn?.addEventListener('click', () => {
-      openMarkAllConfirm({
-        source: 'mobile-mark',
-        displayName,
-        colRaw: rawCol,
-        dependents
-      });
-    });
-
-    clearBtn?.addEventListener('click', () => {
-      openMarkAllConfirm({
-        source: 'mobile-clear',
-        displayName: `Clear ${displayName}`,
-        colRaw: rawCol,
-        dependents: [] // clearing doesn't cascade
-      });
-    });
+    markBtn?.addEventListener('click', () => openMarkAllConfirm({ source:'mobile-mark', displayName, colRaw: rawCol, dependents }));
+    clearBtn?.addEventListener('click', () => openMarkAllConfirm({ source:'mobile-clear', displayName:`Clear ${displayName}`, colRaw: rawCol, dependents: [] }));
   }
 }
 
@@ -991,30 +889,22 @@ const viewByCompetency = document.getElementById('viewByCompetency');
 const studentView      = document.getElementById('mob-student-view');
 const compView         = document.getElementById('mob-competency-view');
 
-viewByStudent.addEventListener('change', () => {
-  studentView.style.display = 'block';
-  compView.style.display = 'none';
-});
-viewByCompetency.addEventListener('change', () => {
-  studentView.style.display = 'none';
-  compView.style.display = 'block';
-});
+viewByStudent.addEventListener('change', () => { studentView.style.display='block'; compView.style.display='none'; });
+viewByCompetency.addEventListener('change', () => { studentView.style.display='none'; compView.style.display='block'; });
 
 studentSel?.addEventListener('change', e => renderStudent(parseInt(e.target.value)));
 compSel?.addEventListener('change', e => renderCompetency(e.target.value));
 
-// initial renders
 if (_students.length) renderStudent(0);
 if (_compCols.length) renderCompetency(_compCols[0]);
 
-/* ===== Unified Mark-All confirm flow (desktop + mobile) ===== */
+/* ===== Unified Mark-All confirm flow ===== */
 let pendingMarkAllAction = null;
 
 function openMarkAllConfirm({ source, displayName, colRaw, dependents }) {
-  // Modal title/body fill
   document.getElementById("mark-all-column-name").textContent = displayName;
-
   const autofillDiv = document.getElementById("autofill-affected");
+
   if (dependents && dependents.length) {
     const list = dependents.map(d => `<li>${d.replace(/<br\s*\/?>/gi, ' ')}</li>`).join('');
     autofillDiv.innerHTML = `
@@ -1032,14 +922,11 @@ function openMarkAllConfirm({ source, displayName, colRaw, dependents }) {
 
 document.getElementById("confirm-mark-all-btn").addEventListener("click", function () {
   if (!pendingMarkAllAction) return;
-
   const { source, colRaw } = pendingMarkAllAction;
 
-  // helper to safely build selector for data-header="...":
   const headerSelector = (raw) => `[data-header="${String(raw).replace(/"/g, '\\"')}"]`;
 
   if (source === 'desktop-mark') {
-    // Desktop: tick all checkboxes in that column in the big table
     document.querySelectorAll(`input[type="checkbox"][name="competency"]`).forEach(cb => {
       if (cb.dataset.competency?.trim() === colRaw && !cb.checked) {
         cb.checked = true;
@@ -1049,22 +936,14 @@ document.getElementById("confirm-mark-all-btn").addEventListener("click", functi
   }
 
   if (source === 'mobile-mark') {
-    // Mobile: tick all checkboxes for this competency inside the mobile list
     compList.querySelectorAll(`input[type="checkbox"]${headerSelector(colRaw)}`).forEach(cb => {
-      if (!cb.checked) {
-        cb.checked = true;
-        cb.dispatchEvent(new Event("change"));
-      }
+      if (!cb.checked) { cb.checked = true; cb.dispatchEvent(new Event("change")); }
     });
   }
 
   if (source === 'mobile-clear') {
-    // Mobile: untick all checkboxes for this competency
     compList.querySelectorAll(`input[type="checkbox"]${headerSelector(colRaw)}`).forEach(cb => {
-      if (cb.checked) {
-        cb.checked = false;
-        cb.dispatchEvent(new Event("change"));
-      }
+      if (cb.checked) { cb.checked = false; cb.dispatchEvent(new Event("change")); }
     });
   }
 
@@ -1104,14 +983,6 @@ const helpDesktopHTML = `
     <li><strong>🖥️ Full Screen</strong> – expands the grid (hidden on phones)</li>
     <li><strong>Sort by First/Last Name</strong> – reorder students</li>
   </ul>
-  {% if students | selectattr("YearLevelID", "in", [7, 8]) | list | length > 0 %}
-  <h6 class="fw-bold mt-3">Scenarios</h6>
-  <ul>
-    <li>Dropdowns select the scenario for each student.</li>
-    <li>Number keys <strong>0–4</strong> pick a scenario quickly; <strong>Arrow Up/Down</strong> scroll options.</li>
-    <li>See <strong>“View full descriptions”</strong> in the header for details.</li>
-  </ul>
-  {% endif %}
 `;
 
 const helpBody = document.getElementById('helpModalBody');
@@ -1148,7 +1019,6 @@ document.addEventListener("keydown", function (e) {
   const scrollY = window.scrollY;
   let next = null;
 
-  // 0–4 quick select for selects
   if (isSelect && ["0","1","2","3","4"].includes(e.key)) {
     const index = parseInt(e.key);
     if (index < active.options.length) {
@@ -1159,7 +1029,6 @@ document.addEventListener("keydown", function (e) {
     }
   }
 
-  // Arrow up/down for selects
   if (isSelect && ["ArrowDown","ArrowUp"].includes(e.key)) {
     e.preventDefault();
     const dir = e.key === "ArrowDown" ? 1 : -1;
@@ -1168,7 +1037,6 @@ document.addEventListener("keydown", function (e) {
     return;
   }
 
-  // Space / YN10 for checkboxes
   if (isCheckbox && e.key === " ") {
     e.preventDefault();
     active.checked = !active.checked;
@@ -1182,7 +1050,6 @@ document.addEventListener("keydown", function (e) {
     return;
   }
 
-  // Tab left/right
   if (e.key === "Tab") {
     e.preventDefault();
     const offset = e.shiftKey ? -1 : 1;
@@ -1190,9 +1057,7 @@ document.addEventListener("keydown", function (e) {
       const nextElem = document.querySelector(`[data-row="${row}"][data-col="${i}"]`);
       if (nextElem) { next = nextElem; break; }
     }
-  }
-  // Enter up/down
-  else if (e.key === "Enter") {
+  } else if (e.key === "Enter") {
     e.preventDefault();
     const offset = e.shiftKey ? -1 : 1;
     for (let r = row + offset; r >= 0 && r <= 100; r += offset) {
@@ -1201,10 +1066,7 @@ document.addEventListener("keydown", function (e) {
     }
   }
 
-  if (next) {
-    next.focus();
-    window.scrollTo({ top: scrollY });
-  }
+  if (next) { next.focus(); window.scrollTo({ top: scrollY }); }
 });
 </script>
 
