@@ -4,7 +4,7 @@ block content %}
 <div class="container mt-5">
   <h2 class="mb-4 text-centre text-primary">Search for a Student</h2>
 
-  <!-- Notification area -->
+  <!-- Page Notification area -->
   <div id="notification" class="alert d-none" role="alert"></div>
 
   <!-- Search + sort -->
@@ -50,9 +50,18 @@ block content %}
           aria-label="Close"
         ></button>
       </div>
+
       <div class="modal-body">
+        <!-- Modal Notification area -->
+        <div
+          id="modal-notification"
+          class="alert d-none mb-3"
+          role="alert"
+        ></div>
+
         <form id="edit-student-form">
           <input type="hidden" id="edit-nsn" />
+
           <div class="mb-3">
             <label for="edit-first-name" class="form-label">First Name</label>
             <input
@@ -62,6 +71,7 @@ block content %}
               required
             />
           </div>
+
           <div class="mb-3">
             <label for="edit-last-name" class="form-label">Last Name</label>
             <input
@@ -71,12 +81,14 @@ block content %}
               required
             />
           </div>
+
           <div class="mb-3">
             <label for="edit-preferred-name" class="form-label"
               >Preferred Name</label
             >
             <input type="text" class="form-control" id="edit-preferred-name" />
           </div>
+
           <div class="mb-3">
             <label for="edit-ethnicity" class="form-label">Ethnicity</label>
             <select class="form-select" id="edit-ethnicity">
@@ -85,7 +97,10 @@ block content %}
               {% endfor %}
             </select>
           </div>
-          <button type="submit" class="btn btn-primary">Save Changes</button>
+
+          <button type="submit" class="btn btn-primary" id="save-btn">
+            Save Changes
+          </button>
         </form>
       </div>
     </div>
@@ -104,8 +119,20 @@ block content %}
     notif.className = `alert alert-${type}`;
     notif.textContent = message;
     notif.classList.remove("d-none");
-
     setTimeout(() => notif.classList.add("d-none"), 3000);
+  }
+
+  function showModalNotification(message, type = "success") {
+    const notif = document.getElementById("modal-notification");
+    notif.className = `alert alert-${type} mb-3`;
+    notif.textContent = message;
+    notif.classList.remove("d-none");
+  }
+
+  function clearModalNotification() {
+    const notif = document.getElementById("modal-notification");
+    notif.classList.add("d-none");
+    notif.textContent = "";
   }
 
   function sortStudents(data, sortOption) {
@@ -117,68 +144,104 @@ block content %}
     });
   }
 
+  function renderStudents(data) {
+    resultsList.innerHTML = "";
+
+    if (!Array.isArray(data) || data.length === 0) {
+      resultsList.innerHTML =
+        '<div class="col-12"><div class="alert alert-warning">No students found.</div></div>';
+      return;
+    }
+
+    const sorted = sortStudents(data, sortSelect.value);
+
+    sorted.forEach((student) => {
+      const col = document.createElement("div");
+      col.className = "col-md-6 col-lg-4";
+
+      col.innerHTML = `
+        <div class="card border-2 d-flex flex-column justify-content-between" style="border-color: #1a427d; height: 100%;">
+          <div class="card-body d-flex flex-column">
+            <h5 class="card-title">
+              ${student.FirstName} ${student.LastName}
+              ${
+                student.PreferredName
+                  ? `<small class="text-muted">(${student.PreferredName})</small>`
+                  : ""
+              }
+            </h5>
+            <p class="card-text mb-1"><strong>DOB:</strong> ${
+              student.DateOfBirth ?? ""
+            }</p>
+            <p class="card-text mb-1"><strong>Ethnicity:</strong> ${
+              student.EthnicityDesc ?? ""
+            }</p>
+            <p class="card-text mb-1"><strong>Year Level:</strong> ${
+              student.YearLevelID ?? ""
+            }
+              (Term ${student.Term ?? ""}, ${student.CalendarYear ?? ""})
+            </p>
+            <p class="card-text mb-3"><strong>NSN:</strong> ${
+              student.NSN ?? ""
+            }</p>
+
+            <div class="mt-auto d-flex justify-content-end">
+              <button class="btn btn-primary btn-sm text-white edit-btn"
+                      data-nsn="${student.NSN ?? ""}"
+                      data-first="${student.FirstName ?? ""}"
+                      data-last="${student.LastName ?? ""}"
+                      data-pref="${student.PreferredName ?? ""}"
+                      data-ethnicity="${student.EthnicityID ?? ""}">
+                ✏️ Edit
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+
+      resultsList.appendChild(col);
+    });
+  }
+
   function fetchStudents(query) {
-    fetch(`/Students/search?q=${encodeURIComponent(query)}&t=${Date.now()}`)
+    return fetch(
+      `/Students/search?q=${encodeURIComponent(query)}&t=${Date.now()}`
+    )
       .then((response) => response.json())
       .then((data) => {
-        resultsList.innerHTML = "";
-
-        if (data.length === 0) {
-          resultsList.innerHTML =
-            '<div class="col-12"><div class="alert alert-warning">No students found.</div></div>';
-          return;
-        }
-
-        const sorted = sortStudents(data, sortSelect.value);
-
-        sorted.forEach((student) => {
-          const col = document.createElement("div");
-          col.className = "col-md-6 col-lg-4";
-
-          col.innerHTML = `
-            <div class="card border-2 d-flex flex-column justify-content-between" style="border-color: #1a427d; height: 100%;">
-              <div class="card-body d-flex flex-column">
-                <h5 class="card-title">
-                  ${student.FirstName} ${student.LastName}
-                  ${
-                    student.PreferredName
-                      ? `<small class="text-muted">(${student.PreferredName})</small>`
-                      : ""
-                  }
-                </h5>
-                <p class="card-text mb-1"><strong>DOB:</strong> ${
-                  student.DateOfBirth
-                }</p>
-                <p class="card-text mb-1"><strong>Ethnicity:</strong> ${
-                  student.EthnicityDesc
-                }</p>
-                <p class="card-text mb-1"><strong>Year Level:</strong> ${
-                  student.YearLevelID
-                } (Term ${student.Term}, ${student.CalendarYear})</p>
-                <p class="card-text mb-3"><strong>NSN:</strong> ${
-                  student.NSN
-                }</p>
-                <div class="mt-auto d-flex justify-content-end">
-                  <button class="btn btn-primary btn-sm text-white edit-btn"
-                          data-nsn="${student.NSN}"
-                          data-first="${student.FirstName}"
-                          data-last="${student.LastName}"
-                          data-pref="${student.PreferredName || ""}"
-                          data-ethnicity="${student.EthnicityID}">
-                    ✏️ Edit
-                  </button>
-                </div>
-              </div>
-            </div>
-          `;
-
-          resultsList.appendChild(col);
-        });
-      })
-      .catch((err) => {
-        console.error("❌ Error fetching students:", err);
-        showNotification("❌ Search failed.", "danger");
+        renderStudents(data);
+        return data; // return for callers that want to re-use it
       });
+  }
+
+  function populateModalFromStudent(student) {
+    document.getElementById("edit-nsn").value = student.NSN ?? "";
+    document.getElementById("edit-first-name").value = student.FirstName ?? "";
+    document.getElementById("edit-last-name").value = student.LastName ?? "";
+    document.getElementById("edit-preferred-name").value =
+      student.PreferredName ?? "";
+    document.getElementById("edit-ethnicity").value = student.EthnicityID ?? "";
+  }
+
+  // Re-load the modal fields from the server data (ensures persisted values)
+  async function reloadModalFromServerByNSN(nsn) {
+    const query = searchInput.value.trim();
+    if (query.length < 2) return false;
+
+    const data = await fetch(
+      `/Students/search?q=${encodeURIComponent(query)}&t=${Date.now()}`
+    ).then((r) => r.json());
+
+    renderStudents(data);
+
+    const updated = Array.isArray(data)
+      ? data.find((s) => String(s.NSN) === String(nsn))
+      : null;
+    if (updated) {
+      populateModalFromStudent(updated);
+      return true;
+    }
+    return false;
   }
 
   searchInput.addEventListener("input", () => {
@@ -189,70 +252,126 @@ block content %}
       return;
     }
     debounceTimer = setTimeout(() => {
-      fetchStudents(query);
+      fetchStudents(query).catch((err) => {
+        console.error("❌ Error fetching students:", err);
+        showNotification("❌ Search failed.", "danger");
+      });
     }, 800);
   });
 
   sortSelect.addEventListener("change", () => {
     const query = searchInput.value.trim();
     if (query.length >= 2) {
-      fetchStudents(query);
+      fetchStudents(query).catch((err) => {
+        console.error("❌ Error fetching students:", err);
+        showNotification("❌ Search failed.", "danger");
+      });
     }
   });
 
   document.addEventListener("click", function (e) {
-    if (e.target.classList.contains("edit-btn")) {
-      const btn = e.target;
-      document.getElementById("edit-nsn").value = btn.dataset.nsn;
-      document.getElementById("edit-first-name").value = btn.dataset.first;
-      document.getElementById("edit-last-name").value = btn.dataset.last;
-      document.getElementById("edit-preferred-name").value = btn.dataset.pref;
-      document.getElementById("edit-ethnicity").value = btn.dataset.ethnicity;
+    const btn = e.target.closest(".edit-btn");
+    if (!btn) return;
 
-      const modal = new bootstrap.Modal(
-        document.getElementById("editStudentModal")
-      );
-      modal.show();
-    }
+    clearModalNotification();
+
+    populateModalFromStudent({
+      NSN: btn.dataset.nsn,
+      FirstName: btn.dataset.first,
+      LastName: btn.dataset.last,
+      PreferredName: btn.dataset.pref,
+      EthnicityID: btn.dataset.ethnicity,
+    });
+
+    const modal = new bootstrap.Modal(
+      document.getElementById("editStudentModal")
+    );
+    modal.show();
   });
 
   document
+    .getElementById("editStudentModal")
+    .addEventListener("hidden.bs.modal", () => {
+      clearModalNotification();
+      // put button text back just in case
+      const saveBtn = document.getElementById("save-btn");
+      saveBtn.disabled = false;
+      saveBtn.textContent = "Save Changes";
+    });
+
+  document
     .getElementById("edit-student-form")
-    .addEventListener("submit", function (e) {
+    .addEventListener("submit", async function (e) {
       e.preventDefault();
 
-      const data = {
-        NSN: document.getElementById("edit-nsn").value,
+      clearModalNotification();
+
+      const saveBtn = document.getElementById("save-btn");
+      saveBtn.disabled = true;
+      saveBtn.textContent = "Saving changes…";
+
+      const nsn = document.getElementById("edit-nsn").value;
+
+      const payload = {
+        NSN: nsn,
         FirstName: document.getElementById("edit-first-name").value,
         LastName: document.getElementById("edit-last-name").value,
         PreferredName: document.getElementById("edit-preferred-name").value,
         EthnicityID: document.getElementById("edit-ethnicity").value,
       };
 
-      fetch("/Students/edit", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      })
-        .then((res) => res.json())
-        .then((res) => {
-          if (res.success) {
-            const modal = bootstrap.Modal.getInstance(
-              document.getElementById("editStudentModal")
-            );
-            modal.hide();
-            document.getElementById("edit-student-form").reset();
-            showNotification("✅ Student updated!", "success");
-            const query = searchInput.value.trim();
-            if (query.length >= 2) fetchStudents(query);
-          } else {
-            showNotification("❌ Update failed: " + res.message, "danger");
-          }
-        })
-        .catch((err) => {
-          console.error("❌ Error:", err);
-          showNotification("❌ Unexpected error", "danger");
+      try {
+        const resp = await fetch("/Students/edit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
         });
+
+        let body;
+        const ct = resp.headers.get("content-type") || "";
+        if (ct.includes("application/json")) {
+          body = await resp.json();
+        } else {
+          const txt = await resp.text();
+          body = {
+            success: false,
+            message: `Non-JSON response (${resp.status}). ${txt.slice(0, 200)}`,
+          };
+        }
+
+        if (!resp.ok || !body.success) {
+          showModalNotification(
+            `❌ Update failed: ${body.message || `HTTP ${resp.status}`}`,
+            "danger"
+          );
+          saveBtn.disabled = false;
+          saveBtn.textContent = "Save Changes";
+          return;
+        }
+
+        // Re-load from server and show persisted values in the modal
+        const found = await reloadModalFromServerByNSN(nsn);
+
+        showModalNotification(
+          found
+            ? "✅ Updated successfully"
+            : "✅ Updated successfully (but couldn’t re-load the updated row)",
+          "success"
+        );
+
+        // Keep the modal open (so user sees success + confirmed fields)
+        // Button returns to normal state
+        saveBtn.disabled = false;
+        saveBtn.textContent = "Save Changes";
+
+        // Also show a page notification if you want
+        showNotification("✅ Student updated!", "success");
+      } catch (err) {
+        console.error("❌ Error:", err);
+        showModalNotification("❌ Unexpected error", "danger");
+        saveBtn.disabled = false;
+        saveBtn.textContent = "Save Changes";
+      }
     });
 </script>
 
