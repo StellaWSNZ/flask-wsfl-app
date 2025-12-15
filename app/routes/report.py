@@ -300,6 +300,7 @@ def _validate_required_entities(
         "funder_ytd_vs_target",
         "ly_funder_vs_ly_national_vs_target",
         "provider_ytd_vs_target_vs_funder",
+        "funder_missing_data",
     }
 
     if needs_funder and not funder_id:
@@ -522,18 +523,7 @@ def _execute_report(
             threshold=threshold,
             debug=False,
         )
-        try:
-            footer_svg = os.path.join(current_app.static_folder, "footer.svg")
-            add_full_width_footer_svg(
-                fig,
-                footer_svg,
-                bottom_margin_frac=0.0,
-                max_footer_height_frac=0.20,
-            )
-        except Exception as footer_e:
-            current_app.logger.info(
-                "⚠ Could not add footer to funder_missing_data figure: %s", footer_e
-            )
+        
 
         current_app.logger.info("🔎 rows=%d | type=%s", len(results or []), selected_type)
 
@@ -739,6 +729,7 @@ def _build_figure_from_results(
             colors_dict=colors_dict,
             funder_name=selected_funder_name,
         )
+        
 
     # National LY vs National YTD vs Target
     elif selected_type == "national_ly_vs_national_ytd_vs_target":
@@ -823,14 +814,7 @@ def _build_figure_from_results(
             except Exception as _e:
                 current_app.logger.info("⚠️ Could not annotate no-data banner: %s", _e)
 
-        footer_svg = os.path.join(current_app.static_folder, "footer.svg")
-        add_full_width_footer_svg(
-            fig,
-            footer_svg,
-            bottom_margin_frac=0.0,
-            max_footer_height_frac=0.20,
-            col_master="#1a427d40",
-        )
+        
 
     # Funder portrait (YTD vs Target)
     elif selected_type == "funder_ytd_vs_target":
@@ -847,14 +831,7 @@ def _build_figure_from_results(
             subject_name=selected_funder_name,
             title=f"{selected_funder_name or 'Funder'} YTD vs Target",
         )
-        footer_svg = os.path.join(current_app.static_folder, "footer.svg")
-        add_full_width_footer_svg(
-            fig,
-            footer_svg,
-            bottom_margin_frac=0.0,
-            max_footer_height_frac=0.20,
-            col_master="#1a427d40",
-        )
+        
 
     # School portrait (YTD vs Target)
     elif selected_type == "school_ytd_vs_target":
@@ -875,14 +852,7 @@ def _build_figure_from_results(
             subject_name=school_name,
             title=f"{school_name or 'School'} YTD vs WSNZ Target",
         )
-        footer_svg = os.path.join(current_app.static_folder, "footer.svg")
-        add_full_width_footer_svg(
-            fig,
-            footer_svg,
-            bottom_margin_frac=0.0,
-            max_footer_height_frac=0.20,
-            col_master="#1a427d40",
-        )
+        
 
     # Default: use three-bar landscape report logic
     else:
@@ -895,7 +865,7 @@ def _build_figure_from_results(
             colors_dict=r3.colors_dict,
             funder_name=selected_funder_name,
         )
-
+    
     return fig, no_data_banner
 
 
@@ -1147,6 +1117,19 @@ def new_reports():
                     selected_funder_name=selected_funder_name,
                     is_ajax=is_ajax,
                 )
+                if fig is not None:
+                    try:
+                        footer_svg = os.path.join(current_app.static_folder, "footer.svg")
+                        c = "#1a427d" if selected_type == "funder_missing_data" else "#1a427d40"
+                        add_full_width_footer_svg(
+                            fig,
+                            footer_svg,
+                            bottom_margin_frac=0.0,
+                            max_footer_height_frac=0.20,
+                            col_master=c,
+                        )
+                    except Exception as footer_e:
+                        current_app.logger.info("⚠ Could not add footer: %s", footer_e)
                 if early:
                     return early
 

@@ -120,52 +120,66 @@ def add_full_width_footer_svg(
     *,
     bottom_margin_frac: float = 0.0,
     max_footer_height_frac: float = 0.25,
-    debug: bool = False, col_master = None
+    debug: bool = False,
+    col_master=None,
 ) -> None:
     """
-    Add a full-width footer from an SVG at the bottom of the figure,
+    Add a full-width footer from an SVG at the bottom of the figure
     without rasterising it.
+
+    Behaviour:
+    - SVG is always scaled to span full figure width
+    - If SVG is taller than max_footer_height_frac, it is cropped
+      from the bottom (top stays aligned)
     """
+
     width_in, height_in = fig.get_size_inches()
     if debug:
         print(f"[svg-footer] Figure size: {width_in:.2f} x {height_in:.2f} in")
 
-    # You can still use viewBox just for aspect ratio
+    # --- SVG viewBox for aspect ratio ---
     min_x, min_y, vb_w, vb_h = _parse_svg_viewbox(footer_svg, debug=debug)
     svg_aspect = vb_h / vb_w
+
+    # Height needed if width fits exactly
     required_footer_height_frac = (svg_aspect * width_in) / height_in
 
+    # Footer axes height is capped, SVG will be cropped if taller
     footer_h = min(required_footer_height_frac, max_footer_height_frac)
     y0 = bottom_margin_frac
 
-    if required_footer_height_frac > max_footer_height_frac:
-        extra = required_footer_height_frac - max_footer_height_frac
-        y0 = max(0.0, bottom_margin_frac - extra)
-        footer_h = max_footer_height_frac
+    crop_bottom = required_footer_height_frac > max_footer_height_frac
+    visible_ratio = (
+        max_footer_height_frac / required_footer_height_frac
+        if crop_bottom
+        else 1.0
+    )
 
     footer_h = min(footer_h, 1.0 - y0)
-    existing_axes = list(fig.axes)   # <-- add this
-
-    if debug:
-        print(f"[svg-footer] viewBox: min_x={min_x}, min_y={min_y}, vb_w={vb_w}, vb_h={vb_h}")
-        print(f"[svg-footer] svg_aspect={svg_aspect:.4f}")
-        print(f"[svg-footer] required_footer_height_frac={required_footer_height_frac:.4f}")
-        print(f"[svg-footer] Using footer_h={footer_h:.4f}, y0={y0:.4f}")
-
     if footer_h <= 0:
         if debug:
-            print("[svg-footer] Footer height <= 0; not adding footer.")
+            print("[svg-footer] Footer height <= 0; skipping footer.")
         return
 
-    # 1) Axes for footer (position on the figure)
+    if debug:
+        print(f"[svg-footer] viewBox: {vb_w} x {vb_h}")
+        print(f"[svg-footer] svg_aspect={svg_aspect:.4f}")
+        print(f"[svg-footer] required_height_frac={required_footer_height_frac:.4f}")
+        print(f"[svg-footer] footer_h={footer_h:.4f}, y0={y0:.4f}")
+        print(f"[svg-footer] crop_bottom={crop_bottom}")
+
+    # --- Create footer axes ---
+    existing_axes = list(fig.axes)
     ax = fig.add_axes([0.0, y0, 1.0, footer_h], zorder=0)
+
     for a in existing_axes:
-        a.set_zorder(2)           # above footer (footer is zorder=0)
-        a.patch.set_alpha(0.0)    # transparent axes background
-        a.set_facecolor("none")   # belt + braces
+        a.set_zorder(2)
+        a.patch.set_alpha(0.0)
+        a.set_facecolor("none")
+
     ax.axis("off")
-    
-    # 2) Draw all paths
+
+    # --- Parse SVG paths ---
     tree = ET.parse(footer_svg)
     root = tree.getroot()
 
@@ -173,9 +187,8 @@ def add_full_width_footer_svg(
     ns = m.group(1) if m else "http://www.w3.org/2000/svg"
     path_tag = f"{{{ns}}}path"
 
+    all_x, all_y = [], []
     path_count = 0
-    all_x = []
-    all_y = []
 
     for path_el in root.iter(path_tag):
         d = path_el.attrib.get("d")
@@ -183,31 +196,29 @@ def add_full_width_footer_svg(
             continue
 
         path_count += 1
-        if debug and path_count <= 3:
-            print(f"[svg-footer] Found path #{path_count}, d[:60]={d[:60]!r}...")
-
         mpl_path = parse_path(d)
 
-        # collect vertices for tight x/y limits later
         verts = mpl_path.vertices
         all_x.extend(verts[:, 0])
         all_y.extend(verts[:, 1])
 
         style = path_el.attrib.get("style", "")
         stroke = path_el.attrib.get("stroke", "#1a427d")
-        fill = path_el.attrib.get("none", "none")
+        fill = path_el.attrib.get("fill", "none")
 
         if "fill:" in style:
             m_fill = re.search(r"fill:([^;]+)", style)
             if m_fill:
                 fill = m_fill.group(1).strip()
+
         if "stroke:" in style:
             m_stroke = re.search(r"stroke:([^;]+)", style)
             if m_stroke:
                 stroke = m_stroke.group(1).strip()
-      
+
         if col_master is not None:
             fill = stroke = col_master
+
         patch = patches.PathPatch(
             mpl_path,
             facecolor=None if fill in ("none", "transparent") else fill,
@@ -217,23 +228,29 @@ def add_full_width_footer_svg(
         ax.add_patch(patch)
 
     if debug:
-        print(f"[svg-footer] Total <path> elements drawn: {path_count}")
+        print(f"[svg-footer] Total paths drawn: {path_count}")
 
-    if path_count > 0:
-        # Tighten limits exactly to the drawn paths
-        xmin, xmax = min(all_x), max(all_x)
-        ymin, ymax = min(all_y), max(all_y)
-        ax.set_xlim(xmin, xmax)
-        ax.set_ylim(ymax, ymin)  # invert y
-
-        # No extra padding
-        ax.margins(0, 0)
-
-        # keep shapes from getting weirdly stretched vertically
-        ax.set_aspect("equal", adjustable="box")
-    else:
+    if path_count == 0:
         if debug:
-            print("[svg-footer] ⚠ No <path> elements found in SVG.")
+            print("[svg-footer] ⚠ No <path> elements found.")
+        return
+
+    # --- Set limits: full width, crop bottom if needed ---
+    xmin, xmax = min(all_x), max(all_x)
+    ymin, ymax = min(all_y), max(all_y)
+
+    ax.set_xlim(xmin, xmax)
+
+    if crop_bottom:
+        full_h = ymax - ymin
+        visible_h = full_h * visible_ratio
+        y_bottom_visible = ymin + visible_h
+        ax.set_ylim(y_bottom_visible, ymin)  # inverted (SVG y goes down)
+    else:
+        ax.set_ylim(ymax, ymin)
+
+    ax.margins(0, 0)
+    ax.set_aspect("equal", adjustable="box")
 
 def create_funder_missing_figure(
     df_all: pd.DataFrame,

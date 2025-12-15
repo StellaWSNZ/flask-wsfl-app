@@ -38,11 +38,6 @@ from openpyxl import load_workbook
 from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError, SQLAlchemyError
 
-# Optional: Playwright (conditionally available)
-try:
-    from playwright.sync_api import sync_playwright
-except Exception:
-    sync_playwright = None
 
 # ---------------------------
 # Local imports
@@ -1336,16 +1331,7 @@ def create_student_and_add():
 
     eng = get_db_engine()
     try:
-        with eng.begin() as conn:
-            # Optional: stamp session context for SQL audit triggers
-            try:
-                acting = getattr(current_user, "email", None) or session.get("user_email") or "flaskuser"
-                conn.exec_driver_sql(
-                    "EXEC sys.sp_set_session_context @key=N'wsfl_user', @value=?",
-                    (acting,)
-                )
-            except Exception:
-                pass
+        with eng.begin() as conn:            
 
             conn.exec_driver_sql("""
                 SET NOCOUNT ON;
