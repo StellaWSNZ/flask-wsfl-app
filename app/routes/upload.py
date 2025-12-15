@@ -308,26 +308,36 @@ def classlistupload():
                         try:
                             df = pd.read_csv(file, header=0 if has_headers else None)
                         except UnicodeDecodeError:
-                            file.seek(0)  # Reset pointer to start of file
-                            df = pd.read_csv(file, header=0 if has_headers else None, encoding="latin1")               
-                    elif file_ext in [".xls", ".xlsx",".xlsm"]:
-                        with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:
-                            file.save(tmp.name)
+                            file.seek(0)
+                            df = pd.read_csv(file, header=0 if has_headers else None, encoding="latin1")
 
-                            # Convert Excel to CSV using pandas
-                            excel_df = pd.read_excel(tmp.name, header=0 if has_headers else None)
-                            tmp_csv_path = tmp.name.replace(".xlsx", ".csv")
-                            excel_df.to_csv(tmp_csv_path, index=False)
+                    elif file_ext in [".xls", ".xlsx", ".xlsm"]:
+                        tmp_path = None
+                        try:
+                            with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as tmp:
+                                tmp_path = tmp.name
+                                file.save(tmp_path)
 
-                        # Now load the CSV version for consistent handling
-                            df = pd.read_csv(tmp_csv_path, header=0 if has_headers else None, encoding="latin1")               
+                            df = pd.read_excel(tmp_path, header=0 if has_headers else None)
+
+                        finally:
+                            if tmp_path and os.path.exists(tmp_path):
+                                os.remove(tmp_path)               
                     else:
                         flash("Unsupported file format. Please upload a .csv, .xls, or .xlsx file.", "danger")
                         return redirect(url_for("upload_bp.classlistupload"))
                 except Exception as e:
                     flash(f"Failed to read uploaded file: {str(e)}", "danger")
                     return redirect(url_for("upload_bp.classlistupload"))
-
+                # --- normalise headers + common variants (prevents phantom cols) ---
+                df.columns = [str(c).strip() for c in df.columns]
+                df.rename(columns={
+                    "BirthDate": "Birthdate",
+                    "Birth Date": "Birthdate",
+                    "Year Level": "YearLevel",
+                    "Yearlevel": "YearLevel",
+                    "Year_Level": "YearLevel",
+                }, inplace=True)
                 # Replace NaN and NaT with None
                 if "Birthdate" in df.columns:
                     print("\n📅 Starting Birthdate normalization...")
@@ -362,7 +372,6 @@ def classlistupload():
                 # Save raw JSON version for later validation (as string)
                 for col in df_cleaned.columns:
                     df_cleaned[col] = df_cleaned[col].apply(lambda x: remove_macrons(x) if isinstance(x, str) else x)
-                df_cleaned.rename(columns={"BirthDate": "Birthdate"}, inplace=True)
 
                 session["raw_csv_json"] = df_cleaned.to_json(orient="records")
                 # print("✅ raw_csv_json saved with", len(df_cleaned), "rows")
@@ -370,6 +379,8 @@ def classlistupload():
                 # Save top 10 rows preview to session
                 preview_data = df_cleaned.head(10).to_dict(orient="records")
                 for row in preview_data:
+                    if "YearLevel" not in row:      # <-- don't create it
+                        continue
                     yl = row.get("YearLevel")
                     if isinstance(yl, (int, float)) and not pd.isnull(yl):
                         row["YearLevel"] = str(int(yl))
@@ -585,7 +596,8 @@ def classlistdownload():
 
             # Write formatted cells
             for row in range(1, len(df) + 1):
-                error_fields = df.loc[row - 1, 'ErrorFields']
+                error_fields = df.loc[row - 1, 'ErrorFields'] if 'ErrorFields' in df.columns else ""
+
                 match_value  = df.loc[row - 1, 'Match']
                 error_columns = [field.strip() for field in error_fields.split(',')] if pd.notna(error_fields) else []
 
