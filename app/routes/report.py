@@ -865,7 +865,23 @@ def _build_figure_from_results(
             colors_dict=r3.colors_dict,
             funder_name=selected_funder_name,
         )
-    
+    if selected_type == "funder_missing_data":
+        c = "#1a427d"
+    else:
+        c = "#1a427d40"
+    try:
+        footer_svg = os.path.join(current_app.static_folder, "footer.svg")
+        add_full_width_footer_svg(
+            fig,
+            footer_svg,
+            bottom_margin_frac=0.0,
+            max_footer_height_frac=0.20,
+            col_master=c
+        )
+    except Exception as footer_e:
+        current_app.logger.info(
+            "⚠ Could not add footer to funder_missing_data figure: %s", footer_e
+        )
     return fig, no_data_banner
 
 
