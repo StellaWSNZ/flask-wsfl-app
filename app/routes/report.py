@@ -879,8 +879,8 @@ def _build_figure_from_results(
             col_master=c
         )
     except Exception as footer_e:
-        current_app.logger.info(
-            "⚠ Could not add footer to funder_missing_data figure: %s", footer_e
+        print(
+            f"⚠ Could not add footer to figure: %s", footer_e
         )
     return fig, no_data_banner
 
