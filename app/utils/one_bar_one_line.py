@@ -365,7 +365,7 @@ def provider_portrait_with_target(
     scale = 1.0 if needed_est <= available_est else max(0.55, available_est/needed_est)
 
     BARS_LEFT_X  = BASE["BARS_LEFT_X"]
-    RIGHT_MARGIN = BASE["RIGHT_MARGIN"] * (0.9*scale + 0.1)
+    RIGHT_MARGIN = BASE["RIGHT_MARGIN"] * (0.9*scale + 1)
     LABEL_PAD    = BASE["LABEL_PAD"] * (0.9*scale + 0.1)
     BAR_MAX_W    = 1.0 - RIGHT_MARGIN - BARS_LEFT_X
 

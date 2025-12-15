@@ -733,7 +733,7 @@ def _build_figure_from_results(
             colors_dict=colors_dict,
             funder_id=None,
         )
-
+        
     # Provider portrait (YTD vs Target)
     elif selected_type == "provider_ytd_vs_target":
         try:
@@ -816,7 +816,14 @@ def _build_figure_from_results(
                 )
             except Exception as _e:
                 print(f"⚠️ Could not annotate no-data banner: {_e}")
-
+        footer_png = os.path.join(current_app.static_folder, "footer.svg")
+        add_full_width_footer_svg(
+            fig,
+            footer_png,
+            bottom_margin_frac=0.0,
+            max_footer_height_frac=0.20,
+            col_master="#1a427d40"
+        )
     # Funder portrait (YTD vs Target)
     elif selected_type == "funder_ytd_vs_target":
         try:
@@ -832,7 +839,14 @@ def _build_figure_from_results(
             subject_name=selected_funder_name,
             title=f"{selected_funder_name or 'Funder'} YTD vs Target",
         )
-
+        footer_png = os.path.join(current_app.static_folder, "footer.svg")
+        add_full_width_footer_svg(
+            fig,
+            footer_png,
+            bottom_margin_frac=0.0,
+            max_footer_height_frac=0.20,
+            col_master="#1a427d40"
+        )
     # School portrait (YTD vs Target)
     elif selected_type == "school_ytd_vs_target":
         try:
@@ -852,6 +866,14 @@ def _build_figure_from_results(
             mode="school",
             subject_name=school_name,
             title=f"{school_name or 'School'} YTD vs WSNZ Target",
+        )
+        footer_png = os.path.join(current_app.static_folder, "footer.svg")
+        add_full_width_footer_svg(
+            fig,
+            footer_png,
+            bottom_margin_frac=0.0,
+            max_footer_height_frac=0.20,
+            col_master="#1a427d40"
         )
 
     # Default: use three-bar landscape report logic
@@ -1002,7 +1024,9 @@ def new_reports():
                 if role == "ADM":
                     selected_funder_name = request.form.get("funder_name") or None
                 print(f"effective funder_name: {selected_funder_name}")
-
+                print(selected_funder_name)
+                if(selected_funder_name=="Loading funders…"):
+                    selected_funder_name= None
                 funder_id = None
                 provider_id = None
                 school_id = None

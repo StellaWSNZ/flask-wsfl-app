@@ -120,7 +120,7 @@ def add_full_width_footer_svg(
     *,
     bottom_margin_frac: float = 0.0,
     max_footer_height_frac: float = 0.25,
-    debug: bool = False,
+    debug: bool = False, col_master = None
 ) -> None:
     """
     Add a full-width footer from an SVG at the bottom of the figure,
@@ -144,6 +144,7 @@ def add_full_width_footer_svg(
         footer_h = max_footer_height_frac
 
     footer_h = min(footer_h, 1.0 - y0)
+    existing_axes = list(fig.axes)   # <-- add this
 
     if debug:
         print(f"[svg-footer] viewBox: min_x={min_x}, min_y={min_y}, vb_w={vb_w}, vb_h={vb_h}")
@@ -157,9 +158,13 @@ def add_full_width_footer_svg(
         return
 
     # 1) Axes for footer (position on the figure)
-    ax = fig.add_axes([0.0, y0, 1.0, footer_h])
+    ax = fig.add_axes([0.0, y0, 1.0, footer_h], zorder=0)
+    for a in existing_axes:
+        a.set_zorder(2)           # above footer (footer is zorder=0)
+        a.patch.set_alpha(0.0)    # transparent axes background
+        a.set_facecolor("none")   # belt + braces
     ax.axis("off")
-
+    
     # 2) Draw all paths
     tree = ET.parse(footer_svg)
     root = tree.getroot()
@@ -200,7 +205,9 @@ def add_full_width_footer_svg(
             m_stroke = re.search(r"stroke:([^;]+)", style)
             if m_stroke:
                 stroke = m_stroke.group(1).strip()
-
+      
+        if col_master is not None:
+            fill = stroke = col_master
         patch = patches.PathPatch(
             mpl_path,
             facecolor=None if fill in ("none", "transparent") else fill,
@@ -470,7 +477,7 @@ def create_funder_missing_figure(
     poses = layout_tables_by_rows(
         blocks,
         y_top=0.92,
-        y_bottom=0.125,
+        y_bottom=0.02,
         target_row_h=0.022,
         min_row_h=0.012,
         gap=0.020,
