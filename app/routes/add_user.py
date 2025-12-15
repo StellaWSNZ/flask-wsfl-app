@@ -235,7 +235,7 @@ def add_user():
                         },
                     )
         except Exception as log_err:
-            current_app.logger.error(f"⚠️ Failed to log alert: {log_err}")
+            current_app.logger.exception(f"⚠️ Failed to log alert")
 
         flash("An unexpected error occurred. The issue has been logged.", "danger")
         return abort(500)

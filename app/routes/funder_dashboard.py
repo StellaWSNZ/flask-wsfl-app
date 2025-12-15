@@ -899,7 +899,7 @@ def funder_schools():
 
     except Exception:
         err_id = uuid.uuid4().hex[:8]
-        current_app.logger.error(f"[FunderSchools ERROR {err_id}]\n{traceback.format_exc()}")
+        current_app.logger.exeption(f"[FunderSchools ERROR")
         try:
             log_alert(
                 email=session.get("user_email"),

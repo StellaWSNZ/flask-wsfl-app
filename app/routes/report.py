@@ -1,14 +1,16 @@
+# report.py
+
 # Standard library
 import base64
 import os
 import re
 import traceback
-from datetime import datetime  # or drop entirely if unused here
-from pathlib import Path
 import uuid
+from pathlib import Path
 
 # Third-party
 import matplotlib
+
 matplotlib.use("Agg")  # Safe backend for servers
 import matplotlib.pyplot as plt
 from flask import (
@@ -26,26 +28,15 @@ from flask import (
 from sqlalchemy import text
 
 # App utilities
+from app.routes.auth import login_required
 from app.utils.database import get_db_engine, log_alert
 from app.utils.funder_missing_plot import (
     add_full_width_footer_svg,
     create_funder_missing_figure,
 )
-from app.utils.fundernationalplot import (
-    create_competency_report as create_funder_report,
-)
-from app.utils.providerplot import (
-    create_competency_report as create_provider_report,
-)
-from app.utils.competencyplot import (
-    load_competency_rates,
-    make_figure as create_comp_figure,
-)
-from app.utils.schoolplot import create_school_report
-import app.utils.report_three_bar_landscape as r3
-import app.utils.report_two_bar_portrait as r2
 from app.utils.one_bar_one_line import provider_portrait_with_target, use_ppmori
-from app.routes.auth import login_required
+
+import app.utils.report_three_bar_landscape as r3  # kept for other report types
 
 REPORT_DIR = Path("/tmp/wsfl_reports")
 REPORT_DIR.mkdir(parents=True, exist_ok=True)
@@ -54,10 +45,32 @@ REPORT_DIR.mkdir(parents=True, exist_ok=True)
 report_bp = Blueprint("report_bp", __name__)
 
 
+# ----------------------------
+# Logging helpers
+# ----------------------------
+def _user_ctx():
+    """Common fields for structured-ish logs (kept simple)."""
+    return {
+        "user": session.get("user_email"),
+        "role": session.get("user_role"),
+        "admin": session.get("user_admin"),
+        "path": request.path if request else None,
+    }
+
+
+def _safe_form_keys():
+    """Avoid logging PII-heavy form contents; keys are enough for debugging."""
+    try:
+        return sorted(list(request.form.keys()))
+    except Exception:
+        return []
+
+
+# ----------------------------
+# Small helpers
+# ----------------------------
 def slugify_filename(label: str, fallback: str = "report") -> str:
-    """
-    Turn a human label into a filesystem-safe filename chunk.
-    """
+    """Turn a human label into a filesystem-safe filename chunk."""
     label = (label or "").strip()
     if not label:
         return fallback
@@ -77,8 +90,6 @@ def get_available_terms(nearest_year, nearest_term):
 
 
 # ---------- Download endpoints with log_alert ----------
-
-
 @report_bp.route("/Reporting/download_pdf")
 @login_required
 def download_pdf():
@@ -107,14 +118,17 @@ def download_pdf():
 
     except Exception as e:
         err_text = f"/Reporting/download_pdf failed: {e}\n{traceback.format_exc()}"
-        print("❌ Error in /download_pdf:", e)
-        log_alert(
-            email=session.get("user_email"),
-            role=session.get("user_role"),
-            entity_id=None,
-            link=url_for("report_bp.download_pdf", _external=True),
-            message=err_text[:4000],
-        )
+        current_app.logger.exception("❌ Error in /Reporting/download_pdf")
+        try:
+            log_alert(
+                email=session.get("user_email"),
+                role=session.get("user_role"),
+                entity_id=None,
+                link=url_for("report_bp.download_pdf", _external=True),
+                message=err_text[:4000],
+            )
+        except Exception:
+            pass
         flash("An error occurred while downloading the PDF.", "danger")
         return redirect(url_for("report_bp.new_reports"))
 
@@ -143,15 +157,17 @@ def download_png():
         )
     except Exception as e:
         err_text = f"/Reporting/download_png failed: {e}\n{traceback.format_exc()}"
-        print("❌ Error in /download_png:", e)
-        # ✅ log to DB
-        log_alert(
-            email=session.get("user_email"),
-            role=session.get("user_role"),
-            entity_id=None,
-            link=url_for("report_bp.download_png", _external=True),
-            message=err_text[:4000],
-        )
+        current_app.logger.exception("❌ Error in /Reporting/download_png")
+        try:
+            log_alert(
+                email=session.get("user_email"),
+                role=session.get("user_role"),
+                entity_id=None,
+                link=url_for("report_bp.download_png", _external=True),
+                message=err_text[:4000],
+            )
+        except Exception:
+            pass
         flash("An error occurred while downloading the PNG.", "danger")
         return redirect(url_for("report_bp.new_reports"))
 
@@ -195,15 +211,12 @@ def _get_funder_name_from_role_or_form(role: str) -> str | None:
     - ADM: funder name comes from the 'selected_funder' dropdown (on POST)
     - PRO: no funder name (None)
     """
-    # FUN sees their own funder from the session
     if role == "FUN":
         return session.get("desc")
 
-    # ADM chooses from dropdown (only meaningful on POST)
     if role == "ADM" and request.method == "POST":
         return request.form.get("selected_funder") or None
 
-    # PRO and others: no selected_funder_name
     return None
 
 
@@ -252,13 +265,16 @@ def _validate_required_entities(
     if needs_provider and not selected_provider_id:
         msg = "Please choose a provider."
 
-        log_alert(
-            email=session.get("user_email"),
-            role=session.get("user_role"),
-            entity_id=session.get("user_id"),
-            link=request.url,
-            message="/Reports: provider required but missing",
-        )
+        try:
+            log_alert(
+                email=session.get("user_email"),
+                role=session.get("user_role"),
+                entity_id=session.get("user_id"),
+                link=request.url,
+                message="/Reports: provider required but missing",
+            )
+        except Exception:
+            pass
 
         if is_ajax:
             return jsonify({"ok": False, "error": msg}), 400
@@ -280,7 +296,6 @@ def _validate_required_entities(
         )
 
     # ---- Funder required ----
-    # (funder_missing_data uses funder *name*, so it is handled separately)
     needs_funder = selected_type in {
         "funder_ytd_vs_target",
         "ly_funder_vs_ly_national_vs_target",
@@ -290,13 +305,16 @@ def _validate_required_entities(
     if needs_funder and not funder_id:
         msg = "Please choose a funder."
 
-        log_alert(
-            email=session.get("user_email"),
-            role=session.get("user_role"),
-            entity_id=session.get("user_id"),
-            link=request.url,
-            message="/Reports: funder required but missing",
-        )
+        try:
+            log_alert(
+                email=session.get("user_email"),
+                role=session.get("user_role"),
+                entity_id=session.get("user_id"),
+                link=request.url,
+                message="/Reports: funder required but missing",
+            )
+        except Exception:
+            pass
 
         if is_ajax:
             return jsonify({"ok": False, "error": msg}), 400
@@ -323,13 +341,16 @@ def _validate_required_entities(
     if needs_school and not selected_school_id:
         msg = "Please choose a school."
 
-        log_alert(
-            email=session.get("user_email"),
-            role=session.get("user_role"),
-            entity_id=session.get("user_id"),
-            link=request.url,
-            message="/Reports: school required but missing",
-        )
+        try:
+            log_alert(
+                email=session.get("user_email"),
+                role=session.get("user_role"),
+                entity_id=session.get("user_id"),
+                link=request.url,
+                message="/Reports: school required but missing",
+            )
+        except Exception:
+            pass
 
         if is_ajax:
             return jsonify({"ok": False, "error": msg}), 400
@@ -350,7 +371,6 @@ def _validate_required_entities(
             no_data_banner=None,
         )
 
-    # ✅ Everything required is present
     return None
 
 
@@ -369,12 +389,6 @@ def _execute_report(
     """
     Run the appropriate SQL/stored procedure and return:
         results, fig, no_data_banner, early_response
-
-    - results: list of row dicts / RowMapping (or None)
-    - fig: a Matplotlib figure if already built (e.g. funder_missing_data)
-    - no_data_banner: optional string for the plot overlay
-    - early_response: a Flask response (redirect/json) if we already
-      handled an error condition (e.g. no rows for funder_missing_data)
     """
     results = None
     fig = None
@@ -383,12 +397,14 @@ def _execute_report(
 
     # 1) Funder YTD vs Target (data only)
     if selected_type == "funder_ytd_vs_target":
-        sql = text("""
+        sql = text(
+            """
             SET NOCOUNT ON;
             EXEC dbo.GetFunderNationalRates_All
                  @Term = :Term,
                  @CalendarYear = :CalendarYear;
-        """)
+        """
+        )
         params = {"Term": selected_term, "CalendarYear": selected_year}
         res = conn.execute(sql, params)
         rows = res.mappings().all()
@@ -440,34 +456,36 @@ def _execute_report(
         else:
             results = rows
 
-        print("🔎 rows:", len(results))
+        current_app.logger.info("🔎 rows=%d | type=%s", len(results or []), selected_type)
 
     # 2) National LY vs National YTD vs Target
     elif selected_type == "national_ly_vs_national_ytd_vs_target":
-        sql = text("""
+        sql = text(
+            """
             SET NOCOUNT ON;
             EXEC GetNationalRates
                 @CalendarYear = :CalendarYear,
                 @Term         = :Term;
-        """)
-        params = {
-            "CalendarYear": selected_year,
-            "Term": selected_term,
-        }
+        """
+        )
+        params = {"CalendarYear": selected_year, "Term": selected_term}
         res = conn.execute(sql, params)
         results = res.mappings().all()
+        current_app.logger.info("🔎 rows=%d | type=%s", len(results or []), selected_type)
 
     # 3) Funder Missing Data (builds fig here)
     elif selected_type == "funder_missing_data":
         threshold = 0.5
-        sql = text("""
+        sql = text(
+            """
             SET NOCOUNT ON;
             EXEC FlaskGetSchoolSummaryAllFunders
                 @CalendarYear = :CalendarYear,
                 @Term         = :Term,
                 @Threshold    = :Threshold,
                 @Email        = :Email;
-        """)
+        """
+        )
         params = {
             "CalendarYear": selected_year,
             "Term": selected_term,
@@ -505,24 +523,30 @@ def _execute_report(
             debug=False,
         )
         try:
-            footer_png = os.path.join(current_app.static_folder, "footer.svg")
+            footer_svg = os.path.join(current_app.static_folder, "footer.svg")
             add_full_width_footer_svg(
                 fig,
-                footer_png,
+                footer_svg,
                 bottom_margin_frac=0.0,
                 max_footer_height_frac=0.20,
             )
         except Exception as footer_e:
-            print(f"⚠ Could not add footer to funder_missing_data figure: {footer_e}")
+            current_app.logger.info(
+                "⚠ Could not add footer to funder_missing_data figure: %s", footer_e
+            )
+
+        current_app.logger.info("🔎 rows=%d | type=%s", len(results or []), selected_type)
 
     # 4) Funder LY vs National LY vs Target (data only)
     elif selected_type == "ly_funder_vs_ly_national_vs_target":
-        sql = text("""
+        sql = text(
+            """
             SET NOCOUNT ON;
             EXEC dbo.GetFunderNationalRates_All
                 @Term = :Term,
                 @CalendarYear = :CalendarYear;
-        """)
+        """
+        )
         # NOTE: you may want to parameterise this later
         params = {"Term": 2, "CalendarYear": 2025}
         res = conn.execute(sql, params)
@@ -530,9 +554,7 @@ def _execute_report(
         raw_rows = res.mappings().all()
         filtered_rows = []
         for r in raw_rows:
-            funder_matches = (
-                not funder_id or int(r.get("FunderID", 0) or 0) == funder_id
-            )
+            funder_matches = not funder_id or int(r.get("FunderID", 0) or 0) == funder_id
             keep = (
                 (funder_matches and r.get("ResultType") == "Funder Rate (YTD)")
                 or r.get("ResultType") == "WSNZ Target"
@@ -550,17 +572,20 @@ def _execute_report(
             filtered_rows.append(d)
 
         results = filtered_rows
+        current_app.logger.info("🔎 rows=%d | type=%s", len(results or []), selected_type)
 
     # 5) Provider vs Funder (data only)
     elif selected_type == "provider_ytd_vs_target_vs_funder":
-        sql = text("""
+        sql = text(
+            """
             SET NOCOUNT ON;
             EXEC dbo.GetProviderNationalRates
                 @Term         = :Term,
                 @CalendarYear = :CalendarYear,
                 @ProviderID   = :ProviderID,
                 @FunderID     = :FunderID;
-        """)
+        """
+        )
         params = {
             "Term": selected_term,
             "CalendarYear": selected_year,
@@ -571,32 +596,33 @@ def _execute_report(
         rows = res.mappings().all()
 
         if len(rows) == 0:
+            # fallback driver_sql (kept as-is)
             res2 = conn.exec_driver_sql(
                 "SET NOCOUNT ON; EXEC dbo.GetProviderNationalRates @Term=?, @CalendarYear=?, @ProviderID=?, @FunderID=?",
-                (
-                    selected_term,
-                    selected_year,
-                    int(selected_provider_id),
-                    funder_id if funder_id is not None else None,
-                ),
+                (selected_term, selected_year, int(selected_provider_id), funder_id if funder_id is not None else None),
             )
             if getattr(res2, "cursor", None) and res2.cursor.description:
                 cols = [d[0] for d in res2.cursor.description]
                 rows = [dict(zip(cols, row)) for row in res2.fetchall()]
+
         results = rows
+        current_app.logger.info("🔎 rows=%d | type=%s", len(results or []), selected_type)
 
     # 6) Provider YTD vs Target (data only)
     elif selected_type == "provider_ytd_vs_target":
         if role == "ADM":
             funder_id = None
-        sql = text("""
+
+        sql = text(
+            """
             SET NOCOUNT ON;
             EXEC dbo.GetProviderNationalRates
                  @Term         = :Term,
                  @CalendarYear = :CalendarYear,
                  @ProviderID   = :ProviderID,
                  @FunderID     = :FunderID;
-        """)
+        """
+        )
         params = {
             "Term": selected_term,
             "CalendarYear": selected_year,
@@ -606,36 +632,40 @@ def _execute_report(
         res = conn.execute(sql, params)
         rows = res.mappings().all()
 
-        print(f"🧪 Rows fetched: {len(rows)}")
+        current_app.logger.info("🧪 Rows fetched: %d", len(rows))
+
         if rows:
             first = rows[0]
-            print("🧪 First row keys:", list(first.keys()))
-            print("🧪 Distinct ResultTypes:", {r.get("ResultType") for r in rows})
+            current_app.logger.debug("🧪 First row keys: %s", list(first.keys()))
+            current_app.logger.debug(
+                "🧪 Distinct ResultTypes: %s", {r.get("ResultType") for r in rows}
+            )
         else:
-            print("⚠️ Stored procedure returned 0 rows for these params.")
+            current_app.logger.warning("⚠️ Stored procedure returned 0 rows for these params.")
 
         results = rows
 
     # 7) School YTD vs Target (data only)
     elif selected_type == "school_ytd_vs_target":
-        sql = text("""
+        sql = text(
+            """
             SET NOCOUNT ON;
             EXEC dbo.GetSchoolNationalRates
                  @CalendarYear = :CalendarYear,
                  @Term         = :Term,
                  @MoeNumber    = :MoeNumber;
-        """)
+        """
+        )
         params = {
             "CalendarYear": selected_year,
             "Term": selected_term,
             "MoeNumber": int(selected_school_id),
         }
-        print(f"📥 SQL params (school): {params}")
         res = conn.execute(sql, params)
         results = res.mappings().all()
+        current_app.logger.info("🔎 rows=%d | type=%s", len(results or []), selected_type)
 
     else:
-        # Invalid option — let caller handle as a normal error
         results = None
 
     return results, fig, no_data_banner, early_response
@@ -651,18 +681,14 @@ def _build_figure_from_results(
     selected_provider_id,
     selected_school_id,
 ):
-    """
-    Build a Matplotlib figure from the result rows.
-
-    Returns (fig, no_data_banner).
-    """
+    """Build a Matplotlib figure from the result rows. Returns (fig, no_data_banner)."""
     fig = None
     no_data_banner = None
 
     if not results:
         return None, None
 
-    # Provider vs Funder
+    # Provider vs Funder (three-bar landscape)
     if selected_type == "provider_ytd_vs_target_vs_funder":
         vars_to_plot = ["Provider Rate (YTD)", "Funder Rate (YTD)", "WSNZ Target"]
         colors_dict = {
@@ -670,9 +696,6 @@ def _build_figure_from_results(
             "WSNZ Target": "#356FB6",
             "Funder Rate (YTD)": "#BBE6E9",
         }
-
-        print("DEBUG ResultTypes in results:")
-        print(sorted(set(r.get("ResultType") for r in results if r.get("ResultType"))))
 
         provider_display_name = (
             request.form.get("provider_name")
@@ -733,33 +756,25 @@ def _build_figure_from_results(
             colors_dict=colors_dict,
             funder_id=None,
         )
-        
+
     # Provider portrait (YTD vs Target)
     elif selected_type == "provider_ytd_vs_target":
         try:
             use_ppmori("app/static/fonts")
         except Exception as font_e:
-            print(f"⚠️ font setup skipped: {font_e}")
+            current_app.logger.info("⚠️ font setup skipped: %s", font_e)
 
         mode = "provider"
 
         provider_id_val = request.form.get("provider_id") or session.get("provider_id")
-        provider_id_val = (
-            int(provider_id_val)
-            if provider_id_val not in (None, "", "None")
-            else None
-        )
+        provider_id_val = int(provider_id_val) if provider_id_val not in (None, "", "None") else None
 
         subject_name = (request.form.get("provider_name") or "").strip()
         if not subject_name:
             subject_name = (session.get("desc") or "").strip()
         if not subject_name:
             for r in results or []:
-                subj = (
-                    r.get("ProviderName")
-                    or r.get("Provider")
-                    or r.get("ProviderDesc")
-                )
+                subj = r.get("ProviderName") or r.get("Provider") or r.get("ProviderDesc")
                 if subj:
                     subject_name = str(subj).strip()
                     break
@@ -773,18 +788,13 @@ def _build_figure_from_results(
 
         filtered_results = results
         if not provider_rows:
-            print(
-                "⚠️ No 'provider rate' rows found in results for provider_ytd_vs_target"
-            )
             no_data_banner = (
                 f"No YTD provider data found for {subject_name} "
                 f"(Term {selected_term}, {selected_year}). Showing national/target series only."
             )
             filtered_results = [r for r in results if not _is_provider_row(r)]
 
-        chart_title = (
-            f"{subject_name} — YTD vs Target (Term {selected_term}, {selected_year})"
-        )
+        chart_title = f"{subject_name} — YTD vs Target (Term {selected_term}, {selected_year})"
 
         fig = provider_portrait_with_target(
             filtered_results,
@@ -795,41 +805,39 @@ def _build_figure_from_results(
             title=chart_title,
         )
 
-        # If we have a warning, overlay the banner
+        # Overlay warning banner (kept as-is)
         if no_data_banner and fig is not None:
             try:
                 ax = fig.gca()
                 ax.annotate(
                     no_data_banner,
-                    xy=(0.5, 1.02),
+                    xy=(0.5, 1.0),
                     xycoords="axes fraction",
                     ha="center",
                     va="bottom",
                     fontsize=10,
                     fontweight="bold",
                     color="white",
-                    bbox=dict(
-                        boxstyle="round,pad=0.4",
-                        fc="#1a427d",  # dark blue fill
-                        ec="#1a427d",  # matching border
-                    ),
+                    bbox=dict(boxstyle="round,pad=0.4", fc="#1a427d", ec="#1a427d"),
                 )
             except Exception as _e:
-                print(f"⚠️ Could not annotate no-data banner: {_e}")
-        footer_png = os.path.join(current_app.static_folder, "footer.svg")
+                current_app.logger.info("⚠️ Could not annotate no-data banner: %s", _e)
+
+        footer_svg = os.path.join(current_app.static_folder, "footer.svg")
         add_full_width_footer_svg(
             fig,
-            footer_png,
+            footer_svg,
             bottom_margin_frac=0.0,
             max_footer_height_frac=0.20,
-            col_master="#1a427d40"
+            col_master="#1a427d40",
         )
+
     # Funder portrait (YTD vs Target)
     elif selected_type == "funder_ytd_vs_target":
         try:
             use_ppmori("app/static/fonts")
         except Exception as font_e:
-            print(f"⚠️ font setup skipped: {font_e}")
+            current_app.logger.info("⚠️ font setup skipped: %s", font_e)
 
         fig = provider_portrait_with_target(
             results,
@@ -839,24 +847,24 @@ def _build_figure_from_results(
             subject_name=selected_funder_name,
             title=f"{selected_funder_name or 'Funder'} YTD vs Target",
         )
-        footer_png = os.path.join(current_app.static_folder, "footer.svg")
+        footer_svg = os.path.join(current_app.static_folder, "footer.svg")
         add_full_width_footer_svg(
             fig,
-            footer_png,
+            footer_svg,
             bottom_margin_frac=0.0,
             max_footer_height_frac=0.20,
-            col_master="#1a427d40"
+            col_master="#1a427d40",
         )
+
     # School portrait (YTD vs Target)
     elif selected_type == "school_ytd_vs_target":
         try:
             use_ppmori("app/static/fonts")
         except Exception as font_e:
-            print(f"⚠️ font setup skipped: {font_e}")
+            current_app.logger.info("⚠️ font setup skipped: %s", font_e)
 
         school_name = request.form.get("school_name") or next(
-            (r.get("SchoolName") for r in results if r.get("SchoolName")),
-            None,
+            (r.get("SchoolName") for r in results if r.get("SchoolName")), None
         )
 
         fig = provider_portrait_with_target(
@@ -867,13 +875,13 @@ def _build_figure_from_results(
             subject_name=school_name,
             title=f"{school_name or 'School'} YTD vs WSNZ Target",
         )
-        footer_png = os.path.join(current_app.static_folder, "footer.svg")
+        footer_svg = os.path.join(current_app.static_folder, "footer.svg")
         add_full_width_footer_svg(
             fig,
-            footer_png,
+            footer_svg,
             bottom_margin_frac=0.0,
             max_footer_height_frac=0.20,
-            col_master="#1a427d40"
+            col_master="#1a427d40",
         )
 
     # Default: use three-bar landscape report logic
@@ -924,24 +932,16 @@ def _persist_figure_and_session(
         )
 
     if not school_name and results:
-        school_name = next(
-            (r.get("SchoolName") for r in results if r.get("SchoolName")),
-            "",
-        )
+        school_name = next((r.get("SchoolName") for r in results if r.get("SchoolName")), "")
 
     if selected_type == "funder_missing_data":
         base_label = f"MissingData_{selected_funder_name or 'Funder'}"
     elif selected_type == "funder_ytd_vs_target":
         base_label = f"FunderYTDvsTarget_{selected_funder_name or 'Funder'}"
     elif selected_type == "ly_funder_vs_ly_national_vs_target":
-        base_label = (
-            f"FunderLY_vs_National_vs_Target_{selected_funder_name or 'Funder'}"
-        )
+        base_label = f"FunderLY_vs_National_vs_Target_{selected_funder_name or 'Funder'}"
     elif selected_type == "provider_ytd_vs_target_vs_funder":
-        base_label = (
-            f"ProviderVsFunder_{provider_name or 'Provider'}_"
-            f"{selected_funder_name or 'Funder'}"
-        )
+        base_label = f"ProviderVsFunder_{provider_name or 'Provider'}_{selected_funder_name or 'Funder'}"
     elif selected_type == "provider_ytd_vs_target":
         base_label = f"ProviderYTDvsTarget_{provider_name or 'Provider'}"
     elif selected_type == "school_ytd_vs_target":
@@ -965,8 +965,16 @@ def _persist_figure_and_session(
 @report_bp.route("/Reports", methods=["GET", "POST"])
 @login_required
 def new_reports():
+    ctx = _user_ctx()
     role = session.get("user_role")  # "ADM", "FUN", or "PRO"
-    print(f"🔑 Session role: {role}")
+
+    current_app.logger.info(
+        "📄 /Reports hit | method=%s role=%s user=%s admin=%s",
+        request.method,
+        role,
+        ctx["user"],
+        ctx["admin"],
+    )
 
     if session.get("user_admin") != 1:
         return (
@@ -989,17 +997,18 @@ def new_reports():
 
     if role == "PRO":
         selected_provider_id = selected_provider_id or session.get("id")
-        print(f"PRO effective provider_id: {selected_provider_id}")
+        current_app.logger.debug("PRO effective provider_id=%s", selected_provider_id)
     elif role == "FUN":
-        print(f"FUN default funder_name (session.desc): {selected_funder_name}")
+        current_app.logger.debug("FUN default funder_name(session.desc)=%s", selected_funder_name)
 
-    print(
-        f"📥 initial provider_id from POST: {selected_provider_id} "
-        f"(type {type(selected_provider_id)})"
-    )
-    print(
-        f"📥 initial school_id from POST: {selected_school_id} "
-        f"(type {type(selected_school_id)})"
+    current_app.logger.debug(
+        "📥 initial ids | provider_id=%s school_id=%s | year=%s term=%s type=%s | form_keys=%s",
+        selected_provider_id,
+        selected_school_id,
+        selected_year,
+        selected_term,
+        selected_type,
+        _safe_form_keys(),
     )
 
     results = None
@@ -1011,49 +1020,57 @@ def new_reports():
     is_ajax, action = _get_request_type()
 
     if request.method == "POST" and action == "show_report":
-        print("📩 POST detected (show_report)")
+        current_app.logger.info(
+            "📩 /Reports POST show_report | ajax=%s role=%s user=%s",
+            is_ajax,
+            role,
+            ctx["user"],
+        )
+
+        # initialise here so we can reference them in except logging
+        funder_id = None
+
         try:
             with engine.connect() as conn:
-                print(
-                    f"📥 POST params: year={selected_year}, "
-                    f"term={selected_term}, type={selected_type}"
+                current_app.logger.debug(
+                    "📥 POST params | year=%s term=%s type=%s provider_id=%s school_id=%s",
+                    selected_year,
+                    selected_term,
+                    selected_type,
+                    selected_provider_id,
+                    selected_school_id,
                 )
 
                 # Resolve funder from ADM dropdown (FUN is implied from session, PRO has none)
-                print(request.form)
                 if role == "ADM":
                     selected_funder_name = request.form.get("funder_name") or None
-                print(f"effective funder_name: {selected_funder_name}")
-                print(selected_funder_name)
-                if(selected_funder_name=="Loading funders…"):
-                    selected_funder_name= None
-                funder_id = None
-                provider_id = None
-                school_id = None
+
+                if selected_funder_name == "Loading funders…":
+                    selected_funder_name = None
+
+                current_app.logger.debug("effective funder_name=%s", selected_funder_name)
 
                 # If we have a funder *name*, resolve it to an ID
                 if selected_funder_name:
                     row = conn.execute(
-                        text(
-                            "EXEC FlaskHelperFunctions "
-                            "@Request='FunderIDDescription', @Text=:t"
-                        ),
+                        text("EXEC FlaskHelperFunctions @Request='FunderIDDescription', @Text=:t"),
                         {"t": selected_funder_name},
                     ).fetchone()
 
                     if not row:
                         msg = "Funder not found."
-                        # ✅ log it
-                        log_alert(
-                            email=session.get("user_email"),
-                            role=session.get("user_role"),
-                            entity_id=None,
-                            link=request.url,
-                            message=(
-                                "/Reports: funder not found "
-                                f"for name '{selected_funder_name}'"
-                            ),
-                        )
+
+                        try:
+                            log_alert(
+                                email=session.get("user_email"),
+                                role=session.get("user_role"),
+                                entity_id=None,
+                                link=request.url,
+                                message=f"/Reports: funder not found for name '{selected_funder_name}'",
+                            )
+                        except Exception:
+                            pass
+
                         if is_ajax:
                             return jsonify({"ok": False, "error": msg}), 400
 
@@ -1065,21 +1082,22 @@ def new_reports():
                         if not hasattr(row, "_mapping")
                         else int(row._mapping.get("FunderID") or row[0])
                     )
-                    print(f"🔑 resolved funder_id={funder_id}")
+                    current_app.logger.info("✅ resolved funder_id=%s", funder_id)
 
                 # ---- Special case: funder_missing_data needs a funder *name* ----
                 if selected_type == "funder_missing_data" and not selected_funder_name:
                     msg = "Please choose a funder for the missing data report."
-                    log_alert(
-                        email=session.get("user_email"),
-                        role=session.get("user_role"),
-                        entity_id=None,
-                        link=request.url,
-                        message=(
-                            "/Reports: funder_missing_data selected "
-                            "but no funder chosen"
-                        ),
-                    )
+                    try:
+                        log_alert(
+                            email=session.get("user_email"),
+                            role=session.get("user_role"),
+                            entity_id=None,
+                            link=request.url,
+                            message="/Reports: funder_missing_data selected but no funder chosen",
+                        )
+                    except Exception:
+                        pass
+
                     if is_ajax:
                         return jsonify({"ok": False, "error": msg}), 400
 
@@ -1115,8 +1133,7 @@ def new_reports():
 
                 fig = None
 
-                # ===== Execute the selected report =====
-                print(f"▶ executing report type: {selected_type}")
+                current_app.logger.info("▶ executing report type=%s", selected_type)
 
                 results, fig, no_data_banner_inner, early = _execute_report(
                     conn=conn,
@@ -1140,14 +1157,8 @@ def new_reports():
                     "term": selected_term,
                     "type": selected_type,
                     "funder_id": funder_id,
-                    "provider_id": (
-                        int(selected_provider_id)
-                        if selected_provider_id
-                        else None
-                    ),
-                    "school_id": (
-                        int(selected_school_id) if selected_school_id else None
-                    ),
+                    "provider_id": int(selected_provider_id) if selected_provider_id else None,
+                    "school_id": int(selected_school_id) if selected_school_id else None,
                     "rows": results,
                 }
 
@@ -1190,10 +1201,7 @@ def new_reports():
                         left_bits.append(selected_funder_name)
                     left_bits.append(f"Term {selected_term}, {selected_year}")
 
-                    if (
-                        selected_type == "school_ytd_vs_target"
-                        and (school_name or school_id)
-                    ):
+                    if selected_type == "school_ytd_vs_target" and (school_name or school_id):
                         left_bits.append(school_name or f"School MOE {school_id}")
                     elif provider_name:
                         left_bits.append(provider_name)
@@ -1213,48 +1221,53 @@ def new_reports():
                     )
 
         except Exception as e:
-            # Keep full details in logs/console
-            print("❌ Error in /NewReporting (POST):", e)
-            traceback.print_exc()
-
-            # ✅ log to AUD_Alerts (with underlying DB error text if present)
-            err_text = str(getattr(e, "orig", e))
-            log_alert(
-                email=session.get("user_email"),
-                role=session.get("user_role"),
-                entity_id=None,
-                link=request.url,
-                message=f"/Reports error: {err_text}",
+            # one clean traceback in logs (no print spam)
+            current_app.logger.exception(
+                "❌ /Reports failed | role=%s year=%s term=%s type=%s funder_name=%s funder_id=%s provider_id=%s school_id=%s user=%s ajax=%s",
+                role,
+                selected_year,
+                selected_term,
+                selected_type,
+                selected_funder_name,
+                funder_id,
+                selected_provider_id,
+                selected_school_id,
+                session.get("user_email"),
+                is_ajax,
             )
 
-            # Friendly message + status code (unchanged behavior)
-            if "Provider is not linked to the supplied FunderID" in err_text:
-                user_msg = (
-                    "You must select a provider and funder that are linked "
-                    "for this report"
+            err_text = str(getattr(e, "orig", e))
+            tb = traceback.format_exc()
+
+            # ✅ log to AUD_Alerts (best-effort)
+            try:
+                log_alert(
+                    email=session.get("user_email"),
+                    role=session.get("user_role"),
+                    entity_id=None,
+                    link=request.url,
+                    message=f"/Reports error: {err_text}\n{tb}"[:4000],
                 )
+            except Exception:
+                pass
+
+            # Friendly message + status code (unchanged behaviour)
+            if "Provider is not linked to the supplied FunderID" in err_text:
+                user_msg = "You must select a provider and funder that are linked for this report"
                 status_code = 400
             else:
                 user_msg = "An error occurred while generating the report."
                 status_code = 500
 
             if is_ajax:
-                return (
-                    jsonify(
-                        {"ok": False, "error": user_msg, "display": False}
-                    ),
-                    status_code,
-                )
+                return jsonify({"ok": False, "error": user_msg, "display": False}), status_code
 
             flash(user_msg, "danger")
             return redirect(url_for("report_bp.new_reports"))
 
     # Post-sort for stable ordering
-    if results and isinstance(results, list) and "CompetencyDesc" in results[0]:
-        results = sorted(
-            results,
-            key=lambda x: (x.get("CompetencyDesc") or ""),
-        )
+    if results and isinstance(results, list) and results and "CompetencyDesc" in results[0]:
+        results = sorted(results, key=lambda x: (x.get("CompetencyDesc") or ""))
 
     # GET, or POST without show_report → just render the page; dropdowns loaded via AJAX
     return render_template(

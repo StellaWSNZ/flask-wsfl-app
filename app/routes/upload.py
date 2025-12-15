@@ -47,45 +47,27 @@ def autodetect_date_column(series):
     best_parse = None
     max_valid = -1
 
-    # print("📥 Raw input values:")
-    # print(series.head(10).to_string(index=False))
-
-    # Step 1: Clean up timestamp and spaces
     series = series.astype(str).str.replace(r"[ T]?00:00:00(?:\.0+)?", "", regex=True).str.strip()
-
-    # Step 2: Replace punctuation with dash
     series = series.str.replace(r"[^\d\s]", "-", regex=True)
-
-    # print("\n🧹 Cleaned birthdates (pre-parse):")
-    # print(series.head(10).to_string(index=False))
-
-    # Step 3: Try specific formats
     for fmt in formats:
         try:
             parsed = pd.to_datetime(series, format=fmt, errors='coerce')
             valid_count = parsed.notna().sum()
-            # print(f"\n🧪 Tried format '{fmt}' — valid parsed count: {valid_count}")
             if valid_count > max_valid:
                 best_parse = parsed
                 max_valid = valid_count
         except Exception as e:
-            print(f"❌ Error trying format {fmt}: {e}")
+            current_app.logger.exception(f"Error trying format ")
             continue
 
-    # Step 4: Fallback
     if best_parse is None or max_valid == 0:
-        # print("\n⚠️ Falling back to automatic date parsing...")
         best_parse = pd.to_datetime(series, errors='coerce')
 
-    # Step 5: Final result
     final_result = best_parse.dt.strftime("%Y-%m-%d")
-   # print("\n🧼 Final normalized birthdates:")
-   # print(final_result.head(10).to_string(index=False))
 
-    # Check for any parsing failures
     if final_result.isna().any():
-        print("\n❌ Unparsed values found at indices:")
-        print(final_result[final_result.isna()].index.tolist())
+        current_app.logger.info("\n❌ Unparsed values found at indices:")
+        current_app.logger.info(final_result[final_result.isna()].index.tolist())
 
     return final_result
 def is_iso_format(series):
@@ -132,7 +114,7 @@ def classlistupload():
         selected_csv = None
         selected_funder = selected_school = selected_school_str = None
         selected_term = session.get("nearest_term")
-        print(selected_term)
+        current_app.logger.info(selected_term)
         selected_year = session.get("nearest_year")
         selected_teacher = selected_class = None
         selected_provider = None  # <--- NEW
@@ -203,8 +185,8 @@ def classlistupload():
             selected_term_raw = request.form.get('term')
             selected_year_raw = request.form.get('year')
 
-            print("🔍 raw POST term:", repr(selected_term_raw))
-            print("🔍 raw POST year:", repr(selected_year_raw))
+            current_app.logger.info("🔍 raw POST term:", repr(selected_term_raw))
+            current_app.logger.info("🔍 raw POST year:", repr(selected_year_raw))
 
             selected_teacher   = request.form.get('teachername')
             selected_class     = request.form.get('classname')
@@ -231,15 +213,14 @@ def classlistupload():
             selected_funder   = to_int_or_default(selected_funder, None)
             selected_term     = to_int_or_default(selected_term_raw, session.get("nearest_term"))
             selected_year     = to_int_or_default(selected_year_raw, session.get("nearest_year"))
-            print(selected_provider)
             if role== "PRO":
                 # ensure it's an int from session
                 selected_provider = to_int_or_default(session.get("user_id"), None)
             else:
                 selected_provider = to_int_or_default(selected_provider, None)
             
-            print(session.get("user_id"))
-            print("🧩 selected_provider:", selected_provider)
+            current_app.logger.info(session.get("user_id"))
+            current_app.logger.info("🧩 selected_provider:", selected_provider)
             selected_school_str = (
                 request.form.get("school")
                 or f"{session.get('desc')} ({session.get('user_id')})"
@@ -340,25 +321,20 @@ def classlistupload():
                 }, inplace=True)
                 # Replace NaN and NaT with None
                 if "Birthdate" in df.columns:
-                    print("\n📅 Starting Birthdate normalization...")
+                    current_app.logger.info("\n📅 Starting Birthdate normalization...")
 
                     try:
-                        # print("👀 Raw Birthdate column before normalization:")
-                        # print(df["Birthdate"].head(5).to_string(index=False))
-
+                       
                         # Use autodetect_date_column to handle format
                         df["Birthdate"] = autodetect_date_column(df["Birthdate"])
-
-                        # print("🧼 Normalized Birthdate values:")
-                        # print(df["Birthdate"].head(5).to_string(index=False))
 
                         session["birthdate_format"] = "autodetected"
 
                     except Exception as e:
-                        print("❌ Error during Birthdate normalization:", str(e))
+                        current_app.logger.exception("❌ Error during Birthdate normalization")
                         raise
                 else:
-                    print("⚠️ 'Birthdate' column not found in uploaded file.")
+                    current_app.logger.info("⚠️ 'Birthdate' column not found in uploaded file.")
 
 
 
@@ -374,7 +350,6 @@ def classlistupload():
                     df_cleaned[col] = df_cleaned[col].apply(lambda x: remove_macrons(x) if isinstance(x, str) else x)
 
                 session["raw_csv_json"] = df_cleaned.to_json(orient="records")
-                # print("✅ raw_csv_json saved with", len(df_cleaned), "rows")
 
                 # Save top 10 rows preview to session
                 preview_data = df_cleaned.head(10).to_dict(orient="records")
@@ -401,8 +376,7 @@ def classlistupload():
                     try:
                         raw_df = pd.read_json(StringIO(session["raw_csv_json"]))
                         column_mappings = json.loads(column_mappings_json)
-                        #print("📋 Column mappings received from frontend:", column_mappings_json)
-                        #print("📊 Raw DataFrame columns:", raw_df.columns.tolist())
+                        
                         valid_fields = ["NSN", "FirstName", "LastName", "PreferredName", "BirthDate", "Ethnicity", "YearLevel"]
 
                         # Build reverse mapping: selected column name → expected name
@@ -438,14 +412,13 @@ def classlistupload():
 
 
                         df_json = df.to_json(orient="records")
-                        #print("*")
+                        
                         try:
                             parsed_json = json.loads(df_json)
                             for i, row in enumerate(parsed_json[:5]):
-                                print(f"📦 Row {i+1}: {row}")
+                                current_app.logger.info(f"📦 Row {i+1}: {row}")
                         except Exception as e:
-                            print("❌ JSON error:", e)
-                        #print("*")
+                            current_app.logger.info("❌ JSON error:", e)
                         try:
                             with engine.begin() as conn:
                                 result = conn.execute(
@@ -461,21 +434,18 @@ def classlistupload():
                                 preview_data = [dict(row._mapping) for row in result]
                                 session["preview_data"] = preview_data
                         except Exception as e:
-                            print("❌ SQL execution error:", e)
-                            traceback.print_exc()
-                            
-                        #print("🔍 Inspecting Birthdate values in preview_data:")
+                            current_app.logger.exception("❌ SQL execution error:", e)
+
+                        
                         for i, row in enumerate(preview_data[:5]):
-                            print(f"Row {i+1} Birthdate:", row.get("Birthdate"), "Type:", type(row.get("Birthdate")))
-                            #print(row)
+                            current_app.logger.info(f"Row {i+1} Birthdate:", row.get("Birthdate"), "Type:", type(row.get("Birthdate")))
                         for row in preview_data:
                             if isinstance(row.get("Birthdate"), (datetime.date, datetime.datetime)):
                                 row["Birthdate"] = row["Birthdate"].strftime("%Y-%m-%d")
                             
-                        print("🔍 Inspecting Birthdate values in preview_data:")
+                        current_app.logger.info("🔍 Inspecting Birthdate values in preview_data:")
                         for i, row in enumerate(preview_data[:5]):
-                            print(f"Row {i+1} Birthdate:", row.get("Birthdate"), "Type:", type(row.get("Birthdate")))
-                            #print(preview_data.head())
+                            current_app.logger.info(f"Row {i+1} Birthdate:", row.get("Birthdate"), "Type:", type(row.get("Birthdate")))
                         
                     except Exception as e:
                         flash(f"Error during validation: {str(e)}", "danger")
@@ -483,7 +453,7 @@ def classlistupload():
             elif action == "preview":
                 flash("Please upload a valid CSV file.", "danger")
                 return redirect(url_for("upload_bp.classlistupload"))
-        print(selected_year)
+        current_app.logger.info(selected_year)
         return render_template(
             "classlistupload.html",
             funders=funders,
@@ -509,8 +479,7 @@ def classlistupload():
         )
     except Exception as e:
 
-        print("ERROR: ", e)
-        traceback.print_exc()
+        current_app.logger.exception("Error in classlistupload")
 
         # 🔎 ship the error to AUD_Alerts (never raises)
         try:
@@ -645,7 +614,7 @@ def classlistdownload():
                 worksheet.set_row(row, None, wrap_top_format)
 
         output.seek(0)
-        print(session)
+        current_app.logger.info(session)
         classname   = sanitize_filename(session.get("selected_class"))
         teachername = sanitize_filename(session.get("selected_teacher"))
         year        = sanitize_filename(session.get("selected_year"))

@@ -179,7 +179,7 @@ def edit_student():
         except Exception:
             pass
         try:
-            current_app.logger.error("❌ edit_student failed: %s\n%s", e, traceback.format_exc())
+            current_app.logger.exception("❌ edit_student failed")
         except Exception:
             pass
 

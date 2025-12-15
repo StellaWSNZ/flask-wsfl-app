@@ -211,7 +211,7 @@ def create_user():
                     message=str(e)
                 )
         except Exception as log_err:
-            current_app.logger.error(f"⚠️ Failed to log alert in CreateUser: {log_err}")
+            current_app.logger.exception(f"⚠️ Failed to log alert in CreateUser.")
 
         flash("An unexpected error occurred. The issue has been logged.", "danger")
         return abort(500)
@@ -399,7 +399,7 @@ def update_profile():
                 message=f"UpdateUserInfo failed: {str(e)[:1500]}"
             )
         except Exception as log_err:
-            current_app.logger.error(f"⚠️ Failed to log alert (UpdateUserInfo): {log_err}")
+            current_app.logger.exception(f"⚠️ Failed to log alert (UpdateUserInfo).")
         flash("We couldn’t update your basic profile details.", "danger")
 
     # ---- 2) Update school info (MOE admin), independent txn ----
@@ -435,7 +435,7 @@ def update_profile():
                 message=f"UpdateSchoolInfo failed: {str(e)[:1500]}"
             )
         except Exception as log_err:
-            current_app.logger.error(f"⚠️ Failed to log alert (UpdateSchoolInfo): {log_err}")
+            current_app.logger.exception(f"⚠️ Failed to log alert (UpdateSchoolInfo).")
         flash("We couldn’t update the school info.", "warning")
 
     # ---- 3) Update funder info (FUN admin), independent txn ----
@@ -478,7 +478,7 @@ def update_profile():
                 message=f"UpdateFunderInfo failed: {str(e)[:1500]}"
             )
         except Exception as log_err:
-            current_app.logger.error(f"⚠️ Failed to log alert (UpdateFunderInfo): {log_err}")
+            current_app.logger.exception(f"⚠️ Failed to log alert (UpdateFunderInfo).")
         flash("We couldn’t update the funder info.", "warning")
 
     # ---- 4) Refresh session (separate txn so earlier writes still stick) ----
@@ -527,7 +527,7 @@ def update_profile():
                 message=f"Session refresh failed: {str(e)[:1500]}"
             )
         except Exception as log_err:
-            current_app.logger.error(f"⚠️ Failed to log alert (SessionRefresh): {log_err}")
+            current_app.logger.exception(f"⚠️ Failed to log alert (SessionRefresh).")
         flash("Your details were saved, but we couldn’t refresh your session yet. Please reload the page.", "warning")
 
     # ---- Final messaging & redirect ----
@@ -651,7 +651,7 @@ def provider_maintenance():
                 message=str(e)[:2000]
             )
         except Exception as log_err:
-            current_app.logger.error(f"⚠️ Failed to log alert in ProviderMaintenance: {log_err}")
+            current_app.logger.exception(f"⚠️ Failed to log alert in ProviderMaintenance.")
 
         flash("Couldn’t load some data for provider maintenance. The issue has been logged.", "warning")
 
@@ -682,7 +682,7 @@ def provider_maintenance():
                 message=f"Template render failed: {str(e)[:1500]}"
             )
         except Exception as log_err:
-            current_app.logger.error(f"⚠️ Failed to log render alert in ProviderMaintenance: {log_err}")
+            current_app.logger.exception(f"⚠️ Failed to log render alert in ProviderMaintenance.")
         return abort(500)
 
 
@@ -739,7 +739,7 @@ def assign_provider():
                 message=f"assign_provider error: {str(e)[:2000]}"
             )
         except Exception as log_err:
-            current_app.logger.error(f"⚠️ Failed to log alert in assign_provider: {log_err}")
+            current_app.logger.exception(f"⚠️ Failed to log alert in assign_provider.")
 
         return jsonify(success=False, error=str(e)), 500
 
@@ -805,7 +805,7 @@ def add_provider():
                     message=f"add_provider duplicate: {msg[:1800]}"
                 )
             except Exception as log_err:
-                current_app.logger.error(f"⚠️ Failed to log duplicate alert in add_provider: {log_err}")
+                current_app.logger.exception(f"⚠️ Failed to log duplicate alert in add_provider.")
             return jsonify({"success": False, "message": "A provider with this name already exists for the selected funder."}), 400
 
         # ---- Write unexpected error to DB ----
@@ -818,7 +818,7 @@ def add_provider():
                 message=f"add_provider error: {msg[:2000]}"
             )
         except Exception as log_err:
-            current_app.logger.error(f"⚠️ Failed to log alert in add_provider: {log_err}")
+            current_app.logger.exception(f"⚠️ Failed to log alert in add_provider.")
 
         return jsonify({"success": False, "message": msg}), 500
     
@@ -902,7 +902,7 @@ def manage_providers():
                 message=f"ManageProviders DB error (funder_id={funder_id}): {str(e)[:2000]}",
             )
         except Exception as log_err:
-            current_app.logger.error(f"⚠️ Failed to log alert in ManageProviders: {log_err}")
+            current_app.logger.exception(f"⚠️ Failed to log alert in ManageProviders.")
 
         flash("An error occurred while loading providers. The issue has been logged.", "danger")
         return redirect(url_for("admin_bp.provider_maintenance"))
@@ -926,7 +926,7 @@ def manage_providers():
                 message=f"ManageProviders template error: {str(e)[:1800]}",
             )
         except Exception as log_err:
-            current_app.logger.error(f"⚠️ Failed to log render alert in ManageProviders: {log_err}")
+            current_app.logger.exception(f"⚠️ Failed to log render alert in ManageProviders.")
         return abort(500)
 
 @admin_bp.route('/UpdateProvider', methods=['POST'])
@@ -961,7 +961,7 @@ def update_provider():
                 message=f"UpdateProvider validation error: {msg} raw={pid_raw!r}"[:2000],
             )
         except Exception as log_err:
-            current_app.logger.error(f"⚠️ Failed to log validation alert in UpdateProvider: {log_err}")
+            current_app.logger.exception(f"⚠️ Failed to log validation alert in UpdateProvider")
         return redirect(request.referrer or url_for("admin_bp.provider_maintenance"))
 
     # Validate/coerce optional coords
@@ -984,7 +984,7 @@ def update_provider():
                 message=f"UpdateProvider validation error: {msg} lat={new_lat_raw!r} lon={new_lon_raw!r}"[:2000],
             )
         except Exception as log_err:
-            current_app.logger.error(f"⚠️ Failed to log validation alert in UpdateProvider: {log_err}")
+            current_app.logger.exception(f"⚠️ Failed to log validation alert in UpdateProvider")
         return redirect(request.referrer or url_for("admin_bp.provider_maintenance"))
 
     # Execute update
@@ -1018,7 +1018,7 @@ def update_provider():
                 message=f"UpdateProvider DB error (pid={pid}): {str(e)[:1800]}",
             )
         except Exception as log_err:
-            current_app.logger.error(f"⚠️ Failed to log alert in UpdateProvider: {log_err}")
+            current_app.logger.exception(f"⚠️ Failed to log alert in UpdateProvider")
         flash(f"Failed to update provider: {e}", "danger")
 
     return redirect(request.referrer or url_for("admin_bp.provider_maintenance"))
@@ -1049,7 +1049,7 @@ def delete_provider():
                 message=f"DeleteProvider validation error: {msg} raw={pid_raw!r}"[:2000],
             )
         except Exception as log_err:
-            current_app.logger.error(f"⚠️ Failed to log validation alert in DeleteProvider: {log_err}")
+            current_app.logger.exception(f"⚠️ Failed to log validation alert in DeleteProvider")
         return redirect(request.referrer or url_for("admin_bp.provider_maintenance"))
 
     engine = get_db_engine()
@@ -1069,7 +1069,7 @@ def delete_provider():
                 message=f"DeleteProvider DB error (pid={pid}): {str(e)[:1800]}",
             )
         except Exception as log_err:
-            current_app.logger.error(f"⚠️ Failed to log alert in DeleteProvider: {log_err}")
+            current_app.logger.exception(f"⚠️ Failed to log alert in DeleteProvider")
         flash(f"Could not delete provider: {e}", "danger")
 
     return redirect(request.referrer or url_for("admin_bp.provider_maintenance"))
@@ -1107,7 +1107,7 @@ def add_provider_details():
                 message=f"AddProviderDetails validation error: {msg} raw={funder_id_raw!r}"[:2000],
             )
         except Exception as log_err:
-            current_app.logger.error(f"⚠️ Failed to log validation alert in AddProviderDetails: {log_err}")
+            current_app.logger.exception(f"⚠️ Failed to log validation alert in AddProviderDetails")
         return redirect(request.referrer or url_for('admin_bp.provider_maintenance'))
 
     # --- validate/coerce coords (optional) ---
@@ -1126,7 +1126,7 @@ def add_provider_details():
                 message=f"AddProviderDetails validation error: {msg} lat={lat_raw!r} lon={lon_raw!r}"[:2000],
             )
         except Exception as log_err:
-            current_app.logger.error(f"⚠️ Failed to log validation alert in AddProviderDetails: {log_err}")
+            current_app.logger.exception(f"⚠️ Failed to log validation alert in AddProviderDetails")
         return redirect(request.referrer or url_for('admin_bp.provider_maintenance'))
 
     # --- DB call ---
@@ -1163,7 +1163,7 @@ def add_provider_details():
                 message=f"AddProviderDetails DB error (funder_id={funder_id}): {str(e)[:1800]}",
             )
         except Exception as log_err:
-            current_app.logger.error(f"⚠️ Failed to log alert in AddProviderDetails: {log_err}")
+            current_app.logger.exception(f"⚠️ Failed to log alert in AddProviderDetails")
         flash(str(e), "danger")
 
     return redirect(request.referrer or url_for('admin_bp.provider_maintenance'))
@@ -1202,7 +1202,7 @@ def get_funder_staff(funder_id):
                 message=f"get_funder_staff DB error (funder_id={funder_id}): {str(e)[:1800]}",
             )
         except Exception as log_err:
-            current_app.logger.error(f"⚠️ Failed to log alert in get_funder_staff: {log_err}")
+            current_app.logger.exception(f"⚠️ Failed to log alert in get_funder_staff")
         return jsonify({"error": "Failed to load staff"}), 500
 
 
@@ -1215,37 +1215,37 @@ def assign_kaiako_staff():
     year = data.get("Year")
     email = data.get("Email")
 
-    print(f"📥 Incoming assign_kaiako_staff request")
-    print(f"   ➤ MOE Number: {moe}")
-    print(f"   ➤ Term: {term}")
-    print(f"   ➤ Year: {year}")
-    print(f"   ➤ Staff Email: {email}")
+    current_app.logger.info("📥 Incoming assign_kaiako_staff request")
+    current_app.logger.info(f"   ➤ MOE Number: {moe}")
+    current_app.logger.info(f"   ➤ Term: {term}")
+    current_app.logger.info(f"   ➤ Year: {year}")
+    current_app.logger.info(f"   ➤ Staff Email: {email}")
 
     if not all([moe, term, year]):
-        print("❌ Missing MOE, Term, or Year.")
+        current_app.logger.warning("❌ Missing MOE, Term, or Year.")
         return jsonify({"success": False, "message": "Missing required fields"}), 400
 
     try:
         engine = get_db_engine()
         with engine.begin() as conn:
             if email == "":
-                print("🗑️ Deleting staff assignment...")
+                current_app.logger.info("🗑️ Deleting staff assignment...")
                 conn.execute(
                     text("EXEC FlaskDeleteEntityStaff @MOENumber = :moe, @Term = :term, @CalendarYear = :year"),
                     {"moe": moe, "term": term, "year": year}
                 )
-                print("✅ Staff assignment deleted.")
+                current_app.logger.info("✅ Staff assignment deleted.")
             else:
-                print("🔄 Assigning/Updating staff...")
+                current_app.logger.info("🔄 Assigning/Updating staff...")
                 conn.execute(
                     text("EXEC FlaskAssignEntityStaff @MOENumber = :moe, @Term = :term, @CalendarYear = :year, @Email = :email"),
                     {"moe": moe, "term": term, "year": year, "email": email}
                 )
-                print("✅ Staff assigned/updated in EntityStaff.")
+                current_app.logger.info("✅ Staff assigned/updated in EntityStaff.")
 
         return jsonify({"success": True})
     except Exception as e:
-        print(f"❌ Error during DB execution: {e}")
+        current_app.logger.exception(f"❌ Error during DB execution: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
 
 
@@ -1293,7 +1293,7 @@ def edit_school_type():
                     message=f"SchoolType POST validation: {msg} raw={moenumber_raw!r}"[:2000],
                 )
             except Exception as log_err:
-                current_app.logger.error(f"⚠️ Failed to log alert (SchoolType POST validation): {log_err}")
+                current_app.logger.exception(f"⚠️ Failed to log alert (SchoolType POST validation)")
             return redirect(url_for("admin_bp.edit_school_type",
                                     q=q, sort_by=sort_by, dir=sort_dir, page=page))
 
@@ -1311,7 +1311,7 @@ def edit_school_type():
                     message=f"SchoolType POST validation: {msg} raw={new_type_raw!r}"[:2000],
                 )
             except Exception as log_err:
-                current_app.logger.error(f"⚠️ Failed to log alert (SchoolType POST validation 2): {log_err}")
+                current_app.logger.exception(f"⚠️ Failed to log alert (SchoolType POST validation 2)")
             return redirect(url_for("admin_bp.edit_school_type",
                                     q=q, sort_by=sort_by, dir=sort_dir, page=page))
 
@@ -1340,7 +1340,7 @@ def edit_school_type():
                     message=f"SchoolType POST DB error (MOE={moenumber}, Type={new_type}): {str(e)[:1800]}",
                 )
             except Exception as log_err:
-                current_app.logger.error(f"⚠️ Failed to log alert (SchoolType POST DB): {log_err}")
+                current_app.logger.exception(f"⚠️ Failed to log alert (SchoolType POST DB)")
             flash("We couldn’t update the school type. The issue has been logged.", "danger")
 
         # Always PRG back to list (no redirect to self-on-exception loop risk here)
@@ -1416,7 +1416,7 @@ def edit_school_type():
                 message=f"SchoolType GET DB error: {str(e)[:1800]}",
             )
         except Exception as log_err:
-            current_app.logger.error(f"⚠️ Failed to log alert (SchoolType GET DB): {log_err}")
+            current_app.logger.exception(f"⚠️ Failed to log alert (SchoolType GET DB)")
         flash("Couldn’t load the school list. The issue has been logged.", "warning")
 
     # Render (no DB in fallback; avoids loops)
@@ -1469,7 +1469,7 @@ def school_type_glossary_json():
                 message=f"SchoolType glossary load error: {str(e)[:1800]}",
             )
         except Exception as log_err:
-            current_app.logger.error(f"⚠️ Failed to log alert (glossary.json): {log_err}")
+            current_app.logger.exception(f"⚠️ Failed to log alert (glossary.json)")
         return jsonify({"error": "Failed to load glossary"}), 500
 
 @admin_bp.route("/EditUser")
@@ -1492,7 +1492,7 @@ def admin_user_entities():
                 message=f"EditUser template error: {str(e)[:1800]}",
             )
         except Exception as log_err:
-            current_app.logger.error(f"⚠️ Failed to log alert (EditUser render): {log_err}")
+            current_app.logger.exception(f"⚠️ Failed to log alert (EditUser render)")
         return abort(500)
 @admin_bp.route("/get_users")
 @login_required
@@ -1541,8 +1541,8 @@ def get_users():
                 message=f"get_users DB error: {str(e)[:1800]}",
             )
         except Exception as log_err:
-            current_app.logger.error(
-                f"⚠️ Failed to log alert (get_users): {log_err}"
+            current_app.logger.exception(
+                f"⚠️ Failed to log alert (get_users)"
             )
         return jsonify({"error": "Failed to load users"}), 500
 @admin_bp.route("/update_user_role_entity", methods=["POST"])
@@ -1576,7 +1576,7 @@ def update_user_role_entity():
                 message=f"update_user_role_entity validation error: {msg} payload={str(data)[:1000]}",
             )
         except Exception as log_err:
-            current_app.logger.error(f"⚠️ Failed to log validation alert (update_user_role_entity): {log_err}")
+            current_app.logger.exception(f"⚠️ Failed to log validation alert (update_user_role_entity)")
         return jsonify(success=False, message=msg), 400
 
     # Coerce entity ID to int
@@ -1594,7 +1594,7 @@ def update_user_role_entity():
                 message=f"update_user_role_entity validation error: {msg} raw={data.get('entityId')!r}",
             )
         except Exception as log_err:
-            current_app.logger.error(f"⚠️ Failed to log validation alert (update_user_role_entity int): {log_err}")
+            current_app.logger.exception(f"⚠️ Failed to log validation alert (update_user_role_entity int)")
         return jsonify(success=False, message=msg), 400
 
     try:
@@ -1625,6 +1625,6 @@ def update_user_role_entity():
                 message=f"update_user_role_entity DB error (email={email}, role={role}, entity={entity_id}): {str(e)[:1600]}",
             )
         except Exception as log_err:
-            current_app.logger.error(f"⚠️ Failed to log alert (update_user_role_entity): {log_err}")
+            current_app.logger.exception(f"⚠️ Failed to log alert (update_user_role_entity)")
         flash("🔥 Error during update.", "danger")
         return jsonify(success=False, message="Internal server error"), 500

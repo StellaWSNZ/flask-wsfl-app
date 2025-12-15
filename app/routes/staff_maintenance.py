@@ -16,6 +16,7 @@ from flask import (
     request,
     session,
     url_for,
+    current_app,
 )
 from sqlalchemy import text
 
@@ -187,8 +188,7 @@ def staff_maintenance():
             link=url_for("staff_bp.staff_maintenance", _external=True),
             message=f"Unhandled exception in /Staff: {e}\n{traceback.format_exc()}"[:4000],
         )
-        print("❌ Exception in /Staff route:")
-        print(traceback.format_exc())
+        current_app.logger.exception("❌ Exception in /Staff route:")
         return "500 Internal Server Error", 500
 
 
@@ -232,7 +232,6 @@ def helper():
                     desc = getattr(row, "Description", getattr(row, "Name", None))
                     if pid is not None and desc:
                         out.append({"id": int(pid), "name": desc})
-                    print(out)
                     
             else:
                 return jsonify([]), 400
@@ -415,7 +414,6 @@ def invite_user():
     # Defaults for redirect
     entity_type = request.form.get("entity_type")
     entity_id   = request.form.get("entity_id")
-    print(request.form)
     try:
         # Read + normalize inputs
         email      = (request.form.get("email") or "").strip().lower()
@@ -668,8 +666,7 @@ def disable_user():
             conn.commit()
         flash("User has been disabled successfully.", "success")
     except Exception as e:
-        print(f"❌ Error in /disable_user: {e}")
-        flash(f"Error: {str(e)}", "danger")
+        current_app.logger.exception(f"❌ Error in /disable_user: {e}")
 
     return redirect(url_for('staff_bp.staff_maintenance', entity_type=entity_type, entity_id=entity_id, trigger_load=1))
 @staff_bp.route("/get_active_courses")
@@ -714,7 +711,7 @@ def _call_get_entities(entity_type: str):
         resp.raise_for_status()
         return resp.json()  # [{id, name}, ...]
     except Exception as e:
-        print("❌ /get_entities call failed:", e)
+        current_app.logger.exception("❌ /get_entities call failed:", e)
         return []
 
 @staff_bp.route("/StaffeLearning", methods=["GET"])

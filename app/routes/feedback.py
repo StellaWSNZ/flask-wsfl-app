@@ -22,7 +22,7 @@ def _log_alert_safe(message):
             message=message[:2000],
         )
     except Exception as log_err:
-        current_app.logger.error(f"⚠️ Failed to log alert (feedback): {log_err}")
+        current_app.logger.exception(f"⚠️ Failed to log alert (feedback)")
 
 @feedback_bp.route("/feedback", methods=["GET", "POST"])
 @login_required

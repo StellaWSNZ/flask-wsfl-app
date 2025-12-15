@@ -303,8 +303,7 @@ def faq_page():
         current_app.logger.info("FAQ groups: %r", faq_groups)
         return render_template("faq.html", faq_groups=faq_groups)
     except Exception as e:
-        print("\n=== ERROR IN /FAQ ROUTE ===")
-        print(repr(e))
+        current_app.logger.exception("\n=== ERROR IN /FAQ ROUTE ===")
         traceback.print_exc()
         # Re-raise so your global error handler / debug page can still run
         raise

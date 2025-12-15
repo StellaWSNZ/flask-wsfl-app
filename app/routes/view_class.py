@@ -168,7 +168,7 @@ def _get_class_meta(engine, class_id: int):
 
 def _load_class_list_df(engine, class_id: int, term: int, year: int) -> pd.DataFrame:
     """Replace this EXEC with your real exporter for class list."""
-    print(session.get("user_role"))
+    current_app.logger.info(session.get("user_role"))
     with engine.begin() as conn:
         df = pd.read_sql(
             text("EXEC FlaskExportClassList @ClassID=:cid, @Term=:t, @CalendarYear=:y, @Role=:r")
@@ -485,7 +485,7 @@ def view_class(class_id, term, year):
             )
             rows = result.fetchall()
             if not rows:
-                print("ℹ️ No rows returned for this class/term/year/filter.")
+                current_app.logger.info("ℹ️ No rows returned for this class/term/year/filter.")
                 return render_template(
                     "student_achievement.html",
                     students=[],
@@ -552,7 +552,6 @@ def view_class(class_id, term, year):
             else:
                 comp_df_sorted = pd.DataFrame(columns=["label","CompetencyID","YearGroupID"])
 
-            #print("🧭 comp_df_sorted (first 10):\n", comp_df_sorted.head(10))
             desired_competencies = comp_df_sorted["label"].tolist()
 
             # Sort students by requested key if present
@@ -597,7 +596,7 @@ def view_class(class_id, term, year):
                     pivot_df[lbl] = pd.NA
                     forced_added.append(lbl)
             if forced_added:
-                print("ℹ️ Forced in empty competency columns (no rows under current filter):", forced_added)
+                current_app.logger.info("ℹ️ Forced in empty competency columns (no rows under current filter).")
 
             # Final column order (only columns that exist + forced)
             ordered_cols = fixed_cols_present + full_comp_cols + existing_scenario_cols
@@ -667,9 +666,14 @@ def view_class(class_id, term, year):
         # structured app log
         try:
             current_app.logger.error(
-                "❌ view_class crashed | class_id=%s term=%s year=%s | user=%s | filter=%s | order_by=%s | err=%s",
-                class_id, term, year, session.get("user_email"), request.args.get("filter", "all"),
-                request.args.get("order_by", "last"), e, exc_info=True
+                "❌ view_class crashed | class_id=%s term=%s year=%s | user=%s | filter=%s | order_by=%s",
+                class_id,
+                term,
+                year,
+                session.get("user_email"),
+                request.args.get("filter", "all"),
+                request.args.get("order_by", "last"),
+                exc_info=True
             )
         except Exception:
             pass  # logging must never break
@@ -754,10 +758,7 @@ def moe_classes():
                         srows = [dict(r) for r in sres.mappings().all()]
                         suggestions = [f"{r.get('CalendarYear')} Term {r.get('Term')}" for r in srows]
 
-            except Exception as e:
-                print("\n========== ERROR during DB work (/SchoolClasses) ==========")
-                traceback.print_exc()
-                print("===========================================================\n")
+            except Exception as e:                
                 current_app.logger.exception("DB error in /SchoolClasses")
                 flash(f"Error loading classes: {e}", "danger")
 
@@ -777,9 +778,7 @@ def moe_classes():
             desc = session.get('desc')
         )
     except Exception as e:
-        print("\n========== ERROR during render_template(moe_classes.html) ==========")
-        traceback.print_exc()
-        print("===================================================================\n")
+
         current_app.logger.exception("Template error in moe_classes.html")
         return (f"<h3>Template rendering failed</h3><pre>{e}</pre>", 500)
   
@@ -999,8 +998,7 @@ def print_class_view(class_id, term, year):
         return render_template("print_view.html", **ctx)
 
     except Exception as e:
-        print("❌ Unhandled error in print_class_view:", e)
-        traceback.print_exc()
+        current_app.logger.exception("❌ Unhandled error in print_class_view.")
         return "Internal Server Error (print view)", 500
 
 @class_bp.route("/EditClass")
@@ -1095,17 +1093,17 @@ def update_competency():
     year = data.get("year")
     debug = 0
 
-    print("📥 Incoming update_competency call")
-    print(f"➡️ NSN: {nsn}, Header: {header_name}, Status: {status}, Class ID: {class_id}, Term: {term}, Year: {year}")
+    current_app.logger.info("📥 Incoming update_competency call")
+    current_app.logger.info(f"➡️ NSN: {nsn}, Header: {header_name}, Status: {status}, Class ID: {class_id}, Term: {term}, Year: {year}")
 
     if None in (nsn, header_name, status, class_id, term, year):
-        print("❌ Missing one or more required fields")
+        current_app.logger.error("❌ Missing one or more required fields")
         return jsonify({"success": False, "message": "Missing data"}), 400
 
     try:
         engine = get_db_engine()
         with engine.begin() as conn:
-            print("🔄 Running stored procedure FlaskUpdateAchievement...")
+            current_app.logger.info("🔄 Running stored procedure FlaskUpdateAchievement...")
             conn.execute(
                 text("EXEC FlaskUpdateAchievement @NSN = :nsn, @Header = :header, @Value = :value, @Email = :email, @Debug = :debug"),
                 {
@@ -1116,7 +1114,7 @@ def update_competency():
                     "debug": debug
                 }
             )
-            print("✅ Stored procedure executed")
+            current_app.logger.info("✅ Stored procedure executed")
 
         class_cache = session.get("class_cache", {})
         updated_keys = 0
@@ -1127,17 +1125,17 @@ def update_competency():
                 students = cache.get("student_competencies", [])
                 for student in students:
                     if str(student.get("NSN")) == str(nsn):
-                        print(f"✏️ Updating cache for NSN {nsn}, header {header_name}")
+                        current_app.logger.info(f"✏️ Updating cache for NSN {nsn}, header {header_name}")
                         student[header_name] = status
                         updated_students += 1
                 updated_keys += 1
 
         session["class_cache"] = class_cache
-        print(f"✅ Cache edited for {updated_keys} key(s), {updated_students} student(s)")
+        current_app.logger.info(f"✅ Cache edited for {updated_keys} key(s), {updated_students} student(s)")
 
         return jsonify({"success": True})
     except Exception as e:
-        print("❌ Exception occurred during update_competency:")
+        current_app.logger.execute("❌ Exception occurred during update_competency")
         traceback.print_exc()
         return jsonify({"success": False, "error": str(e)}), 500
 
@@ -1153,8 +1151,8 @@ def update_scenario():
     year = data.get("year")
     debug = 0
 
-    print(f"📥 Incoming update_scenario call")
-    print(f"➡️ NSN: {nsn}, Header: {header}, Value: {value}, Class ID: {class_id}, Term: {term}, Year: {year}")
+    current_app.logger.info(f"📥 Incoming update_scenario call")
+    current_app.logger.info(f"➡️ NSN: {nsn}, Header: {header}, Value: {value}, Class ID: {class_id}, Term: {term}, Year: {year}")
 
     if None in (nsn, header, value, class_id, term, year):
         return jsonify(success=False, error="Missing parameters"), 400
@@ -1162,7 +1160,7 @@ def update_scenario():
     try:
         engine = get_db_engine()
         with engine.begin() as conn:
-            print("🔄 Running stored procedure FlaskUpdateAchievement...")
+            current_app.logger.info("🔄 Running stored procedure FlaskUpdateAchievement...")
             conn.execute(
                 text("EXEC FlaskUpdateAchievement @NSN = :nsn, @Header = :header, @Value = :value, @Email = :email, @Debug = :debug"),
                 {
@@ -1173,7 +1171,7 @@ def update_scenario():
                     "debug": debug
                 }
             )
-            print("✅ Stored procedure executed")
+            current_app.logger.info("✅ Stored procedure executed")
 
         # ✏️ Inline update of session cache
         class_cache = session.get("class_cache", {})
@@ -1186,18 +1184,18 @@ def update_scenario():
                 students = entry.get("student_competencies", [])
                 for student in students:
                     if isinstance(student, dict) and str(student.get("NSN")) == str(nsn):
-                        print(f"✏️ Updating scenario cache for NSN {nsn}, header {header} in key {key}")
+                        current_app.logger.info(f"✏️ Updating scenario cache for NSN {nsn}, header {header} in key {key}")
                         student[header] = str(value)
                         updates += 1
                 class_cache[key] = entry  # save updated version
 
         session["class_cache"] = class_cache
-        print(f"✅ Scenario cache updated in {updates} cache keys")
+        current_app.logger.info(f"✅ Scenario cache updated in {updates} cache keys")
 
         return jsonify(success=True)
 
     except Exception as e:
-        print("❌ Scenario update failed:", e)
+        current_app.logger.execute("❌ Scenario update failed")
         traceback.print_exc()
         return jsonify(success=False, error=str(e)), 500
 
@@ -1327,7 +1325,6 @@ def create_student_and_add():
         return _json_error("NSN must be numeric")
     if not (student.get("FirstName") and student.get("LastName")):
         return _json_error("Student FirstName and LastName are required")
-    print(student)
     first = (student.get("FirstName") or "").strip()
     last  = (student.get("LastName")  or "").strip()
     pref  = (student.get("PreferredName") or None)
@@ -1869,7 +1866,6 @@ def get_classes_by_school():
                      @CalendarYear = :year
             """)
             rows = conn.execute(stmt, {"r":"AllClassesBySchoolTermYear","moe": moe, "term": term, "year": year}).fetchall()
-            print(rows)
         out = [
             {
                 "id": r._mapping["ClassID"],
@@ -1945,17 +1941,17 @@ def search_students():
     moe      = request.args.get("moe", type=int)
     class_id = request.args.get("class_id", type=int)
 
-    print(f"🔎 /search_students called: q='{q}', moe={moe}, class_id={class_id}")
+    current_app.logger.info(f"🔎 /search_students called: q='{q}', moe={moe}, class_id={class_id}")
 
     # Require both a school and a non-empty query
     if not (moe and q):
-        print("➡️  Missing moe or query → returning empty list")
+        current_app.logger.info("➡️  Missing moe or query → returning empty list")
         return jsonify([])
 
     eng = get_db_engine()
     try:
         with eng.begin() as conn:
-            print("➡️  Executing stored proc FlaskSearchStudentsForSchool_AllTime…")
+            current_app.logger.info("➡️  Executing stored proc FlaskSearchStudentsForSchool_AllTime…")
             rows = conn.execute(
                 text(
                     "EXEC FlaskSearchStudentsForSchool_AllTime "
@@ -1963,10 +1959,10 @@ def search_students():
                 ),
                 {"moe": moe, "q": q, "cid": class_id},
             ).fetchall()
-            print(f"✅ Stored proc returned {len(rows)} rows")
+            current_app.logger.info(f"✅ Stored proc returned {len(rows)} rows")
     except Exception as e:
         # This will surface any SQL or connection errors
-        print("💥 DB call failed:", e)
+        current_app.logger.exception("💥 DB call failed:", e)
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
@@ -1990,7 +1986,7 @@ def search_students():
             }
         )
 
-    print(f"➡️  Returning {len(out)} student records to client")
+    current_app.logger.info(f"➡️  Returning {len(out)} student records to client")
     return jsonify(out)
 
 
@@ -2037,7 +2033,7 @@ def export_class_excel():
             download_name=fname
         )
     except Exception:
-        print("❌ export_class_excel failed:\n" + traceback.format_exc())
+        current_app.logger.exception("❌ export_class_excel failed:")
         # Return something visible in the browser while you’re debugging
         return jsonify({"success": False, "error": "Export failed. See server logs for details."}), 500
 
@@ -2237,7 +2233,7 @@ def export_achievements_excel():
         )
 
     except Exception:
-        print("❌ export_achievements_excel failed:\n" + traceback.format_exc())
+        current_app.logger.exception("❌ export_achievements_excel failed:" )
         return jsonify({"success": False, "error": "Export failed. See server logs for details."}), 500
 
 @class_bp.route("/export_achievements_pdf", methods=["GET"])

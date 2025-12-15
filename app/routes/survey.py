@@ -915,9 +915,8 @@ def email_survey_link():
         flash(f"📧 Invitation sent to {firstname}.", "info")
 
     except Exception as e:
-        print("❌ Exception occurred in email_survey_link():")
+        current_app.logger.exception("❌ Exception occurred in email_survey_link():")
         traceback.print_exc()
-        flash("❌ Failed to send invitation email.", "danger")
 
         # Log to AUD_Alerts — won't break page
         try:
@@ -941,15 +940,13 @@ def send_survey_reminder():
         requested_by = request.form["requested_by"]
         from_org = request.form["from_org"]
 
-        print(from_org)
-        print(requested_by)
+
 
         send_survey_reminder_email(mail, email, firstname, requested_by, from_org)
         flash(f"📧 Reminder sent to {firstname}.", "info")
 
     except Exception as e:
-        print("❌ Exception occurred in send_survey_reminder():")
-        traceback.print_exc()
+        current_app.logger.exception("❌ Exception occurred in send_survey_reminder()")
         flash("❌ Failed to send reminder.", "danger")
 
         # Log to AUD_Alerts

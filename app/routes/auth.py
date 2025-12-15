@@ -65,7 +65,7 @@ def login():
                 message=message[:1800],
             )
         except Exception as log_err:
-            current_app.logger.error(f"⚠️ Failed to log alert (login): {log_err}")
+            current_app.logger.exception(f"⚠️ Failed to log alert (login)")
 
     try:
         if request.method == 'POST':
@@ -222,7 +222,7 @@ def logout():
                 message=f"logout error: {str(e)[:1600]}",
             )
         except Exception as log_err:
-            current_app.logger.error(f"⚠️ Failed to log alert (logout): {log_err}")
+            current_app.logger.exception(f"⚠️ Failed to log alert (logout)")
         # Don’t block logout if logging fails
     return redirect(url_for("auth_bp.login"))
 
@@ -272,7 +272,7 @@ def forgot_password():
                         message=f"forgot_password token error: {str(tok_err)[:1600]}",
                     )
                 except Exception as log_err:
-                    current_app.logger.error(f"⚠️ Failed to log alert (token gen): {log_err}")
+                    current_app.logger.exception(f"⚠️ Failed to log alert (token gen)")
                 flash("We couldn’t start the reset process. Please try again.", "danger")
                 return redirect(url_for('auth_bp.forgot_password'))
 
@@ -290,7 +290,7 @@ def forgot_password():
                         message=f"forgot_password email send error: {str(mail_err)[:1600]}",
                     )
                 except Exception as log_err:
-                    current_app.logger.error(f"⚠️ Failed to log alert (email send): {log_err}")
+                    current_app.logger.exception(f"⚠️ Failed to log alert (email send)")
                 flash("We couldn’t send the reset email. Please try again later.", "danger")
                 return redirect(url_for('auth_bp.forgot_password'))
 
@@ -309,7 +309,7 @@ def forgot_password():
                     message=f"forgot_password error: {str(e)[:1800]}",
                 )
             except Exception as log_err:
-                current_app.logger.error(f"⚠️ Failed to log alert (forgot_password): {log_err}")
+                current_app.logger.exception(f"⚠️ Failed to log alert (forgot_password)")
             flash("Something went wrong. Please try again.", "danger")
             return redirect(url_for('auth_bp.forgot_password'))
 
@@ -327,7 +327,7 @@ def forgot_password():
                 message=f"forgot_password template error: {str(e)[:1500]}",
             )
         except Exception as log_err:
-            current_app.logger.error(f"⚠️ Failed to log alert (forgot_password render): {log_err}")
+            current_app.logger.exception(f"⚠️ Failed to log alert (forgot_password render)")
         return abort(500)
 
 
@@ -349,7 +349,7 @@ def reset_password(token):
                 message=f"verify_reset_token error: {str(e)[:1800]}",
             )
         except Exception as log_err:
-            current_app.logger.error(f"⚠️ Failed to log alert (verify_reset_token): {log_err}")
+            current_app.logger.exception(f"⚠️ Failed to log alert (verify_reset_token)")
         flash('Invalid or expired token.', 'danger')
         return redirect(url_for('auth_bp.forgot_password'))
 
@@ -410,7 +410,7 @@ def reset_password(token):
                     message=f"reset_password DB error for {email}: {str(e)[:1800]}",
                 )
             except Exception as log_err:
-                current_app.logger.error(f"⚠️ Failed to log alert (reset_password POST): {log_err}")
+                current_app.logger.exception(f"⚠️ Failed to log alert (reset_password POST)")
             flash('We could not update your password. Please try again.', 'danger')
             return redirect(url_for('auth_bp.forgot_password'))
 
@@ -428,6 +428,6 @@ def reset_password(token):
                 message=f"reset_password template error: {str(e)[:1600]}",
             )
         except Exception as log_err:
-            current_app.logger.error(f"⚠️ Failed to log alert (reset_password render): {log_err}")
+            current_app.logger.exception(f"⚠️ Failed to log alert (reset_password render)")
         return abort(500)
 

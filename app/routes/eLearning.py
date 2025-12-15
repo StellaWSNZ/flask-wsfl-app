@@ -61,7 +61,7 @@ def admin_eLearning_upload():
                     message=f"eLearning upload error: {str(e)[:1800]}",
                 )
             except Exception as log_err:
-                current_app.logger.error(f"⚠️ Failed to log alert (eLearning upload): {log_err}")
+                current_app.logger.exception(f"⚠️ Failed to log alert (eLearning upload)")
             flash(f"Error processing file: {e}", "danger")
 
         return redirect(request.url)
@@ -80,7 +80,7 @@ def admin_eLearning_upload():
                 message=f"elearning_upload template error: {str(e)[:1500]}",
             )
         except Exception as log_err:
-            current_app.logger.error(f"⚠️ Failed to log alert (elearning_upload render): {log_err}")
+            current_app.logger.exception(f"⚠️ Failed to log alert (elearning_upload render)")
         return abort(500)
 
 
@@ -113,7 +113,7 @@ def eLearning_guide():
                 message=f"eLearning_guide error: {str(e)[:1800]}",
             )
         except Exception as log_err:
-            current_app.logger.error(f"⚠️ Failed to log alert (eLearning_guide): {log_err}")
+            current_app.logger.exception(f"⚠️ Failed to log alert (eLearning_guide)")
         flash("We couldn’t load your eLearning guide. The issue has been logged.", "warning")
         return abort(500)
 
