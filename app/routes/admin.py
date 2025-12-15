@@ -33,7 +33,13 @@ from app.utils.database import get_db_engine, log_alert, get_terms, get_years
 # Blueprint
 admin_bp = Blueprint("admin_bp", __name__)
 
-
+def is_mobile_request(req) -> bool:
+    try:
+        ua = ua_parse(req.headers.get("User-Agent", ""))
+        return ua.is_mobile or ua.is_tablet
+    except Exception:
+        return False
+    
 @admin_bp.route('/CreateUser', methods=['GET', 'POST'])
 @login_required
 def create_user():

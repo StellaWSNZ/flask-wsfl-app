@@ -252,7 +252,7 @@ def funder_dashboard():
             
         )
 
-    except Exception:
+    except Exception as e:
         log_alert(
             email=session.get("user_email"),
             role=session.get("user_role"),
