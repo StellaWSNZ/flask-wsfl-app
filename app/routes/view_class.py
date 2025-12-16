@@ -1951,13 +1951,47 @@ def export_class_excel():
 @login_required
 def export_achievements_excel():
     try:
+        print("*")
         engine = get_db_engine()
 
         # Prefer JSON body; fall back to querystring/form for ids only
         payload = request.get_json(silent=True) or {}
+
         class_id = int(payload.get("class_id") or (request.values.get("class_id") or 0))
         term     = int(payload.get("term")     or (request.values.get("term")     or 0))
         year     = int(payload.get("year")     or (request.values.get("year")     or 0))
+
+        # ---------- Debug logging ----------
+        current_app.logger.info("=== export_achievements_excel ===")
+        current_app.logger.info(
+            "method=%s is_json=%s content_type=%s class_id=%s term=%s year=%s",
+            request.method, request.is_json, request.content_type, class_id, term, year
+        )
+        if payload:
+            current_app.logger.info("payload keys=%s", sorted(payload.keys()))
+            rows_dbg = payload.get("rows") or payload.get("data") or []
+            current_app.logger.info(
+                "rows type=%s count=%s",
+                type(rows_dbg).__name__,
+                (len(rows_dbg) if isinstance(rows_dbg, list) else "n/a")
+            )
+            col_order_dbg = payload.get("column_order") or []
+            current_app.logger.info(
+                "column_order type=%s count=%s",
+                type(col_order_dbg).__name__,
+                (len(col_order_dbg) if isinstance(col_order_dbg, list) else "n/a")
+            )
+            if isinstance(rows_dbg, list) and rows_dbg:
+                current_app.logger.info(
+                    "first row keys sample=%s",
+                    sorted(list(rows_dbg[0].keys()))[:30]
+                )
+        else:
+            current_app.logger.info("payload empty (likely GET or invalid JSON body)")
+
+        # Basic guardrail: avoid accidental auth checks for class_id=0
+        if class_id <= 0:
+            return jsonify({"success": False, "error": "Missing class_id"}), 400
 
         _ensure_authorised_for_class(engine, class_id)
         meta = _get_class_meta(engine, class_id)
@@ -1969,7 +2003,6 @@ def export_achievements_excel():
         if request.method == "POST" and request.is_json:
             rows = payload.get("rows") or payload.get("data") or []
             if rows:
-                # Optional: lightweight guardrails
                 if not isinstance(rows, list):
                     return jsonify({"success": False, "error": "rows must be a list"}), 400
                 if len(rows) > 5000:
@@ -1980,15 +2013,17 @@ def export_achievements_excel():
         if request.method == "GET" and request.args.getlist("df"):
             return jsonify({
                 "success": False,
-                "error": "Large GET payloads are not supported. POST a JSON body with { rows: [...] } instead."
+                "error": "Large GET payloads are not supported. POST JSON { rows: [...] } instead."
             }), 413
 
         # Fallback to DB exporter (works for both GET and POST when rows weren’t provided)
         if df is None:
             df = _load_achievements_df(engine, class_id, term, year)
 
-        if df.empty:
+        if df is None or df.empty:
             df = pd.DataFrame(columns=["No results"])
+
+        current_app.logger.info("df shape after load: %s", getattr(df, "shape", None))
 
         # ---------- Clean & shape ----------
         # Remove NSN
@@ -2006,10 +2041,12 @@ def export_achievements_excel():
         if "YearLevelID" in df.columns:
             df.rename(columns={"YearLevelID": "YearLevel"}, inplace=True)
 
-        # --- PATCH: Force column order to match UI ---
+        # --- Force column order to match UI ---
         ui_order_raw = []
         if request.method == "POST" and request.is_json:
-            ui_order_raw = (payload.get("column_order") or [])
+            ui_order_raw = payload.get("column_order") or []
+            if not isinstance(ui_order_raw, list):
+                ui_order_raw = []
 
         def _norm_header_for_match(s: str) -> str:
             s = str(s)
@@ -2026,10 +2063,11 @@ def export_achievements_excel():
 
         id_cols = [c for c in ["LastName", "PreferredName", "YearLevel"] if c in df.columns]
         remaining = [c for c in df.columns if c not in id_cols + desired_ach_cols]
-        df = df[id_cols + desired_ach_cols + remaining]
-        # --- END PATCH ---
+        if id_cols:
+            df = df[id_cols + desired_ach_cols + remaining]
+        # --- end order patch ---
 
-        # Identity first (redundant now but safe)
+        # Identity first (safe even if already ordered)
         id_cols = [c for c in ["LastName", "PreferredName", "YearLevel"] if c in df.columns]
         rest_cols = [c for c in df.columns if c not in id_cols]
         if id_cols:
@@ -2039,20 +2077,26 @@ def export_achievements_excel():
         def _is_binary(series: pd.Series) -> bool:
             uniq = set(series.dropna().astype(str).str.strip().unique())
             return uniq.issubset({"0", "1", "0.0", "1.0"})
+
         for col in rest_cols:
             s = df[col]
             if _is_binary(s):
                 df[col] = (
-                    s.replace({1: "Y", 1.0: "Y", "1": "Y", "1.0": "Y",
-                               0: "", 0.0: "", "0": "", "0.0": ""})
-                     .fillna("")
+                    s.replace({
+                        1: "Y", 1.0: "Y", "1": "Y", "1.0": "Y",
+                        0: "", 0.0: "", "0": "", "0.0": ""
+                    }).fillna("")
                 )
 
-        # ---------- Write Excel with 2-row header ----------
+        # ---------- Write Excel with Title + 2-row header ----------
         bio = io.BytesIO()
         sheet = "Achievements"
 
         def split_header(col_name: str) -> tuple[str, str]:
+            """
+            Splits 'Competency Name (7-8)' -> ('Competency Name', '7-8')
+            If no parentheses, subheader is ''.
+            """
             s = str(col_name).strip()
             m = re.match(r"^(.*?)\s*(?:\((.*?)\))?\s*$", s)
             base = (m.group(1) if m else s).strip()
@@ -2060,16 +2104,23 @@ def export_achievements_excel():
             return base, in_parens
 
         DATA_START_COL = 3  # D; identity are A..C
+        TITLE_ROW = 0
+        HEADER_BASE_ROW = 1
+        HEADER_SUB_ROW = 2
+        DATA_START_ROW = 3
 
         with pd.ExcelWriter(bio, engine="xlsxwriter") as writer:
-            df.to_excel(writer, index=False, header=False, sheet_name=sheet, startrow=2)
+            df.to_excel(writer, index=False, header=False, sheet_name=sheet, startrow=DATA_START_ROW)
+
             wb = writer.book
             ws = writer.sheets[sheet]
 
             last_col = max(0, len(df.columns) - 1)
+
             school = meta.get("SchoolName", "")
             klass  = meta.get("ClassName", "")
             teach  = meta.get("TeacherName", "")
+
             title_lines = [
                 f"{school} — {klass}".strip(" —"),
                 f"Teacher: {teach}" if teach else "",
@@ -2081,7 +2132,9 @@ def export_achievements_excel():
                 "bold": True, "font_size": 12, "align": "left",
                 "valign": "top", "text_wrap": True,
             })
-            ws.merge_range(0, 0, 0, min(2, last_col), title_text, title_fmt)
+
+            # Title across first 3 cols (or more if you want)
+            ws.merge_range(TITLE_ROW, 0, TITLE_ROW, min(2, last_col), title_text, title_fmt)
 
             # Formats
             header_row1_rot = wb.add_format({
@@ -2100,41 +2153,49 @@ def export_achievements_excel():
             cell_text_fmt = wb.add_format({"valign": "bottom", "text_wrap": True})
             cell_center_fmt = wb.add_format({"valign": "vcenter", "align": "center"})
 
-            # Header row heights
-            ws.set_row(0, 120)
-            ws.set_row(1, 17)
+            # Row heights
+            ws.set_row(TITLE_ROW, 70)
+            ws.set_row(HEADER_BASE_ROW, 120)
+            ws.set_row(HEADER_SUB_ROW, 20)
             ws.set_default_row(17)
 
-            # A2:C2 identity headers
+            # Identity headers in HEADER_SUB_ROW
             for j, name in enumerate(["LastName", "PreferredName", "YearLevel"]):
                 if j <= last_col:
-                    ws.write(1, j, name, id_header_fmt)
+                    ws.write(HEADER_SUB_ROW, j, name, id_header_fmt)
 
-            # D1.. base headers; D2.. subheaders
+            # D.. rotated base header row and subheader row
             for j in range(DATA_START_COL, last_col + 1):
                 base, sub = split_header(df.columns[j])
-                ws.write(0, j, base, header_row1_rot)
-                ws.write(1, j, sub, header_row2_h)
+                ws.write(HEADER_BASE_ROW, j, base, header_row1_rot)
+                ws.write(HEADER_SUB_ROW, j, sub, header_row2_h)
 
-            # Column widths
+            # Column widths + formats
             width_map = {"LastName": 16, "PreferredName": 14, "YearLevel": 10}
             narrow_width = 6
             default_identity_width = 12
+
             for j, col in enumerate(df.columns):
                 series = df[col]
-                col_fmt = (cell_center_fmt
-                           if (pd.api.types.is_numeric_dtype(series) or pd.api.types.is_bool_dtype(series))
-                           else cell_text_fmt)
-                width = width_map.get(col, default_identity_width if col in ["LastName","PreferredName","YearLevel"] else narrow_width)
+                col_fmt = cell_center_fmt if (
+                    pd.api.types.is_numeric_dtype(series) or pd.api.types.is_bool_dtype(series)
+                ) else cell_text_fmt
+
+                width = width_map.get(
+                    col,
+                    default_identity_width if col in ["LastName", "PreferredName", "YearLevel"] else narrow_width
+                )
                 ws.set_column(j, j, width, col_fmt)
 
-            # Freeze panes
-            ws.freeze_panes(2, DATA_START_COL)
+            # Freeze panes just below header rows
+            ws.freeze_panes(DATA_START_ROW, DATA_START_COL)
 
         bio.seek(0)
+
         fname = _safe_filename(
             f"{meta.get('SchoolName','')} - {meta.get('ClassName','')} - Achievements (T{term} {year}).xlsx"
         )
+
         return send_file(
             bio,
             mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -2142,9 +2203,10 @@ def export_achievements_excel():
             download_name=fname
         )
 
-    except Exception:
-        current_app.logger.exception("❌ export_achievements_excel failed:" )
+    except Exception as e:
+        current_app.logger.exception("❌ export_achievements_excel failed: %s", str(e))
         return jsonify({"success": False, "error": "Export failed. See server logs for details."}), 500
+
 
     
  # ---------- 2) POST add class (name + teacher) ----------

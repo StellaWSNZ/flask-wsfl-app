@@ -6,6 +6,8 @@ import os
 import re
 import traceback
 import uuid
+import pandas as pd
+
 from pathlib import Path
 
 # Third-party
@@ -497,7 +499,6 @@ def _execute_report(
         rows = res.mappings().all()
         results = rows
 
-        import pandas as pd
 
         df_all = pd.DataFrame(rows)
 

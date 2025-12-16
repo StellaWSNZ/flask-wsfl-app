@@ -128,7 +128,7 @@ select option { white-space: normal; word-break: break-word; }
         <input id="edit-teacher-name" type="text" value="{{ teacher_name }}"
                class="form-control form-control-sm d-inline-block" style="width: 200px;" />
         <strong>School:</strong> {{ school_name }}
-        <button class="btn btn-sm btn-success ms-2" onclick="submitClassInfo(JSON.parse('{{ class_id|tojson }}'))">Save</button>
+        <button class="btn btn-sm btn-success ms-2" onclick="submitClassInfo({{ class_id | tojson }})">Save</button>
         <button class="btn btn-sm btn-secondary" onclick="toggleEditMode(false)">Cancel</button>
       </div>
 
@@ -409,64 +409,129 @@ select option { white-space: normal; word-break: break-word; }
     </div>
   </div>
 </div>
-
 <script>
 /* ===== Reuse existing server-side data ===== */
-const autofillMap = JSON.parse('{{ autofill_map | tojson }}');
-const classId     = JSON.parse('{{ class_id     | tojson }}');
-const term        = JSON.parse('{{ term         | tojson }}');
-const year        = JSON.parse('{{ year         | tojson }}');
+const autofillMap = {{ autofill_map | tojson }};
+const classId     = {{ class_id | tojson }};
+const term        = {{ term | tojson }};
+const year        = {{ year | tojson }};
 
-/* ===== Global saving tracking + refresh / nav blocking ===== */
+/* ============================================================
+   GLOBAL SAVE TRACKING + UNSAVED CHANGES MODAL (FIXED)
+   - never show modal when pendingSaves === 0
+   - auto-close modal + continue navigation when saves finish
+   ============================================================ */
 let pendingSaves = 0;
 let isSaving = false;
-let pendingNavigation = null;  // { type: 'href'|'form', href?|form? }
+// { type: 'href'|'form', href?: string, form?: HTMLFormElement }
+let pendingNavigation = null;
 
 function updateUnsavedModalText() {
   const countSpan = document.getElementById("unsaved-count");
   if (countSpan) countSpan.textContent = String(pendingSaves);
 }
-function startSaving() { pendingSaves += 1; isSaving = pendingSaves > 0; updateUnsavedModalText(); }
-function finishSaving(){ pendingSaves = Math.max(0, pendingSaves - 1); isSaving = pendingSaves > 0; updateUnsavedModalText(); }
 
-window.addEventListener("beforeunload", function (e) {
-  if (!isSaving) return;
-  e.preventDefault();
-  e.returnValue = "";
-});
+function closeUnsavedModalIfOpen() {
+  const modalEl = document.getElementById("unsavedModal");
+  if (!modalEl) return;
+  const inst = bootstrap.Modal.getInstance(modalEl);
+  if (inst) inst.hide();
+}
+
+function doPendingNavigation() {
+  if (!pendingNavigation) return;
+
+  const nav = pendingNavigation;
+  pendingNavigation = null;
+
+  // reset state before navigating
+  pendingSaves = 0;
+  isSaving = false;
+  updateUnsavedModalText();
+
+  if (nav.type === "href") window.location.href = nav.href;
+  if (nav.type === "form") nav.form.submit();
+}
 
 function openUnsavedModal(navInfo) {
+  // ✅ If nothing is actually saving, do not show modal; just proceed
+  if (pendingSaves <= 0) {
+    pendingNavigation = navInfo;
+    doPendingNavigation();
+    return;
+  }
+
   pendingNavigation = navInfo;
   updateUnsavedModalText();
+
   const modalEl = document.getElementById("unsavedModal");
   if (!modalEl) return;
   new bootstrap.Modal(modalEl).show();
 }
 
-document.getElementById("unsaved-leave-btn").addEventListener("click", function () {
-  const modalEl = document.getElementById("unsavedModal");
-  bootstrap.Modal.getInstance(modalEl)?.hide();
+function startSaving() {
+  pendingSaves += 1;
+  isSaving = pendingSaves > 0;
+  updateUnsavedModalText();
+}
 
-  pendingSaves = 0;
-  isSaving = false;
+function finishSaving() {
+  pendingSaves = Math.max(0, pendingSaves - 1);
+  isSaving = pendingSaves > 0;
+  updateUnsavedModalText();
 
-  if (!pendingNavigation) return;
-  if (pendingNavigation.type === "href") window.location.href = pendingNavigation.href;
-  if (pendingNavigation.type === "form") pendingNavigation.form.submit();
-  pendingNavigation = null;
+  // ✅ If saves are done and something was waiting, auto-continue
+  if (!isSaving && pendingNavigation) {
+    closeUnsavedModalIfOpen();
+    doPendingNavigation();
+  } else if (!isSaving) {
+    // close defensively if open
+    closeUnsavedModalIfOpen();
+  }
+}
+
+// Only warn on refresh/close if there are actual saves pending
+window.addEventListener("beforeunload", function (e) {
+  if (pendingSaves <= 0) return;
+  e.preventDefault();
+  e.returnValue = "";
 });
 
+// Wire "Leave anyway" button safely
+document.addEventListener("DOMContentLoaded", () => {
+  const leaveBtn = document.getElementById("unsaved-leave-btn");
+  if (!leaveBtn) return;
+
+  leaveBtn.addEventListener("click", function () {
+    closeUnsavedModalIfOpen();
+    doPendingNavigation();
+  });
+});
+
+// Intercept links while saving
 document.addEventListener("click", function (e) {
   const link = e.target.closest("a[href]");
   if (!link) return;
+
   const href = link.getAttribute("href");
   if (!href || href.startsWith("#")) return;
-  if (link.target && link.target === "_blank") return;
-  if (isSaving) { e.preventDefault(); openUnsavedModal({ type: "href", href: link.href }); }
+
+  // allow new tab + downloads
+  if (link.target === "_blank") return;
+  if (link.hasAttribute("download")) return;
+
+  if (pendingSaves > 0) {
+    e.preventDefault();
+    openUnsavedModal({ type: "href", href: link.href });
+  }
 });
 
+// Intercept form submits while saving
 document.addEventListener("submit", function (e) {
-  if (isSaving) { e.preventDefault(); openUnsavedModal({ type: "form", form: e.target }); }
+  if (pendingSaves > 0) {
+    e.preventDefault();
+    openUnsavedModal({ type: "form", form: e.target });
+  }
 });
 
 /* ===== Desktop handlers ===== */
@@ -614,7 +679,11 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 });
 
-// Achievements export via POST JSON
+/* ============================================================
+   Achievements export via POST JSON
+   IMPORTANT: export does NOT call startSaving/finishSaving
+   (so it won’t trigger the unsaved-changes modal)
+   ============================================================ */
 document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("export-achievements-btn");
   const statusEl = document.getElementById("export-ach-status");
@@ -622,17 +691,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
   btn.addEventListener("click", async () => {
     try {
-      startSaving();
       statusEl?.classList.remove("d-none");
       statusEl.textContent = "Preparing export…";
 
       const payload = {
-        class_id: JSON.parse('{{ class_id  | tojson }}'),
-        term:      JSON.parse('{{ term      | tojson }}'),
-        year:      JSON.parse('{{ year      | tojson }}'),
-        rows:      JSON.parse('{{ students  | tojson }}'),
-        column_order: JSON.parse('{{ (columns[3:]) | tojson }}')
-      };
+  class_id: {{ class_id | tojson }},
+  term: {{ term | tojson }},
+  year: {{ year | tojson }},
+  rows: {{ students | tojson }},
+  column_order: {{ (columns[3:]) | tojson }}
+};
 
       const res = await fetch("{{ url_for('class_bp.export_achievements_excel') }}", {
         method: "POST",
@@ -671,21 +739,18 @@ document.addEventListener("DOMContentLoaded", () => {
       console.error(err);
       statusEl.textContent = "Export failed.";
       alert("Export failed. Please try again.");
-    } finally {
-      finishSaving();
     }
   });
 });
 
 /* ===== Mobile layer ===== */
-const _students  = JSON.parse('{{ students  | tojson }}');
-const _columns   = JSON.parse('{{ columns   | tojson }}');
-const _compCols  = _columns.slice(3);
-const _scenarios = JSON.parse('{{ scenarios | tojson }}');
-const _autofill  = JSON.parse('{{ autofill_map | tojson }}');
-const _classId   = JSON.parse('{{ class_id  | tojson }}');
-const _term      = JSON.parse('{{ term      | tojson }}');
-const _year      = JSON.parse('{{ year      | tojson }}');
+const _students  = {{ students | tojson }};
+const _columns   = {{ columns | tojson }};
+const _scenarios = {{ scenarios | tojson }};
+const _autofill  = {{ autofill_map | tojson }};
+const _classId   = {{ class_id | tojson }};
+const _term      = {{ term | tojson }};
+const _year      = {{ year | tojson }};
 
 function isScenarioCol(col){ return /Scenario (One|Two)\s*-\s*Selected/i.test(col); }
 
@@ -889,8 +954,8 @@ const viewByCompetency = document.getElementById('viewByCompetency');
 const studentView      = document.getElementById('mob-student-view');
 const compView         = document.getElementById('mob-competency-view');
 
-viewByStudent.addEventListener('change', () => { studentView.style.display='block'; compView.style.display='none'; });
-viewByCompetency.addEventListener('change', () => { studentView.style.display='none'; compView.style.display='block'; });
+viewByStudent?.addEventListener('change', () => { studentView.style.display='block'; compView.style.display='none'; });
+viewByCompetency?.addEventListener('change', () => { studentView.style.display='none'; compView.style.display='block'; });
 
 studentSel?.addEventListener('change', e => renderStudent(parseInt(e.target.value)));
 compSel?.addEventListener('change', e => renderCompetency(e.target.value));
@@ -920,7 +985,7 @@ function openMarkAllConfirm({ source, displayName, colRaw, dependents }) {
   new bootstrap.Modal(document.getElementById('markAllConfirmModal')).show();
 }
 
-document.getElementById("confirm-mark-all-btn").addEventListener("click", function () {
+document.getElementById("confirm-mark-all-btn")?.addEventListener("click", function () {
   if (!pendingMarkAllAction) return;
   const { source, colRaw } = pendingMarkAllAction;
 
@@ -986,12 +1051,12 @@ const helpDesktopHTML = `
 `;
 
 const helpBody = document.getElementById('helpModalBody');
-document.getElementById('helpModal').addEventListener('show.bs.modal', () => {
-  helpBody.innerHTML = isPhone() ? helpPhoneHTML : helpDesktopHTML;
+document.getElementById('helpModal')?.addEventListener('show.bs.modal', () => {
+  if (helpBody) helpBody.innerHTML = isPhone() ? helpPhoneHTML : helpDesktopHTML;
 });
 window.addEventListener('resize', () => {
   if (document.getElementById('helpModal')?.classList.contains('show')) {
-    helpBody.innerHTML = isPhone() ? helpPhoneHTML : helpDesktopHTML;
+    if (helpBody) helpBody.innerHTML = isPhone() ? helpPhoneHTML : helpDesktopHTML;
   }
 });
 
@@ -1069,5 +1134,4 @@ document.addEventListener("keydown", function (e) {
   if (next) { next.focus(); window.scrollTo({ top: scrollY }); }
 });
 </script>
-
 {% endblock %}
