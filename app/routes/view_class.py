@@ -10,6 +10,7 @@ import re
 import traceback
 from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
+from urllib.parse import urlencode
 import qrcode
 import csv
 import xlrd
@@ -287,10 +288,10 @@ def excel_bytes_writer(df: pd.DataFrame, sheet_name: str = "Sheet1"):
 # =========================
 # Print/ PDF Pipeline Helpers
 # =========================
-def _render_print_html(engine, class_id: int, term: int, year: int, filter_type: str, order_by: str) -> str:
+def _render_print_html(engine,moe_number: int, class_id: int, term: int, year: int, filter_type: str, order_by: str) -> str:
     # Reuse your existing context builder; you already had this idea earlier
     # If you don't have a _build_print_context yet, we can synthesize a tiny wrapper
-    ctx = _build_print_context(engine, class_id, term, year, filter_type, order_by)
+    ctx = _build_print_context(engine,moe_number,  class_id, term, year, filter_type, order_by)
     return render_template("print_view.html", **ctx)
 
 def _html_to_pdf_bytes_with_playwright(html: str, base_url: str | None = None) -> bytes | None:
@@ -319,7 +320,7 @@ def _html_to_pdf_bytes_with_playwright(html: str, base_url: str | None = None) -
         current_app.logger.exception("Playwright PDF generation failed")
         return None
 
-def _build_print_context(engine, class_id: int, term: int, year: int, filter_type: str, order_by: str):
+def _build_print_context(engine,moe_number:int, class_id: int, term: int, year: int, filter_type: str, order_by: str):
     """
     Build the same context dict that print_class_view uses to render print_view.html.
     Reuses cache when possible; regenerates if needed.
@@ -412,7 +413,7 @@ def _build_print_context(engine, class_id: int, term: int, year: int, filter_typ
     teacher_name = class_info.TeacherName if class_info else "Unknown Teacher"
 
     # QR for login-to-view
-    target_path = url_for("class_bp.view_class", class_id=class_id, term=term, year=year)
+    target_path = url_for("class_bp.view_class",moe_number = moe_number,  class_id=class_id, term=term, year=year)
     login_url   = url_for("auth_bp.login", next=target_path, _external=True)
     qr_data_uri = generate_qr_code_png(login_url)
 
@@ -431,14 +432,41 @@ def _build_print_context(engine, class_id: int, term: int, year: int, filter_typ
         "now": datetime.now,
         "qr_data_uri": qr_data_uri,
     }
+def _allowed_school_ids(conn, include_inactive: int = 0) -> set[int]:
+    user_id   = session.get("user_id")
+    user_role = session.get("user_role")
 
+    try:
+        user_id = int(user_id) if user_id is not None else None
+    except (TypeError, ValueError):
+        user_id = None
+
+    rows = conn.execute(
+        text("""
+            SET NOCOUNT ON;
+            EXEC dbo.FlaskGetEntities
+                @EntityType      = :EntityType,
+                @Role            = :Role,
+                @ID              = :ID,
+                @IncludeInactive = :IncludeInactive;
+        """),
+        {
+            "EntityType": "School",
+            "Role": user_role,
+            "ID": user_id,
+            "IncludeInactive": int(include_inactive or 0),
+        },
+    ).mappings().all()
+
+    # Assumes SP returns ID = MOENumber for schools
+    return {int(r["ID"]) for r in rows if r.get("ID") is not None}
 
 # =========================
 # Page Routes
 # =========================
-@class_bp.route('/Classes/<int:class_id>/<int:term>/<int:year>')
+@class_bp.route('/Classes/<int:moe_number>/<int:class_id>/<int:term>/<int:year>')
 @login_required
-def view_class(class_id, term, year):
+def view_class(moe_number,class_id, term, year):
     try:
         # ---------- Query params ----------
         filter_type = request.args.get("filter", "all")
@@ -449,6 +477,40 @@ def view_class(class_id, term, year):
         class_cache = session.get("class_cache", {})
         cached      = class_cache.get(cache_key)
         
+        engine = get_db_engine()
+        with engine.begin() as conn:
+
+            # -----------------------------
+            # Authorisation (school access)
+            # -----------------------------
+            role = (session.get("user_role") or "").upper()
+
+            if role == "MOE":
+                session_moe = session.get("moe_number") or session.get("user_id") or session.get("ID")
+                try:
+                    session_moe = int(session_moe)
+                except (TypeError, ValueError):
+                    return render_template(
+                "error.html",
+                error="You are not authorised to view that page.",
+                code=403
+            ), 403
+
+                if int(moe_number) != session_moe:
+                    return render_template(
+                "error.html",
+                error="You are not authorised to view that page.",
+                code=403
+            ), 403
+
+            else:
+                allowed = _allowed_school_ids(conn, include_inactive=0)
+                if int(moe_number) not in allowed:
+                    return render_template(
+                "error.html",
+                error="You are not authorised to view that page.",
+                code=403
+            ), 403
 
         # ❌ No valid cache → fetch from DB
         engine = get_db_engine()
@@ -496,6 +558,7 @@ def view_class(class_id, term, year):
                     autofill_map={},
                     term=term,
                     year=year,
+                    moe_number = moe_number,
                     order_by=order_by,
                     filter_type=filter_type
                 )
@@ -648,6 +711,7 @@ def view_class(class_id, term, year):
                 class_title=title_string,
                 edit=session.get("user_admin"),
                 autofill_map=header_map,
+                moe_number = moe_number,
                 term=term,
                 year=year,
                 order_by=order_by,
@@ -688,306 +752,166 @@ def view_class(class_id, term, year):
         # user-facing response unchanged
         return "An internal error occurred. Check logs for details.", 500
 
-@class_bp.route('/SchoolClasses', methods=['GET', 'POST'])
-@login_required
-def moe_classes():
-    if session.get("user_role") != "MOE":
-        flash("Unauthorized access", "danger")
-        return redirect(url_for("home_bp.home"))
 
-    engine = get_db_engine()
+def _entities_for_user(conn, entity_type: str, include_inactive: int = 0) -> list[dict]:
+    user_id   = session.get("user_id")
+    user_role = session.get("user_role")
+
+    try:
+        user_id = int(user_id) if user_id is not None else None
+    except (TypeError, ValueError):
+        user_id = None
+
+    sql = text("""
+        SET NOCOUNT ON;
+        EXEC dbo.FlaskGetEntities
+            @EntityType      = :EntityType,
+            @Role            = :Role,
+            @ID              = :ID,
+            @IncludeInactive = :IncludeInactive;
+    """)
+
+    rows = conn.execute(sql, {
+        "EntityType": entity_type,
+        "Role": user_role,
+        "ID": user_id,
+        "IncludeInactive": int(include_inactive or 0),
+    }).mappings().all()
+
+    return [{"id": int(r["ID"]), "description": str(r["Description"])} for r in rows]
+
+@class_bp.route("/FilterClasses", methods=["GET", "POST"])
+@login_required
+def filter_classes():
+
+    user_role  = (session.get("user_role") or "").upper()
+    user_admin = int(session.get("user_admin", 0))
+
+    terms = get_terms()
+    years = get_years()
 
     classes = []
-    students = []
     suggestions = []
+    schools = []          # IMPORTANT: empty → AJAX fills it
+    moe_number = None
 
-    moe_number   = session.get("user_id")
-    default_term = session.get("nearest_term")
-    default_year = session.get("nearest_year")
+    # selections (safe casting)
+    selected_term = request.form.get("term") or session.get("nearest_term")
+    selected_year = request.form.get("calendaryear") or session.get("nearest_year")
+    selected_moe  = request.form.get("moe_number")
 
-    # ✅ Always define these for the template
-    selected_term = default_term
-    selected_year = default_year
+    # MOE school inference
+    if user_role == "MOE":
+        moe_number = session.get("moe_number") or session.get("user_id")
 
     if request.method == "POST":
-        raw_term = (request.form.get("term") or "").strip()
-        raw_year = (request.form.get("calendaryear") or "").strip()
-
         try:
-            term = int(raw_term)
-            year = int(raw_year)
-            # keep for template
-            selected_term = term
-            selected_year = year
-        except ValueError:
-            flash("Please select a valid term and year.", "warning")
-        else:
-            try:
-                with engine.connect() as conn:
-                    result = conn.execute(
-                        text("""
-                            EXEC FlaskHelperFunctionsSpecific 
-                                @Request   = :Request,
-                                @MOENumber = :moe,
-                                @Term      = :term,
-                                @CalendarYear      = :year
-                        """),
-                        {
-                            "Request": "ClassesBySchoolTermYear",
-                            "moe": moe_number,
-                            "term": term,
-                            "year": year
-                        }
-                    )
-                    classes = [dict(r) for r in result.mappings().all()]
+            term = int(selected_term)
+            year = int(selected_year)
+            if term not in (1, 2, 3, 4):
+                raise ValueError("Invalid term")
 
-                    if not classes:
-                        sres = conn.execute(
-                            text("""
-                                EXEC FlaskHelperFunctionsSpecific 
-                                    @Request   = :Request,
-                                    @MOENumber = :moe
-                            """),
-                            {"Request": "DistinctTermsForSchool", "moe": moe_number}
-                        )
-                        srows = [dict(r) for r in sres.mappings().all()]
-                        suggestions = [f"{r.get('CalendarYear')} Term {r.get('Term')}" for r in srows]
-
-            except Exception as e:                
-                current_app.logger.exception("DB error in /SchoolClasses")
-                flash(f"Error loading classes: {e}", "danger")
-
-    # Render (now with selected_term/selected_year)
-    try:
-        return render_template(
-            "moe_classes.html",
-            classes=classes,
-            students=students,
-            suggestions=suggestions,
-            TERM=default_term,
-            YEAR=default_year,
-            years = get_years(),
-            terms = get_terms(),
-            selected_term=selected_term,
-            selected_year=selected_year,
-            desc = session.get('desc')
-        )
-    except Exception as e:
-
-        current_app.logger.exception("Template error in moe_classes.html")
-        return (f"<h3>Template rendering failed</h3><pre>{e}</pre>", 500)
-  
-@class_bp.route('/ProviderClasses', methods=['GET', 'POST'])
-@login_required
-def provider_classes():
-    if session.get("user_role") != "PRO":
-        flash("Unauthorized access", "danger")
-        return redirect(url_for("home_bp.home"))
-
-    engine = get_db_engine()
-    classes = []
-    students = []
-    suggestions = []
-    schools = []
-    selected_class_id = None
-    moe_number = None
-    user_role = session.get("user_role")
-    user_id = session.get("user_id")
-    
-    with engine.connect() as conn:
-        if request.method == "POST":
-            term = request.form.get("term", "").strip()
-            year = request.form.get("calendaryear", "").strip()
-            moe_number = request.form.get("moe_number", "").strip()
-
-            if term.isdigit() and year.isdigit():
-                term = int(term)
-                year = int(year)
-
-                # Get school list
-                result = conn.execute(
-                    text("""
-                        EXEC FlaskHelperFunctionsSpecific 
-                            @Request = :request,
-                            @Term = :term,
-                            @Year = :year,
-                            @ProviderID = :provider_id
-                    """),
-                    {
-                        "request": "SchoolsByProviderTermYear",
-                        "term": term,
-                        "year": year,
-                        "provider_id": user_id
-                    }
-                )
-                
-                schools = [dict(row._mapping) for row in result]
-
-                # Get classes
-                if moe_number:
-                    result = conn.execute(
-                        text("""
-                            EXEC FlaskHelperFunctionsSpecific 
-                                @Request = :request,
-                                @MOENumber = :moe,
-                                @Term = :term,
-                                @CalendarYear = :year
-                        """),
-                        {
-                            "request": "ClassesBySchoolTermYear",
-                            "moe": moe_number,
-                            "term": term,
-                            "year": year
-                        }
-                    )
-                    classes = [row._mapping for row in result.fetchall()]
-
-                    if not classes:
-                        suggestion_result = conn.execute(
-                             text("""
-                                EXEC FlaskHelperFunctionsSpecific 
-                                    @Request = :request, 
-                                    @MOENumber = :moe
-                            """),
-                            {
-                                "request": "DistinctTermsForSchool",
-                                "moe": moe_number
-                            }
-                        )
-                        suggestions = [row.Label for row in suggestion_result]
-
-    return render_template(
-        "funder_classes.html",
-        schools=schools,
-        classes=classes,
-        students=students,
-            user_admin=session.get("user_admin", 0),
-
-        suggestions=suggestions,
-        selected_class_id=selected_class_id,
-        years = get_years(),
-        terms = get_terms(),
-        moe_number = moe_number,
-        TERM=session.get("nearest_term"),
-        YEAR=session.get("nearest_year"),
-    user_role=session.get("user_role") 
-    )
-    
-@class_bp.route('/Classes', methods=['GET', 'POST'])
-@login_required
-def funder_classes():
-    if session.get("user_role") not in ["FUN", "ADM", "GRP"]:
-        flash("Unauthorized access", "danger")
-        return redirect(url_for("home_bp.home"))
-    session.pop("class_cache", None) 
-    engine = get_db_engine()
-    classes, students, suggestions, schools = [], [], [], []
-    selected_class_id = None
-
-    user_role = session.get("user_role")
-    user_id = session.get("user_id")
-    group_entities = session.get("group_entities", {})
-    provider_ids = [str(e["id"]) for e in group_entities.get("PRO", [])]
-    funder_ids = [str(e["id"]) for e in group_entities.get("FUN", [])]
-    moe_number = ""
-    default_term = session.get("nearest_term")
-    default_year = session.get("nearest_year")
-
-    # ========================
-    # Always Load Schools List
-    # ========================
-    with engine.connect() as conn:
-        if user_role == "GRP":
-
-            if provider_ids:
-                csv_providers = ",".join(provider_ids)
-                result = conn.execute(
-                    text("EXEC FlaskSchoolsByGroupProviders :ProviderList, :Term, :Year"),
-                    {"ProviderList": csv_providers, "Term": default_term, "Year": default_year}
-                )
-            elif funder_ids:
-                csv_funders = ",".join(funder_ids)
-                result = conn.execute(
-                    text("EXEC FlaskSchoolsByGroupFunders :FunderList, :Term, :Year"),
-                    {"FunderList": csv_funders, "Term": default_term, "Year": default_year}
-                )
+            if user_role == "MOE":
+                if not moe_number:
+                    raise ValueError("Could not determine your school")
+                target_moe = int(moe_number)
             else:
-                result = []
-        elif user_role == "FUN":
-            result = conn.execute(
-                text("""EXEC FlaskHelperFunctionsSpecific 
-                        @Request = :request,
-                        @Term = :term,
-                        @Year = :year,
-                        @FunderID = :funder_id"""),
-                {"request": "SchoolsByFunderTermYear", "term": default_term, "year": default_year, "funder_id": user_id}
-            )
-        else:  # ADM
-            result = conn.execute(
-                text("""EXEC FlaskHelperFunctionsSpecific 
-                        @Request = :request, 
-                        @Term = :term, 
-                        @Year = :year"""),
-                {"request": "SchoolsByTermYear", "term": default_term, "year": default_year}
-            )
-        schools = [dict(row._mapping) for row in result]
+                if not selected_moe:
+                    raise ValueError("Please select a school")
+                target_moe = int(selected_moe)
 
-        # ======================================
-        # Only Load Classes Table After Form POST
-        # ======================================
-        if request.method == "POST":
-            term = request.form.get("term", "").strip()
-            year = request.form.get("calendaryear", "").strip()
-            moe_number = request.form.get("moe_number", "").strip()
+            engine = get_db_engine()
+            with engine.begin() as conn:
+                rows = conn.execute(
+                    text("""
+                        EXEC FlaskHelperFunctionsSpecific
+                            @Request      = 'ClassesBySchoolTermYear',
+                            @MOENumber    = :moe,
+                            @Term         = :term,
+                            @CalendarYear = :year
+                    """),
+                    {"moe": target_moe, "term": term, "year": year}
+                ).fetchall()
 
-            if term.isdigit() and year.isdigit() and moe_number:
-                term, year = int(term), int(year)
-
-                result = conn.execute(
-                    text("""EXEC FlaskHelperFunctionsSpecific 
-                            @Request = :request,
-                            @MOENumber = :moe,
-                            @Term = :term,
-                            @CalendarYear = :year"""),
-                    {"request": "ClassesBySchoolTermYear", "moe": moe_number, "term": term, "year": year}
-                )
-                classes = [row._mapping for row in result.fetchall()]
+                classes = [dict(r._mapping) for r in rows]
 
                 if not classes:
-                    suggestion_result = conn.execute(
-                        text("""EXEC FlaskHelperFunctionsSpecific 
-                                @Request = :request, 
-                                @MOENumber = :moe"""),
-                        {"request": "DistinctTermsForSchool", "moe": moe_number}
-                    )
-                    suggestions = [row.Label for row in suggestion_result]
+                    sugg = conn.execute(
+                        text("""
+                            EXEC FlaskHelperFunctionsSpecific
+                                @Request   = 'DistinctTermsForSchool',
+                                @MOENumber = :moe
+                        """),
+                        {"moe": target_moe}
+                    ).fetchall()
+                    suggestions = [r.Label for r in sugg if r.Label]
+
+            if user_role != "MOE":
+                moe_number = target_moe
+
+        except Exception:
+            current_app.logger.exception("Error loading classes")
+            flash("Could not load classes.", "danger")
 
     return render_template(
-        "funder_classes.html",
-        schools=schools,
+        "classes.html",
+        user_role=user_role,
+        user_admin=user_admin,
+        terms=terms,
+        years=years,
         classes=classes,
-                    user_admin=session.get("user_admin", 0),
-
-        years = get_years(),
-        terms = get_terms(),
-        moe_number = moe_number,
-        students=students,
         suggestions=suggestions,
-        selected_class_id=selected_class_id,
-        TERM=default_term,
-        YEAR=default_year,
-        user_role=user_role
+        schools=schools,          # always empty
+        moe_number=moe_number,
+        selected_term=selected_term,
+        selected_year=selected_year,
+        desc = session.get("desc"),
     )
 
-@class_bp.route("/Class/print/<int:class_id>/<int:term>/<int:year>")
+
+@class_bp.route("/Class/print/<int:moe_number>/<int:class_id>/<int:term>/<int:year>")
 @login_required
-def print_class_view(class_id, term, year):
+def print_class_view(moe_number, class_id, term, year):
     try:
+        engine = get_db_engine()
+        with engine.begin() as conn:
+
+            # -----------------------------
+            # Authorisation (school access)
+            # -----------------------------
+            role = (session.get("user_role") or "").upper()
+
+            if role == "MOE":
+                session_moe = session.get("moe_number") or session.get("user_id") or session.get("ID")
+                try:
+                    session_moe = int(session_moe)
+                except (TypeError, ValueError):
+                    return render_template(
+                "error.html",
+                error="You are not authorised to view that page.",
+                code=403
+            ), 403
+
+                if int(moe_number) != session_moe:
+                    return render_template(
+                "error.html",
+                error="You are not authorised to view that page.",
+                code=403
+            ), 403
+
+            else:
+                allowed = _allowed_school_ids(conn, include_inactive=0)
+                if int(moe_number) not in allowed:
+                    return render_template(
+                "error.html",
+                error="You are not authorised to view that page.",
+                code=403
+            ), 403
         filter_type = request.args.get("filter") or session.get("last_filter_used", "all")
         order_by    = request.args.get("order_by", "last")
 
         engine = get_db_engine()
-        ctx = _build_print_context(engine, class_id, term, year, filter_type, order_by)
+        ctx = _build_print_context(engine, moe_number, class_id, term, year, filter_type, order_by)
 
         # If no data, you can redirect or render a minimal page:
         return render_template("print_view.html", **ctx)
@@ -2222,52 +2146,6 @@ def export_achievements_excel():
         current_app.logger.exception("❌ export_achievements_excel failed:" )
         return jsonify({"success": False, "error": "Export failed. See server logs for details."}), 500
 
-@class_bp.route("/export_achievements_pdf", methods=["GET"])
-@login_required
-def export_achievements_pdf():
-    try:
-        engine    = get_db_engine()
-        class_id  = int(request.args.get("class_id", 0))
-        term      = int(request.args.get("term", 0))
-        year      = int(request.args.get("year", 0))
-        filter_by = request.args.get("filter", "all")
-        order_by  = request.args.get("order_by", "last")
-
-        if not class_id or not term or not year:
-            return jsonify({"success": False, "error": "Missing class_id/term/year"}), 400
-
-        _ensure_authorised_for_class(engine, class_id)
-        meta = _get_class_meta(engine, class_id) or {}
-
-        # 1) Render the same HTML you use for “Print”
-        html = _render_print_html(engine, class_id, term, year, filter_by, order_by)
-        if not isinstance(html, str):
-            # in case your renderer returns a (template, ctx) or Response
-            html = str(html)
-
-        # 2) Try Playwright (Chromium) first
-        pdf_bytes = _html_to_pdf_bytes_with_playwright(html, base_url=request.url_root)
-
-        # 3) If Playwright isn't available, fall back to returning HTML
-        if pdf_bytes is None:
-            # You can change this to 503 if you want to signal “PDF not available”
-            return html
-
-        # 4) Download nicely named PDF
-        school = meta.get("SchoolName", "")
-        klass  = meta.get("ClassName", "")
-        fname = _safe_filename(f"{school} - {klass} - Achievements (T{term} {year}) - Print.pdf")
-
-        return send_file(
-            io.BytesIO(pdf_bytes),
-            mimetype="application/pdf",
-            as_attachment=True,
-            download_name=fname,
-        )
-
-    except Exception:
-        current_app.logger.exception("export_achievements_pdf failed")
-        return jsonify({"success": False, "error": "Export failed. See server logs for details."}), 500
     
  # ---------- 2) POST add class (name + teacher) ----------
 
@@ -2442,3 +2320,20 @@ def preview_upload():
     except Exception as e:
         traceback.print_exc()
         return jsonify({"ok": False, "error": str(e)}), 500
+
+@class_bp.route("/SchoolClasses", methods=["GET", "POST"])
+@login_required
+def moe_classes():
+    return redirect(url_for("class_bp.filter_classes"))
+
+
+@class_bp.route("/Classes", methods=["GET", "POST"])
+@login_required
+def funder_classes():
+    return redirect(url_for("class_bp.filter_classes"))
+
+
+@class_bp.route("/ProviderClasses", methods=["GET", "POST"])
+@login_required
+def provider_classes():
+    return redirect(url_for("class_bp.filter_classes"))

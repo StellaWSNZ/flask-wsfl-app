@@ -215,7 +215,7 @@
 
                 {%endif%}
                 <li><a class="dropdown-item py-2" href="{{ url_for('report_bp.new_reports') }}">Reporting</a></li>
-                <li><a class="dropdown-item py-2" href="{{ url_for('class_bp.funder_classes') }}">Class Lookup</a></li>
+                <li><a class="dropdown-item py-2" href="{{ url_for('class_bp.filter_classes') }}">Class Lookup</a></li>
               </ul>
             </li>
             {% endif %}
@@ -239,7 +239,7 @@
                 <li><a class="dropdown-item py-2" href="{{ url_for('report_bp.new_reports') }}">Reporting</a></li>
 
                 {% endif %}
-                <li><a class="dropdown-item py-2" href="{{ url_for('class_bp.funder_classes') }}">Class Lookup</a></li>
+                <li><a class="dropdown-item py-2" href="{{ url_for('class_bp.filter_classes') }}">Class Lookup</a></li>
                 {% if session['user_admin'] == 1 %}
                 <li><a class="dropdown-item py-2" href="{{ url_for('admin_bp.provider_maintenance') }}">Provider Maintenance</a></li>
                 <li><a class="dropdown-item py-2" href="{{ url_for('survey_bp.bulk_emails') }}">Email Reminders</a></li>
@@ -272,7 +272,7 @@
 
                 <li>
                   <a class="dropdown-item py-2"
-                     href="{% if user_role == 'ADM' %}{{ url_for('class_bp.funder_classes') }}{% else %}{{ url_for('class_bp.moe_classes') }}{% endif %}">
+                     href="{% if user_role == 'ADM' %}{{ url_for('class_bp.filter_classes') }}{% else %}{{ url_for('class_bp.filter_classes') }}{% endif %}">
                     Class Lookup
                   </a>
                 </li>
@@ -302,14 +302,14 @@
                 <li><a class="dropdown-item py-2" href="{{ url_for('report_bp.new_reports') }}">Reporting</a></li>
 
                 {% endif %}
-                <li><a class="dropdown-item py-2" href="{{ url_for('class_bp.provider_classes') }}">Class Lookup</a></li>
+                <li><a class="dropdown-item py-2" href="{{ url_for('class_bp.filter_classes') }}">Class Lookup</a></li>
                 <li><a class="dropdown-item py-2" href="{{ url_for('class_bp.achievement_upload') }}">Upload Student Achievements</a></li>
               </ul>
             </li>
             {% endif %}
 
             {% if user_role == "ADM" and user_email != "megan@watersafety.org.nz" %}
-            <li class="nav-item dropdown"> <a id="admToolsToggle" class="nav-link dropdown-toggle {% if 'reporting' in request.path or 'classlistupload' in request.path or 'funder_classes' in request.path %}active{% endif %}" href="#" role="button" aria-haspopup="true" data-bs-toggle="dropdown" aria-expanded="false" >Admin Tools</a> <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="admToolsToggle"> <li><h6 class="dropdown-header">Reports &amp; Dashboards</h6></li> <li><a class="dropdown-item py-2" href="{{ url_for('report_bp.new_reports') }}">Reporting</a></li> <li><a class="dropdown-item py-2" href="{{ url_for('funder_bp.funder_dashboard') }}">Overview by Entity</a></li> <li><a class="dropdown-item py-2" href="{{ url_for('funder_bp.funder_schools') }}">Overview by School</a></li> <li><a class="dropdown-item py-2" href="{{ url_for('funder_bp.admin_dashboard') }}">Overview</a></li> <li><hr class="dropdown-divider" /></li> <li><h6 class="dropdown-header">Entity &amp; User Management</h6></li> <li><a class="dropdown-item py-2" href="{{ url_for('admin_bp.admin_user_entities') }}">Edit User Entity</a></li> <li><a class="dropdown-item py-2" href="{{ url_for('add_user.add_user') }}">Add Teacher</a></li> <li><a class="dropdown-item py-2" href="{{ url_for('admin_bp.provider_maintenance') }}">Provider Maintenance</a></li> <li><a class="dropdown-item py-2" href="{{ url_for('admin_bp.edit_school_type') }}">Edit School Type</a></li> <li><a class="dropdown-item py-2" href="{{ url_for('students_bp.student_search_page') }}">Edit Student Record</a></li> <li><a class="dropdown-item py-2" href="{{ url_for('class_bp.class_students_page') }}">Edit Class Lists</a></li> <li><a class="dropdown-item py-2" href="{{ url_for('survey_bp.bulk_emails') }}">Email Reminders</a></li> <li><hr class="dropdown-divider" /></li> <li><h6 class="dropdown-header">Data Uploads &amp; Lookup</h6></li> <li><a class="dropdown-item py-2" href="{{ url_for('upload_bp.classlistupload') }}">Upload Class List</a></li> <li><a class="dropdown-item py-2" href="{{ url_for('eLearning_bp.admin_eLearning_upload') }}">Upload eLearning Excel</a></li> <li><a class="dropdown-item py-2" href="{{ url_for('class_bp.funder_classes') }}">Class Lookup</a></li> <li><a class="dropdown-item py-2" href="{{ url_for('class_bp.achievement_upload') }}">Upload Student Achievements</a></li> </ul> </li>
+            <li class="nav-item dropdown"> <a id="admToolsToggle" class="nav-link dropdown-toggle {% if 'reporting' in request.path or 'classlistupload' in request.path or 'funder_classes' in request.path %}active{% endif %}" href="#" role="button" aria-haspopup="true" data-bs-toggle="dropdown" aria-expanded="false" >Admin Tools</a> <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="admToolsToggle"> <li><h6 class="dropdown-header">Reports &amp; Dashboards</h6></li> <li><a class="dropdown-item py-2" href="{{ url_for('report_bp.new_reports') }}">Reporting</a></li> <li><a class="dropdown-item py-2" href="{{ url_for('funder_bp.funder_dashboard') }}">Overview by Entity</a></li> <li><a class="dropdown-item py-2" href="{{ url_for('funder_bp.funder_schools') }}">Overview by School</a></li> <li><a class="dropdown-item py-2" href="{{ url_for('funder_bp.admin_dashboard') }}">Overview</a></li> <li><hr class="dropdown-divider" /></li> <li><h6 class="dropdown-header">Entity &amp; User Management</h6></li> <li><a class="dropdown-item py-2" href="{{ url_for('admin_bp.admin_user_entities') }}">Edit User Entity</a></li> <li><a class="dropdown-item py-2" href="{{ url_for('add_user.add_user') }}">Add Teacher</a></li> <li><a class="dropdown-item py-2" href="{{ url_for('admin_bp.provider_maintenance') }}">Provider Maintenance</a></li> <li><a class="dropdown-item py-2" href="{{ url_for('admin_bp.edit_school_type') }}">Edit School Type</a></li> <li><a class="dropdown-item py-2" href="{{ url_for('students_bp.student_search_page') }}">Edit Student Record</a></li> <li><a class="dropdown-item py-2" href="{{ url_for('class_bp.class_students_page') }}">Edit Class Lists</a></li> <li><a class="dropdown-item py-2" href="{{ url_for('survey_bp.bulk_emails') }}">Email Reminders</a></li> <li><hr class="dropdown-divider" /></li> <li><h6 class="dropdown-header">Data Uploads &amp; Lookup</h6></li> <li><a class="dropdown-item py-2" href="{{ url_for('upload_bp.classlistupload') }}">Upload Class List</a></li> <li><a class="dropdown-item py-2" href="{{ url_for('eLearning_bp.admin_eLearning_upload') }}">Upload eLearning Excel</a></li> <li><a class="dropdown-item py-2" href="{{ url_for('class_bp.filter_classes') }}">Class Lookup</a></li> <li><a class="dropdown-item py-2" href="{{ url_for('class_bp.achievement_upload') }}">Upload Student Achievements</a></li> </ul> </li>
             {% elif user_role == "ADM" and user_email == "megan@watersafety.org.nz" %}
             <li class="nav-item dropdown">
               <a

@@ -134,16 +134,16 @@ select option { white-space: normal; word-break: break-word; }
 
       <!-- Sorting + actions -->
       <div class="d-flex justify-content-center flex-wrap gap-2 mb-3">
-        <a href="{{ url_for('class_bp.view_class', class_id=class_id, term=term, year=year, filter=filter_type, order_by='first') }}"
+        <a href="{{ url_for('class_bp.view_class',moe_number = moe_number, class_id=class_id, term=term, year=year, filter=filter_type, order_by='first') }}"
            class="btn btn-sm btn-outline-secondary {% if order_by == 'first' %}active{% endif %}">Sort by First Name</a>
-        <a href="{{ url_for('class_bp.view_class', class_id=class_id, term=term, year=year, filter=filter_type, order_by='last') }}"
-           class="btn btn-sm btn-outline-secondary {% if order_by == 'last' %}active{% endif %}">Sort by Last Name</a>
+        <a href="{{ url_for('class_bp.view_class', moe_number = moe_number, class_id=class_id, term=term, year=year, filter=filter_type, order_by='last') }}"
+           class="btn btn-sm btn-outline-secondary {% if order_by ==  'last' %}active{% endif %}">Sort by Last Name</a>
 
         <!-- Hidden on phones, shown on md+ -->
         <button id="fullscreen-btn" class="btn btn-sm btn-outline-secondary d-none d-md-inline-flex" onclick="toggleFullScreen()">🖥️ Full Screen</button>
 
         <a class="btn btn-sm btn-outline-secondary"
-           href="{{ url_for('class_bp.print_class_view', class_id=class_id, term=term, year=year, filter=filter_type, order_by=order_by) }}"
+           href="{{ url_for('class_bp.print_class_view',moe_number=moe_number, class_id=class_id, term=term, year=year, filter=filter_type, order_by=order_by) }}"
            target="_blank">🖨️ Print</a>
         <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#exportModal">📤 Export</button>
         <button class="btn btn-sm btn-secondary fw-bold d-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#helpModal">

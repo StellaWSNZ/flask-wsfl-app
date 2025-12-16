@@ -32,7 +32,6 @@
     color: #fff !important;
     border-bottom: none !important;
   }
-
   .modal-header-primary .btn-close {
     filter: invert(1);
   }
@@ -43,9 +42,28 @@
     color: #fff !important;
     border-bottom: none !important;
   }
-
   .modal-header-danger .btn-close {
     filter: invert(1);
+  }
+
+  /* Optional: you referenced this class */
+  .btn-outline-danger-custom {
+    border-color: #dc3545;
+    color: #dc3545;
+  }
+  .btn-outline-danger-custom:hover {
+    background: #dc3545;
+    color: #fff;
+  }
+
+  /* Optional: you referenced these too */
+  .btn-info-custom {
+    background: #0dcaf0;
+    border-color: #0dcaf0;
+    color: #000;
+  }
+  .btn-info-custom:hover {
+    filter: brightness(0.95);
   }
 </style>
 
@@ -54,17 +72,19 @@
 <form method="POST" id="filter-form">
   <div class="container">
     <div class="row justify-content-center align-items-end g-3">
+
       <!-- Term -->
       <div class="col-md-2">
         <label for="term" class="form-label">Term</label>
         <select name="term" id="term" class="form-select" required>
-          <option value="" disabled {% if not request.form.get('term', TERM|string) %}selected{% endif %}>
+          <option value="" disabled {% if not selected_term %}selected{% endif %}>
             Select term
           </option>
           {% for t in terms %}
-            <option value="{{ t }}"
-                    {% if request.form.get('term', TERM|string) == t|string %}selected{% endif %}>
-              {{ t }}
+            {# support either list[int] or list[dict] #}
+            {% set t_val = t.Term if t.Term is defined else (t.term if t.term is defined else t) %}
+            <option value="{{ t_val }}" {% if selected_term|string == t_val|string %}selected{% endif %}>
+              {{ t_val }}
             </option>
           {% endfor %}
         </select>
@@ -74,39 +94,43 @@
       <div class="col-md-2">
         <label for="calendaryear" class="form-label">Year</label>
         <select name="calendaryear" id="calendaryear" class="form-select" required>
-          <option value="" disabled {% if not request.form.get('calendaryear', YEAR|string) %}selected{% endif %}>
+          <option value="" disabled {% if not selected_year %}selected{% endif %}>
             Select year
           </option>
           {% for y in years %}
-            <option value="{{ y }}"
-                    {% if request.form.get('calendaryear', YEAR|string) == y|string %}selected{% endif %}>
-              {{ y }}
+            {% set y_val = y.CalendarYear if y.CalendarYear is defined else (y.year if y.year is defined else y) %}
+            <option value="{{ y_val }}" {% if selected_year|string == y_val|string %}selected{% endif %}>
+              {{ y_val }}
             </option>
           {% endfor %}
         </select>
       </div>
 
-      <!-- School -->
+      <!-- School (hidden for MOE users) -->
+      {% if user_role != "MOE" %}
       <div class="col-md-4" id="school-wrapper"
-           {% if schools %}style="display:block;"{% else %}style="display:none;"{% endif %}>
+           style="display:none;">
         <label for="moe_number" class="form-label">School</label>
         <select name="moe_number" id="moe_number" class="form-select" required>
           <option value="">Select School</option>
-          {% set current_moe = request.form.get('moe_number', moe_number|string) %}
-          {% for school in schools %}
-            <option value="{{ school.MOENumber }}"
-                    {% if current_moe == school.MOENumber|string %}selected{% endif %}>
-              {{ school.School }}
-            </option>
-          {% endfor %}
         </select>
       </div>
 
       <!-- Submit -->
-      <div class="col-md-auto" id="find-btn-wrapper"
-           {% if schools %}style="display:block;"{% else %}style="display:none;"{% endif %}>
+      <div class="col-md-auto" id="find-btn-wrapper" style="display:none;">
         <button type="submit" class="btn btn-primary w-100">Find Classes</button>
       </div>
+      {% else %}
+      <!-- MOE user: inferred school -->
+      <div class="col-md-4" id="school-wrapper" style="display:block;">
+        <label class="form-label">School</label>
+        <input class="form-control" value="{{ desc or ''}}" readonly />
+      </div>
+      <div class="col-md-auto" id="find-btn-wrapper" style="display:block;">
+        <button type="submit" class="btn btn-primary w-100">Find Classes</button>
+      </div>
+      {% endif %}
+
     </div>
   </div>
 </form>
@@ -130,10 +154,10 @@
               <td>
                 <a class="btn btn-sm btn-outline-primary"
                    href="{{ url_for('class_bp.view_class',
-                                      moe_number=moe_number,
+                                    moe_number=moe_number,
                                     class_id=cls.ClassID,
-                                    term=request.form['term'],
-                                    year=request.form['calendaryear'],
+                                    term=selected_term,
+                                    year=selected_year,
                                     filter='all') }}">
                   View All Competencies
                 </a>
@@ -141,51 +165,51 @@
               <td>
                 <a class="btn btn-sm btn-outline-secondary"
                    href="{{ url_for('class_bp.view_class',
-                            moe_number=moe_number,
+                                    moe_number=moe_number,
                                     class_id=cls.ClassID,
-                                    term=request.form['term'],
-                                    year=request.form['calendaryear'],
+                                    term=selected_term,
+                                    year=selected_year,
                                     filter='water') }}">
                   View Water-Based Competencies
                 </a>
               </td>
+
               <td>
                 {% if user_admin == 1 and cls.Movable == 1 %}
-                  <div class="btn-group btn-group-sm" role="group" aria-label="Move or delete class">
-                    <button
-                      type="button"
-                      class="btn btn-outline-info move-class-btn"
-                      title="Move Class"
-                      data-class-id="{{ cls.ClassID }}"
-                      data-class-name="{{ cls.ClassName }}"
-                      data-teacher-name="{{ cls.TeacherName }}"
-                      data-current-term="{{ request.form['term'] }}"
-                      data-current-year="{{ request.form['calendaryear'] }}"
-                    >
-                      Move Class
-                    </button>
-                    
-                  </div>
+                <div class="btn-group btn-group-sm" role="group" aria-label="Move class">
+                  <button
+                    type="button"
+                    class="btn btn-outline-info move-class-btn"
+                    title="Move Class"
+                    data-class-id="{{ cls.ClassID }}"
+                    data-class-name="{{ cls.ClassName }}"
+                    data-teacher-name="{{ cls.TeacherName }}"
+                    data-current-term="{{ selected_term }}"
+                    data-current-year="{{ selected_year }}"
+                  >
+                    Move Class
+                  </button>
+                </div>
                 {% endif %}
               </td>
-              <td>
-                                {% if user_admin == 1 and cls.Movable == 1 %}
-                  <div class="btn-group btn-group-sm" role="group" aria-label="Move or delete class">
 
-                <button
-                      type="button"
-                      class="btn btn-outline-danger-custom delete-class-btn"
-                      title="Delete Class"
-                      data-class-id="{{ cls.ClassID }}"
-                      data-class-name="{{ cls.ClassName }}"
-                      data-teacher-name="{{ cls.TeacherName }}"
-                      data-current-term="{{ request.form['term'] }}"
-                      data-current-year="{{ request.form['calendaryear'] }}"
-                    >
-                      Delete Class
-                    </button>
-                  </div>
-                    {% endif %}
+              <td>
+                {% if user_admin == 1 and cls.Movable == 1 %}
+                <div class="btn-group btn-group-sm" role="group" aria-label="Delete class">
+                  <button
+                    type="button"
+                    class="btn btn-outline-danger-custom delete-class-btn"
+                    title="Delete Class"
+                    data-class-id="{{ cls.ClassID }}"
+                    data-class-name="{{ cls.ClassName }}"
+                    data-teacher-name="{{ cls.TeacherName }}"
+                    data-current-term="{{ selected_term }}"
+                    data-current-year="{{ selected_year }}"
+                  >
+                    Delete Class
+                  </button>
+                </div>
+                {% endif %}
               </td>
             </tr>
           {% endfor %}
@@ -211,17 +235,19 @@
           <div class="d-flex flex-wrap gap-2 mt-2">
             <a class="btn btn-outline-secondary btn-sm"
                href="{{ url_for('class_bp.view_class',
+                                moe_number=moe_number,
                                 class_id=cls.ClassID,
-                                term=request.form['term'],
-                                year=request.form['calendaryear'],
+                                term=selected_term,
+                                year=selected_year,
                                 filter='all') }}">
               All Competencies
             </a>
             <a class="btn btn-outline-primary btn-sm"
                href="{{ url_for('class_bp.view_class',
+                                moe_number=moe_number,
                                 class_id=cls.ClassID,
-                                term=request.form['term'],
-                                year=request.form['calendaryear'],
+                                term=selected_term,
+                                year=selected_year,
                                 filter='water') }}">
               Water-Based
             </a>
@@ -234,8 +260,8 @@
                 data-class-id="{{ cls.ClassID }}"
                 data-class-name="{{ cls.ClassName }}"
                 data-teacher-name="{{ cls.TeacherName }}"
-                data-current-term="{{ request.form['term'] }}"
-                data-current-year="{{ request.form['calendaryear'] }}"
+                data-current-term="{{ selected_term }}"
+                data-current-year="{{ selected_year }}"
               >
                 Move
               </button>
@@ -246,8 +272,8 @@
                 data-class-id="{{ cls.ClassID }}"
                 data-class-name="{{ cls.ClassName }}"
                 data-teacher-name="{{ cls.TeacherName }}"
-                data-current-term="{{ request.form['term'] }}"
-                data-current-year="{{ request.form['calendaryear'] }}"
+                data-current-term="{{ selected_term }}"
+                data-current-year="{{ selected_year }}"
               >
                 Delete
               </button>
@@ -282,9 +308,7 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
-        <p class="mb-2">
-          You can move this class to another term and calendar year.
-        </p>
+        <p class="mb-2">You can move this class to another term and calendar year.</p>
         <p id="move-class-description" class="fw-semibold mb-3"></p>
 
         <form id="move-class-form">
@@ -296,7 +320,8 @@
             <label for="move-term" class="form-label">New Term</label>
             <select id="move-term" class="form-select" required>
               {% for t in terms %}
-                <option value="{{ t }}">{{ t }}</option>
+                {% set t_val = t.Term if t.Term is defined else (t.term if t.term is defined else t) %}
+                <option value="{{ t_val }}">{{ t_val }}</option>
               {% endfor %}
             </select>
           </div>
@@ -305,7 +330,8 @@
             <label for="move-year" class="form-label">New Calendar Year</label>
             <select id="move-year" class="form-select" required>
               {% for y in years %}
-                <option value="{{ y }}">{{ y }}</option>
+                {% set y_val = y.CalendarYear if y.CalendarYear is defined else (y.year if y.year is defined else y) %}
+                <option value="{{ y_val }}">{{ y_val }}</option>
               {% endfor %}
             </select>
           </div>
@@ -334,9 +360,7 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
-        <p class="mb-2">
-          Are you sure you want to delete this class?
-        </p>
+        <p class="mb-2">Are you sure you want to delete this class?</p>
         <p id="delete-class-description" class="fw-semibold mb-3"></p>
         <p class="small text-muted">
           This action cannot be undone. Students and mappings associated only with this class may be removed.
@@ -352,6 +376,7 @@
     </div>
   </div>
 </div>
+
 {% endblock %}
 
 {% block scripts %}
@@ -360,7 +385,7 @@
   // Move & Delete modals
   // -------------------------
   document.addEventListener("DOMContentLoaded", () => {
-    // Move modal elements
+    // Move modal
     const moveModalEl   = document.getElementById("moveClassModal");
     const moveModal     = moveModalEl ? new bootstrap.Modal(moveModalEl) : null;
     const moveDescEl    = document.getElementById("move-class-description");
@@ -371,7 +396,7 @@
     const moveYearSel   = document.getElementById("move-year");
     const moveConfirm   = document.getElementById("confirm-move-btn");
 
-    // Delete modal elements
+    // Delete modal
     const deleteModalEl  = document.getElementById("deleteClassModal");
     const deleteModal    = deleteModalEl ? new bootstrap.Modal(deleteModalEl) : null;
     const deleteDescEl   = document.getElementById("delete-class-description");
@@ -387,86 +412,63 @@
         const origYear = moveOrigYear.value;
         const newTerm  = moveTermSel.value;
         const newYear  = moveYearSel.value;
-        const changed  = newTerm && newYear && (newTerm !== origTerm || newYear !== origYear);
-        moveConfirm.disabled = !changed;
+        moveConfirm.disabled = !(newTerm && newYear && (newTerm !== origTerm || newYear !== origYear));
       }
 
       document.querySelectorAll(".move-class-btn").forEach(btn => {
         btn.addEventListener("click", (e) => {
           e.preventDefault();
 
-          const classId      = btn.dataset.classId;
-          const className    = btn.dataset.className || "";
-          const teacherName  = btn.dataset.teacherName || "";
-          const currentTerm  = btn.dataset.currentTerm || "";
-          const currentYear  = btn.dataset.currentYear || "";
+          moveClassId.value  = btn.dataset.classId || "";
+          moveOrigTerm.value = btn.dataset.currentTerm || "";
+          moveOrigYear.value = btn.dataset.currentYear || "";
 
-          moveClassId.value  = classId;
-          moveOrigTerm.value = currentTerm;
-          moveOrigYear.value = currentYear;
+          const className   = btn.dataset.className || "";
+          const teacherName = btn.dataset.teacherName || "";
 
           if (moveDescEl) {
             moveDescEl.textContent =
-              `This class: ${className} (Teacher: ${teacherName}), currently in Term ${currentTerm}, ${currentYear}.`;
+              `This class: ${className} (Teacher: ${teacherName}), currently in Term ${moveOrigTerm.value}, ${moveOrigYear.value}.`;
           }
 
-          if (moveTermSel) moveTermSel.value = currentTerm;
-          if (moveYearSel) moveYearSel.value = currentYear;
+          if (moveTermSel) moveTermSel.value = moveOrigTerm.value;
+          if (moveYearSel) moveYearSel.value = moveOrigYear.value;
 
           updateMoveButtonState();
           moveModal.show();
         });
       });
 
-      if (moveTermSel) moveTermSel.addEventListener("change", updateMoveButtonState);
-      if (moveYearSel) moveYearSel.addEventListener("change", updateMoveButtonState);
+      moveTermSel?.addEventListener("change", updateMoveButtonState);
+      moveYearSel?.addEventListener("change", updateMoveButtonState);
 
-      if (moveConfirm) {
-        moveConfirm.addEventListener("click", async () => {
-          const classId = moveClassId.value;
-          const newTerm = moveTermSel.value;
-          const newYear = moveYearSel.value;
+      moveConfirm?.addEventListener("click", async () => {
+        const classId = moveClassId.value;
+        const newTerm = moveTermSel.value;
+        const newYear = moveYearSel.value;
+        if (!classId || !newTerm || !newYear) return;
 
-          if (!classId || !newTerm || !newYear) return;
+        try {
+          const res = await fetch("{{ url_for('class_bp.move_class') }}", {
+            method: "POST",
+            headers: {"Content-Type":"application/json","X-Requested-With":"XMLHttpRequest"},
+            credentials: "same-origin",
+            body: JSON.stringify({ class_id: classId, term: newTerm, year: newYear })
+          });
 
-          try {
-            const res = await fetch("{{ url_for('class_bp.move_class') }}", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "X-Requested-With": "XMLHttpRequest"
-              },
-              credentials: "same-origin",
-              body: JSON.stringify({
-                class_id: classId,
-                term: newTerm,
-                year: newYear
-              })
-            });
+          const ct = res.headers.get("Content-Type") || "";
+          if (!res.ok || !ct.includes("application/json")) throw new Error("Bad response");
 
-            const contentType = res.headers.get("Content-Type") || "";
-            if (!res.ok || !contentType.includes("application/json")) {
-              throw new Error("Unexpected response (possibly logged out)");
-            }
-
-            const data = await res.json();
-            if (data && data.ok) {
-              if (filterForm) {
-                filterForm.submit();
-              } else {
-                window.location.reload();
-              }
-            } else {
-              alert(data.error || "There was a problem moving this class. Please try again.");
-            }
-          } catch (err) {
-            console.error("Move class failed:", err);
-            alert("There was a problem moving this class. Please try again.");
-          } finally {
-            moveModal.hide();
-          }
-        });
-      }
+          const data = await res.json();
+          if (data?.ok) filterForm?.submit();
+          else alert(data?.error || "There was a problem moving this class.");
+        } catch (err) {
+          console.error("Move class failed:", err);
+          alert("There was a problem moving this class. Please try again.");
+        } finally {
+          moveModal.hide();
+        }
+      });
     }
 
     // --- Delete modal logic ---
@@ -475,13 +477,12 @@
         btn.addEventListener("click", (e) => {
           e.preventDefault();
 
-          const classId      = btn.dataset.classId;
-          const className    = btn.dataset.className || "";
-          const teacherName  = btn.dataset.teacherName || "";
-          const currentTerm  = btn.dataset.currentTerm || "";
-          const currentYear  = btn.dataset.currentYear || "";
+          deleteClassId.value = btn.dataset.classId || "";
 
-          deleteClassId.value = classId;
+          const className   = btn.dataset.className || "";
+          const teacherName = btn.dataset.teacherName || "";
+          const currentTerm = btn.dataset.currentTerm || "";
+          const currentYear = btn.dataset.currentYear || "";
 
           if (deleteDescEl) {
             deleteDescEl.textContent =
@@ -492,111 +493,126 @@
         });
       });
 
-      if (deleteConfirm) {
-        deleteConfirm.addEventListener("click", async () => {
-          const classId = deleteClassId.value;
-          if (!classId) return;
+      deleteConfirm?.addEventListener("click", async () => {
+        const classId = deleteClassId.value;
+        if (!classId) return;
 
-          try {
-            const res = await fetch("{{ url_for('class_bp.delete_class') }}", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "X-Requested-With": "XMLHttpRequest"
-              },
-              credentials: "same-origin",
-              body: JSON.stringify({ class_id: classId })
-            });
+        try {
+          const res = await fetch("{{ url_for('class_bp.delete_class') }}", {
+            method: "POST",
+            headers: {"Content-Type":"application/json","X-Requested-With":"XMLHttpRequest"},
+            credentials: "same-origin",
+            body: JSON.stringify({ class_id: classId })
+          });
 
-            const contentType = res.headers.get("Content-Type") || "";
-            if (!res.ok || !contentType.includes("application/json")) {
-              throw new Error("Unexpected response (possibly logged out)");
-            }
+          const ct = res.headers.get("Content-Type") || "";
+          if (!res.ok || !ct.includes("application/json")) throw new Error("Bad response");
 
-            const data = await res.json();
-            if (data && data.ok) {
-              if (filterForm) {
-                filterForm.submit();
-              } else {
-                window.location.reload();
-              }
-            } else {
-              alert(data.error || "There was a problem deleting this class. Please try again.");
-            }
-          } catch (err) {
-            console.error("Delete class failed:", err);
-            alert("There was a problem deleting this class. Please try again.");
-          } finally {
-            deleteModal.hide();
-          }
-        });
-      }
+          const data = await res.json();
+          if (data?.ok) filterForm?.submit();
+          else alert(data?.error || "There was a problem deleting this class.");
+        } catch (err) {
+          console.error("Delete class failed:", err);
+          alert("There was a problem deleting this class. Please try again.");
+        } finally {
+          deleteModal.hide();
+        }
+      });
     }
   });
 
   // -------------------------
-  // School fetching logic
+  // School fetching logic (AJAX)
   // -------------------------
-  window.addEventListener("DOMContentLoaded", () => {
-    const termEl = document.getElementById("term");
-    const yearEl = document.getElementById("calendaryear");
+  function endpointForRole(role, term, year) {
+    role = (role || "").toUpperCase();
+    if (!term || !year) return "";
 
-    if (!termEl.value && "{{ TERM }}") termEl.value = "{{ TERM }}";
-    if (!yearEl.value && "{{ YEAR }}") yearEl.value = "{{ YEAR }}";
+    if (role === "PRO") return `/get_schools_by_provider?term=${term}&year=${year}`;
+    if (role === "FUN") return `/get_schools_by_funder?term=${term}&year=${year}`;
+    if (role === "ADM") return `/get_schools_for_term_year?term=${term}&year=${year}`;
+    if (role === "GRP") return `/get_schools_by_group?term=${term}&year=${year}`;
 
-    if (termEl.value && yearEl.value) {
-      fetchSchools();
-    }
-  });
+    return "";
+  }
 
   async function fetchSchools() {
-    const term = document.getElementById("term").value;
-    const year = document.getElementById("calendaryear").value;
+    const role = "{{ user_role or '' }}";
+    if ((role || "").toUpperCase() === "MOE") return;
 
-    const currentMoe = "{{ moe_number or request.form.get('moe_number', '') or '' }}";
+    const termEl = document.getElementById("term");
+    const yearEl = document.getElementById("calendaryear");
+    const schoolWrapper = document.getElementById("school-wrapper");
+    const schoolSelect  = document.getElementById("moe_number");
+    const findBtn       = document.getElementById("find-btn-wrapper");
 
-    if (!term || !year) return;
+    const term = termEl?.value;
+    const year = yearEl?.value;
 
-    let url = "";
-    if ("{{ user_role }}" === "PRO") {
-      url = `/get_schools_by_provider?term=${term}&year=${year}`;
-    } else if ("{{ user_role }}" === "FUN" || "{{ user_role }}" === "ADM") {
-      url = `/get_schools_for_term_year?term=${term}&year=${year}`;
-    } else if ("{{ user_role }}" === "GRP") {
-      url = `/get_schools_by_group?term=${term}&year=${year}`;
+    if (!term || !year) {
+      schoolWrapper.style.display = "none";
+      findBtn.style.display = "none";
+      return;
     }
 
+    const url = endpointForRole(role, term, year);
     if (!url) return;
+
+    const currentMoe = "{{ (request.form.get('moe_number') or moe_number or '') }}";
+
+    // loading state
+    schoolWrapper.style.display = "block";
+    findBtn.style.display = "none";
+    schoolSelect.disabled = true;
+    schoolSelect.innerHTML = '<option value="">Loading…</option>';
 
     try {
       const res = await fetch(url, { cache: "no-store", credentials: "same-origin" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
 
-      const schoolWrapper = document.getElementById("school-wrapper");
-      const schoolSelect  = document.getElementById("moe_number");
-      const findBtn       = document.getElementById("find-btn-wrapper");
-
       schoolSelect.innerHTML = '<option value="">Select School</option>';
-      for (const school of data) {
+
+      for (const s of (data || [])) {
         const opt = document.createElement("option");
-        opt.value = school.MOENumber;
-        opt.textContent = school.School;
+        opt.value = s.MOENumber;
+
+        // support both key styles (you have both in different endpoints)
+        opt.textContent = s.School || s.SchoolName || `${s.MOENumber}`;
         schoolSelect.appendChild(opt);
       }
 
-      if (currentMoe) {
-        schoolSelect.value = currentMoe;
-      }
+      if (currentMoe) schoolSelect.value = currentMoe;
 
-      schoolWrapper.style.display = "block";
+      schoolSelect.disabled = false;
       findBtn.style.display = "block";
     } catch (e) {
       console.error("Failed to load schools:", e);
+      schoolSelect.innerHTML = '<option value="">Failed to load schools</option>';
+      schoolSelect.disabled = true;
+      findBtn.style.display = "none";
     }
   }
 
-  document.getElementById("term").addEventListener("change", fetchSchools);
-  document.getElementById("calendaryear").addEventListener("change", fetchSchools);
+  window.addEventListener("DOMContentLoaded", () => {
+    const role = ("{{ user_role or '' }}").toUpperCase();
+
+    // On load, if term/year already selected (e.g., after POST) refresh schools list
+    if (role !== "MOE") {
+      const termVal = "{{ selected_term or '' }}";
+      const yearVal = "{{ selected_year or '' }}";
+
+      const termEl = document.getElementById("term");
+      const yearEl = document.getElementById("calendaryear");
+
+      if (termEl && termVal && !termEl.value) termEl.value = termVal;
+      if (yearEl && yearVal && !yearEl.value) yearEl.value = yearVal;
+
+      fetchSchools();
+
+      document.getElementById("term")?.addEventListener("change", fetchSchools);
+      document.getElementById("calendaryear")?.addEventListener("change", fetchSchools);
+    }
+  });
 </script>
 {% endblock %}
