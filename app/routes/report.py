@@ -476,7 +476,7 @@ def _execute_report(
 
     # 3) Funder Missing Data (builds fig here)
     elif selected_type == "funder_missing_data":
-        threshold = 0.05
+        threshold = 0.50
         sql = text(
             """
             SET NOCOUNT ON;
