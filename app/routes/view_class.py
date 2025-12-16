@@ -1947,6 +1947,7 @@ def export_class_excel():
         # Return something visible in the browser while you’re debugging
         return jsonify({"success": False, "error": "Export failed. See server logs for details."}), 500
 
+
 @class_bp.route("/export_achievements_excel", methods=["GET", "POST"])
 @login_required
 def export_achievements_excel():
@@ -2105,9 +2106,9 @@ def export_achievements_excel():
 
         DATA_START_COL = 3  # D; identity are A..C
         TITLE_ROW = 0
-        HEADER_BASE_ROW = 1
-        HEADER_SUB_ROW = 2
-        DATA_START_ROW = 3
+        HEADER_BASE_ROW = 0
+        HEADER_SUB_ROW = 1
+        DATA_START_ROW = 2
 
         with pd.ExcelWriter(bio, engine="xlsxwriter") as writer:
             df.to_excel(writer, index=False, header=False, sheet_name=sheet, startrow=DATA_START_ROW)
@@ -2207,9 +2208,6 @@ def export_achievements_excel():
         current_app.logger.exception("❌ export_achievements_excel failed: %s", str(e))
         return jsonify({"success": False, "error": "Export failed. See server logs for details."}), 500
 
-
-    
- # ---------- 2) POST add class (name + teacher) ----------
 
 @class_bp.route("/preview_upload", methods=["POST"])
 @login_required
