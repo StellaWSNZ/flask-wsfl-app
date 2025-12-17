@@ -604,133 +604,317 @@ def api_classes():
         return jsonify({"error": "Internal Server Error"}), 500
 
 
-
 @survey_bp.route("/MyForms/<int:respondent_id>")
 @login_required
 def view_my_survey_response(respondent_id):
     session_email = session.get("user_email")
-    is_admin = session.get("user_role") == "ADM"
-    
-    def _normalize_tf(qcode, answer_bool, answer_likert, answer_text):
-        """
-        Return 1 (Yes), 0 (No), or None for non-T/F or missing.
-        Prefers AnswerBoolean, then Likert 1/2, then textual '1/0/yes/no'.
-        """
-        if qcode != 'T/F':
-            return None
+    viewer_role = session.get("user_role")
+    viewer_id = session.get("user_id")
+    is_admin = (viewer_role == "ADM")
 
+    # -----------------------------
+    # Helpers
+    # -----------------------------
+    def _normalize_tf(qcode, answer_bool, answer_likert, answer_text):
+        if qcode != "T/F":
+            return None
         if answer_bool is not None:
             return 1 if bool(answer_bool) else 0
         if answer_likert in (1, 2):
             return 1 if answer_likert == 1 else 0
         if isinstance(answer_text, str) and answer_text.strip():
             t = answer_text.strip().lower()
-            if t in ("1", "true", "t", "yes", "y"): return 1
-            if t in ("0", "false", "f", "no", "n"):  return 0
+            if t in ("1", "true", "t", "yes", "y"):
+                return 1
+            if t in ("0", "false", "f", "no", "n"):
+                return 0
+        return None
+
+    def _clean_text(x):
+        if x is None:
+            return None
+        if isinstance(x, str):
+            x = x.strip()
+            return x or None
+        return str(x)
+
+    def _norm_email(x):
+        if not x:
+            return None
+        s = str(x).strip().lower()
+        return s or None
+
+    def _extract_subject_email(survey_id, rows):
+        """
+        Your original logic, but instrumented:
+        - survey_id 3: teacher assessment (subject email stored somewhere in AnswerTextRaw)
+        - survey_id 4: external review (subject email stored somewhere in AnswerTextRaw)
+        """
+        if survey_id not in (3, 4):
+            return None
+
+        raw_values = []
+        for r in rows:
+            # Prefer AnswerTextRaw if present, else fallback to AnswerText
+            v = r.get("AnswerTextRaw")
+            if v is None:
+                v = r.get("AnswerText")
+            if v is not None:
+                raw_values.append(v)
+
+        # Try first plausible email-looking value in order
+        for v in raw_values:
+            em = _norm_email(v)
+            if em and "@" in em and "." in em:
+                return em
+
         return None
 
     try:
-        current_app.logger.info("🔎 view_my_survey_response called | respondent_id=%s | user=%s",
-                                respondent_id, session_email)
+        current_app.logger.info(
+            "🔎 view_my_survey_response | respondent_id=%s | viewer_email=%s | viewer_role=%s | viewer_id=%s",
+            respondent_id, session_email, viewer_role, viewer_id
+        )
 
         engine = get_db_engine()
         with engine.begin() as conn:
-            rows = conn.execute(text("""
-                EXEC SVY_GetSurveyResponseByRespondentID @RespondentID = :rid
-            """), {"rid": respondent_id}).mappings().all()
-            current_app.logger.info("✅ SVY_GetSurveyResponseByRespondentID returned %d rows", len(rows))
-            first_row = rows[0] if rows else None
-            if not first_row:
-                flash("Survey response not found.", "danger")
-                return redirect(url_for("survey_bp.list_my_surveys"))
-            entity_id = first_row["EntityID"] if first_row else None
-            entity_type = first_row["EntityType"] if first_row else None
-            sql = text("""
-                SET NOCOUNT ON;
-                EXEC dbo.FlaskGetEntities
-                    @EntityType      = :EntityType,
-                    @Role            = :Role,
-                    @ID              = :ID,
-                    @IncludeInactive = :IncludeInactive;
-            """)
 
-            params = {
-                "EntityType": entity_type,
-                "Role": session.get("user_role"),
-                "ID": session.get("user_id"),
-                "IncludeInactive": 0,
-            }
-            current_app.logger.info("EntityType: %s | Role: %s | ID: %s", entity_type, session.get("user_role"), session.get("user_id"))
-
-            res = conn.execute(sql, params)
-            rows2 = res.mappings().all()
-            # current_app.logger.info(rows2)
-            if not rows:
-                flash("Survey response not found.", "danger")
-                return redirect(url_for("survey_bp.list_my_surveys"))
-            authorised_entity_ids = {r["ID"] for r in rows2}
-
-            if entity_id not in authorised_entity_ids:
-                current_app.logger.warning(
-                    "🚫 Unauthorized survey access blocked | respondent_id=%s | user=%s | entity_id=%s",
-                    respondent_id, session_email, entity_id
+            # -------------------------------------------------
+            # 1) Load survey response rows
+            # -------------------------------------------------
+            survey_rows = (
+                conn.execute(
+                    text("EXEC dbo.SVY_GetSurveyResponseByRespondentID @RespondentID = :rid"),
+                    {"rid": respondent_id},
                 )
-                flash("You are not authorised to view this survey response.", "danger")
+                .mappings()
+                .all()
+            )
+
+            current_app.logger.info(
+                "✅ SVY_GetSurveyResponseByRespondentID | respondent_id=%s | rows=%d",
+                respondent_id, len(survey_rows)
+            )
+
+            first_row = survey_rows[0] if survey_rows else None
+            if not first_row:
+                current_app.logger.warning(
+                    "🚫 Survey response not found | respondent_id=%s | viewer=%s",
+                    respondent_id, session_email
+                )
+                flash("Survey response not found.", "danger")
                 return redirect(url_for("survey_bp.list_my_surveys"))
+
+            entity_id = first_row.get("EntityID")
+            entity_type = first_row.get("EntityType")
+            survey_id = first_row.get("SurveyID")
+
+            current_app.logger.info(
+                "ℹ️ Response metadata | respondent_id=%s | survey_id=%s | entity_type=%s | entity_id=%s",
+                respondent_id, survey_id, entity_type, entity_id
+            )
+
+            # -------------------------------------------------
+            # 2) Authorisation (ALLOW if entity OR subject passes)
+            # -------------------------------------------------
+            if not is_admin:
+                # ---- A) Entity access check ----
+                entity_allowed = None  # True / False / None (unknown)
+                authorised_entity_ids = set()
+
+                try:
+                    entity_rows = (
+                        conn.execute(
+                            text("""
+                                SET NOCOUNT ON;
+                                EXEC dbo.FlaskGetEntities
+                                    @EntityType      = :EntityType,
+                                    @Role            = :Role,
+                                    @ID              = :ID,
+                                    @IncludeInactive = :IncludeInactive;
+                            """),
+                            {
+                                "EntityType": entity_type,
+                                "Role": viewer_role,
+                                "ID": viewer_id,
+                                "IncludeInactive": 0,
+                            },
+                        )
+                        .mappings()
+                        .all()
+                    )
+
+                    authorised_entity_ids = {
+                        r.get("ID") for r in entity_rows if r.get("ID") is not None
+                    }
+                    entity_allowed = (entity_id in authorised_entity_ids)
+
+                    current_app.logger.info(
+                        "🔐 Entity gate | respondent_id=%s | entity_type=%s | entity_id=%s | allowed=%s | authorised_count=%d",
+                        respondent_id, entity_type, entity_id, entity_allowed, len(authorised_entity_ids)
+                    )
+
+                except Exception:
+                    current_app.logger.exception(
+                        "⚠️ Entity access check failed | respondent_id=%s | entity_type=%s | entity_id=%s | viewer_role=%s | viewer_id=%s",
+                        respondent_id, entity_type, entity_id, viewer_role, viewer_id
+                    )
+                    entity_allowed = None
+
+                # If entity passed, allow immediately ✅
+                if entity_allowed is not True:
+                    # ---- B) Subject access check ----
+                    subject_allowed = None  # True / False / None
+                    subject_email = None
+
+                    # Extract subject email from rows (instrumented)
+                    subject_email = _extract_subject_email(survey_id, survey_rows)
+
+                    # Log why subject_email might be missing
+                    any_answertextraw = any(r.get("AnswerTextRaw") is not None for r in survey_rows)
+                    any_answertext = any(r.get("AnswerText") is not None for r in survey_rows)
+
+                    current_app.logger.info(
+                        "🧾 Subject email extraction | respondent_id=%s | survey_id=%s | subject_email=%s | any_AnswerTextRaw=%s | any_AnswerText=%s",
+                        respondent_id, survey_id, subject_email, any_answertextraw, any_answertext
+                    )
+
+                    if subject_email:
+                        try:
+                            result = (
+                                conn.execute(
+                                    text("""
+                                        SET NOCOUNT ON;
+                                        EXEC dbo.SVY_CheckSubjectAccess
+                                            @SubjectEmail = :SubjectEmail,
+                                            @ViewerRole   = :ViewerRole,
+                                            @ViewerID     = :ViewerID;
+                                    """),
+                                    {
+                                        "SubjectEmail": subject_email,
+                                        "ViewerRole": viewer_role,
+                                        "ViewerID": viewer_id,
+                                    },
+                                )
+                                .mappings()
+                                .first()
+                            )
+
+                            if result and "Allowed" in result:
+                                subject_allowed = bool(result["Allowed"])
+                            else:
+                                subject_allowed = None
+
+                            current_app.logger.info(
+                                "🔐 Subject gate | respondent_id=%s | subject_email=%s | allowed=%s | raw_result_keys=%s",
+                                respondent_id, subject_email, subject_allowed,
+                                list(result.keys()) if result else None
+                            )
+
+                        except Exception:
+                            current_app.logger.exception(
+                                "⚠️ Subject access check failed | respondent_id=%s | subject_email=%s | viewer_role=%s | viewer_id=%s",
+                                respondent_id, subject_email, viewer_role, viewer_id
+                            )
+                            subject_allowed = None
+                    else:
+                        subject_allowed = False  # no subject email -> can't pass subject gate
+                        current_app.logger.warning(
+                            "⚠️ Subject gate cannot run (no subject_email) | respondent_id=%s | survey_id=%s",
+                            respondent_id, survey_id
+                        )
+
+                    # ✅ Allow if subject passed
+                    if subject_allowed is not True:
+                        # ❌ Deny only if BOTH checks are explicit False
+                        if entity_allowed is False and subject_allowed is False:
+                            current_app.logger.warning(
+                                "🚫 Access denied (entity+subject) | respondent_id=%s | viewer_email=%s | entity_id=%s | subject_email=%s",
+                                respondent_id, session_email, entity_id, subject_email
+                            )
+                            flash("You are not authorised to view this survey response.", "danger")
+                        else:
+                            current_app.logger.warning(
+                                "⚠️ Access not verified | respondent_id=%s | viewer_email=%s | entity_ok=%s | subject_ok=%s | entity_type=%s | entity_id=%s | subject_email=%s",
+                                respondent_id, session_email, entity_allowed, subject_allowed,
+                                entity_type, entity_id, subject_email
+                            )
+                            flash(
+                                "We couldn’t verify access to this survey response. Please try again or contact support.",
+                                "warning",
+                            )
+                        return redirect(url_for("survey_bp.list_my_surveys"))
+
+            # -------------------------------------------------
+            # 3) Build questions for template
+            # -------------------------------------------------
             questions = {}
-            for row in rows:
-                sid = row["SurveyID"]
-                qid = row["QuestionID"]
-                qtext = row["QuestionText"]
-                qcode = row["QuestionCode"]
+
+            for row in survey_rows:
+                sid = row.get("SurveyID")
+                qid = row.get("QuestionID")
+                qtext = row.get("QuestionText")
+                qcode = row.get("QuestionCode")
+
                 answer_likert = row.get("AnswerLikert")
-                answer_text   = row.get("AnswerText")
-                answer_bool   = row.get("AnswerBoolean")
+                answer_text = _clean_text(row.get("AnswerText"))
+                answer_bool = row.get("AnswerBoolean")
+
                 if qid not in questions:
                     tf_val = _normalize_tf(qcode, answer_bool, answer_likert, answer_text)
-                    question = {
+                    questions[qid] = {
                         "id": qid,
                         "text": qtext,
                         "type": qcode,
                         "answer_likert": answer_likert if qcode == "LIK" else None,
-                        "answer_text": None if qcode in ("LIK", "T/F") else (answer_text or None),
+                        "answer_text": None if qcode in ("LIK", "T/F") else answer_text,
                         "answer_tf_value": tf_val if qcode == "T/F" else None,
-                        "labels": []
+                        "labels": [],
                     }
 
                     if qcode == "LIK":
-                        label_rows = conn.execute(text("""
-                            EXEC SVY_GetLikertLabelsByQuestionID @QuestionID = :qid, @SurveyID = :sid
-                        """), {"qid": qid, "sid": sid}).fetchall()
-                        question["labels"] = [(pos, label) for pos, label in label_rows]
-
-                    questions[qid] = question
+                        label_rows = conn.execute(
+                            text("""
+                                EXEC dbo.SVY_GetLikertLabelsByQuestionID
+                                    @QuestionID = :qid,
+                                    @SurveyID   = :sid
+                            """),
+                            {"qid": qid, "sid": sid},
+                        ).fetchall()
+                        questions[qid]["labels"] = [(pos, label) for pos, label in label_rows]
                 else:
                     if qcode == "LIK" and answer_likert and not questions[qid]["answer_likert"]:
                         questions[qid]["answer_likert"] = answer_likert
                     if qcode not in ("LIK", "T/F") and answer_text and not questions[qid]["answer_text"]:
                         questions[qid]["answer_text"] = answer_text
                     if qcode == "T/F" and questions[qid]["answer_tf_value"] is None:
-                        questions[qid]["answer_tf_value"] = _normalize_tf(qcode, answer_bool, answer_likert, answer_text)
+                        questions[qid]["answer_tf_value"] = _normalize_tf(
+                            qcode, answer_bool, answer_likert, answer_text
+                        )
 
-            email = rows[0]["Email"]
-            submitted_raw = rows[0]["SubmittedDate"]
-            title = rows[0]["Title"]
+            # -------------------------------------------------
+            # 4) Page metadata
+            # -------------------------------------------------
+            email = first_row.get("Email")
+            submitted_raw = first_row.get("SubmittedDate")
+            title = first_row.get("Title")
             submitted = submitted_raw or "Not submitted yet"
 
-            role_code = rows[0]["Role"]
+            role_code = first_row.get("Role")
             role_mapping = {
                 "PRO": "Provider Staff",
                 "FUN": "Funder Staff",
                 "MOE": "School Staff",
                 "GRP": "Swim School Staff",
-                "ADM": "WSNZ Admin"
+                "ADM": "WSNZ Admin",
             }
             role = role_mapping.get(role_code, role_code)
-            entity = rows[0]["EntityDescription"]
+
+            entity = first_row.get("EntityDescription")
             if role == "WSNZ Admin":
                 entity = "WSNZ"
-            fullname = f"{rows[0]['FirstName'] or ''} {rows[0]['Surname'] or ''}".strip() or None
+
+            fullname = f"{first_row.get('FirstName') or ''} {first_row.get('Surname') or ''}".strip() or None
 
             current_app.logger.info(
                 "📄 Render survey_view | respondent_id=%s | email=%s | title=%s | role=%s | entity=%s",
@@ -745,27 +929,34 @@ def view_my_survey_response(respondent_id):
                 submitted=submitted,
                 entity=entity,
                 fullname=fullname,
-                title=title
+                title=title,
             )
 
     except Exception as e:
         tb_str = traceback.format_exc()
-        current_app.logger.error("🔥 view_my_survey_response failed: %s", e, exc_info=True)
+        current_app.logger.error(
+            "🔥 view_my_survey_response failed | respondent_id=%s | viewer_email=%s | err=%s",
+            respondent_id, session_email, e, exc_info=True
+        )
+
         # Best-effort DB alert (never raise)
         try:
             log_alert(
                 email=session.get("user_email"),
                 role=session.get("user_role"),
                 entity_id=session.get("user_id"),
-                link=url_for("survey_bp.view_my_survey_response", respondent_id=respondent_id, _external=True),
+                link=url_for(
+                    "survey_bp.view_my_survey_response",
+                    respondent_id=respondent_id,
+                    _external=True,
+                ),
                 message=f"/MyForms/{respondent_id} failed: {e}\n{tb_str}"[:4000],
             )
         except Exception:
             pass
+
         flash("Something went wrong loading the survey form.", "danger")
-        return f"<pre>{tb_str}</pre>", 500
-
-
+        return redirect(url_for("survey_bp.list_my_surveys"))
 @survey_bp.route("/Form/invite/<token>")
 def survey_invite_token(token):
     try:
