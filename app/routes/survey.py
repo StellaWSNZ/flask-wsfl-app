@@ -54,7 +54,6 @@ def survey_by_routename(routename):
                                 routename, session.get("user_email"))
 
         with engine.connect() as conn:
-            # 1) Resolve survey id
             res = conn.execute(
                 text("EXEC SVY_GetSurveyIDByRouteName @RouteName = :routename"),
                 {"routename": routename}
@@ -70,7 +69,7 @@ def survey_by_routename(routename):
             survey_id = getattr(row, "SurveyID", row[0])
             current_app.logger.info("✅ resolved survey_id=%s for route=%s", survey_id, routename)
 
-            # 2) Access control
+
             user_role = session.get("user_role")
             user_id = session.get("user_id")
             current_app.logger.info("🔐 user_role=%s user_id=%s", user_role, user_id)
@@ -87,13 +86,11 @@ def survey_by_routename(routename):
                     flash("This assessment is restricted to WSNZ Admins.", "warning")
                     return redirect("/MyForms")
 
-            # 3) Load survey questions
             qrows = conn.execute(
                 text("EXEC SVY_GetSurveyQuestions @SurveyID = :survey_id"),
                 {"survey_id": survey_id}
             ).fetchall()
 
-        # 4) Build question objects
         for qid, qtext, qcode, pos, label in qrows:
             if qid not in seen_ids:
                 seen_ids[qid] = {"id": qid, "text": qtext, "type": qcode, "labels": []}
@@ -108,7 +105,6 @@ def survey_by_routename(routename):
 
         current_app.logger.info("📦 survey %s built | questions=%d", survey_id, len(questions))
 
-        # 5) Render — no 'schools' passed; template for survey 3 fetches via AJAX
         ctx = {
             "questions": questions,
             "route_name": routename,
@@ -614,7 +610,7 @@ def api_classes():
 def view_my_survey_response(respondent_id):
     session_email = session.get("user_email")
     is_admin = session.get("user_role") == "ADM"
-
+    
     def _normalize_tf(qcode, answer_bool, answer_likert, answer_text):
         """
         Return 1 (Yes), 0 (No), or None for non-T/F or missing.
@@ -643,11 +639,44 @@ def view_my_survey_response(respondent_id):
                 EXEC SVY_GetSurveyResponseByRespondentID @RespondentID = :rid
             """), {"rid": respondent_id}).mappings().all()
             current_app.logger.info("✅ SVY_GetSurveyResponseByRespondentID returned %d rows", len(rows))
-
-            if not rows:
-                flash("Survey response not found.", "warning")
+            first_row = rows[0] if rows else None
+            if not first_row:
+                flash("Survey response not found.", "danger")
                 return redirect(url_for("survey_bp.list_my_surveys"))
+            entity_id = first_row["EntityID"] if first_row else None
+            entity_type = first_row["EntityType"] if first_row else None
+            sql = text("""
+                SET NOCOUNT ON;
+                EXEC dbo.FlaskGetEntities
+                    @EntityType      = :EntityType,
+                    @Role            = :Role,
+                    @ID              = :ID,
+                    @IncludeInactive = :IncludeInactive;
+            """)
 
+            params = {
+                "EntityType": entity_type,
+                "Role": session.get("user_role"),
+                "ID": session.get("user_id"),
+                "IncludeInactive": 0,
+            }
+            current_app.logger.info("EntityType: %s | Role: %s | ID: %s", entity_type, session.get("user_role"), session.get("user_id"))
+
+            res = conn.execute(sql, params)
+            rows2 = res.mappings().all()
+            # current_app.logger.info(rows2)
+            if not rows:
+                flash("Survey response not found.", "danger")
+                return redirect(url_for("survey_bp.list_my_surveys"))
+            authorised_entity_ids = {r["ID"] for r in rows2}
+
+            if entity_id not in authorised_entity_ids:
+                current_app.logger.warning(
+                    "🚫 Unauthorized survey access blocked | respondent_id=%s | user=%s | entity_id=%s",
+                    respondent_id, session_email, entity_id
+                )
+                flash("You are not authorised to view this survey response.", "danger")
+                return redirect(url_for("survey_bp.list_my_surveys"))
             questions = {}
             for row in rows:
                 sid = row["SurveyID"]
@@ -657,7 +686,6 @@ def view_my_survey_response(respondent_id):
                 answer_likert = row.get("AnswerLikert")
                 answer_text   = row.get("AnswerText")
                 answer_bool   = row.get("AnswerBoolean")
-
                 if qid not in questions:
                     tf_val = _normalize_tf(qcode, answer_bool, answer_likert, answer_text)
                     question = {

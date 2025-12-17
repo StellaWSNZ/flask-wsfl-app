@@ -20,7 +20,7 @@ content %}
       <legend class="h6">
         <strong>Q{{ question.id }}:</strong> {{ question.text }}
       </legend>
-
+      <!-- {{question}} -->
       {% if question.type == 'LIK' %} {% for pos, label in question.labels %}
       <div class="form-check">
         <input class="form-check-input" type="radio" name="q{{ question.id }}"
@@ -67,7 +67,7 @@ content %}
         class="form-control mt-2"
         name="q{{ question.id }}"
         id="q{{ question.id }}"
-        value="{{ question.answer_text }}"
+        value="{{ question.answer_text or''}}"
         disabled
       />
       {% elif question.type == 'SHT' %}
@@ -76,7 +76,7 @@ content %}
         class="form-control mt-2"
         name="q{{ question.id }}"
         id="q{{ question.id }}"
-        value="{{ question.answer_text }}"
+        value="{{ question.answer_text  or''}}"
         disabled
       />
       {% elif question.type == 'LNG' %}
@@ -85,6 +85,8 @@ content %}
         rows="4"
         name="q{{ question.id }}"
         id="q{{ question.id }}"
+        value="{{ question.answer_text  or''}}"
+        ,
         disabled
       >
 {{ question.answer_text }}</textarea

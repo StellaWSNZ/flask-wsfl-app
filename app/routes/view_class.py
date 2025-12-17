@@ -882,7 +882,7 @@ def print_class_view(moe_number, class_id, term, year):
             role = (session.get("user_role") or "").upper()
 
             if role == "MOE":
-                session_moe = session.get("moe_number") or session.get("user_id") or session.get("ID")
+                session_moe = session.get("user_id") or session.get("ID")
                 try:
                     session_moe = int(session_moe)
                 except (TypeError, ValueError):
@@ -1952,7 +1952,6 @@ def export_class_excel():
 @login_required
 def export_achievements_excel():
     try:
-        print("*")
         engine = get_db_engine()
 
         # Prefer JSON body; fall back to querystring/form for ids only

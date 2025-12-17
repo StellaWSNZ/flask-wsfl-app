@@ -1175,43 +1175,6 @@ def add_provider_details():
     return redirect(request.referrer or url_for('admin_bp.provider_maintenance'))
 
 
-@admin_bp.route("/get_funder_staff/<int:funder_id>")
-@login_required
-def get_funder_staff(funder_id):
-    # (Optional) enforce FUN only sees own funder, ADM can see all:
-    role = session.get("user_role")
-    uid  = session.get("user_id")
-    if not (role == "ADM" or (role == "FUN" and uid == funder_id)):
-        return render_template(
-    "error.html",
-    error="You are not authorised to view that page.",
-    code=403
-), 403
-
-    try:
-        engine = get_db_engine()
-        with engine.begin() as conn:
-            result = conn.execute(
-                text("EXEC FlaskHelperFunctionsSpecific @Request = 'FunderStaff', @FunderID = :fid"),
-                {"fid": funder_id}
-            ).mappings().all()
-        return jsonify([dict(row) for row in result])
-    except Exception as e:
-        current_app.logger.exception("❌ get_funder_staff failed")
-        # log error to DB
-        try:
-            log_alert(
-                email=(session.get("user_email") or session.get("email") or "")[:320],
-                role=(session.get("user_role") or "")[:10],
-                entity_id=session.get("user_id"),
-                link=str(request.url)[:2048],
-                message=f"get_funder_staff DB error (funder_id={funder_id}): {str(e)[:1800]}",
-            )
-        except Exception as log_err:
-            current_app.logger.exception(f"⚠️ Failed to log alert in get_funder_staff")
-        return jsonify({"error": "Failed to load staff"}), 500
-
-
 @admin_bp.route("/assign_kaiako_staff", methods=["POST"])
 @login_required
 def assign_kaiako_staff():
