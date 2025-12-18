@@ -749,6 +749,7 @@ def staff_eLearning():
         elif user_role == "GRP":
             # Group users always see their own group; they don't pick
             selected_entity_type = "Group"
+            selected_entity_id = str(user_id)
         else:
             flash("Please select an entity to view staff eLearning.", "warning")
             return render_template(
@@ -804,6 +805,23 @@ def staff_eLearning():
 
         # Normalise to str for comparisons
         selected_entity_id = str(selected_entity_id)
+        if user_role == "ADM":
+            # ADM must explicitly pick from dropdown; don't allow URL-tamper IDs
+            if has_query_params and selected_entity_id and entity_list:
+                allowed_ids = {str(e.get("id")) for e in entity_list if e.get("id") is not None}
+                if selected_entity_id not in allowed_ids:
+                    flash("Invalid selection.", "warning")
+                    return redirect(url_for("staff_bp.staff_eLearning"))
+
+        else:
+            # For PRO/FUN/GRP/SCH (etc), still enforce allowed list if we have one
+             if selected_entity_id and entity_list:
+                allowed_ids = {str(e.get("id")) for e in entity_list if e.get("id") is not None}
+                if selected_entity_id not in allowed_ids:
+                    flash("You are no authorised to view eLearning records for this entity.", "warning")
+                    # stable fallback: first visible entity from dropdown list
+                    selected_entity_id = str(entity_list[0].get("id"))
+                    return redirect(url_for("staff_bp.staff_eLearning", entity_type=selected_entity_type))
 
         try:
             ROLECODE_MAP = {

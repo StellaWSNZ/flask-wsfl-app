@@ -839,12 +839,9 @@ def manage_providers():
             return None
 
     # --- perms ---
-    if not session.get("user_admin"):
-        return render_template(
-    "error.html",
-    error="You are not authorised to view that page.",
-    code=403
-), 403
+    if session.get("user_admin") != 1:
+        flash("You are not authorised to access this page.", "warning")
+        return redirect(url_for("admin_bp.provider_maintenance"))
 
     funder_id_raw = (request.args.get("funder_id") or "").strip()
     funder_id = _safe_int(funder_id_raw)
@@ -857,12 +854,34 @@ def manage_providers():
     uid  = session.get("user_id")
 
     # ADM always allowed; FUN only for own funder_id
-    if not (role == "ADM" or (role == "FUN" and uid == funder_id)):
-        return render_template(
-    "error.html",
-    error="You are not authorised to view that page.",
-    code=403
-), 403
+    try:
+        engine = get_db_engine()
+        with engine.begin() as conn:
+            rows = conn.execute(
+                text("""
+                    SET NOCOUNT ON;
+                    EXEC dbo.FlaskGetEntities
+                        @EntityType      = 'Funder',
+                        @Role            = :Role,
+                        @ID              = :ID,
+                        @IncludeInactive = 0;
+                """),
+                {
+                    "Role": role,
+                    "ID": int(uid) if str(uid).isdigit() else None,
+                }
+            ).mappings().all()
+
+        allowed_funder_ids = {int(r["ID"]) for r in rows}
+
+        if funder_id not in allowed_funder_ids:
+            flash("Invalid funder selected.", "warning")
+            return redirect(url_for("admin_bp.provider_maintenance"))
+
+    except Exception as e:
+        current_app.logger.exception("❌ Funder validation failed via FlaskGetEntities")
+        flash("Unable to validate funder.", "danger")
+        return redirect(url_for("admin_bp.provider_maintenance"))
 
     engine = get_db_engine()
     providers = []
