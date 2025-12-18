@@ -75,16 +75,21 @@ def survey_by_routename(routename):
             current_app.logger.info("🔐 user_role=%s user_id=%s", user_role, user_id)
 
             if survey_id == 3:
-                # Teacher Assessment — funders only
-                if user_role not in ["FUN", "ADM"]:
-                    flash("This assessment is restricted to funders and WSNZ Administrators.", "warning")
-                    return redirect("/MyForms")
+                # Teacher Assessment — funders + WSNZ admins only
+                allowed_roles = {"FUN", "ADM"}
+
+                if user_role not in allowed_roles:
+                    flash(
+                        "This assessment is restricted to funders and WSNZ Administrators.",
+                        "warning"
+                    )
+                    return redirect(url_for("survey_bp.list_my_surveys"))
 
             if survey_id == 4:
                 # Admin-only survey
                 if user_role != "ADM":
                     flash("This assessment is restricted to WSNZ Admins.", "warning")
-                    return redirect("/MyForms")
+                    return redirect(url_for("survey_bp.list_my_surveys"))
 
             qrows = conn.execute(
                 text("EXEC SVY_GetSurveyQuestions @SurveyID = :survey_id"),
@@ -957,6 +962,7 @@ def view_my_survey_response(respondent_id):
 
         flash("Something went wrong loading the survey form.", "danger")
         return redirect(url_for("survey_bp.list_my_surveys"))
+    
 @survey_bp.route("/Form/invite/<token>")
 def survey_invite_token(token):
     try:
@@ -1256,28 +1262,77 @@ def _badge_class(title: str) -> str:
     idx = int.from_bytes(h2, "big") % len(shades)
     return shades[idx]
 
+from sqlalchemy import text
 
+# -----------------------------
+# Helper: allowed entity IDs
+# -----------------------------
+def _allowed_entity_ids(entity_type: str, user_role: str, user_id: int, include_inactive: int = 0):
+    engine = get_db_engine()
+    with engine.begin() as conn:
+        rows = conn.execute(
+            text("""
+                SET NOCOUNT ON;
+                EXEC dbo.FlaskGetEntities
+                    @EntityType      = :EntityType,
+                    @Role            = :Role,
+                    @ID              = :ID,
+                    @IncludeInactive = :IncludeInactive;
+            """),
+            {
+                "EntityType": entity_type,
+                "Role": user_role,
+                "ID": user_id,
+                "IncludeInactive": include_inactive,
+            }
+        ).mappings().all()
+
+    return {int(r["ID"]) for r in rows}
+
+
+# -----------------------------
+# Route: Staff survey admin
+# -----------------------------
 @survey_bp.route("/SurveyByEntity", methods=["GET"])
 @login_required
 def staff_survey_admin():
     user_role = session.get("user_role")
     user_id   = session.get("user_id")
 
+    # ---- Read query params (GET form) ----
     requested_entity_type = request.args.get("entity_type") or "Funder"
     selected_entity_id    = request.args.get("entity_id", type=int)
 
     staff_surveys = []
-    # sensible fallbacks so render_template still works after an exception
     allowed_entity_types = []
     entity_type = requested_entity_type
 
     try:
         engine = get_db_engine()
+
+        # ---- Determine allowed entity types for this user ----
         allowed_entity_types = _allowed_entity_types(user_role, engine, user_id)
         entity_type = _coerce_entity_type(requested_entity_type, allowed_entity_types)
 
+        # ---- 🔐 Guard: prevent URL tampering ----
+        if selected_entity_id:
+            allowed_ids = _allowed_entity_ids(
+                entity_type=entity_type,
+                user_role=user_role,
+                user_id=int(user_id) if str(user_id).isdigit() else None,
+                include_inactive=0,
+            )
+
+            if selected_entity_id not in allowed_ids:
+                flash("Invalid selection! You are unable to acess this entity.", "warning")
+                return redirect(
+                    url_for("survey_bp.staff_survey_admin", entity_type=entity_type)
+                )
+
+        # ---- Fetch survey responses only if entity is valid ----
         if selected_entity_id:
             et_code = ET_CODE.get(entity_type, entity_type[:3].upper())
+
             with engine.begin() as conn:
                 result = conn.exec_driver_sql(
                     "EXEC SVY_GetEntityResponses @EntityType=?, @EntityID=?",
@@ -1288,6 +1343,7 @@ def staff_survey_admin():
                     first = row.get("FirstName") or ""
                     last  = row.get("Surname") or ""
                     name  = f"{first} {last}".strip()
+
                     staff_surveys.append({
                         "FirstName": first,
                         "Surname": last,
@@ -1304,19 +1360,25 @@ def staff_survey_admin():
     except Exception as e:
         traceback.print_exc()
         flash("An error occurred while loading survey data.", "danger")
-        # ship to AUD_Alerts (never break the response)
+
+        # ---- Log but never break the response ----
         try:
             log_alert(
                 email=session.get("user_email"),
-                role=session.get("user_role"),
-                entity_id=session.get("user_id"),
-                link=url_for("survey_bp.staff_survey_admin", _external=True, entity_type=requested_entity_type, entity_id=selected_entity_id),
+                role=user_role,
+                entity_id=user_id,
+                link=url_for(
+                    "survey_bp.staff_survey_admin",
+                    _external=True,
+                    entity_type=requested_entity_type,
+                    entity_id=selected_entity_id,
+                ),
                 message=f"/SurveyByEntity failed: {e}\n{traceback.format_exc()}"[:4000],
             )
         except Exception:
             pass
 
-    # Precompute unique/sorted titles for the filter dropdown
+    # ---- Precompute titles for filter dropdown ----
     form_titles = sorted({s["Title"] for s in staff_surveys if s.get("Title")})
 
     return render_template(
