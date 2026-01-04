@@ -475,7 +475,19 @@ def _execute_report(
         res = conn.execute(sql, params)
         results = res.mappings().all()
         current_app.logger.info("🔎 rows=%d | type=%s", len(results or []), selected_type)
-
+    elif selected_type == "national_ytd_vs_target":
+        sql = text(
+            """
+            SET NOCOUNT ON;
+            EXEC GetNationalRates
+                @CalendarYear = :CalendarYear,
+                @Term         = :Term;
+        """
+        )
+        params = {"CalendarYear": selected_year, "Term": selected_term}
+        res = conn.execute(sql, params)
+        results = res.mappings().all()
+        current_app.logger.info("🔎 rows=%d | type=%s", len(results or []), selected_type)
     # 3) Funder Missing Data (builds fig here)
     elif selected_type == "funder_missing_data":
         threshold = 0.50
@@ -748,7 +760,21 @@ def _build_figure_from_results(
             colors_dict=colors_dict,
             funder_id=None,
         )
-
+    elif selected_type == "national_ytd_vs_target":
+        vars_to_plot = ["National Rate (LY)", "National Rate (YTD)", "WSNZ Target"]
+        colors_dict = {
+            "National Rate (YTD)": "#2EBDC2",
+            "WSNZ Target": "#356FB6",
+            "National Rate (LY)": "#BBE6E9",
+        }
+        fig = provider_portrait_with_target(
+            results,
+            term=selected_term,
+            year=selected_year,
+            mode="national",
+            subject_name="",
+            title=f"National YTD vs WSNZ Target",
+        )
     # Provider portrait (YTD vs Target)
     elif selected_type == "provider_ytd_vs_target":
         try:
@@ -935,6 +961,8 @@ def _persist_figure_and_session(
         base_label = f"SchoolYTDvsTarget_{school_name or f'MOE_{selected_school_id}'}"
     elif selected_type == "national_ly_vs_national_ytd_vs_target":
         base_label = "NationalLYvsNationalYTDvsTarget"
+    elif selected_type == "national_ytd_vs_target":
+        base_label = "NationalYTDvsTarget"
     else:
         base_label = f"Report_{selected_type or 'Unknown'}"
 

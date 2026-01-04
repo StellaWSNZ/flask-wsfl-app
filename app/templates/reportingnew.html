@@ -28,8 +28,8 @@
             <div class="mb-3">
               <label for="term" class="form-label">Term</label>
               <select name="term" id="term" class="form-select">
-                <option value="3" {% if selected_term == 3 or not selected_term %}selected{% endif %}>3</option>
-                <option value="4" {% if selected_term == 4 %}selected{% endif %}>4</option>
+                <option value="3" {% if selected_term == 3  %}selected{% endif %}>3</option>
+                <option value="4" {% if selected_term == 4   or not selected_term %}selected{% endif %}>4</option>
               </select>
             </div>
 
@@ -43,6 +43,10 @@
                   <option value="national_ly_vs_national_ytd_vs_target"
                     {% if selected_type == "national_ly_vs_national_ytd_vs_target"  %}selected{% endif %}>
                     National YTD vs National LY vs WSNZ Target
+                  </option>
+                  <option value="national_ytd_vs_target"
+                    {% if selected_type == "national_ytd_vs_target"  %}selected{% endif %}>
+                    National YTD vs WSNZ Target
                   </option>
                 {% endif %}
                 {% if role in ["ADM","FUN"] %}
