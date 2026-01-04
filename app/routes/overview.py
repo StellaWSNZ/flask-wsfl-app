@@ -614,7 +614,7 @@ def admin_dashboard():
                     row["Total Students"] = row.pop("TotalStudents", None)
                     # drop control cols
                     trimmed = {k: v for k, v in row.items()
-                               if k not in ["CalendarYear", "Term", "FunderID", "FunderName"]}
+                               if k not in ["CalendarYear", "Term", "FunderID", "FunderName","TotalStudentsUnedited"]}
                     schools_grouped[fid].append(trimmed)
 
                 for fid, schools_list in schools_grouped.items():
@@ -689,7 +689,7 @@ def admin_dashboard():
                     trimmed = {k: v for k, v in row.items()
                                if k not in ["CalendarYear", "Term", "ProviderID", "ProviderName","TotalStudentsUnedited"]}
                     schools_grouped[pid].append(trimmed)
-
+                current_app.logger.debug("")
                 for pid, schools_list in schools_grouped.items():
                     funder_data.append({
                         "id": pid,
@@ -714,6 +714,8 @@ def admin_dashboard():
                     entity_type=entity_type,
                     term=term,
                     year=year,
+                    years = get_years(),
+                    terms = get_terms(),
                     threshold=threshold,
                     form_submitted=False
                 )
@@ -724,6 +726,8 @@ def admin_dashboard():
             funder_data=funder_data,
             entity_options=entity_options,
             entity_type=entity_type,
+            terms=get_terms(),
+            years = get_years(),
             term=term,
             year=year,
             threshold=threshold,
