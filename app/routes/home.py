@@ -71,7 +71,7 @@ def home():
             if ad == 1:
                 subtitle += " with Administrator Permissions"
                 cards = [
-                    {"title": "Overview", "text": "See provider performance and progress", "href": url_for("funder_bp.funder_dashboard"), "image": "Overview.png"},
+                    {"title": "Overview", "text": "See provider performance and progress", "href": url_for("overview_bp.funder_dashboard"), "image": "Overview.png"},
                     {"title": "Class Lookup", "text": "Search all relevant classes", "href": url_for("class_bp.filter_classes"), "image": "ViewClass.png"},
                     {"title": "Provider Maintenance", "text": "Manage providers funded by your organisation", "href": url_for("admin_bp.provider_maintenance"), "image": "ProviderMaintenance.png"},
                     {"title": "Reporting", "text": "Generate funder/provider reports", "href": url_for("report_bp.new_reports"), "image": "Reporting.png"},
@@ -114,7 +114,7 @@ def home():
                     {"title": "Class Lookup", "text": "Search classes you’ve delivered", "href": url_for("class_bp.filter_classes"), "image": "ViewClass.png"},
                     {"title": "Staff Maintenance", "text": "Manage provider staff accounts", "href": url_for("staff_bp.staff_maintenance"), "image": "StaffMaintenance.png"},
                     {"title": "Reporting", "text": "Access provider reports", "href": url_for("report_bp.new_reports"), "image": "Reporting.png"},
-                    {"title": "Overview", "text": "See your organisation's overview by term.", "href": url_for("funder_bp.funder_dashboard"), "image": "Overview.png"},
+                    {"title": "Overview", "text": "See your organisation's overview by term.", "href": url_for("overview_bp.funder_dashboard"), "image": "Overview.png"},
                 ]
             else:
                 cards = [
@@ -132,14 +132,14 @@ def home():
                 subtitle += " Last Logged in: " + datetime.fromisoformat(last_login_nzt).strftime('%A, %d %B %Y, %I:%M %p')
             if ad==1:
                 cards = [
-                    {"title": "Overview", "text": "See provider performance and progress", "href": url_for("funder_bp.funder_dashboard"), "image": "Overview.png"},
+                    {"title": "Overview", "text": "See provider performance and progress", "href": url_for("overview_bp.funder_dashboard"), "image": "Overview.png"},
                     {"title": "Class Lookup", "text": "Search all relevant classes", "href": url_for("class_bp.filter_classes"), "image": "ViewClass.png"},
                     {"title": "Staff Maintenance", "text": "Manage your school’s staff", "href": url_for("staff_bp.staff_maintenance"), "image": "StaffMaintenance.png"},
                     {"title": "Reporting", "text": "Access provider reports", "href": url_for("report_bp.new_reports"), "image": "Reporting.png"},
                 ]
             else:
                 cards = [
-                        {"title": "Overview", "text": "See provider performance and progress", "href": url_for("funder_bp.funder_dashboard"), "image": "Overview.png"},
+                        {"title": "Overview", "text": "See provider performance and progress", "href": url_for("overview_bp.funder_dashboard"), "image": "Overview.png"},
                         {"title": "Class Lookup", "text": "Search all relevant classes", "href": url_for("class_bp.filter_classes"), "image": "ViewClass.png"},
                         {"title": "Staff Maintenance", "text": "Manage your school’s staff", "href": url_for("staff_bp.staff_maintenance"), "image": "StaffMaintenance.png"},
                         {"title": "Past Forms", "text": "View past forms", "href":  url_for('survey_bp.list_my_surveys') , "image": "PastForms.png"},

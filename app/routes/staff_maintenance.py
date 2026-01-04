@@ -828,7 +828,7 @@ def staff_eLearning():
                 "Funder":   "FUN",
                 "Provider": "PRO",
                 "Group":    "GRP",
-                "School":   "SCH",
+                "School":   "MOE",
             }
             role_code = ROLECODE_MAP.get(selected_entity_type)
             if not role_code:
@@ -899,6 +899,8 @@ def staff_eLearning():
             message=f"staff_eLearning outer failure: {outer_e}\n{traceback.format_exc()}"[:4000],
         )
         return "500 Template Error", 500
+    
+
 @staff_bp.route("/hide_user", methods=["POST"])
 @login_required
 def hide_user():

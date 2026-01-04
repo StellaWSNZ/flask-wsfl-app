@@ -58,7 +58,7 @@ def login():
     def _log_auth_alert(message, email_hint=""):
         try:
             log_alert(
-                email=(email_hint or session.get("user_email") or session.get("email") or "")[:320],
+                email=(email_hint or session.get("user_email")   or "")[:320],
                 role=(session.get("user_role") or "")[:10],
                 entity_id=session.get("user_id"),
                 link=str(request.url)[:2048],
@@ -215,7 +215,7 @@ def logout():
         current_app.logger.exception("❌ logout failed")
         try:
             log_alert(
-                email=(session.get("user_email") or session.get("email") or "")[:320],
+                email=(session.get("user_email")   or "")[:320],
                 role=(session.get("user_role") or "")[:10],
                 entity_id=session.get("user_id"),
                 link=str(request.url)[:2048],

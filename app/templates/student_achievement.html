@@ -426,6 +426,13 @@ let isSaving = false;
 // { type: 'href'|'form', href?: string, form?: HTMLFormElement }
 let pendingNavigation = null;
 
+function normalizeHeader(h) {
+  return String(h || "")
+    .replace(/&lt;br&gt;/g, "<br>")
+    .replace(/<br\s*\/?>/gi, "<br>")
+    .trim();
+}
+
 function updateUnsavedModalText() {
   const countSpan = document.getElementById("unsaved-count");
   if (countSpan) countSpan.textContent = String(pendingSaves);
@@ -595,24 +602,37 @@ document.addEventListener("DOMContentLoaded", function () {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nsn, header_name: headerName, status, class_id: classId, term: term, year: year })
       })
-      .then(r => r.json())
-      .then(data => {
-        if (data.success && status === 1 && autofillMap[headerName]) {
-          autofillMap[headerName].forEach(postHeader => {
-            const target = document.querySelector(
-              `input[type="checkbox"][name="competency"][data-nsn="${nsn}"][data-competency="${postHeader}"]`
-            );
+        .then(r => r.json())
+        .then(data => {
+          if (!data.success) {
+            alert("❌ Failed to update competency.");
+            return;
+          }
+
+          if (status !== 1) return;
+
+          const key = normalizeHeader(headerName);
+          const deps = autofillMap[key] || autofillMap[headerName] || [];
+          if (!deps.length) return;
+
+          // Cache all this student's checkboxes once
+          const studentBoxes = Array.from(
+            document.querySelectorAll(`input[type="checkbox"][name="competency"][data-nsn="${nsn}"]`)
+          );
+
+          deps.forEach(postHeader => {
+            const depKey = normalizeHeader(postHeader);
+
+            const target = studentBoxes.find(el => normalizeHeader(el.dataset.competency) === depKey);
+
             if (target && !target.checked) {
               target.checked = true;
               target.dispatchEvent(new Event("change"));
             }
           });
-        } else if (!data.success) {
-          alert("❌ Failed to update competency.");
-        }
-      })
-      .catch(err => console.error("Competency update error:", err))
-      .finally(() => finishSaving());
+        })
+        .catch(err => console.error("Competency update error:", err))
+        .finally(() => finishSaving());
     });
   });
 
@@ -668,13 +688,19 @@ document.addEventListener("DOMContentLoaded", function () {
   document.querySelectorAll(".mark-all-btn").forEach(btn => {
     btn.addEventListener("click", function () {
       const headerLabel = this.closest("th").querySelector(".header-label");
-      const colRaw = this.dataset.colraw;
+
+      const colRaw = this.dataset.colraw;              // what button stored
+      const colKey = normalizeHeader(colRaw);          // normalized key for lookups
+
       const temp = headerLabel.cloneNode(true);
       temp.querySelectorAll("br")?.forEach(el => el.remove());
       temp.querySelector("button")?.remove();
       const displayName = temp.textContent.trim();
-      const dependents = autofillMap[colRaw] || [];
-      openMarkAllConfirm({ source:'desktop-mark', displayName, colRaw, dependents });
+
+      // ✅ try both forms so you don’t miss autofill deps
+      const dependents = autofillMap[colKey] || autofillMap[colRaw] || [];
+
+      openMarkAllConfirm({ source: 'desktop-mark', displayName, colRaw: colRaw, dependents });
     });
   });
 });
@@ -746,6 +772,8 @@ document.addEventListener("DOMContentLoaded", () => {
 /* ===== Mobile layer ===== */
 const _students  = {{ students | tojson }};
 const _columns   = {{ columns | tojson }};
+const _compCols = _columns.slice(3).map(normalizeHeader);
+
 const _scenarios = {{ scenarios | tojson }};
 const _autofill  = {{ autofill_map | tojson }};
 const _classId   = {{ class_id | tojson }};
@@ -865,7 +893,7 @@ function renderCompetency(rawCol) {
         ${scenarioMode ? '' : `
           <div class="d-flex gap-2">
             <button id="mobMarkAllBtn"  type="button" class="btn btn-sm btn-outline-success">Mark all</button>
-            <button id="mobClearAllBtn" type="button" class="btn btn-sm btn-outline-secondary">Clear all</button>
+            <!-- <button id="mobClearAllBtn" type="button" class="btn btn-sm btn-outline-secondary">Clear all</button> -->
           </div>
         `}
       </div>
@@ -992,25 +1020,34 @@ document.getElementById("confirm-mark-all-btn")?.addEventListener("click", funct
   const headerSelector = (raw) => `[data-header="${String(raw).replace(/"/g, '\\"')}"]`;
 
   if (source === 'desktop-mark') {
+    const want = normalizeHeader(colRaw);
+
     document.querySelectorAll(`input[type="checkbox"][name="competency"]`).forEach(cb => {
-      if (cb.dataset.competency?.trim() === colRaw && !cb.checked) {
+      const have = normalizeHeader(cb.dataset.competency);
+      if (have === want && !cb.checked) {
         cb.checked = true;
         cb.dispatchEvent(new Event("change"));
       }
     });
   }
 
-  if (source === 'mobile-mark') {
-    compList.querySelectorAll(`input[type="checkbox"]${headerSelector(colRaw)}`).forEach(cb => {
-      if (!cb.checked) { cb.checked = true; cb.dispatchEvent(new Event("change")); }
-    });
-  }
 
-  if (source === 'mobile-clear') {
-    compList.querySelectorAll(`input[type="checkbox"]${headerSelector(colRaw)}`).forEach(cb => {
-      if (cb.checked) { cb.checked = false; cb.dispatchEvent(new Event("change")); }
-    });
-  }
+ if (source === 'mobile-mark') {
+  const want = normalizeHeader(colRaw);
+  compList.querySelectorAll(`input[type="checkbox"][data-type="checkbox"]`).forEach(cb => {
+    const have = normalizeHeader(cb.dataset.header);
+    if (have === want && !cb.checked) { cb.checked = true; cb.dispatchEvent(new Event("change")); }
+  });
+}
+
+if (source === 'mobile-clear') {
+  const want = normalizeHeader(colRaw);
+  compList.querySelectorAll(`input[type="checkbox"][data-type="checkbox"]`).forEach(cb => {
+    const have = normalizeHeader(cb.dataset.header);
+    if (have === want && cb.checked) { cb.checked = false; cb.dispatchEvent(new Event("change")); }
+  });
+}
+
 
   pendingMarkAllAction = null;
   bootstrap.Modal.getInstance(document.getElementById('markAllConfirmModal'))?.hide();

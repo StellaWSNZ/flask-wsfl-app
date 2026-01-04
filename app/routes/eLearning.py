@@ -54,7 +54,7 @@ def admin_eLearning_upload():
             # ---- DB alert (guarded + truncated) ----
             try:
                 log_alert(
-                    email=(session.get("user_email") or session.get("email") or "")[:320],
+                    email=(session.get("user_email")   or "")[:320],
                     role=(session.get("user_role") or "")[:10],
                     entity_id=session.get("user_id"),
                     link=str(request.url)[:2048],
@@ -73,7 +73,7 @@ def admin_eLearning_upload():
         current_app.logger.exception("❌ elearning_upload template render failed")
         try:
             log_alert(
-                email=(session.get("user_email") or session.get("email") or "")[:320],
+                email=(session.get("user_email")   or "")[:320],
                 role=(session.get("user_role") or "")[:10],
                 entity_id=session.get("user_id"),
                 link=str(request.url)[:2048],
@@ -106,7 +106,7 @@ def eLearning_guide():
         # ---- DB alert ----
         try:
             log_alert(
-                email=(session.get("user_email") or session.get("email") or "")[:320],
+                email=(session.get("user_email")   or "")[:320],
                 role=(session.get("user_role") or "")[:10],
                 entity_id=session.get("user_id"),
                 link=str(request.url)[:2048],

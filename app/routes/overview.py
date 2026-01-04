@@ -4,8 +4,17 @@ from app.routes.auth import login_required
 from app.utils.database import get_db_engine, log_alert, get_terms, get_years
 import pandas as pd
 from collections import defaultdict
-
-funder_bp = Blueprint("funder_bp", __name__)
+import uuid
+import time
+from flask import current_app, request, render_template, redirect, url_for, flash, abort, session
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError, OperationalError
+from werkzeug.exceptions import HTTPException
+from app.utils.database import get_db_engine, log_alert  # if you have log_alert, great; else comment out
+from app.routes.auth import login_required
+# add this import near the top of the file
+import json
+overview_bp = Blueprint("overview_bp", __name__)
 def compute_has_groups(engine, user_role, user_id):
     """Return True if the current user should see 'Provider Group' in the type dropdown."""
     try:
@@ -27,7 +36,7 @@ def compute_has_groups(engine, user_role, user_id):
         # Fail-safe: don't break page if proc is missing
         return False
 
-@funder_bp.route('/Overview', methods=["GET", "POST"])
+@overview_bp.route('/Overview', methods=["GET", "POST"])
 @login_required
 def funder_dashboard():
     if session.get("user_admin") != 1:
@@ -263,7 +272,7 @@ def funder_dashboard():
         current_app.logger.exception("Unhandled error in funder_dashboard")
         return "Internal Server Error", 500
 
-@funder_bp.route("/get_entities")
+@overview_bp.route("/get_entities")
 @login_required
 def get_entities():
     entity_type = request.args.get("entity_type")
@@ -421,7 +430,7 @@ def get_entities():
 
 
 
-@funder_bp.get("/providers")
+@overview_bp.get("/providers")
 @login_required
 def providers_by_funder():
     try:
@@ -461,7 +470,7 @@ def providers_by_funder():
     
     
 
-@funder_bp.route('/FullOverview', methods=['GET', 'POST'])
+@overview_bp.route('/FullOverview', methods=['GET', 'POST'])
 @login_required
 def admin_dashboard():
     # Admins only
@@ -734,17 +743,7 @@ def admin_dashboard():
         return "Internal Server Error", 500
 
 
-import uuid
-import traceback
-import time
-from flask import current_app, request, render_template, redirect, url_for, flash, abort, session
-from sqlalchemy import text
-from sqlalchemy.exc import SQLAlchemyError, OperationalError
-from werkzeug.exceptions import HTTPException
-from app.utils.database import get_db_engine, log_alert  # if you have log_alert, great; else comment out
-from app.routes.auth import login_required
-# add this import near the top of the file
-import json
+
 
 
 def _parse_json_maybe(val):
@@ -771,7 +770,7 @@ def _parse_json_maybe(val):
         return []
 
 
-@funder_bp.route("/Schools", methods=["GET", "POST"])
+@overview_bp.route("/Schools", methods=["GET", "POST"])
 @login_required
 def funder_schools():
     """

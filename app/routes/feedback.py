@@ -15,7 +15,7 @@ def _log_alert_safe(message):
     """Best-effort DB alert logging with truncation."""
     try:
         log_alert(
-            email=(session.get("user_email") or session.get("email") or "")[:320],
+            email=(session.get("user_email")   or "")[:320],
             role=(session.get("user_role") or "")[:10],
             entity_id=session.get("user_id"),
             link=str(request.url)[:2048],

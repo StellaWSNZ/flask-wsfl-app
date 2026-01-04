@@ -11,7 +11,7 @@ from .view_class import class_bp
 from .survey import survey_bp
 from .student import students_bp
 from .staff_maintenance import staff_bp
-from app.routes.funder_dashboard import funder_bp
+from app.routes.overview import overview_bp
 from app.routes.eLearning import eLearning_bp
 from app.routes.feedback import feedback_bp
 from app.routes.add_user import user_bp 
@@ -30,7 +30,7 @@ def register_routes(app):
     app.register_blueprint(students_bp)
     app.register_blueprint(eLearning_bp)
     app.register_blueprint(staff_bp)
-    app.register_blueprint(funder_bp)
+    app.register_blueprint(overview_bp)
     app.register_blueprint(user_bp)
     app.register_blueprint(instructions_bp)  
     

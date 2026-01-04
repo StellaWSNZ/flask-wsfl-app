@@ -271,7 +271,7 @@ document.addEventListener("DOMContentLoaded", () => {
     providerSel.disabled = true;
 
     try {
-      const url = "{{ url_for('funder_bp.providers_by_funder') }}"
+      const url = "{{ url_for('overview_bp.providers_by_funder') }}"
                 + `?funder_id=${encodeURIComponent(funderId)}`;
       const res = await fetch(url, { headers: { "Accept": "application/json" } });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);

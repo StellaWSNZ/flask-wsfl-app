@@ -2,16 +2,11 @@
 
 from datetime import datetime, timedelta
 from math import ceil
-import traceback
 from app.utils.wsfl_email import send_account_invites
-import bcrypt
 import pandas as pd
 import math
-import sqlalchemy.sql
 from sqlalchemy import text
-from sqlalchemy.exc import SQLAlchemyError
 from user_agents import parse as ua_parse
-from werkzeug.security import generate_password_hash
 from flask import (
     Blueprint,
     Response,
@@ -210,7 +205,7 @@ def create_user():
                     sel_id = None
 
                 log_alert(
-                    email=(session.get("user_email") or session.get("email") or "")[:320],
+                    email=(session.get("user_email")   or "")[:320],
                     role=(session.get("user_role") or "")[:10],
                     entity_id=sel_id,
                     link=str(request.url)[:2048],
@@ -305,7 +300,7 @@ def profile():
     except Exception as e:
         current_app.logger.exception("❌ profile() failed")
         log_alert(
-            email=session.get("user_email") or session.get("email"),
+            email=session.get("user_email")  ,
             role=session.get("user_role"),
             entity_id=session.get("user_id"),
             link=request.url,
@@ -650,7 +645,7 @@ def provider_maintenance():
         # ---- Write error to AUD_Alerts (or use your log_alert helper) ----
         try:
             log_alert(
-                email=(session.get("user_email") or session.get("email") or "")[:320],
+                email=(session.get("user_email")   or "")[:320],
                 role=(session.get("user_role") or "")[:10],
                 entity_id=session.get("user_id"),
                 link=str(request.url)[:2048],
@@ -681,7 +676,7 @@ def provider_maintenance():
         current_app.logger.exception("❌ Error rendering provider_maintenance.html")
         try:
             log_alert(
-                email=(session.get("user_email") or session.get("email") or "")[:320],
+                email=(session.get("user_email")   or "")[:320],
                 role=(session.get("user_role") or "")[:10],
                 entity_id=session.get("user_id"),
                 link=str(request.url)[:2048],
@@ -738,7 +733,7 @@ def assign_provider():
         # ---- Write error to DB (never raise from here) ----
         try:
             log_alert(
-                email=(session.get("user_email") or session.get("email") or "")[:320],
+                email=(session.get("user_email")   or "")[:320],
                 role=(session.get("user_role") or "")[:10],
                 entity_id=session.get("user_id"),
                 link=str(request.url)[:2048],
@@ -804,7 +799,7 @@ def add_provider():
         if "Provider name already exists" in msg:
             try:
                 log_alert(
-                    email=(session.get("user_email") or session.get("email") or "")[:320],
+                    email=(session.get("user_email")   or "")[:320],
                     role=(session.get("user_role") or "")[:10],
                     entity_id=session.get("user_id"),
                     link=str(request.url)[:2048],
@@ -817,7 +812,7 @@ def add_provider():
         # ---- Write unexpected error to DB ----
         try:
             log_alert(
-                email=(session.get("user_email") or session.get("email") or "")[:320],
+                email=(session.get("user_email")   or "")[:320],
                 role=(session.get("user_role") or "")[:10],
                 entity_id=session.get("user_id"),
                 link=str(request.url)[:2048],
@@ -920,7 +915,7 @@ def manage_providers():
         # --- log to DB; never raise from here ---
         try:
             log_alert(
-                email=(session.get("user_email") or session.get("email") or "")[:320],
+                email=(session.get("user_email")   or "")[:320],
                 role=(session.get("user_role") or "")[:10],
                 entity_id=session.get("user_id"),
                 link=str(request.url)[:2048],
@@ -944,7 +939,7 @@ def manage_providers():
         current_app.logger.exception("❌ manage_providers.html render failed")
         try:
             log_alert(
-                email=(session.get("user_email") or session.get("email") or "")[:320],
+                email=(session.get("user_email")   or "")[:320],
                 role=(session.get("user_role") or "")[:10],
                 entity_id=session.get("user_id"),
                 link=str(request.url)[:2048],
@@ -979,7 +974,7 @@ def update_provider():
         # Log to DB as well
         try:
             log_alert(
-                email=(session.get("user_email") or session.get("email") or "")[:320],
+                email=(session.get("user_email")   or "")[:320],
                 role=(session.get("user_role") or "")[:10],
                 entity_id=session.get("user_id"),
                 link=str(request.url)[:2048],
@@ -1002,7 +997,7 @@ def update_provider():
         flash(msg, "danger")
         try:
             log_alert(
-                email=(session.get("user_email") or session.get("email") or "")[:320],
+                email=(session.get("user_email")   or "")[:320],
                 role=(session.get("user_role") or "")[:10],
                 entity_id=session.get("user_id"),
                 link=str(request.url)[:2048],
@@ -1036,7 +1031,7 @@ def update_provider():
         # Log error to DB
         try:
             log_alert(
-                email=(session.get("user_email") or session.get("email") or "")[:320],
+                email=(session.get("user_email")   or "")[:320],
                 role=(session.get("user_role") or "")[:10],
                 entity_id=session.get("user_id"),
                 link=str(request.url)[:2048],
@@ -1067,7 +1062,7 @@ def delete_provider():
         flash(msg, "danger")
         try:
             log_alert(
-                email=(session.get("user_email") or session.get("email") or "")[:320],
+                email=(session.get("user_email")   or "")[:320],
                 role=(session.get("user_role") or "")[:10],
                 entity_id=session.get("user_id"),
                 link=str(request.url)[:2048],
@@ -1087,7 +1082,7 @@ def delete_provider():
         # Log error to DB
         try:
             log_alert(
-                email=(session.get("user_email") or session.get("email") or "")[:320],
+                email=(session.get("user_email")   or "")[:320],
                 role=(session.get("user_role") or "")[:10],
                 entity_id=session.get("user_id"),
                 link=str(request.url)[:2048],
@@ -1125,7 +1120,7 @@ def add_provider_details():
         flash(msg, "danger")
         try:
             log_alert(
-                email=(session.get("user_email") or session.get("email") or "")[:320],
+                email=(session.get("user_email")   or "")[:320],
                 role=(session.get("user_role") or "")[:10],
                 entity_id=session.get("user_id"),
                 link=str(request.url)[:2048],
@@ -1144,7 +1139,7 @@ def add_provider_details():
         flash(msg, "danger")
         try:
             log_alert(
-                email=(session.get("user_email") or session.get("email") or "")[:320],
+                email=(session.get("user_email")   or "")[:320],
                 role=(session.get("user_role") or "")[:10],
                 entity_id=session.get("user_id"),
                 link=str(request.url)[:2048],
@@ -1181,7 +1176,7 @@ def add_provider_details():
         # log error to DB
         try:
             log_alert(
-                email=(session.get("user_email") or session.get("email") or "")[:320],
+                email=(session.get("user_email")   or "")[:320],
                 role=(session.get("user_role") or "")[:10],
                 entity_id=session.get("user_id"),
                 link=str(request.url)[:2048],
@@ -1274,7 +1269,7 @@ def edit_school_type():
             # log to DB
             try:
                 log_alert(
-                    email=(session.get("user_email") or session.get("email") or "")[:320],
+                    email=(session.get("user_email")   or "")[:320],
                     role=(session.get("user_role") or "")[:10],
                     entity_id=session.get("user_id"),
                     link=str(request.url)[:2048],
@@ -1292,7 +1287,7 @@ def edit_school_type():
             flash(msg, "danger")
             try:
                 log_alert(
-                    email=(session.get("user_email") or session.get("email") or "")[:320],
+                    email=(session.get("user_email")   or "")[:320],
                     role=(session.get("user_role") or "")[:10],
                     entity_id=session.get("user_id"),
                     link=str(request.url)[:2048],
@@ -1321,7 +1316,7 @@ def edit_school_type():
             # log to DB (never raise here)
             try:
                 log_alert(
-                    email=(session.get("user_email") or session.get("email") or "")[:320],
+                    email=(session.get("user_email")   or "")[:320],
                     role=(session.get("user_role") or "")[:10],
                     entity_id=session.get("user_id"),
                     link=str(request.url)[:2048],
@@ -1397,7 +1392,7 @@ def edit_school_type():
         # Log to DB; show a warning and render empty state
         try:
             log_alert(
-                email=(session.get("user_email") or session.get("email") or "")[:320],
+                email=(session.get("user_email")   or "")[:320],
                 role=(session.get("user_role") or "")[:10],
                 entity_id=session.get("user_id"),
                 link=str(request.url)[:2048],
@@ -1450,7 +1445,7 @@ def school_type_glossary_json():
         # Log to DB, never raise here
         try:
             log_alert(
-                email=(session.get("user_email") or session.get("email") or "")[:320],
+                email=(session.get("user_email")   or "")[:320],
                 role=(session.get("user_role") or "")[:10],
                 entity_id=session.get("user_id"),
                 link=str(request.url)[:2048],
@@ -1473,7 +1468,7 @@ def admin_user_entities():
         current_app.logger.exception("❌ admin_user_entities render failed")
         try:
             log_alert(
-                email=(session.get("user_email") or session.get("email") or "")[:320],
+                email=(session.get("user_email")   or "")[:320],
                 role=(session.get("user_role") or "")[:10],
                 entity_id=session.get("user_id"),
                 link=str(request.url)[:2048],
@@ -1522,7 +1517,7 @@ def get_users():
         current_app.logger.exception("❌ get_users failed")
         try:
             log_alert(
-                email=(session.get("user_email") or session.get("email") or "")[:320],
+                email=(session.get("user_email")   or "")[:320],
                 role=(session.get("user_role") or "")[:10],
                 entity_id=session.get("user_id"),
                 link=str(request.url)[:2048],
@@ -1557,7 +1552,7 @@ def update_user_role_entity():
         flash("❌ Missing required fields.", "warning")
         try:
             log_alert(
-                email=(session.get("user_email") or session.get("email") or "")[:320],
+                email=(session.get("user_email")   or "")[:320],
                 role=(session.get("user_role") or "")[:10],
                 entity_id=session.get("user_id"),
                 link=str(request.url)[:2048],
@@ -1575,7 +1570,7 @@ def update_user_role_entity():
         flash("❌ Invalid entity ID.", "warning")
         try:
             log_alert(
-                email=(session.get("user_email") or session.get("email") or "")[:320],
+                email=(session.get("user_email")   or "")[:320],
                 role=(session.get("user_role") or "")[:10],
                 entity_id=session.get("user_id"),
                 link=str(request.url)[:2048],
@@ -1606,7 +1601,7 @@ def update_user_role_entity():
         current_app.logger.exception("❌ update_user_role_entity failed")
         try:
             log_alert(
-                email=(session.get("user_email") or session.get("email") or "")[:320],
+                email=(session.get("user_email")   or "")[:320],
                 role=(session.get("user_role") or "")[:10],
                 entity_id=session.get("user_id"),
                 link=str(request.url)[:2048],
