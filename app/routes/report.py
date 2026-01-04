@@ -490,7 +490,7 @@ def _execute_report(
         current_app.logger.info("🔎 rows=%d | type=%s", len(results or []), selected_type)
     # 3) Funder Missing Data (builds fig here)
     elif selected_type == "funder_missing_data":
-        threshold = 0.50
+        threshold = 0.25
         sql = text(
             """
             SET NOCOUNT ON;
