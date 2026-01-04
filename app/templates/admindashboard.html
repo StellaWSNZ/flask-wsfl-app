@@ -104,6 +104,16 @@
                   {% endfor %}
                 </tbody>
               </table>
+              {% set total_students = namespace(sum=0) %}
+                {% for school in funder.schools %}
+                  {% if school['Total Students'] is number %}
+                    {% set total_students.sum = total_students.sum + school['Total Students'] %}
+                  {% endif %}
+                {% endfor %}
+
+                <p class="mt-2 fw-semibold text-muted">
+                  Total students: {{ total_students.sum }}
+                </p>
               {% else %}
               <p class="text-muted">No schools found for this funder.</p>
               {% endif %}
