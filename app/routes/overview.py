@@ -687,7 +687,7 @@ def admin_dashboard():
                     row["Edited Classes"] = row.pop("EditedClasses", None)
                     row["Total Students"] = row.pop("TotalStudents", None)
                     trimmed = {k: v for k, v in row.items()
-                               if k not in ["CalendarYear", "Term", "ProviderID", "ProviderName"]}
+                               if k not in ["CalendarYear", "Term", "ProviderID", "ProviderName","TotalStudentsUnedited"]}
                     schools_grouped[pid].append(trimmed)
 
                 for pid, schools_list in schools_grouped.items():
