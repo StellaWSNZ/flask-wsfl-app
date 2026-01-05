@@ -43,7 +43,7 @@ def create_user():
         user_role  = session.get("user_role")
         user_id    = session.get("user_id")
         user_admin = session.get("user_admin")
-        desc       = session.get("desc")
+        desc       = session.get("desc") or "Water Safety New Zealand"
 
         # Same guard as before
         if not user_admin and not (user_role == "FUN" and user_id == 11):

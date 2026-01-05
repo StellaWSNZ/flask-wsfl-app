@@ -531,7 +531,7 @@ def add_staff():
 
         hashed_pw  = None   # invite-only; SP handles NULL
         send_email = (account_status == "enable")
-        desc       = session.get("desc")
+        desc       = session.get("desc") or "Water Safety New Zealand"
 
         engine = get_db_engine()
 
@@ -590,7 +590,7 @@ def add_staff():
                 }]
 
                 invited_by_name = f"{session.get('user_firstname')} {session.get('user_surname')}"
-                invited_by_org  = desc
+                invited_by_org  = desc 
 
                 send_account_invites(
                     recipients=recipients,

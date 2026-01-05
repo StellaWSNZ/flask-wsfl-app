@@ -62,7 +62,7 @@ def add_user():
                 or session.get("user_email")
                 or "Water Skills for Life"
             )
-            from_org = session.get("desc") 
+            from_org = session.get("desc") or "Water Safety New Zealand"
             admin_recipients = []
             standard_recipients = []
 
