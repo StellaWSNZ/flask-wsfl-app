@@ -239,7 +239,31 @@ def funder_dashboard():
             f"<strong>{total_schools}</strong> school{'s' if total_schools != 1 else ''} "
             f"in <strong>Term {selected_term}</strong>, <strong>{selected_year}</strong>."
         )
+        ethnicity_table = None
+        
+        if entity_type == "Funder":
+            with engine.begin() as con:
+                df_eth = pd.read_sql(
+                    text("""
+                        EXEC dbo.FunderEthnicityBreakdown
+                            @FunderID = :funder_id,
+                            @Term = :term,
+                            @CalendarYear = :year
+                    """),
+                    con,
+                    params={
+                        "funder_id": selected_entity_id,   # ✅ correct ID
+                        "term": selected_term,
+                        "year": selected_year,
+                    }
+                )
 
+            ethnicity_table = (
+                df_eth.to_dict(orient="records")
+                if not df_eth.empty
+                else None
+            )
+            #print(ethnicity_table)
         page_title = f"{(entity_desc or session.get('desc') or '').strip()} Overview".strip() or "Overview"
 
         return render_template(
@@ -257,7 +281,8 @@ def funder_dashboard():
             selected_entity_id=selected_entity_id,
             entity_type=entity_type,
             title=page_title,
-            has_groups=has_groups
+            has_groups=has_groups,
+            ethnicity_table = ethnicity_table
             
         )
 
@@ -624,6 +649,7 @@ def admin_dashboard():
                         "schools": schools_list,
                         "elearning_summary": elearning_grouped.get(fid, {})
                     })
+                
 
             elif entity_type == "Provider":
                 # School summary across all providers
