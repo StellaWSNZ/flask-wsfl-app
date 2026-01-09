@@ -111,7 +111,7 @@ def staff_maintenance():
         staff_data = pd.DataFrame()
         columns = []
         hidden_staff = []
-
+        
         # ---------- Load selected entity + staff + hidden staff ----------
         if selected_entity_type and selected_entity_id:
             try:
@@ -141,6 +141,21 @@ def staff_maintenance():
                         {"etype": role_type, "eid": target_id}
                     )
                     hidden_staff = [dict(row._mapping) for row in hidden_result]
+                    
+                    allowed_popup = 0
+
+                    if role_type == "ADM":
+                        allowed_popup = 1
+
+                    elif role_type == "FUN":
+                        row = conn.execute(
+                            text("EXEC dbo.FlaskHelperFunctions @Request = :Request, @Number = :Number"),
+                            {"Request": "Popup", "Number": funder_id}
+                        ).fetchone()
+
+                        # row[0] is safest if you SELECT a single scalar
+                        allowed_popup = int(row[0]) if row and row[0] is not None else 0
+
 
             except Exception as e:
                 # Log DB failure for this section and still render page (with blanks)
@@ -163,6 +178,8 @@ def staff_maintenance():
             school_list=[],
             group_list=group_list,
             funder_list=[],
+            allowed_popup=allowed_popup,
+            
             data=staff_data.to_dict(orient="records"),
             columns=columns,
             name=(desc or "") + "'s Staff eLearning",

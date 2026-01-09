@@ -347,11 +347,15 @@ def run_batch():
         t.[Contact email] AS ContactEmail,
         t.MOENumber,
         sd.SchoolName,
-        t.ProviderID,
-        p.Description AS ProviderName
+        sp.ProviderID,
+        p2.Description AS ProviderName
+        
     FROM TEMP_StuffDetails t
     JOIN MOE_SchoolDirectory sd ON sd.MOENumber = t.MOENumber
     JOIN Provider p ON p.ProviderID = t.ProviderID
+    JOIN SchoolProvider sp on Term = 1 and CalendarYear = 2026 and sp.ProviderID  = t.ProviderID
+    JOIN Provider p2 ON p2.ProviderID = sp.ProviderID
+
     """
 
     df = pd.read_sql(text(q), engine)
