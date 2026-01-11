@@ -36,6 +36,7 @@ staff_bp = Blueprint("staff_bp", __name__)
 @login_required
 def staff_maintenance():
     try:
+        allowed_popup = 0
         user_id    = session.get("user_id")
         user_role  = session.get("user_role")
         user_email = session.get("user_email")
