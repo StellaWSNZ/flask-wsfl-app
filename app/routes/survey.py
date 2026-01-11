@@ -1164,8 +1164,8 @@ def send_survey_reminder():
         firstname = request.form["firstname"]
         requested_by = request.form["requested_by"]
         from_org = request.form["from_org"]
-
-
+        entity_id = request.form["entity_id"]
+        entity_type = request.form["entity_type"]
 
         send_survey_reminder_email(mail, email, firstname, requested_by, from_org)
         flash(f"📧 Reminder sent to {firstname}.", "info")

@@ -5,31 +5,51 @@ import re
 import matplotlib.font_manager as fm
 import matplotlib.pyplot as plt
 
-def load_ppmori_fonts(font_dir: str | Path) -> None:
+
+def load_ppmori_fonts(font_dir: str | Path) -> str:
     """
-    Registers PP Mori Regular, SemiBold, and Bold fonts with Matplotlib.
+    Register PP Mori OTF fonts with Matplotlib and set rcParams font.family
+    to a family name that actually exists.
+
+    Returns the chosen family name.
     """
     font_dir = Path(font_dir)
-    regular_font   = font_dir / "PPMori-Regular.otf"
-    semibold_font  = font_dir / "PPMori-SemiBold.otf"
-    bold_font      = font_dir / "PPMori-Bold.otf"
+    print(f"🔎 font_dir = {font_dir.resolve()} | exists={font_dir.exists()}")
 
-    found = []
-    for f in (regular_font, semibold_font, bold_font):
-        if f.exists():
-            fm.fontManager.addfont(str(f))
-            found.append(f.name)
-    if not found:
-        print(f"⚠️ No PP Mori fonts found in {font_dir}")
-        return
+    otfs = sorted(font_dir.glob("PPMori-*.otf"))
+    if not otfs:
+        print(f"⚠️ No PPMori-*.otf files found in {font_dir}")
+        return "sans-serif"
+
+    for p in otfs:
+        fm.fontManager.addfont(str(p))
+
+    # Rebuild/scan and discover family names that contain "mori"
+    mori_families = sorted({
+        f.name for f in fm.fontManager.ttflist
+        if "mori" in f.name.lower()
+    })
+
+    print("✅ Matplotlib sees these 'mori' families:")
+    for n in mori_families:
+        print("   -", n)
+
+    # Prefer exact family if present
+    preferred = None
+    for cand in ["PPMori", "PP Mori", "PP Mori Text"]:
+        if cand in mori_families:
+            preferred = cand
+            break
+
+    chosen = preferred or (mori_families[0] if mori_families else "sans-serif")
 
     plt.rcParams.update({
-        "font.family": "PP Mori",
-        "font.weight": "regular",
+        "font.family": chosen,
         "font.size": 12,
     })
 
-    print(f"✅ Loaded PP Mori fonts ({', '.join(found)}) from {font_dir}")
+    print(f"🎯 Using font.family = {chosen}")
+    return chosen
 def choose_text_color(hex_color):
     # Convert hex to R, G, B (0-255)
     r_hex = int(hex_color[1:3], 16)

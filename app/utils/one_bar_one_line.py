@@ -194,7 +194,7 @@ def _canon_factory(mode: str):
         "provider rate ly":  "provider rate (ly)",
         "funder rate ytd":   "funder rate (ytd)",
         "funder rate ly":    "funder rate (ly)",
-
+    
         # national aliases
         "national rate ytd": "national rate (ytd)",
         "national rate (ytd)": "national rate (ytd)",

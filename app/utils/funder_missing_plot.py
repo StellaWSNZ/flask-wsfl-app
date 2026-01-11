@@ -431,6 +431,7 @@ def create_funder_missing_figure(
         zorder=6,
     )
 
+    
     # ------------------------------------------------------------------
     # 4) Column definitions (FIXED to match dfd_schools columns)
     # ------------------------------------------------------------------
@@ -449,13 +450,13 @@ def create_funder_missing_figure(
         },
         {
             "key": "Classes edited (edited/total)",
-            "label": "Classes edited (edited/total)",
+            "label": "Classes edited\n(edited/total)",
             "width_frac": 0.20,
             "align": "center",
         },
         {
             "key": "Students in unedited classes",
-            "label": "Students in unedited classes",
+            "label": "Students in\nunedited classes",
             "width_frac": 0.20,
             "align": "center",
         },
@@ -470,21 +471,21 @@ def create_funder_missing_figure(
         },
         {
             "key": "Schools with Classes Yet to Submit Data",
-            "label": "Schools with Classes Yet to Submit Data",
+            "label": "Schools with Classes\nYet to Submit Data",
             "width_frac": 0.30,
             "align": "center",
         },
         {
             "key": "Total Classes Yet to Submit Data",
-            "label": "Total Classes Yet to Submit Data",
+            "label": "Total Classes\nYet to Submit Data",
             "width_frac": 0.30,
             "align": "center",
         },
     ]
 
     blocks = [
-        Block(df=dfd_schools, columns=cols_school,   header_height_frac=0.05, key="schools"),
-        Block(df=provider_df, columns=cols_provider, header_height_frac=0.10, key="providers"),
+        Block(df=dfd_schools, columns=cols_school, header_height_frac=0.08, key="schools"),
+        Block(df=provider_df, columns=cols_provider, header_height_frac=0.12, key="providers"),
     ]
 
     if debug:

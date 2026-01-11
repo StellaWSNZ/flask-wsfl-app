@@ -48,8 +48,10 @@
                     {% if selected_type == "national_ytd_vs_target"  %}selected{% endif %}>
                     National YTD vs WSNZ Target
                   </option>
+                  
                 {% endif %}
                 {% if role in ["ADM","FUN"] %}
+                
                   <option value="funder_ytd_vs_target"
                     {% if selected_type == "funder_ytd_vs_target"  %}selected{% endif %}>
                     YTD Funder Performance vs WSNZ Target
@@ -73,6 +75,10 @@
                   <option value="funder_missing_data"
                     {% if selected_type == "funder_missing_data"%}selected{% endif %}>
                     Funder Missing Data
+                  </option>
+                  <option value="funder_student_count"
+                    {% if selected_type == "funder_student_count"  %}selected{% endif %}>
+                    Funder Student Counts
                   </option>
                 {% elif role == "PRO" %}
                   <option value="provider_ytd_vs_target"
@@ -192,10 +198,15 @@
 
             <!-- Export buttons UNDER the image -->
             <div id="exportButtons"
-                 class="justify-content-center gap-2 mt-3 {{ 'd-flex' if display else 'd-none' }}">
-              <a class="btn btn-sm btn-outline-primary" href="{{ url_for('report_bp.download_pdf') }}">Export PDF</a>
-              <a class="btn btn-sm btn-outline-primary" href="{{ url_for('report_bp.download_png') }}">Export PNG</a>
-            </div>
+                  class="justify-content-center gap-2 mt-3 {{ 'd-flex' if display else 'd-none' }}">
+                <a class="btn btn-sm btn-outline-primary" href="{{ url_for('report_bp.download_pdf') }}">Export PDF</a>
+
+                <a id="exportPngBtn"
+                  class="btn btn-sm btn-outline-primary {{ 'd-none' if selected_type == 'funder_student_count' else '' }}"
+                  href="{{ url_for('report_bp.download_png') }}">
+                  Export PNG
+                </a>
+              </div>
 
           </div>
         </div>
@@ -236,6 +247,7 @@
   const prevFunderName  = "{{ request.form.get('funder_name', funder_name or '') }}";
   const prevSchoolId    = "{{ request.form.get('school_id', '') }}";
 
+  
   // prevent accidental submit with Enter
   form.addEventListener('keydown', (e) => { if (e.key === 'Enter') e.preventDefault(); });
 
@@ -250,7 +262,8 @@
       'funder_ytd_vs_target',
       'ly_funder_vs_ly_national_vs_target',
       'provider_ytd_vs_target_vs_funder',
-      'funder_missing_data'
+      'funder_missing_data',
+      'funder_student_count'
     ].includes(val);
   }
 
@@ -467,14 +480,16 @@
   toggleEntityBlocks();
 })();
 </script>
-
 <script>
-/* ===================== AJAX submit + show/hide export via 'display' ===================== */
+/* ===================== AJAX submit + export controls ===================== */
 (function () {
   const form      = document.getElementById('report-form');
   const reportImg = document.getElementById('report-img');
   const msg       = document.getElementById('chart-message');
   const btns      = document.getElementById('exportButtons');
+  const pngBtn    = document.getElementById('exportPngBtn');
+
+  if (!form) return;
 
   form.addEventListener('submit', async function (e) {
     const submitter = e.submitter;
@@ -483,28 +498,32 @@
 
     e.preventDefault();
 
-     const funderSel       = document.getElementById('selected_funder');
-  const funderNameInput = document.getElementById('funder_name');
-  const providerSel     = document.getElementById('provider_id');
-  const providerNameInp = document.getElementById('provider_name');
-  const schoolSel       = document.getElementById('school_id');
-  const schoolNameInp   = document.getElementById('school_name');
+    /* -----------------------------
+       Sync visible labels → hidden name fields
+    ----------------------------- */
+    const funderSel       = document.getElementById('selected_funder');
+    const funderNameInput = document.getElementById('funder_name');
+    const providerSel     = document.getElementById('provider_id');
+    const providerNameInp = document.getElementById('provider_name');
+    const schoolSel       = document.getElementById('school_id');
+    const schoolNameInp   = document.getElementById('school_name');
 
-  if (funderSel && funderNameInput && funderSel.selectedIndex >= 0) {
-    funderNameInput.value =
-      funderSel.options[funderSel.selectedIndex]?.textContent?.trim() || '';
-  }
-  if (providerSel && providerNameInp && providerSel.selectedIndex >= 0) {
-    providerNameInp.value =
-      providerSel.options[providerSel.selectedIndex]?.textContent?.trim() || '';
-  }
-  if (schoolSel && schoolNameInp && schoolSel.selectedIndex >= 0) {
-    schoolNameInp.value =
-      schoolSel.options[schoolSel.selectedIndex]?.textContent?.trim() || '';
-  }
+    if (funderSel && funderNameInput && funderSel.selectedIndex >= 0) {
+      funderNameInput.value =
+        funderSel.options[funderSel.selectedIndex]?.textContent?.trim() || '';
+    }
+    if (providerSel && providerNameInp && providerSel.selectedIndex >= 0) {
+      providerNameInp.value =
+        providerSel.options[providerSel.selectedIndex]?.textContent?.trim() || '';
+    }
+    if (schoolSel && schoolNameInp && schoolSel.selectedIndex >= 0) {
+      schoolNameInp.value =
+        schoolSel.options[schoolSel.selectedIndex]?.textContent?.trim() || '';
+    }
 
-  
-    // Loading state
+    /* -----------------------------
+       Loading state
+    ----------------------------- */
     if (msg) {
       msg.textContent = 'Loading report, please wait…';
       msg.style.display = 'block';
@@ -517,21 +536,33 @@
       btns.classList.remove('d-flex');
       btns.classList.add('d-none');
     }
+    if (pngBtn) {
+      pngBtn.classList.add('d-none');
+    }
 
     try {
       const fd = new FormData(form);
       if (submitter && submitter.name) fd.set(submitter.name, submitter.value);
       fd.set('ajax', '1');
 
-      const res  = await fetch(form.getAttribute('action'), {
+      const res = await fetch(form.getAttribute('action'), {
         method: 'POST',
         body: fd,
         credentials: 'same-origin',
-        headers: { 'X-Requested-With': 'fetch', 'Accept': 'application/json' }
+        headers: {
+          'X-Requested-With': 'fetch',
+          'Accept': 'application/json'
+        }
       });
-      const data = await res.json();
-      if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
 
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || `HTTP ${res.status}`);
+      }
+
+      /* -----------------------------
+         Render image
+      ----------------------------- */
       if (data.plot_png_b64) {
         reportImg.src = 'data:image/png;base64,' + data.plot_png_b64;
         reportImg.classList.remove('d-none');
@@ -541,7 +572,9 @@
         if (msg) msg.textContent = data.error || 'No chart to display.';
       }
 
-      // Toggle export buttons
+      /* -----------------------------
+         Export buttons
+      ----------------------------- */
       if (btns) {
         if (data.display) {
           btns.classList.remove('d-none');
@@ -552,11 +585,22 @@
         }
       }
 
-      // Header HTML refresh
+      if (pngBtn) {
+        if (data.allow_png) {
+          pngBtn.classList.remove('d-none');
+        } else {
+          pngBtn.classList.add('d-none');
+        }
+      }
+
+      /* -----------------------------
+         Header refresh
+      ----------------------------- */
       if (data.header_html) {
         const headerLeft = document.getElementById('report-header-left');
         if (headerLeft) headerLeft.innerHTML = data.header_html;
       }
+
     } catch (err) {
       console.error(err);
       if (msg) msg.textContent = 'Sorry — there was a problem loading the report.';
@@ -564,9 +608,13 @@
         btns.classList.remove('d-flex');
         btns.classList.add('d-none');
       }
+      if (pngBtn) {
+        pngBtn.classList.add('d-none');
+      }
     }
   });
 })();
 </script>
+
 
 {% endblock %}

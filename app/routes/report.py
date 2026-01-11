@@ -191,6 +191,27 @@ def _get_form_defaults():
         report_type = None
 
     return year, term, report_type
+def _persist_preview_for_existing_report(
+    *,
+    report_id: str,
+    fig,
+    selected_term: int,
+    selected_year: int,
+    selected_funder_name: str | None,
+):
+    png_path = REPORT_DIR / f"{report_id}.png"
+    fig.savefig(png_path, format="png", dpi=200)
+    plt.close(fig)
+
+    # ✅ requested filename pattern
+    funder_chunk = slugify_filename(selected_funder_name or "Funder")
+    base_label = f"Funder_Student_Count_{funder_chunk}"
+
+    session["report_id"] = report_id
+    session["report_png_filename"] = f"{base_label}.png"
+    session["report_pdf_filename"] = f"{base_label}.pdf"
+
+    return base64.b64encode(png_path.read_bytes()).decode("ascii")
 
 
 def _get_sticky_ids():
@@ -303,6 +324,7 @@ def _validate_required_entities(
         "ly_funder_vs_ly_national_vs_target",
         "provider_ytd_vs_target_vs_funder",
         "funder_missing_data",
+        "funder_student_count",
     }
 
     if needs_funder and not funder_id:
@@ -667,7 +689,30 @@ def _execute_report(
         res = conn.execute(sql, params)
         results = res.mappings().all()
         current_app.logger.info("🔎 rows=%d | type=%s", len(results or []), selected_type)
+    elif selected_type == "funder_student_count":
+        from app.utils.funder_student_counts import build_funder_student_counts_pdf
+        try:
+            use_ppmori("app/static/fonts")
+        except Exception as font_e:
+            current_app.logger.info("⚠️ font setup skipped: %s", font_e)
+        report_id = session.get("report_id") or uuid.uuid4().hex
+        session["report_id"] = report_id  # <-- important
 
+        pdf_path = REPORT_DIR / f"{report_id}.pdf"
+        footer_png = Path(current_app.static_folder) / "footer.png"
+
+        preview_fig, meta = build_funder_student_counts_pdf(
+            conn=conn,
+            funder_id=funder_id,
+            term = selected_term,
+            year = selected_year,
+            out_pdf_path=pdf_path,
+            footer_png=footer_png,
+        )
+
+        results = None
+        fig = preview_fig
+        
     else:
         results = None
 
@@ -879,7 +924,8 @@ def _build_figure_from_results(
             subject_name=school_name,
             title=f"{school_name or 'School'} YTD vs WSNZ Target",
         )
-        
+    elif selected_type == "funder_student_count":
+        return None, None
 
     # Default: use three-bar landscape report logic
     else:
@@ -1204,18 +1250,31 @@ def new_reports():
                     if extra_banner:
                         no_data_banner = extra_banner
 
-                if fig is not None:
-                    plot_png_b64 = _persist_figure_and_session(
-                        fig,
-                        selected_type,
-                        selected_term,
-                        selected_year,
-                        selected_funder_name,
-                        selected_provider_id,
-                        selected_school_id,
-                        results,
-                    )
-                    display = True
+                if selected_type == "funder_student_count":
+                    if fig is not None:
+                        plot_png_b64 = _persist_preview_for_existing_report(
+                            report_id=session["report_id"],
+                            fig=fig,
+                            selected_term=selected_term,
+                            selected_year=selected_year,
+                            selected_funder_name=selected_funder_name,
+                        )
+                        display = True
+
+                else:
+                    # Existing behaviour for all other report types
+                    if fig is not None:
+                        plot_png_b64 = _persist_figure_and_session(
+                            fig,
+                            selected_type,
+                            selected_term,
+                            selected_year,
+                            selected_funder_name,
+                            selected_provider_id,
+                            selected_school_id,
+                            results,
+                        )
+                        display = True
 
                 # ===== AJAX response (no full reload) =====
                 if is_ajax:
@@ -1237,16 +1296,19 @@ def new_reports():
                         left_bits.append(f"Provider ID {provider_id}")
 
                     header_html = " • ".join(left_bits)
+                    allow_png = bool(display) and (selected_type != "funder_student_count")
 
                     return jsonify(
                         {
                             "ok": True,
                             "plot_png_b64": plot_png_b64,
                             "header_html": header_html,
-                            "display": True,
+                            "display": bool(display),
+                            "allow_png": bool(allow_png),
                             "notice": no_data_banner,
                         }
                     )
+
 
         except Exception as e:
             # one clean traceback in logs (no print spam)
