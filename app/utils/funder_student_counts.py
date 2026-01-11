@@ -197,7 +197,7 @@ def build_funder_student_counts_pdf(
         poly = rounded_rect_polygon(
             cx=0.5,
             cy=0.955,
-            width=0.88,
+            width=0.9,
             height=0.05,
             ratio=0.45,
             corners_round=[1, 3],
@@ -237,7 +237,7 @@ def build_funder_student_counts_pdf(
         draw_dataframe_table_v2(
             ax,
             df=df_page,
-            x=0.055,
+            x=0.05,
             y=0.12,
             width=0.9,
             height=0.8,
