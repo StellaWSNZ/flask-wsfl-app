@@ -204,7 +204,7 @@ def funder_dashboard():
                     "CalendarYear": None,
                     "Term": None,
                     "Email": session.get("user_email") or "unknown@example.com",
-                    "t": 0.6,
+                    "t": 0.25,
                 }
             )
             try:
