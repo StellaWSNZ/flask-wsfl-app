@@ -171,7 +171,7 @@ def funder_dashboard():
                 title="Overview",
                 has_groups=has_groups
             )
-
+        summary_string = None
         # ---------- Choose procs by entity_type ----------
         if entity_type == "Provider" or user_role == "PRO":
             proc_summary   = "FlaskGetSchoolSummaryByProvider"
