@@ -193,7 +193,7 @@ def staff_maintenance():
             funder_id=funder_id,
             current_year = session.get("nearest_year"),
         current_term = session.get("nearest_term"),
-        term = get_terms(),
+        terms = get_terms(),
         years = get_years()
         )
 
