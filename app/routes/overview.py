@@ -232,8 +232,26 @@ def funder_dashboard():
             "EditedClasses":"Classes Edited",
             "TotalStudents":"Total Students"
         })
+        if user_role in ["FUN"] or entity_type=="Funder":
+            subject = f"{entity_desc} is" if user_role in ["ADM","FUN"] else "You are"
+            with engine.begin() as conn:
+                row = conn.execute(
+                    text("""
+                        EXEC dbo.FunderCumulativeMax_AllMonths
+                            @FunderID     = :funder_id,
+                            @CalendarYear = :calendar_year,
+                            @Term         = :term
+                    """),
+                    {
+                        "funder_id": selected_entity_id,
+                        "calendar_year": selected_year,
+                        "term": selected_term,
+                    },
+                ).mappings().first()
 
-        subject = f"{entity_desc} is" if user_role in ["ADM","FUN"] else "You are"
+            total_students = int(row["MaxFunderCumulativeCount"] or 0) if row else 0
+            total_schools  = int(row["TotalSchools"] or 0) if row else 0
+
         summary_string = (
             f"{subject} delivering to <strong>{total_students:,}</strong> students across "
             f"<strong>{total_schools}</strong> school{'s' if total_schools != 1 else ''} "
