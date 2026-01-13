@@ -252,11 +252,11 @@ def funder_dashboard():
             total_students = int(row["MaxFunderCumulativeCount"] or 0) if row else 0
             total_schools  = int(row["TotalSchools"] or 0) if row else 0
 
-        summary_string = (
-            f"{subject} delivering to <strong>{total_students:,}</strong> students across "
-            f"<strong>{total_schools}</strong> school{'s' if total_schools != 1 else ''} "
-            f"in <strong>Term {selected_term}</strong>, <strong>{selected_year}</strong>."
-        )
+            summary_string = (
+                f"{subject} delivering to <strong>{total_students:,}</strong> students across "
+                f"<strong>{total_schools}</strong> school{'s' if total_schools != 1 else ''} "
+                f"in <strong>Term {selected_term}</strong>, <strong>{selected_year}</strong>."
+            )
         ethnicity_table = None
         
         if entity_type == "Funder":
