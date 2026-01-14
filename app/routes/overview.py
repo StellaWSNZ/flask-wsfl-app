@@ -360,34 +360,38 @@ def funder_dashboard():
             summary_string = None
             if user_role in ["FUN"] or entity_type == "Funder":
                 subject = f"{entity_desc} is" if user_role in ["ADM", "FUN"] else "You are"
-
+                print(selected_year)
+                print(selected_term)
+                print(selected_entity_id)
                 row = None
                 with engine.begin() as conn:
-                    with _timed("FunderCumulativeMax_AllMonths"):
-                        row = (
+                    with _timed("MonthlyStudentCounts"):
+                        result = (
                             conn.execute(
                                 text("""
-                                    EXEC dbo.FunderCumulativeMax_AllMonths
+                                    EXEC MonthlyStudentCounts
                                         @FunderID     = :funder_id,
                                         @CalendarYear = :calendar_year,
                                         @Term         = :term
-                                    WITH RECOMPILE
                                 """),
                                 {"funder_id": selected_entity_id, "calendar_year": selected_year, "term": selected_term},
                             )
                             .mappings()
-                            .first()
+                            
                         )
+                        rows = result.all()
+                
+                last_row = rows[-1] if rows else None
 
-                total_students = int(row["MaxFunderCumulativeCount"] or 0) if row else 0
-                total_schools = int(row["TotalSchools"] or 0) if row else 0
+                total_students = int(last_row["FunderCumulativeCount"] or 0) if last_row else 0
+                total_schools  = int(last_row.get("FunderTotalSchoolCount", 0) or 0) if last_row else 0
 
                 summary_string = (
                     f"{subject} delivering to <strong>{total_students:,}</strong> students across "
                     f"<strong>{total_schools}</strong> school{'s' if total_schools != 1 else ''} "
                     f"in <strong>Term {selected_term}</strong>, <strong>{selected_year}</strong>."
                 )
-            summary_string = None
+            
             # ==========================================================
             # Ethnicity breakdown (funder only)
             # ==========================================================
