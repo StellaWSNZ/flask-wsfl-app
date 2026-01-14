@@ -1249,9 +1249,11 @@ def new_reports():
                     )
                     if extra_banner:
                         no_data_banner = extra_banner
-
+                
                 if selected_type == "funder_student_count":
                     if fig is not None:
+                        print("")
+                        """
                         plot_png_b64 = _persist_preview_for_existing_report(
                             report_id=session["report_id"],
                             fig=fig,
@@ -1260,7 +1262,7 @@ def new_reports():
                             selected_funder_name=selected_funder_name,
                         )
                         display = True
-
+                """
                 else:
                     # Existing behaviour for all other report types
                     if fig is not None:
