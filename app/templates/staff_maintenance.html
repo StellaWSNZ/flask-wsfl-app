@@ -682,36 +682,50 @@
     // POST insert to SchoolFunder
     const msForm = document.getElementById('missingSchoolForm');
     msForm?.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const MoeNumber  = document.getElementById('ms_school').value;
-      const Term       = document.getElementById('ms_term').value;
-      const Year       = document.getElementById('ms_year').value;
-      const FunderID   = document.getElementById('ms_funderid').value;
-      const ProviderID = document.getElementById('ms_provider') ? document.getElementById('ms_provider').value : null;
+  e.preventDefault();
+  clearModalAlert();
 
-      fetch('/add_school_to_funder', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          MoeNumber: Number(MoeNumber),
-          Term: Number(Term),
-          CalendarYear: Number(Year),
-          FunderID: Number(FunderID),
-          ProviderID: ProviderID ? Number(ProviderID) : null
-        })
-      })
-      .then(r => r.json())
-      .then(resp => {
-        if (resp.ok) {
-          const bsModal = bootstrap.Modal.getInstance(document.getElementById('missingSchoolModal'));
-          bsModal?.hide();
-          alert("School added to funder successfully.");
-        } else {
-          alert(resp.error || "Insert failed.");
-        }
-      })
-      .catch(() => alert("Insert failed."));
-    });
+  const MoeNumber  = document.getElementById('ms_school').value;
+  const Term       = document.getElementById('ms_term').value;
+  const Year       = document.getElementById('ms_year').value;
+  const FunderID   = document.getElementById('ms_funderid').value;
+  const ProviderID = document.getElementById('ms_provider') ? document.getElementById('ms_provider').value : null;
+
+  fetch('/add_school_to_funder', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      MoeNumber: Number(MoeNumber),
+      Term: Number(Term),
+      CalendarYear: Number(Year),
+      FunderID: Number(FunderID),
+      ProviderID: ProviderID ? Number(ProviderID) : null
+    })
+  })
+  .then(r => r.json())
+  .then(resp => {
+    if (resp.ok) {
+      showModalAlert('success', 'School added to funder successfully.');
+
+      // Optional: refresh the page (or re-fetch the dropdowns) after a short pause
+       setTimeout(() => {
+    const modalEl = document.getElementById('missingSchoolModal');
+    const bsModal = bootstrap.Modal.getInstance(modalEl);
+    bsModal?.hide();
+
+    // reload a few seconds after closing
+    setTimeout(() => {
+      window.location.reload();
+    }, 0); // <- reload delay (2.5s) after modal closes
+
+  }, 2500); // <- delay before closing modal (0.9s)
+
+    } else {
+      showModalAlert('danger', resp.error || 'Insert failed.');
+    }
+  })
+  .catch(() => showModalAlert('danger', 'Insert failed.'));
+});
 
   });
 </script>
