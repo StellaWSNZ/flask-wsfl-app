@@ -387,7 +387,7 @@ def funder_dashboard():
                     f"<strong>{total_schools}</strong> school{'s' if total_schools != 1 else ''} "
                     f"in <strong>Term {selected_term}</strong>, <strong>{selected_year}</strong>."
                 )
-
+            summary_string = None
             # ==========================================================
             # Ethnicity breakdown (funder only)
             # ==========================================================
