@@ -40,7 +40,7 @@ load_dotenv()
 # =========================
 # Config
 # =========================
-DEBUG = True
+DEBUG = False
 DEBUG_WRITE_DB = False  # keep False unless you explicitly want DB writes during debug
 debug_email = "stellajanemcgann@gmail.com"
 
@@ -341,7 +341,7 @@ def run_batch():
     engine = get_engine()
 
     q = """
-    SELECT
+    SELECT DISTINCT
         t.firstname,
         t.surname,
         t.[Contact email] AS ContactEmail,

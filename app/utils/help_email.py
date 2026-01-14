@@ -36,7 +36,7 @@ load_dotenv()
 # =========================
 # Config
 # =========================
-DEBUG = True
+DEBUG = False
 debug_email = "stella@watersafety.org.nz"
 
 EMAIL_SUBJECT = "Water Skills for Life – Getting help in the web app"
@@ -203,7 +203,7 @@ def run_batch():
     # Pull recipients from FlaskLogin.
     # NOTE: You currently have TOP(1) in your query — remove it for full sending.
     q = """
-    SELECT TOP(1)
+    SELECT 
         Email,
         FirstName,
         Role,

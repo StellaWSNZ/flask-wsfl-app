@@ -92,8 +92,8 @@ def _make_counts_df(
         conn,
         params={
             "funder_id": funder_id,
-            "term": term,
-            "year": year,
+            "term": None,
+            "year": None,
         },
     )
     if df.empty:
