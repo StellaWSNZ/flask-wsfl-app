@@ -10,8 +10,6 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 
 Align = Literal["left", "center", "right"]
-
-
 def draw_dataframe_table(
     ax: plt.Axes,
     *,
@@ -281,7 +279,6 @@ def draw_dataframe_table(
     print(f"✅ Successfully saved renedered table")
 
 
-
 def draw_dataframe_table_v2(
     ax: plt.Axes,
     *,
@@ -349,6 +346,7 @@ def draw_dataframe_table_v2(
 
     # debug
     DEBUG: bool = False,
+    shift: bool = False,
 ) -> None:
     """
     V2 adds:
@@ -409,28 +407,50 @@ def draw_dataframe_table_v2(
     for c in columns:
         col_x.append(col_x[-1] + width * c["width_frac"])
 
+    # safe first-column bounds (only if we actually have a first column)
+    first_col_left  = col_x[0]
+    first_col_right = col_x[1] if len(col_x) >= 2 else x
+    for c in columns:
+        col_x.append(col_x[-1] + width * c["width_frac"])
+
     # ----- Helpers -----
     def _axes_width_to_pixels(w_axes: float) -> float:
         x0 = ax.transAxes.transform((0, 0))[0]
         x1 = ax.transAxes.transform((w_axes, 0))[0]
         return max(1.0, x1 - x0)
 
-    def _wrap_text_to_width(s: str, col_w_axes: float, fontsize: float) -> str:
+    def _wrap_text_to_width(s: str, col_w_axes: float, fontsize_pt: float) -> str:
         if not wrap or not s:
             return s
+
+        dpi = float(ax.figure.dpi or 100.0)
+        fontsize_px = fontsize_pt * dpi / 72.0  # ✅ points -> pixels
+
         pad_px = _axes_width_to_pixels(pad_x_frac * width)
         avail_px = _axes_width_to_pixels(col_w_axes) - 2 * pad_px
-        if avail_px <= 1:
+        if avail_px <= 5:
             return s
-        avg_char_px = max(0.1, 0.55 * fontsize)
+
+        avg_char_px = max(1.0, 0.58 * fontsize_px)
         max_chars = max(1, int(avail_px / avg_char_px))
-        wrapped = textwrap.fill(str(s), width=max_chars)
+
+        wrapper = textwrap.TextWrapper(
+            width=max_chars,
+            break_long_words=True,
+            break_on_hyphens=True,
+            replace_whitespace=False,
+            drop_whitespace=False,
+        )
+
+        wrapped = wrapper.fill(str(s))
+
         if max_wrap_lines and max_wrap_lines > 0:
             lines = wrapped.splitlines()
             if len(lines) > max_wrap_lines:
                 kept = lines[:max_wrap_lines]
                 kept[-1] = kept[-1].rstrip() + "…"
                 return "\n".join(kept)
+
         return wrapped
 
     def _ha(align: Align) -> str:
@@ -508,9 +528,32 @@ def draw_dataframe_table_v2(
                 face, text = override
 
         # row background across full width
-        ax.add_patch(Rectangle((x, row_y0), width, row_h,
-                               facecolor=face, edgecolor="none",
-                               transform=trans, zorder=4_800))
+        # row background
+        if row_alt_facecolor and (r % 2 == 0):
+            zebra_face = row_alt_facecolor
+        else:
+            zebra_face = base_row_facecolor
+
+        # apply conditional override to the "row face" (but we'll still respect shift logic)
+        row_face = zebra_face
+        if row_color_fn is not None:
+            override = row_color_fn(df.iloc[r], r)
+            if override:
+                row_face, text = override  # row_face is the override background
+
+        if (not shift) and len(col_x) >= 2:
+            # ✅ first column stays base; zebra/override only on the rest
+            ax.add_patch(Rectangle((first_col_left, row_y0), first_col_right - first_col_left, row_h,
+                                facecolor=base_row_facecolor, edgecolor="none",
+                                transform=trans, zorder=4_800))
+            ax.add_patch(Rectangle((first_col_right, row_y0), (x + width) - first_col_right, row_h,
+                                facecolor=row_face, edgecolor="none",
+                                transform=trans, zorder=4_800))
+        else:
+            # normal behaviour (whole row gets zebra/override)
+            ax.add_patch(Rectangle((x, row_y0), width, row_h,
+                                facecolor=row_face, edgecolor="none",
+                                transform=trans, zorder=4_800))
 
         # horizontal grid (skip through merged first column interior lines)
         if show_grid and r < n_rows - 1:
@@ -547,13 +590,15 @@ def draw_dataframe_table_v2(
                 ge_y0 = y + body_h - (ge + 1) * row_h
                 merged_y0 = ge_y0
                 merged_h = (gs_y0 + row_h) - ge_y0
-                merged_yc = merged_y0 + 0.5 * (merged_h) + (row_h*0.5)
-
+                if(shift):
+                    merged_yc = merged_y0 + 0.5 * (merged_h) + (row_h*0.5)
+                else:
+                    merged_yc = merged_y0 + 0.5 * (merged_h) 
                 v = df.iloc[gs][key]
                 s = "" if pd.isna(v) else str(v)
 
                 col_w_axes = (right - left)
-                s_wrapped = _wrap_text_to_width(s, col_w_axes=col_w_axes, fontsize=body_fontsize)
+                s_wrapped = _wrap_text_to_width(s, col_w_axes=col_w_axes, fontsize_pt=body_fontsize)
                 
                 ax.text(
                     _x_text(left, right, align=merge_text_align),
@@ -577,7 +622,7 @@ def draw_dataframe_table_v2(
             col_w_axes = (right - left)
             cache_key = (i, r)
             if cache_key not in wrapped_cache:
-                wrapped_cache[cache_key] = _wrap_text_to_width(s, col_w_axes=col_w_axes, fontsize=body_fontsize)
+                wrapped_cache[cache_key] = _wrap_text_to_width(s, col_w_axes=col_w_axes, fontsize_pt=body_fontsize)
             s_wrapped = wrapped_cache[cache_key]
 
             ax.text(

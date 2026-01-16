@@ -101,7 +101,7 @@ def _make_counts_df(
 
     funder_name = str(df["FunderName"].unique()[0])
 
-    df = df[df["ProviderCumulativeCount"] != 0][
+    df = df[
         [
             "MonthLabel",
             "Month",
@@ -110,12 +110,16 @@ def _make_counts_df(
             "ProviderCumulativeCount",
         ]
     ].copy()
-
+    df["ProviderCumulativeCount"] = (
+        pd.to_numeric(df["ProviderCumulativeCount"], errors="coerce")
+        .round(0)
+        .astype("Int64")   # pandas nullable int
+    )
     totals = (
         df[["MonthLabel", "Month", "FunderCumulativeCount"]]
         .drop_duplicates()
         .assign(
-            ProviderName="Total",
+            ProviderName="Funder Cumulative Total",
             ProviderCumulativeCount=lambda d: d["FunderCumulativeCount"],
             IsTotal=True,
         )
@@ -185,7 +189,7 @@ def build_funder_student_counts_pdf(
     )
 
     def row_highlight(row: pd.Series, r: int) -> Optional[Tuple[str, str]]:
-        if row.get("ProviderName") == "Total":
+        if row.get("ProviderName") == "Funder Cumulative Total":
             return "#1a427d", "#eeeeee"
         return None
 
@@ -247,7 +251,7 @@ def build_funder_student_counts_pdf(
                 {"key": "ProviderName", "label": "Provider", "width_frac": 0.34, "align": "left"},
                 {
                     "key": "ProviderCumulativeCount",
-                    "label": "Cumulative Count",
+                    "label": "Unique Student Count",
                     "width_frac": 0.34,
                     "align": "right",
                 },
@@ -256,6 +260,7 @@ def build_funder_student_counts_pdf(
             row_color_fn=row_highlight,
             merge_first_col=True,
             merge_key="Month",
+            shift = True,
         )
 
         save_page(
