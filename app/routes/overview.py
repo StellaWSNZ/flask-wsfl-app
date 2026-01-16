@@ -1,3 +1,4 @@
+import traceback
 from flask import Blueprint, current_app, render_template, request, session, redirect, jsonify, abort, url_for
 from sqlalchemy import text
 from app.routes.auth import login_required
@@ -963,17 +964,9 @@ def _parse_json_maybe(val):
         current_app.logger.warning("JSON parse failed: %r", s, exc_info=True)
         return []
 
-
 @overview_bp.route("/Schools", methods=["GET", "POST"])
 @login_required
 def funder_schools():
-    """
-    School Overview for funders/admins.
-    - Loads schools for the selected funder
-    - Builds per-school aggregates
-    - Picks a default (year, term) if none supplied
-    - Computes SelectedClasses per row for the chosen (year, term)
-    """
     user_role = session.get("user_role")
     if user_role not in ("ADM", "FUN"):
         flash("Unauthorized", "danger")
@@ -982,17 +975,12 @@ def funder_schools():
     engine  = get_db_engine()
     user_id = session.get("user_id")
 
-    funders = []
-    selected_funder = None
-    rows = []
+    # ✅ safe session parsing (can be None)
+    sel_term_raw = (session.get("nearest_term") or "")
+    sel_year_raw = (session.get("nearest_year") or "")
+    sel_term = int(sel_term_raw) if str(sel_term_raw).isdigit() else None
+    sel_year = int(sel_year_raw) if str(sel_year_raw).isdigit() else None
 
-    # --- 1) Pull selected filters from GET or POST; blank = choose latest below
-    sel_term_raw =session.get("nearest_term")
-    sel_year_raw = session.get("nearest_year")
-    sel_term = int(sel_term_raw) if sel_term_raw.isdigit() else None
-    sel_year = int(sel_year_raw) if sel_year_raw.isdigit() else None
-
-    # Helper: safe JSON parser handling None/bytes
     def parse_list(val):
         try:
             import json as _json
@@ -1004,9 +992,12 @@ def funder_schools():
         except Exception:
             return []
 
+    funders = []
+    selected_funder = None
+    rows = []
+
     try:
         with engine.connect() as conn:
-            # --- 2) Resolve selected funder
             if user_role == "ADM":
                 funders = conn.execute(
                     text("EXEC FlaskHelperFunctions @Request = :r"),
@@ -1019,11 +1010,9 @@ def funder_schools():
                 elif funders:
                     selected_funder = int(funders[0]["FunderID"])
             else:
-                # FUN role uses their own ID
                 selected_funder = int(user_id) if user_id is not None else None
 
             if selected_funder is None:
-                # Nothing to show if no funder can be resolved
                 return render_template(
                     "funder_schools.html",
                     rows=[],
@@ -1034,20 +1023,16 @@ def funder_schools():
                     selected_term=sel_term,
                 )
 
-            # --- 3) Fetch data
             raw = conn.execute(
                 text("EXEC FlaskHelperFunctions @Request = :r, @Number = :fid"),
                 {"r": "FunderSchoolOverview", "fid": selected_funder}
             ).mappings().all()
 
-            # --- 4) Build pre_rows + collect all (year, term) pairs to pick defaults
             all_year_terms = set()
             pre_rows = []
 
             for r in raw:
                 class_counts = parse_list(r.get("ClassCountsJson"))
-
-                # collect all available (year, term) pairs
                 for c in class_counts:
                     y = c.get("CalendarYear")
                     t = c.get("Term")
@@ -1065,18 +1050,11 @@ def funder_schools():
                     "ClassCounts":      class_counts,
                 })
 
-            # --- 5) If no explicit selection, choose latest available (max year, then max term)
             if (sel_year is None or sel_term is None) and all_year_terms:
-                latest_y, latest_t = sorted(
-                    all_year_terms, key=lambda p: (p[0], p[1]), reverse=True
-                )[0]
-                if sel_year is None:
-                    sel_year = latest_y
-                if sel_term is None:
-                    sel_term = latest_t
+                latest_y, latest_t = sorted(all_year_terms, key=lambda p: (p[0], p[1]), reverse=True)[0]
+                sel_year = latest_y if sel_year is None else sel_year
+                sel_term = latest_t if sel_term is None else sel_term
 
-            # --- 6) Compute SelectedClasses for each row for chosen (sel_year, sel_term)
-            # If no (year,term) was resolvable, this stays 0 and the UI will show "all time" badge.
             rows = []
             for r in pre_rows:
                 selected_count = 0
@@ -1090,29 +1068,30 @@ def funder_schools():
                 r["SelectedClasses"] = selected_count
                 rows.append(r)
 
+        return render_template(
+            "funder_schools.html",
+            rows=rows,
+            funders=funders,
+            selected_funder=selected_funder,
+            is_admin=(user_role == "ADM"),
+            selected_year=sel_year,
+            selected_term=sel_term,
+        )
+
     except Exception:
         err_id = uuid.uuid4().hex[:8]
-        current_app.logger.exeption(f"[FunderSchools ERROR")
+        current_app.logger.exception(f"[FunderSchools ERROR] err_id={err_id}")
+
         try:
-            log_alert(
+            log_alert(  # or log_alerts — make sure the name matches your real function
                 email=session.get("user_email"),
                 role=session.get("user_role"),
-                entity_id=None,
+                entity_id=selected_funder,
                 link=request.url,
-                message=f"FunderSchools ERROR {err_id}"
+                message=f"FunderSchools ERROR {err_id}\n\n{traceback.format_exc()}",
             )
         except Exception:
-            pass
+            current_app.logger.exception(f"[FunderSchools ALERT FAILED] err_id={err_id}")
+
         flash(f"Unexpected error (ID {err_id}). Please try again.", "danger")
         return redirect(url_for("home_bp.home"))
-
-    # --- 7) Render
-    return render_template(
-        "funder_schools.html",
-        rows=rows,
-        funders=funders,
-        selected_funder=selected_funder,
-        is_admin=(user_role == "ADM"),
-        selected_year=sel_year,
-        selected_term=sel_term,
-    )
