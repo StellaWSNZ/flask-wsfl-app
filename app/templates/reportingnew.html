@@ -48,7 +48,10 @@
                     {% if selected_type == "national_ytd_vs_target"  %}selected{% endif %}>
                     National YTD vs WSNZ Target
                   </option>
-                  
+                  <option value="funder_progress_summary"
+                    {% if selected_type == "funder_progress_summary"  %}selected{% endif %}>
+                    Funder Summary
+                  </option>
                 {% endif %}
                 {% if role in ["ADM","FUN"] %}
                 
@@ -80,6 +83,7 @@
                     {% if selected_type == "funder_student_count"  %}selected{% endif %}>
                     Funder Student Counts
                   </option>
+                  
                 {% elif role == "PRO" %}
                   <option value="provider_ytd_vs_target"
                     {% if selected_type == "provider_ytd_vs_target"  %}selected{% endif %}>
@@ -202,7 +206,7 @@
                 <a class="btn btn-sm btn-outline-primary" href="{{ url_for('report_bp.download_pdf') }}">Export PDF</a>
 
                 <a id="exportPngBtn"
-                  class="btn btn-sm btn-outline-primary {{ 'd-none' if selected_type == 'funder_student_count' else '' }}"
+                  class="btn btn-sm btn-outline-primary {{ 'd-none' if selected_type == 'funder_student_count' or selected_type == 'funder_progress_summary'else '' }}"
                   href="{{ url_for('report_bp.download_png') }}">
                   Export PNG
                 </a>
@@ -263,7 +267,8 @@
       'ly_funder_vs_ly_national_vs_target',
       'provider_ytd_vs_target_vs_funder',
       'funder_missing_data',
-      'funder_student_count'
+      'funder_student_count',
+      'funder_progress_summary'
     ].includes(val);
   }
 

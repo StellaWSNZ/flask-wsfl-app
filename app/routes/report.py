@@ -198,21 +198,20 @@ def _persist_preview_for_existing_report(
     selected_term: int,
     selected_year: int,
     selected_funder_name: str | None,
+    base_label_prefix: str,  # <-- NEW
 ):
     png_path = REPORT_DIR / f"{report_id}.png"
     fig.savefig(png_path, format="png", dpi=200)
     plt.close(fig)
 
-    # ✅ requested filename pattern
     funder_chunk = slugify_filename(selected_funder_name or "Funder")
-    base_label = f"Funder_Student_Count_{funder_chunk}"
+    base_label = f"{base_label_prefix}_{funder_chunk}"
 
     session["report_id"] = report_id
     session["report_png_filename"] = f"{base_label}.png"
     session["report_pdf_filename"] = f"{base_label}.pdf"
 
     return base64.b64encode(png_path.read_bytes()).decode("ascii")
-
 
 def _get_sticky_ids():
     """
@@ -325,6 +324,7 @@ def _validate_required_entities(
         "provider_ytd_vs_target_vs_funder",
         "funder_missing_data",
         "funder_student_count",
+        "funder_progress_summary",
     }
 
     if needs_funder and not funder_id:
@@ -712,7 +712,31 @@ def _execute_report(
 
         results = None
         fig = preview_fig
-        
+    elif selected_type == "funder_progress_summary":
+        from app.utils.funder_summary import build_funder_progress_summary_pdf
+
+        try:
+            use_ppmori("app/static/fonts")
+        except Exception as font_e:
+            current_app.logger.info("⚠️ font setup skipped: %s", font_e)
+
+        report_id = session.get("report_id") or uuid.uuid4().hex
+        session["report_id"] = report_id
+
+        pdf_path = REPORT_DIR / f"{report_id}.pdf"
+        footer_png = Path(current_app.static_folder) / "footer.png"
+
+        preview_fig, meta = build_funder_progress_summary_pdf(
+            conn=conn,
+            funder_id=funder_id,
+            from_year=selected_year,     # or fixed start year if you prefer
+            threshold=0.2,
+            out_pdf_path=pdf_path,
+            footer_png=None,
+        )
+
+        results = None
+        fig = preview_fig
     else:
         results = None
 
@@ -924,7 +948,7 @@ def _build_figure_from_results(
             subject_name=school_name,
             title=f"{school_name or 'School'} YTD vs WSNZ Target",
         )
-    elif selected_type == "funder_student_count":
+    elif selected_type in {"funder_student_count", "funder_progress_summary"}:
         return None, None
 
     # Default: use three-bar landscape report logic
@@ -1250,16 +1274,21 @@ def new_reports():
                     if extra_banner:
                         no_data_banner = extra_banner
                 
-                if selected_type == "funder_student_count":
+                if selected_type in {"funder_student_count", "funder_progress_summary"}:
                     if fig is not None:
-                        
-                        
+                        prefix = (
+                            "Funder_Student_Count"
+                            if selected_type == "funder_student_count"
+                            else "Funder_Progress_Summary"
+                        )
+
                         plot_png_b64 = _persist_preview_for_existing_report(
                             report_id=session["report_id"],
                             fig=fig,
                             selected_term=selected_term,
                             selected_year=selected_year,
                             selected_funder_name=selected_funder_name,
+                            base_label_prefix=prefix,
                         )
                         display = True
                 
@@ -1298,7 +1327,7 @@ def new_reports():
                         left_bits.append(f"Provider ID {provider_id}")
 
                     header_html = " • ".join(left_bits)
-                    allow_png = bool(display) and (selected_type != "funder_student_count")
+                    allow_png = bool(display) and ( selected_type not in {"funder_student_count", "funder_progress_summary"})
 
                     return jsonify(
                         {
