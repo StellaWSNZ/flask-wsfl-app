@@ -434,7 +434,7 @@ def build_funder_progress_summary_pdf(
                 )
             )
 
-            title = f"{funder_name} – {year} Term {term}"
+            title = f"{funder_name} - {year} Term {term}"
             if len(pages) > 1:
                 title = f"{title} (Page {term_page_idx} of {len(pages)})"
 
