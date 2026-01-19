@@ -59,18 +59,21 @@
                     {% if selected_type == "funder_ytd_vs_target"  %}selected{% endif %}>
                     YTD Funder Performance vs WSNZ Target
                   </option>
+                  {% if role in ["FUN"] %}
                   <option value="ly_funder_vs_ly_national_vs_target"
                     {% if selected_type == "ly_funder_vs_ly_national_vs_target" %}selected{% endif %}>
                     LY Funder Performance vs LY National vs WSNZ Target
-                  </option>
-                  <option value="provider_ytd_vs_target"
-                    {% if selected_type == "provider_ytd_vs_target" %}selected{% endif %}>
-                    Provider YTD Performance vs WSNZ Target
                   </option>
                   <option value="provider_ytd_vs_target_vs_funder"
                     {% if selected_type == "provider_ytd_vs_target_vs_funder" %}selected{% endif %}>
                     Provider YTD vs Funder YTD vs Target
                   </option>
+                  {% endif %}
+                  <option value="provider_ytd_vs_target"
+                    {% if selected_type == "provider_ytd_vs_target" %}selected{% endif %}>
+                    Provider YTD Performance vs WSNZ Target
+                  </option>
+                  
                   <option value="school_ytd_vs_target"
                     {% if selected_type == "school_ytd_vs_target" %}selected{% endif %}>
                     School YTD Performance vs WSNZ Target
