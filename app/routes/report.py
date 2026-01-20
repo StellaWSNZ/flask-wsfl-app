@@ -325,6 +325,7 @@ def _validate_required_entities(
         "funder_missing_data",
         "funder_student_count",
         "funder_progress_summary",
+        "funder_teacher_review_summary",
     }
 
     if needs_funder and not funder_id:
@@ -737,6 +738,34 @@ def _execute_report(
 
         results = None
         fig = preview_fig
+    elif selected_type == "funder_teacher_review_summary":
+        from app.utils.teacher_assessment import build_funder_teacher_assessment_summary_pdf
+
+        try:
+            use_ppmori("app/static/fonts")
+        except Exception as font_e:
+            current_app.logger.info("⚠️ font setup skipped: %s", font_e)
+
+        report_id = session.get("report_id") or uuid.uuid4().hex
+        session["report_id"] = report_id  # important
+
+        pdf_path = REPORT_DIR / f"{report_id}.pdf"
+        footer_png = Path(current_app.static_folder) / "footer.png"
+
+        preview_fig, meta = build_funder_teacher_assessment_summary_pdf(
+            conn=conn,
+            funder_id=funder_id,
+            out_pdf_path=pdf_path,
+            footer_png=None,
+            rows_per_page=30,
+            dpi=300,
+            page_size="A3",
+            orientation="portrait",
+            fonts_dir="app/static/fonts",
+        )
+
+        results = None
+        fig = preview_fig
     else:
         results = None
 
@@ -948,7 +977,7 @@ def _build_figure_from_results(
             subject_name=school_name,
             title=f"{school_name or 'School'} YTD vs WSNZ Target",
         )
-    elif selected_type in {"funder_student_count", "funder_progress_summary"}:
+    elif selected_type in {"funder_student_count", "funder_progress_summary","funder_teacher_review_summary"}:
         return None, None
 
     # Default: use three-bar landscape report logic
@@ -1274,12 +1303,14 @@ def new_reports():
                     if extra_banner:
                         no_data_banner = extra_banner
                 
-                if selected_type in {"funder_student_count", "funder_progress_summary"}:
+                if selected_type in {"funder_student_count", "funder_progress_summary", "funder_teacher_review_summary"}:
                     if fig is not None:
                         prefix = (
                             "Funder_Student_Count"
                             if selected_type == "funder_student_count"
                             else "Funder_Progress_Summary"
+                            if selected_type == "funder_progress_summary"
+                            else "Funder_Teacher_Reviews_Summary"
                         )
 
                         plot_png_b64 = _persist_preview_for_existing_report(
@@ -1327,8 +1358,9 @@ def new_reports():
                         left_bits.append(f"Provider ID {provider_id}")
 
                     header_html = " • ".join(left_bits)
-                    allow_png = bool(display) and ( selected_type not in {"funder_student_count", "funder_progress_summary"})
-
+                    allow_png = bool(display) and (
+                        selected_type not in {"funder_student_count", "funder_progress_summary", "funder_teacher_review_summary"}
+                    )
                     return jsonify(
                         {
                             "ok": True,

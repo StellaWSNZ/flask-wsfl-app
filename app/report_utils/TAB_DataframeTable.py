@@ -319,7 +319,6 @@ def draw_dataframe_table_v2(
     grid_linewidth: float = 0.6,
     border_color: str = "#1a427d",
     border_linewidth: float = 1.0,
-
     # cell padding (axes fractions of each cell)
     pad_x_frac: float = 0.01,
     pad_y_frac: float = 0.005,
@@ -347,6 +346,7 @@ def draw_dataframe_table_v2(
     # debug
     DEBUG: bool = False,
     shift: bool = False,
+    
 ) -> None:
     """
     V2 adds:

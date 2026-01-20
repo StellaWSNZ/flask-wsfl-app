@@ -52,6 +52,10 @@
                     {% if selected_type == "funder_progress_summary"  %}selected{% endif %}>
                     Funder Summary
                   </option>
+                  <option value="funder_teacher_review_summary"
+                    {% if selected_type == "funder_teacher_review_summary" %}selected{% endif %}>
+                    Teacher Assessment Summary (Kaiako-led)
+                  </option>
                 {% endif %}
                 {% if role in ["ADM","FUN"] %}
                 
@@ -271,7 +275,8 @@
       'provider_ytd_vs_target_vs_funder',
       'funder_missing_data',
       'funder_student_count',
-      'funder_progress_summary'
+      'funder_progress_summary',
+      'funder_teacher_review_summary',
     ].includes(val);
   }
 
