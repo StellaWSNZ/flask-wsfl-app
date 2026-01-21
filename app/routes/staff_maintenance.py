@@ -369,6 +369,7 @@ def update_staff():
         email      = request.form.get("email")
         old_email  = request.form.get("old_email")
         admin      = 1 if request.form.get("admin") == "1" else 0
+        alternate_email = (request.form.get("alternate_email") or "").strip() or None
 
         # call proc
         with get_db_engine().begin() as conn:
@@ -380,6 +381,7 @@ def update_staff():
                          @FirstName        = :firstname,
                          @LastName         = :lastname,
                          @Admin            = :admin,
+                         @AlternateEmail = :alt,
                          @PerformedByEmail = :performed_by
                 """),
                 {
@@ -388,6 +390,7 @@ def update_staff():
                     "firstname":   firstname,
                     "lastname":    lastname,
                     "admin":       admin,
+                    "alt": alternate_email,
                     "performed_by": session.get("user_email"),
                 }
             )

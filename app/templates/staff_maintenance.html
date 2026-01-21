@@ -350,6 +350,15 @@
                   <label for="email_{{ safe_id }}" class="form-label">Email</label>
                   <input type="email" class="form-control" id="email_{{ safe_id }}" name="email" value="{{ row.Email }}" required />
                 </div>
+                <div class="mb-3">
+                  <label for="alt_email_{{ safe_id }}" class="form-label">Alternate Email (optional)</label>
+                  <input type="email"
+                        class="form-control"
+                        id="alt_email_{{ safe_id }}"
+                        name="alternate_email"
+                        value="{{ row.AlternateEmail or '' }}"
+                        placeholder="e.g. personal Gmail">
+                </div>
                 {% if row.Active == 1 %}
                   <div class="form-check mb-3">
                     <input class="form-check-input" type="checkbox" id="admin_{{ safe_id }}" name="admin" value="1" {% if row.Admin == 1 %}checked{% endif %}>
