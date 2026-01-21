@@ -2,6 +2,7 @@ from flask import Blueprint, request, session, jsonify, current_app
 from app.routes.auth import login_required
 from sqlalchemy import text
 
+from app.routes.overview import get_funders_by_provider
 from app.utils.database import get_db_engine, log_alert
 
 api_bp = Blueprint("api_bp", __name__)
@@ -149,3 +150,20 @@ def ethnicities():
     with engine.begin() as conn:
         rows = conn.execute(text("EXEC FlaskHelperFunctions @Request='EthnicityDropdown'")).fetchall()
     return jsonify([{"id": r._mapping["EthnicityID"], "desc": r._mapping["Description"]} for r in rows])
+
+
+@api_bp.route("/provider_funders")
+@login_required
+def provider_funders_api():
+    if session.get("user_role") != "ADM":
+        return jsonify({"funders": []}), 403
+
+    provider_id = request.args.get("provider_id", "").strip()
+    if not provider_id.isdigit():
+        return jsonify({"funders": []})
+
+    engine = get_db_engine()
+    funders = get_funders_by_provider(engine, int(provider_id))  # returns [{id, Description}, ...]
+
+    # Always return list of dicts with id/Description
+    return jsonify({"funders": funders})
