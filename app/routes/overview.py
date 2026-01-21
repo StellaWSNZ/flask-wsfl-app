@@ -117,7 +117,6 @@ def get_funders_by_provider(engine, provider_id: int) -> list[dict]:
     df["Description"] = df["Description"].fillna("").astype(str).str.strip()
 
     out = df[["id", "Description"]].drop_duplicates().to_dict(orient="records")
-    print(out)
     return [x for x in out if x["id"] > 0 and x["Description"]]
 
 
@@ -150,10 +149,131 @@ def funder_dashboard():
         # (keep your MOE block untouched)
         # ----------------------------------------------------------
         if user_role == "MOE":
-            # ... keep your existing MOE code exactly as-is ...
-            pass
+            school_id = user_id
+            selected_year = int(request.form.get("year", session.get("nearest_year", 2024)))
+            selected_term = int(request.form.get("term", session.get("nearest_term", 1)))
 
-        has_groups = compute_has_groups(engine, user_role, user_id)
+            with engine.begin() as conn:
+                with _timed("MOE SchoolSummary (filtered)"):
+                    class_df = pd.read_sql(
+                        text(
+                            """
+                            EXEC FlaskHelperFunctionsSpecific
+                                    @Request   = :Request,
+                                    @MOENumber = :SchoolID,
+                                    @Term      = :Term,
+                                    @Year      = :Year
+                            """
+                        ),
+                        conn,
+                        params={
+                            "Request": "SchoolSummary",
+                            "SchoolID": school_id,
+                            "Term": selected_term,
+                            "Year": selected_year,
+                        },
+                    )
+
+                with _timed("MOE SchoolSummary (all)"):
+                    class_df_all = pd.read_sql(
+                        text(
+                            """
+                            EXEC FlaskHelperFunctionsSpecific
+                                    @Request   = :Request,
+                                    @MOENumber = :SchoolID,
+                                    @Term      = :Term,
+                                    @Year      = :Year
+                            """
+                        ),
+                        conn,
+                        params={
+                            "Request": "SchoolSummary",
+                            "SchoolID": school_id,
+                            "Term": None,
+                            "Year": None,
+                        },
+                    )
+
+                with _timed("MOE SchoolStaff"):
+                    staff_df = pd.read_sql(
+                        text("EXEC [FlaskHelperFunctions] @Request = :r, @Number = :sid"),
+                        conn,
+                        params={"r": "SchoolStaff", "sid": school_id},
+                    )
+
+            def normalize(df: pd.DataFrame) -> pd.DataFrame:
+                if df is None or df.empty:
+                    return pd.DataFrame(
+                        columns=[
+                            "ClassID",
+                            "Class Name",
+                            "Teacher",
+                            "ClassSize",
+                            "DistinctYearLevels",
+                            "CalendarYear",
+                            "Term",
+                        ]
+                    )
+                cols = {c.lower(): c for c in df.columns}
+                cn = cols.get("classname") or cols.get("class name") or "ClassName"
+                tn = cols.get("teachername") or cols.get("teacher") or "TeacherName"
+                sz = cols.get("classsize") or cols.get("students") or cols.get("studentcount") or "ClassSize"
+                yl = cols.get("distinctyearlevels") or cols.get("yearlevel") or "DistinctYearLevels"
+                cid = cols.get("classid") or "ClassID"
+                cy = cols.get("calendaryear") or "CalendarYear"
+                tm = cols.get("term") or "Term"
+                df = df.rename(
+                    columns={
+                        cn: "Class Name",
+                        tn: "Teacher",
+                        sz: "ClassSize",
+                        yl: "DistinctYearLevels",
+                        cid: "ClassID",
+                        cy: "CalendarYear",
+                        tm: "Term",
+                    }
+                )
+                df["ClassSize"] = pd.to_numeric(df.get("ClassSize", 0), errors="coerce").fillna(0).astype(int)
+                if "Teacher" not in df.columns:
+                    df["Teacher"] = ""
+                return df
+
+            class_df = normalize(class_df)
+            class_df_all = normalize(class_df_all)
+
+            def uniq_sorted(df: pd.DataFrame, col: str, reverse: bool = False) -> list[int]:
+                if df.empty or col not in df.columns:
+                    return []
+                vals = pd.Series(df[col]).dropna().unique().tolist()
+                out: list[int] = []
+                for v in vals:
+                    try:
+                        out.append(int(v))
+                    except Exception:
+                        continue
+                return sorted(out, reverse=reverse)
+
+            available_years = uniq_sorted(class_df_all, "CalendarYear", reverse=True)
+            available_terms = uniq_sorted(class_df_all, "Term", reverse=False)
+
+            return render_template(
+                "school_overview.html",
+                title="School Overview",
+                classes=class_df.to_dict(orient="records"),
+                staff=staff_df.to_dict(orient="records"),
+                available_years=available_years,
+                available_terms=available_terms,
+                selected_year=selected_year,
+                selected_term=selected_term,
+                no_classes=class_df.empty,
+            )
+
+        # ==========================================================
+        # has_groups (no server-side entity lists)
+        # ==========================================================
+        with _timed("compute_has_groups"):
+            has_groups = compute_has_groups(engine, user_role, user_id)
+
 
         # ----------------------------------------------------------
         # Resolve selected entity id
