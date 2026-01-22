@@ -29,7 +29,15 @@ def send_reset_email(mail, email, token):
         "default_sender=", current_app.config.get("MAIL_DEFAULT_SENDER"),
         flush=True,
     )
+    import hashlib
 
+    pw = current_app.config.get("MAIL_PASSWORD") or ""
+    print(
+        "MAIL DEBUG HASH |",
+        "pass_sha256_prefix=",
+        hashlib.sha256(pw.encode("utf-8")).hexdigest()[:12],
+        flush=True,
+    )
     mail.send(msg)
 def generate_reset_token(secret_key, email):
     serializer = URLSafeTimedSerializer(secret_key)
