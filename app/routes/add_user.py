@@ -9,7 +9,7 @@ from app.routes.auth import login_required
 from app.utils.database import get_db_engine
 from app.utils.wsfl_email import create_user_and_send, send_account_invites, temp_password
 import bcrypt
-
+from app.extensions import mail
 user_bp = Blueprint("add_user", __name__)
 
 def _clean(s: str) -> str:
@@ -152,6 +152,7 @@ def add_user():
             # Send admin invites (if any)
             if admin_recipients:
                 sent_a, failed_a = send_account_invites(
+                    mail,
                     admin_recipients,
                     make_admin=True,
                     invited_by_name=requested_by,
@@ -160,9 +161,11 @@ def add_user():
                 total_sent += sent_a
                 total_failed += failed_a
 
+
             # Send standard invites (if any)
             if standard_recipients:
                 sent_s, failed_s = send_account_invites(
+                    mail,
                     standard_recipients,
                     make_admin=False,
                     invited_by_name=requested_by,

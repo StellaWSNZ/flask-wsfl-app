@@ -171,6 +171,7 @@ def create_user():
                     invited_by_org = desc
 
                     send_account_invites(
+                        mail,
                         recipients=recipients,
                         make_admin=make_admin,
                         invited_by_name=invited_by_name,

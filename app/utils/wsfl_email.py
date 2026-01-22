@@ -8,7 +8,7 @@ Send WSFL welcome/login emails and set temp passwords.
 - Sends rich HTML + plain-text email
 """
 
-import os, re, ssl, smtplib, bcrypt, time
+import os, re, ssl, bcrypt, time
 import traceback
 from email.message import EmailMessage
 from flask_mail import Message
@@ -17,6 +17,7 @@ from dotenv import load_dotenv
 from html import escape as html_escape  # for safe HTML
 from flask import current_app, render_template, url_for
 from app.utils.database import get_db_engine
+
 # =====================================================
 # .env and constants
 # =====================================================

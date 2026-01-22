@@ -1163,7 +1163,7 @@ def send_survey_reminder():
         email = request.form["email"]
         firstname = request.form["firstname"]
         requested_by = request.form["requested_by"]
-        from_org = request.form["from_org"]
+        from_org = request.form["from_org"] or "WSNZ"
         entity_id = request.form["entity_id"]
         entity_type = request.form["entity_type"]
 
@@ -1849,6 +1849,7 @@ def bulk_emails_send():
         make_admin = (action == "invite_admin") or grant_admin
         try:
             sent_count, failed_count = send_account_invites(
+                mail,
                 recipients,
                 make_admin=make_admin,
                 invited_by_name=requested_by,

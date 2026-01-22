@@ -181,7 +181,7 @@ def send_survey_reminder_email(mail, email, firstname, requested_by, from_org):
 
     This is a friendly reminder to log into the WSFL site and complete your self review.
 
-    This reminder was sent at the request of an administrator from {from_org or "WSFL"}.
+    This reminder was sent at the request of {firstname} from {from_org or "WSFL"}.
 
     Please click the link below to log in:
     {login_link}

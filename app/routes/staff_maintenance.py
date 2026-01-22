@@ -527,6 +527,7 @@ def invite_user():
         ]
 
         send_account_invites(
+            mail,
             recipients=recipients,
             make_admin=(admin == 1),
             invited_by_name=invited_by or "Water Skills for Life",
@@ -646,8 +647,8 @@ def add_staff():
             try:
                 recipients = [{
                     "email": email,
-                    "first_name": firstname,
-                    "last_name": lastname,
+                    "firstname": firstname,
+                    "lastname": lastname,
                     "role": selected_role,
                 }]
 
@@ -655,6 +656,7 @@ def add_staff():
                 invited_by_org  = desc 
 
                 send_account_invites(
+                    mail,
                     recipients=recipients,
                     make_admin=bool(admin),
                     invited_by_name=invited_by_name,
