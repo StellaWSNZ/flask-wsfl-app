@@ -25,7 +25,7 @@ COL_NUM = "NumStudents"
 COL_FACILITIES = "FacilitiesProviding"
 COL_AWAIT = "SchoolsAwaitingData"
 
-TITLE_TEXT = "Life Savings Campaign student counts"
+TITLE_TEXT = "Life Savings Campaign Student Co unts"
 
 
 # ------------------------------------------------------------
@@ -68,15 +68,19 @@ def _fetch_campaign_df(conn) -> pd.DataFrame:
     # Build the exact output columns requested
     out = pd.DataFrame({
         "Funder": df[COL_FUNDER_MAPPED],
-        "Target - Students": (df[COL_TARGET] - df[COL_NUM]).astype(int),
+        "Students": df[COL_NUM].astype(int),
+        "Target": df[COL_TARGET].astype(int),
+        "% to target": (df[COL_NUM] / df[COL_TARGET].replace(0, pd.NA)).astype(float),
         "Facilities": df[COL_FACILITIES],
         "Schools awaiting data": df[COL_AWAIT],
     })
 
+    # Format % nicely as a string for the PDF table
+    out["% to target"] = (out["% to target"] * 100).round(0).fillna(0).astype(int).astype(str) + "%"
+    print(out["Facilities"])
     # Optional: if you want negative gaps to show as 0 (or keep negative to show “over target”)
     # out["Target - Students"] = out["Target - Students"].clip(lower=0)
-
-    # nice sorting
+       # nice sorting
     out = out.sort_values(["Funder"], ascending=True).reset_index(drop=True)
     return out
 
@@ -183,11 +187,13 @@ def build_lifesavings_campaign_counts_pdf(
         )
 
         # ---- Table columns (last two behave like Missing Classes: wrap + wide)
-        columns: List[Dict[str, Any]] = [
-            {"key": "Funder", "label": "Funder", "width_frac": 0.22, "align": "left", "wrap": True, "max_lines": 2},
-            {"key": "Target - Students", "label": "Target\nminus\nStudents", "width_frac": 0.10, "align": "center"},
-            {"key": "Facilities", "label": "Facilities", "width_frac": 0.28, "align": "left", "wrap": True, "max_lines": 6},
-            {"key": "Schools awaiting data", "label": "Schools awaiting data", "width_frac": 0.40, "align": "left", "wrap": True, "max_lines": 8},
+        columns = [
+            {"key": "Funder", "label": "Funder", "width_frac": 0.23, "align": "left", "wrap": True, "max_lines": 2},
+            {"key": "Students", "label": "Students", "width_frac": 0.08, "align": "center"},
+            {"key": "Target", "label": "Target", "width_frac": 0.08, "align": "center"},
+            {"key": "% to target", "label": "% to target", "width_frac": 0.08, "align": "center"},
+            {"key": "Facilities", "label": "Facilities", "width_frac": 0.25, "align": "left", "wrap": True, "max_lines": 8},
+            {"key": "Schools awaiting data", "label": "Schools awaiting data", "width_frac": 0.30, "align": "left", "wrap": True, "max_lines": 8},
         ]
 
         # Optional highlight: if gap > 0 (still below target)
@@ -209,6 +215,7 @@ def build_lifesavings_campaign_counts_pdf(
             height=TABLE_H,
             header_height_frac=0.042,
             columns=columns,
+            body_fontsize= 11,
             base_row_facecolor="#ffffff",
             row_color_fn=row_highlight,
             merge_first_col=False,
