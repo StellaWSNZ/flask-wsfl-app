@@ -47,7 +47,7 @@ def staff_maintenance():
 
         if user_role == "ADM":
             pass
-        elif user_role in ["FUN", "PRO", "GRP"]:
+        elif user_role in ["FUN", "PRO", "GRP","MOE"]:
             if int(user_admin or 0) != 1:
                 return render_template("error.html", error="You are not authorised to view that page.", code=403), 403
         else:
@@ -60,7 +60,9 @@ def staff_maintenance():
 
         selected_entity_type = (request.form.get("entity_type") or request.args.get("entity_type") or "").strip() or None
         selected_entity_id   = (request.form.get("entity_id")   or request.args.get("entity_id")   or "").strip() or None
-
+        if user_role == "MOE":
+            selected_entity_type = "School"
+            selected_entity_id = str(user_id)
         # ---------- Group list / has_groups ----------
         has_groups = False
         group_list = []
