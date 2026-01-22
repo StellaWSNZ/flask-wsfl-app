@@ -31,46 +31,50 @@ from app.utils.wsfl_email import send_account_invites
 
 # Blueprint
 staff_bp = Blueprint("staff_bp", __name__)
-
-
 @staff_bp.route("/Staff", methods=["GET", "POST"])
 @login_required
 def staff_maintenance():
     try:
-        allowed_popup = 0
         user_id    = session.get("user_id")
         user_role  = session.get("user_role")
         user_email = session.get("user_email")
         desc       = session.get("desc")
         user_admin = session.get("user_admin")
 
-        if not user_role or user_admin != 1:
-            return render_template(
-                "error.html",
-                error="You are not authorised to view that page.",
-                code=403
-            ), 403
+        # ✅ Role-based auth (instead of "must be admin for everyone")
+        if not user_role:
+            return render_template("error.html", error="You are not authorised to view that page.", code=403), 403
 
-        # NEW: these are used by the new HTML/JS
-        funder_id    = user_id if user_role == "FUN" else None
-        
+        if user_role == "ADM":
+            pass
+        elif user_role in ["FUN", "PRO", "GRP"]:
+            if int(user_admin or 0) != 1:
+                return render_template("error.html", error="You are not authorised to view that page.", code=403), 403
+        else:
+            return render_template("error.html", error="You are not authorised to view that page.", code=403), 403
+
+        engine = get_db_engine()
+
+        funder_id = user_id if user_role == "FUN" else None
         ROLE_MAP = {"Funder": "FUN", "Provider": "PRO", "School": "MOE", "Group": "GRP"}
 
         selected_entity_type = (request.form.get("entity_type") or request.args.get("entity_type") or "").strip() or None
         selected_entity_id   = (request.form.get("entity_id")   or request.args.get("entity_id")   or "").strip() or None
 
+        # ---------- Group list / has_groups ----------
         has_groups = False
         group_list = []
-
-        # ---------- Group list / has_groups ----------
         try:
-            with get_db_engine().begin() as conn:
+            with engine.begin() as conn:
                 if user_role == "ADM":
                     result = conn.execute(text("EXEC FlaskGetAllGroups"))
                     group_list = [{"id": row.ID, "name": row.Name} for row in result]
                     has_groups = len(group_list) > 0
                 elif user_role == "FUN":
-                    result = conn.execute(text("EXEC FlaskGetGroupsByFunder @FunderID = :fid"), {"fid": user_id})
+                    result = conn.execute(
+                        text("EXEC FlaskGetGroupsByFunder @FunderID = :fid"),
+                        {"fid": user_id}
+                    )
                     group_list = [{
                         "id": getattr(row, "GroupID", getattr(row, "ID", None)),
                         "name": getattr(row, "Description", getattr(row, "Name", "")),
@@ -80,7 +84,6 @@ def staff_maintenance():
                     group_list = [{"id": user_id, "name": desc}]
                     has_groups = True
         except Exception as e:
-            # best-effort: log and keep going (page can still render)
             log_alert(
                 email=user_email,
                 role=user_role,
@@ -91,15 +94,16 @@ def staff_maintenance():
 
         # ---------- Default entity type ----------
         if not selected_entity_type:
-            if user_role == "PRO": selected_entity_type = "Provider"
-            elif user_role == "MOE": selected_entity_type = "School"
-            elif user_role == "GRP": selected_entity_type = "Group"
-            elif user_role == "FUN": selected_entity_type = "Funder"
-            else: selected_entity_type = "Provider"
+            if user_role == "PRO":
+                selected_entity_type = "Provider"
+            elif user_role == "GRP":
+                selected_entity_type = "Group"
+            elif user_role == "FUN":
+                selected_entity_type = "Funder"
+            else:
+                selected_entity_type = "Provider"
 
         # ---------- Default entity id per role ----------
-        if user_role == "MOE" and selected_entity_type == "School" and not selected_entity_id:
-            selected_entity_id = str(user_id)
         if user_role == "PRO" and selected_entity_type == "Provider" and not selected_entity_id:
             selected_entity_id = str(user_id)
         if user_role == "GRP" and selected_entity_type == "Group" and not selected_entity_id:
@@ -107,28 +111,49 @@ def staff_maintenance():
         if user_role == "FUN" and selected_entity_type == "Funder" and not selected_entity_id:
             selected_entity_id = str(user_id)
 
+        # ---------- allowed_popup ----------
+        funder_popup_allowed = 0
+
+        if user_role == "ADM":
+            funder_popup_allowed = 1
+
+        elif user_role == "FUN" and funder_id is not None:
+            try:
+                with engine.begin() as conn:
+                    row = conn.execute(
+                        text("EXEC dbo.FlaskHelperFunctions @Request = :Request, @Number = :Number"),
+                        {"Request": "Popup", "Number": funder_id}
+                    ).fetchone()
+                funder_popup_allowed = int(row[0]) if row and row[0] is not None else 0
+            except Exception as e:
+                log_alert(
+                    email=user_email,
+                    role=user_role,
+                    entity_id=funder_id,
+                    link=url_for("staff_bp.staff_maintenance", _external=True),
+                    message=f"Staff: Popup check failed: {e}\n{traceback.format_exc()}"[:4000],
+                )
+                funder_popup_allowed = 0
+
+        # ---------- Load selected entity + staff + hidden staff ----------
         selected_entity_name = None
         role_type = None
         target_id = None
         staff_data = pd.DataFrame()
         columns = []
         hidden_staff = []
-        
-        # ---------- Load selected entity + staff + hidden staff ----------
+
         if selected_entity_type and selected_entity_id:
             try:
-                with get_db_engine().connect() as conn:
-                    # Name
-                    result = conn.execute(
+                with engine.connect() as conn:
+                    selected_entity_name = conn.execute(
                         text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :id, @Text = :type"),
                         {"Request": "GetEntityDescription", "id": int(selected_entity_id), "type": selected_entity_type}
-                    )
-                    selected_entity_name = result.scalar()
+                    ).scalar()
 
                     role_type = ROLE_MAP.get(selected_entity_type, user_role)
                     target_id = int(selected_entity_id)
 
-                    # Staff data
                     result = conn.execute(
                         text("EXEC FlaskGetStaffDetails @RoleType = :role, @ID = :id, @Email = :email"),
                         {"role": role_type, "id": target_id, "email": user_email}
@@ -137,30 +162,13 @@ def staff_maintenance():
                     staff_data = pd.DataFrame(rows, columns=result.keys())
                     columns = result.keys()
 
-                    # Hidden staff
                     hidden_result = conn.execute(
                         text("EXEC FlaskGetHiddenStaff @EntityType = :etype, @EntityID = :eid"),
                         {"etype": role_type, "eid": target_id}
                     )
                     hidden_staff = [dict(row._mapping) for row in hidden_result]
-                    
-                    allowed_popup = 0
-
-                    if role_type == "ADM":
-                        allowed_popup = 1
-
-                    elif role_type == "FUN":
-                        row = conn.execute(
-                            text("EXEC dbo.FlaskHelperFunctions @Request = :Request, @Number = :Number"),
-                            {"Request": "Popup", "Number": funder_id}
-                        ).fetchone()
-
-                        # row[0] is safest if you SELECT a single scalar
-                        allowed_popup = int(row[0]) if row and row[0] is not None else 0
-
 
             except Exception as e:
-                # Log DB failure for this section and still render page (with blanks)
                 log_alert(
                     email=user_email,
                     role=user_role,
@@ -168,7 +176,6 @@ def staff_maintenance():
                     link=url_for("staff_bp.staff_maintenance", _external=True),
                     message=f"Staff: data fetch failed for {selected_entity_type} {selected_entity_id}: {e}\n{traceback.format_exc()}"[:4000],
                 )
-                # Keep defaults: selected_entity_name may be None; staff_data/hidden_staff empty
 
         return render_template(
             "staff_maintenance.html",
@@ -180,26 +187,24 @@ def staff_maintenance():
             school_list=[],
             group_list=group_list,
             funder_list=[],
-            allowed_popup=allowed_popup,
-            
+            allowed_popup=funder_popup_allowed,
+            funder_popup_allowed=funder_popup_allowed,  # ✅ IMPORTANT for the JS
             data=staff_data.to_dict(orient="records"),
             columns=columns,
             name=(desc or "") + "'s Staff eLearning",
             user_role=user_role,
-            user_admin=(user_admin == 1),
+            user_admin=(int(user_admin or 0) == 1),
             has_groups=has_groups,
             hidden_staff=hidden_staff,
-            # NEW: required by the new HTML
             user_id=user_id,
             funder_id=funder_id,
-            current_year = session.get("nearest_year"),
-        current_term = session.get("nearest_term"),
-        terms = get_terms(),
-        years = get_years()
+            current_year=session.get("nearest_year"),
+            current_term=session.get("nearest_term"),
+            terms=get_terms(),
+            years=get_years(),
         )
 
     except Exception as e:
-        # Catch-all: log to DB and return 500
         log_alert(
             email=session.get("user_email"),
             role=session.get("user_role"),
@@ -211,6 +216,40 @@ def staff_maintenance():
         return "500 Internal Server Error", 500
 
 
+
+
+@staff_bp.route("/api/schools_by_funder_region", methods=["GET"])
+@login_required
+def schools_by_funder_region():
+    user_role = session.get("user_role")
+    user_id   = session.get("user_id")
+
+    funder_id_raw = (request.args.get("funder_id") or "").strip()
+    if not funder_id_raw.isdigit():
+        return jsonify({"ok": False, "error": "Missing or invalid funder_id"}), 400
+
+    funder_id = int(funder_id_raw)
+
+    # ✅ permissions
+    if user_role == "ADM":
+        pass
+    elif user_role == "FUN":
+        # FUN can only query their own funder
+        if int(user_id or 0) != funder_id:
+            return jsonify({"ok": False, "error": "Forbidden"}), 403
+    else:
+        return jsonify({"ok": False, "error": "Forbidden"}), 403 
+    
+    engine = get_db_engine()
+    with engine.connect() as conn:
+        rows = conn.execute(
+            text("EXEC FlaskHelperFunctions @Request = :r, @Number = :fid"),
+            {"r": "schoolbyfunderregion","fid": funder_id},
+        ).fetchall()
+
+    # rows contain "id" and "name"
+    schools = [{"id": int(r.id), "name": r.name} for r in rows]
+    return jsonify({"ok": True, "schools": schools})
 @staff_bp.get("/helper")
 @login_required
 def helper():
@@ -284,8 +323,7 @@ def add_school_to_funder():
         return jsonify(ok=False, error="Missing required fields."), 400
 
     # Authorize (FUN only)
-    if session.get("user_role") != "FUN":
-        return jsonify(ok=False, error="Forbidden"), 403
+
 
     try:
         with get_db_engine().begin() as conn:

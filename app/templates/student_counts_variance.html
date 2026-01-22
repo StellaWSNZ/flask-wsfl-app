@@ -1,0 +1,155 @@
+{% extends "header.html" %} {% block title %}Student Counts Variance{% endblock
+%} {% block content %}
+<div class="container mt-4" style="max-width: 980px">
+  <h2 class="text-center text-primary mb-3">
+    Reporting vs Database Student Counts
+  </h2>
+
+  <form method="POST" class="card shadow-sm p-3">
+    <div class="row g-3 align-items-end">
+      <div class="col-md-6">
+        <label class="form-label">Funder</label>
+        <select class="form-select" name="FunderID" id="FunderID" required>
+          <option value="">Loading...</option>
+        </select>
+      </div>
+
+      <div class="col-md-3">
+        <label class="form-label">Total students (received)</label>
+        <input
+          class="form-control"
+          type="text"
+          name="EnteredStudents"
+          value="{{ entered_students if entered_students is not none else '' }}"
+          placeholder="optional"
+        />
+      </div>
+
+      <div class="col-md-3">
+        <label class="form-label">Total schools (received)</label>
+        <input
+          class="form-control"
+          type="text"
+          name="EnteredSchools"
+          value="{{ entered_schools if entered_schools is not none else '' }}"
+          placeholder="optional"
+        />
+      </div>
+    </div>
+
+    <div class="d-flex justify-content-end mt-3">
+      <button class="btn btn-primary" type="submit">Calculate</button>
+    </div>
+  </form>
+
+  {% if funder_id %}
+  <div class="card shadow-sm p-3 mt-3">
+    <h5 class="mb-3">Expected vs received</h5>
+
+    <div class="table-responsive">
+      <table class="table table-sm align-middle">
+        <thead>
+          <tr>
+            <th>Metric</th>
+            <th class="text-end">Recorded Amount (Database)</th>
+            <th class="text-end">Recorded Amount (Inputs)</th>
+            <th class="text-end">Variance</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Students</td>
+            <td class="text-end">{{ expected_students }}</td>
+            <td class="text-end">
+              {% if entered_students is none %}<span class="text-muted">—</span
+              >{% else %}{{ entered_students }}{% endif %}
+            </td>
+            <td>{{ variance_students_text }}</td>
+          </tr>
+          <tr>
+            <td>Schools</td>
+            <td class="text-end">{{ expected_schools }}</td>
+            <td class="text-end">
+              {% if entered_schools is none %}<span class="text-muted">—</span
+              >{% else %}{{ entered_schools }}{% endif %}
+            </td>
+            <td>{{ variance_schools_text }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="alert alert-info mt-2 mb-0">
+      Note: the term breakdown below uses <b>unique</b> counts
+      <b>within each term</b>. Summing term totals may not match a single unique
+      total across the whole funding year scope.
+    </div>
+  </div>
+
+  <div class="card shadow-sm p-3 mt-3">
+    <h5 class="mb-3">Term breakdown</h5>
+
+    <div class="table-responsive">
+      <table class="table table-sm align-middle">
+        <thead>
+          <tr>
+            <th>Calendar year</th>
+            <th>Term</th>
+            <th class="text-end">Total schools (unique per term)</th>
+            <th class="text-end">Total students (unique per term)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in term_rows %}
+          <tr>
+            <td>{{ r["CalendarYear"] }}</td>
+            <td>{{ r["Term"] }}</td>
+            <td class="text-end">{{ r["TotalSchoolsTerm"] }}</td>
+            <td class="text-end">{{ r["TotalStudentsTerm"] }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+</div>
+<script>
+  (async function () {
+    const select = document.getElementById("FunderID");
+    const selected = "{{ funder_id if funder_id is not none else '' }}";
+
+    try {
+      const resp = await fetch("/api/get_entities?entity_type=Funder", {
+        credentials: "same-origin",
+      });
+      const data = await resp.json();
+
+      if (!data || data.ok !== true || !Array.isArray(data.entities)) {
+        select.innerHTML = '<option value="">(Failed to load funders)</option>';
+        console.error("Bad payload:", data);
+        return;
+      }
+
+      select.innerHTML = '<option value="">Select a funder...</option>';
+
+      for (const row of data.entities) {
+        const id = row.id;
+        const name = row.description;
+
+        if (id == null || !name) continue;
+
+        const opt = document.createElement("option");
+        opt.value = String(id);
+        opt.textContent = name;
+
+        if (selected && String(id) === String(selected)) opt.selected = true;
+        select.appendChild(opt);
+      }
+    } catch (e) {
+      select.innerHTML = '<option value="">(Failed to load funders)</option>';
+      console.error(e);
+    }
+  })();
+</script>
+{% endblock %}

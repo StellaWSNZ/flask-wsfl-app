@@ -2,6 +2,8 @@
 
 from datetime import datetime, timedelta
 from math import ceil
+import traceback
+import uuid
 from app.utils.wsfl_email import send_account_invites
 import pandas as pd
 import math
@@ -34,7 +36,9 @@ def is_mobile_request(req) -> bool:
         return ua.is_mobile or ua.is_tablet
     except Exception:
         return False
-    
+
+
+
 @admin_bp.route('/CreateUser', methods=['GET', 'POST'])
 @login_required
 def create_user():
@@ -564,127 +568,6 @@ def serve_logo(logo_type, logo_id):
     if result:
         return Response(result[0], mimetype=result[1])
     return '', 404
-
-@admin_bp.route('/ProviderMaintenance', methods=['GET', 'POST'])
-@login_required
-def provider_maintenance():
-    def _safe_int(x, default=None):
-        try:
-            return int(x)
-        except (TypeError, ValueError):
-            return default
-
-    engine    = get_db_engine()
-    user_role = session.get("user_role")
-    user_id   = session.get("user_id")
-
-    if not (user_role == "ADM" or (user_role == "FUN" and session.get("user_admin") == 1)):
-        return render_template(
-    "error.html",
-    error="You are not authorised to view that page.",
-    code=403
-), 403
-
-    selected_funder = (request.form.get("funder") or "").strip()
-    selected_term   = request.form.get("term") or session.get("nearest_term")
-    selected_year   = request.form.get("year") or session.get("nearest_year")
-
-    selected_term_i   = _safe_int(selected_term)
-    selected_year_i   = _safe_int(selected_year)
-
-    if user_role == "FUN":
-        selected_funder = str(user_id or "")
-    selected_funder_i = _safe_int(selected_funder)
-
-    funders, schools, providers, staff_list = [], [], [], []
-    selected_funder_name = session.get("desc")
-    
-    try:
-        # ---------- DB work ----------
-        with engine.begin() as conn:
-            if user_role == "ADM":
-                rows = conn.execute(
-                    text("EXEC FlaskHelperFunctions @Request = :Request"),
-                    {"Request": "AllFunders"}
-                ).fetchall()
-                funders = [dict(r._mapping) for r in rows]
-
-                for f in funders:
-                    if f["id"] == selected_funder_i:  # 👈 use the int
-                        selected_funder_name = f["Description"]
-                        break
-            if selected_funder_i and selected_term_i and selected_year_i:
-                rows = conn.execute(text("""
-                    EXEC FlaskHelperFunctionsSpecific
-                         @Request = 'GetSchoolsForProviderAssignment',
-                         @Term    = :term,
-                         @Year    = :year,
-                         @FunderID= :funder_id
-                """), {
-                    "term": selected_term_i,
-                    "year": selected_year_i,
-                    "funder_id": selected_funder_i
-                }).fetchall()
-                schools = [dict(r._mapping) for r in rows]
-
-                rows = conn.execute(
-                    text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :funder_id"),
-                    {"Request": "GetProviderByFunder", "funder_id": selected_funder_i}
-                ).fetchall()
-                providers = [dict(r._mapping) for r in rows]
-
-                rows = conn.execute(
-                    text("EXEC FlaskHelperFunctionsSpecific @Request = 'FunderStaff', @FunderID = :fid"),
-                    {"fid": selected_funder_i}
-                ).fetchall()
-                staff_list = [dict(r._mapping) for r in rows]
-
-    except Exception as e:
-        current_app.logger.exception("❌ ProviderMaintenance DB load failed")
-
-        # ---- Write error to AUD_Alerts (or use your log_alert helper) ----
-        try:
-            log_alert(
-                email=(session.get("user_email")   or "")[:320],
-                role=(session.get("user_role") or "")[:10],
-                entity_id=session.get("user_id"),
-                link=str(request.url)[:2048],
-                message=str(e)[:2000]
-            )
-        except Exception as log_err:
-            current_app.logger.exception(f"⚠️ Failed to log alert in ProviderMaintenance.")
-
-        flash("Couldn’t load some data for provider maintenance. The issue has been logged.", "warning")
-
-    # ---------- Render ----------
-    try:
-        return render_template(
-            "provider_maintenance.html",
-            schools=schools,
-            providers=providers,
-            funders=funders,
-            terms = get_terms(),
-            years = get_years(),
-            selected_funder=selected_funder_i,
-             selected_funder_name=selected_funder_name,
-            selected_term=selected_term_i,
-            selected_year=selected_year_i,
-            user_role=user_role,
-            staff_list=staff_list
-        )
-    except Exception as e:
-        current_app.logger.exception("❌ Error rendering provider_maintenance.html")
-        try:
-            log_alert(
-                email=(session.get("user_email")   or "")[:320],
-                role=(session.get("user_role") or "")[:10],
-                entity_id=session.get("user_id"),
-                link=str(request.url)[:2048],
-                message=f"Template render failed: {str(e)[:1500]}"
-            )
-        except Exception as log_err:
-            current_app.logger.exception(f"⚠️ Failed to log render alert in ProviderMaintenance.")
-        return abort(500)
 
 
 @admin_bp.route("/assign_provider", methods=["POST"])
@@ -1417,6 +1300,128 @@ def edit_school_type():
         page_size=page_size,
         total_rows=total_rows,
     )
+
+@admin_bp.route('/ProviderMaintenance', methods=['GET', 'POST'])
+@login_required
+def provider_maintenance():
+    def _safe_int(x, default=None):
+        try:
+            return int(x)
+        except (TypeError, ValueError):
+            return default
+
+    engine    = get_db_engine()
+    user_role = session.get("user_role")
+    user_id   = session.get("user_id")
+
+    if not (user_role == "ADM" or (user_role == "FUN" and session.get("user_admin") == 1)):
+        return render_template(
+    "error.html",
+    error="You are not authorised to view that page.",
+    code=403
+), 403
+
+    selected_funder = (request.form.get("funder") or "").strip()
+    selected_term   = request.form.get("term") or session.get("nearest_term")
+    selected_year   = request.form.get("year") or session.get("nearest_year")
+
+    selected_term_i   = _safe_int(selected_term)
+    selected_year_i   = _safe_int(selected_year)
+
+    if user_role == "FUN":
+        selected_funder = str(user_id or "")
+    selected_funder_i = _safe_int(selected_funder)
+
+    funders, schools, providers, staff_list = [], [], [], []
+    selected_funder_name = session.get("desc")
+    
+    try:
+        # ---------- DB work ----------
+        with engine.begin() as conn:
+            if user_role == "ADM":
+                rows = conn.execute(
+                    text("EXEC FlaskHelperFunctions @Request = :Request"),
+                    {"Request": "AllFunders"}
+                ).fetchall()
+                funders = [dict(r._mapping) for r in rows]
+
+                for f in funders:
+                    if f["id"] == selected_funder_i:  # 👈 use the int
+                        selected_funder_name = f["Description"]
+                        break
+            if selected_funder_i and selected_term_i and selected_year_i:
+                rows = conn.execute(text("""
+                    EXEC FlaskHelperFunctionsSpecific
+                         @Request = 'GetSchoolsForProviderAssignment',
+                         @Term    = :term,
+                         @Year    = :year,
+                         @FunderID= :funder_id
+                """), {
+                    "term": selected_term_i,
+                    "year": selected_year_i,
+                    "funder_id": selected_funder_i
+                }).fetchall()
+                schools = [dict(r._mapping) for r in rows]
+
+                rows = conn.execute(
+                    text("EXEC FlaskHelperFunctions @Request = :Request, @Number = :funder_id"),
+                    {"Request": "GetProviderByFunder", "funder_id": selected_funder_i}
+                ).fetchall()
+                providers = [dict(r._mapping) for r in rows]
+
+                rows = conn.execute(
+                    text("EXEC FlaskHelperFunctionsSpecific @Request = 'FunderStaff', @FunderID = :fid"),
+                    {"fid": selected_funder_i}
+                ).fetchall()
+                staff_list = [dict(r._mapping) for r in rows]
+
+    except Exception as e:
+        current_app.logger.exception("❌ ProviderMaintenance DB load failed")
+
+        # ---- Write error to AUD_Alerts (or use your log_alert helper) ----
+        try:
+            log_alert(
+                email=(session.get("user_email")   or "")[:320],
+                role=(session.get("user_role") or "")[:10],
+                entity_id=session.get("user_id"),
+                link=str(request.url)[:2048],
+                message=str(e)[:2000]
+            )
+        except Exception as log_err:
+            current_app.logger.exception(f"⚠️ Failed to log alert in ProviderMaintenance.")
+
+        flash("Couldn’t load some data for provider maintenance. The issue has been logged.", "warning")
+
+    # ---------- Render ----------
+    try:
+        return render_template(
+            "provider_maintenance.html",
+            schools=schools,
+            providers=providers,
+            funders=funders,
+            terms = get_terms(),
+            years = get_years(),
+            selected_funder=selected_funder_i,
+             selected_funder_name=selected_funder_name,
+            selected_term=selected_term_i,
+            selected_year=selected_year_i,
+            user_role=user_role,
+            staff_list=staff_list
+        )
+    except Exception as e:
+        current_app.logger.exception("❌ Error rendering provider_maintenance.html")
+        try:
+            log_alert(
+                email=(session.get("user_email")   or "")[:320],
+                role=(session.get("user_role") or "")[:10],
+                entity_id=session.get("user_id"),
+                link=str(request.url)[:2048],
+                message=f"Template render failed: {str(e)[:1500]}"
+            )
+        except Exception as log_err:
+            current_app.logger.exception(f"⚠️ Failed to log render alert in ProviderMaintenance.")
+        return abort(500)
+    
 # --- Glossary lazy-load JSON endpoint ----------------------------------------
 @admin_bp.route("/SchoolType/glossary.json", methods=["GET"])
 @login_required
@@ -1454,6 +1459,188 @@ def school_type_glossary_json():
         except Exception as log_err:
             current_app.logger.exception(f"⚠️ Failed to log alert (glossary.json)")
         return jsonify({"error": "Failed to load glossary"}), 500
+
+    
+    
+import traceback
+import uuid
+
+from flask import Blueprint, current_app, flash, redirect, render_template, request, session, url_for
+from sqlalchemy import text
+
+
+# Set this to your SP name
+PROC_NAME = "dbo.FunderCountsSummary"
+
+
+def _to_int_optional(v):
+    if v is None:
+        return None
+    s = str(v).strip()
+    if s == "":
+        return None
+    try:
+        return int(s)
+    except Exception:
+        return None
+
+
+def variance_text(delta, singular, plural):
+    """
+    delta = entered - expected
+    Positive => entered/report has MORE than DB
+    Negative => entered/report has LESS than DB
+    """
+    if delta is None:
+        return ""
+    try:
+        d = int(delta)
+    except Exception:
+        return ""
+
+    if d == 0:
+        return f"Matches database ({d})"
+
+    n = abs(d)
+    word = singular if n == 1 else plural
+
+    if d > 0:
+        return f"{n} more {word} in report than database"
+    else:
+        return f"{n} fewer {word} in report than database"
+
+from typing import Any, Dict, List, Tuple
+
+def _exec_two_result_sets(engine, sql_text: str, params: tuple) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """
+    Executes a statement that returns TWO result sets.
+    Returns: (rows1, rows2) where each is a list[dict].
+    """
+    raw = engine.raw_connection()  # DBAPI connection (pyodbc)
+    try:
+        cur = raw.cursor()
+        try:
+            cur.execute(sql_text, params)
+
+            # ---- Result set 1
+            cols1 = [c[0] for c in (cur.description or [])]
+            rows1 = [dict(zip(cols1, row)) for row in cur.fetchall()] if cols1 else []
+
+            # ---- Result set 2
+            has_next = cur.nextset()
+            if not has_next or cur.description is None:
+                return rows1, []
+
+            cols2 = [c[0] for c in cur.description]
+            rows2 = [dict(zip(cols2, row)) for row in cur.fetchall()] if cols2 else []
+
+            return rows1, rows2
+
+        finally:
+            cur.close()
+    finally:
+        raw.close()
+
+
+@admin_bp.route("/StudentCountsVariance", methods=["GET", "POST"])
+@login_required
+def student_counts_variance():
+    if session.get("user_role") != "ADM":
+        flash("Unauthorized", "danger")
+        return redirect(url_for("home_bp.home"))
+
+    engine = get_db_engine()
+
+    # defaults
+    from_year = 2025
+
+    # selected funder (GET or POST)
+    funder_id = _to_int_optional(
+        request.form.get("FunderID") if request.method == "POST" else request.args.get("FunderID")
+    )
+
+    # Esther's typed values (optional)
+    entered_students = _to_int_optional(request.form.get("EnteredStudents")) if request.method == "POST" else None
+    entered_schools = _to_int_optional(request.form.get("EnteredSchools")) if request.method == "POST" else None
+
+    # outputs
+    term_rows = []         # table 1
+    overall = {}           # table 2 (single row dict)
+
+    expected_students_overall = 0
+    expected_schools_overall = 0
+
+    variance_students = None
+    variance_schools = None
+
+    variance_students_text = ""
+    variance_schools_text = ""
+
+    try:
+        if request.method == "POST" and funder_id is None:
+            flash("Please select a funder.", "warning")
+
+        if funder_id is not None:
+            # Stored proc returns:
+            # 1) per-term rows
+            # 2) single overall row
+            sql = f"EXEC {PROC_NAME} @FunderID = ?, @FromYear = ?"
+            params = (funder_id, from_year)
+
+            term_rows, overall_rows = _exec_two_result_sets(engine, sql, params)
+            overall = overall_rows[0] if overall_rows else {}
+
+            expected_students_overall = int(overall.get("TotalStudentsOverall", 0) or 0)
+            expected_schools_overall = int(overall.get("TotalSchoolsOverall", 0) or 0)
+
+            # numeric variance (entered - expected overall)
+            student_delta = (entered_students - expected_students_overall) if entered_students is not None else None
+            school_delta = (entered_schools - expected_schools_overall) if entered_schools is not None else None
+
+            variance_students = student_delta
+            variance_schools = school_delta
+
+            variance_students_text = variance_text(student_delta, "student", "students")
+            variance_schools_text = variance_text(school_delta, "school", "schools")
+
+            # add display text columns to EACH TERM ROW so your template can show them in-table
+            for r in term_rows:
+                r["StudentVariance"] = variance_students_text
+                r["SchoolVariance"] = variance_schools_text
+
+        return render_template(
+            "student_counts_variance.html",
+            funder_id=funder_id,
+            from_year=from_year,
+            entered_students=entered_students,
+            entered_schools=entered_schools,
+            expected_students=expected_students_overall,
+            expected_schools=expected_schools_overall,
+            variance_students=variance_students,
+            variance_schools=variance_schools,
+            variance_students_text=variance_students_text,
+            variance_schools_text=variance_schools_text,
+            term_rows=term_rows,
+            overall=overall,  # includes progressed/edited overall if you return them
+        )
+
+    except Exception:
+        err_id = uuid.uuid4().hex[:8]
+        current_app.logger.exception(f"[StudentCountsVariance ERROR] err_id={err_id}")
+
+        try:
+            log_alert(
+                email=session.get("user_email"),
+                role=session.get("user_role"),
+                entity_id=funder_id,
+                link=request.url,
+                message=f"StudentCountsVariance ERROR {err_id}\n\n{traceback.format_exc()}",
+            )
+        except Exception:
+            current_app.logger.exception(f"[StudentCountsVariance ALERT FAILED] err_id={err_id}")
+
+        flash(f"Unexpected error (ID {err_id}).", "danger")
+        return redirect(url_for("home_bp.home"))
 
 @admin_bp.route("/EditUser")
 @login_required

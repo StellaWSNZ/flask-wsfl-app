@@ -1,545 +1,543 @@
+{# templates/staff_maintenance.html #}
 {% extends "header.html" %}
 {% block title %}Staff Maintenance{% endblock %}
 {% block content %}
+
 <div class="container mt-5" style="max-width: 80%;">
 
-{% if user_role in ["ADM", "FUN", "GRP", "PRO"] %}
-<form method="POST" class="mb-4" id="entityForm">
-  <div class="row g-2 align-items-end justify-content-center">
+  {% if user_role in ["ADM", "FUN", "GRP", "PRO"] %}
+  <form method="POST" class="mb-4" id="entityForm">
+    <div class="row g-2 align-items-end justify-content-center">
 
-    <!-- Entity Type -->
-    <div class="col-md-3">
-      <label for="entity_type" class="form-label">Entity Type</label>
-      <select name="entity_type" id="entity_type" class="form-select">
-        {% if user_role != "PRO" %}
-          {% if user_role != "GRP" %}
-            <option value="Funder"  {{ 'selected' if (entity_type or '') == 'Funder'  else '' }}>Funder</option>
+      <!-- Entity Type -->
+      <div class="col-md-3">
+        <label for="entity_type" class="form-label">Entity Type</label>
+        <select name="entity_type" id="entity_type" class="form-select">
+          {% if user_role != "PRO" %}
+            {% if user_role != "GRP" %}
+              <option value="Funder"  {{ 'selected' if (entity_type or '') == 'Funder'  else '' }}>Funder</option>
+            {% endif %}
+            {% if user_role == "GRP" or user_role == "ADM" or has_groups %}
+              <option value="Group"   {{ 'selected' if (entity_type or '') == 'Group'   else '' }}>Group</option>
+            {% endif %}
+            <option value="Provider" {{ 'selected' if (entity_type or '') == 'Provider' else '' }}>Provider</option>
+            <option value="School"   {{ 'selected' if (entity_type or '') == 'School'   else '' }}>School</option>
+          {% else %}
+            <option value="Provider" {{ 'selected' if (entity_type or '') == 'Provider' else '' }}>Provider</option>
+            <option value="School"   {{ 'selected' if (entity_type or '') == 'School'   else '' }}>School</option>
           {% endif %}
-          {% if user_role == "GRP" or user_role == "ADM" or has_groups %}
-            <option value="Group"   {{ 'selected' if (entity_type or '') == 'Group'   else '' }}>Group</option>
-          {% endif %}
-          <option value="Provider"  {{ 'selected' if (entity_type or '') == 'Provider' else '' }}>Provider</option>
-          <option value="School"    {{ 'selected' if (entity_type or '') == 'School'   else '' }}>School</option>
-        {% else %}
-          <option value="Provider"  {{ 'selected' if (entity_type or '') == 'Provider' else '' }}>Provider</option>
-          <option value="School"    {{ 'selected' if (entity_type or '') == 'School'   else '' }}>School</option>
-        {% endif %}
-      </select>
-    </div>
+        </select>
+      </div>
 
-    <!-- Entity ID (populated by /get_entities via JS for ALL roles) -->
-    <div class="col-md-6">
-      <label for="entity_id" class="form-label" id="entityLabel">
-        Select {{ entity_type or (user_role == 'PRO' and 'Provider' or 'Funder') }}
-      </label>
-      <select name="entity_id" id="entity_id" class="form-select">
-        <option disabled selected>Choose an Entity Type first</option>
-      </select>
-    </div>
+      <!-- Entity ID -->
+      <div class="col-md-6">
+        <label for="entity_id" class="form-label" id="entityLabel">
+          Select {{ entity_type or (user_role == 'PRO' and 'Provider' or 'Funder') }}
+        </label>
+        <select name="entity_id" id="entity_id" class="form-select">
+          <option disabled selected>Choose an Entity Type first</option>
+        </select>
+      </div>
 
-    <!-- Submit -->
-    <div class="col-md-2">
-      <button type="submit" class="btn btn-primary w-100">Submit</button>
-    </div>
+      <!-- Submit -->
+      <div class="col-md-2">
+        <button type="submit" class="btn btn-primary w-100">Submit</button>
+      </div>
 
+    </div>
+  </form>
+  {% endif %}
+
+  <!-- Missing School Wrapper (JS controls visibility) -->
+  <div id="missingSchoolWrapper"
+       class="alert alert-info mx-auto text-center py-2 mb-3"
+       style="display:none; max-width: 500px;">
+    <i class="bi bi-info-circle me-2"></i>
+    Are you missing a school?
+    <a href="#" data-bs-toggle="modal" data-bs-target="#missingSchoolModal" class="alert-link">Click here</a>
+    to add one.
   </div>
-</form>
-{% endif %}
 
-{% if allowed_popup == 1 %}
-<div id="missingSchoolWrapper"
-     class="alert alert-info mx-auto text-center py-2 mb-3"
-     style="display:none; max-width: 500px;">
-  <i class="bi bi-info-circle me-2"></i>
-  Are you missing a school?
-  <a href="#" data-bs-toggle="modal" data-bs-target="#missingSchoolModal" class="alert-link">Click here</a>
-  to add one.
-</div>
-{% endif %}
+  {% if selected_entity_name %}
+    <h2 class="mb-4 text-center text-primary">{{ selected_entity_name }} – Staff Maintenance</h2>
+  {% else %}
+    <h2 class="mb-4 text-center text-primary">Staff Maintenance</h2>
+  {% endif %}
 
-{% if selected_entity_name %}
-  <h2 class="mb-4 text-center text-primary">{{ selected_entity_name }} – Staff Maintenance</h2>
-{% else %}
-  <h2 class="mb-4 text-center text-primary">Staff Maintenance</h2>
-{% endif %}
+  {% if name %}
+    <div class="text-center mb-4">
+      <h6 class="mb-4 text-center text-primary">
+        Are you missing staff?
+        <a href="#" data-bs-toggle="modal" data-bs-target="#addStaffModal">Click here to add a staff member</a>
+      </h6>
+    </div>
+  {% endif %}
 
-{% set _user_role = user_role or "" %}
-{% set _user_id   = session.get('user_id') %}
-{% set _funder_id = selected_entity_id if (entity_type == 'Funder') else session.get('funder_id') %}
+  {% if data|length > 0 %}
+    <div class="row g-4">
+      {% for row in data %}
+        {% set safe_id = row.Email.replace('@','_').replace('.', '_') %}
 
-{% if name %}
-  <div class="text-center mb-4">
-    <h6 class="mb-4 text-center text-primary">
-      Are you missing staff?
-      <a href="#" data-bs-toggle="modal" data-bs-target="#addStaffModal">Click here to add a staff member</a>
-    </h6>
-  </div>
-{% endif %}
+        <!-- Invite Modal -->
+        <div class="modal fade" id="inviteModal_{{ safe_id }}" tabindex="-1" aria-labelledby="inviteLabel_{{ safe_id }}" aria-hidden="true">
+          <div class="modal-dialog">
+            <div class="modal-content border-0 shadow">
+              <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="inviteLabel_{{ safe_id }}">
+                  Sending {{ row.FirstName }} an Invitation
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+              </div>
 
-{% if data|length > 0 %}
-  <div class="row g-4">
-    {% for row in data %}
-      {% set safe_id = row.Email.replace('@','_').replace('.', '_') %}
+              <div class="modal-body">
+                <p>
+                  Inviting {{ row.FirstName }} {{ row.Surname }} to the app will send them an email
+                  with instructions on how to set up their account.<br><br>
+                  Would you like this user to have <strong>administrator privileges</strong>?
+                </p>
 
-      <!-- Invite Modal -->
-      <div class="modal fade" id="inviteModal_{{ safe_id }}" tabindex="-1" aria-labelledby="inviteLabel_{{ safe_id }}" aria-hidden="true">
-        <div class="modal-dialog">
-          <div class="modal-content border-0 shadow">
-            <div class="modal-header bg-primary text-white">
-  <h5 class="modal-title" id="inviteLabel_{{ safe_id }}">
-    Sending {{ row.FirstName }} an Invitation
-  </h5>
-  <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-</div>
+                <div class="d-flex justify-content-between gap-2">
+                  <!-- ADMIN -->
+                  <form method="POST" action="{{ url_for('staff_bp.invite_user') }}" class="flex-grow-1 me-2">
+                    <input type="hidden" name="email" value="{{ row.Email }}">
+                    <input type="hidden" name="firstname" value="{{ row.FirstName }}">
+                    <input type="hidden" name="lastname" value="{{ row.Surname }}">
+                    <input type="hidden" name="admin" value="1">
+                    <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
+                    <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
+                    <button class="btn btn-sm btn-outline-primary w-100">
+                      <i class="bi bi-check-lg me-1"></i>Invite with Admin Access
+                    </button>
+                  </form>
 
-<div class="modal-body">
-  <p>
-    Inviting {{ row.FirstName }} {{ row.Surname }} to the app will send them an email
-    with instructions on how to set up their account.<br><br>
-    Would you like this user to have <strong>administrator privileges</strong>?
-  </p>
-<div class="d-flex justify-content-between gap-2">
-              <form method="POST" action="{{ url_for('staff_bp.invite_user') }}" class="flex-grow-1 me-2">
-          <input type="hidden" name="email" value="{{ row.Email }}">
-          <input type="hidden" name="firstname" value="{{ row.FirstName }}">
-          <input type="hidden" name="lastname" value="{{ row.Surname }}">
-          <input type="hidden" name="admin" value="1">
-          <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
-          <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
+                  <!-- NO ADMIN -->
+                  <form method="POST" action="{{ url_for('staff_bp.invite_user') }}" class="flex-grow-1 ms-2">
+                    <input type="hidden" name="email" value="{{ row.Email }}">
+                    <input type="hidden" name="firstname" value="{{ row.FirstName }}">
+                    <input type="hidden" name="lastname" value="{{ row.Surname }}">
+                    <input type="hidden" name="admin" value="0">
+                    <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
+                    <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
+                    <button class="btn btn-sm btn-outline-primary w-100">
+                      <i class="bi bi-x-lg me-1"></i>Invite with Standard Access
+                    </button>
+                  </form>
+                </div>
+              </div>
 
-          <button class="btn btn-sm btn-outline-primary w-100">
-            <i class="bi bi-check-lg me-1"></i>Invite with Admin Access
-          </button>
-        </form>
-
-        <!-- NO ADMIN -->
-        <form method="POST" action="{{ url_for('staff_bp.invite_user') }}" class="flex-grow-1 ms-2">
-          <input type="hidden" name="email" value="{{ row.Email }}">
-          <input type="hidden" name="firstname" value="{{ row.FirstName }}">
-          <input type="hidden" name="lastname" value="{{ row.Surname }}">
-          <input type="hidden" name="admin" value="0">
-          <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
-          <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
-
-          <button class="btn btn-sm btn-outline-primary w-100">
-            <i class="bi bi-x-lg me-1"></i>Invite with Standard Access
-          </button>
-        </form>
-        </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- Staff Card -->
-      <div class="col-12">
-        <div class="card shadow-sm border-2" style="border-color: #1a427d">
-          <div class="card-body p-4">
-            <div class="row">
-              <div class="col-12 text-center">
-                <h4 class="text-uppercase text-primary fw-bold mb-4">{{ row.FirstName }} {{ row.Surname }}</h4>
+        <!-- Staff Card -->
+        <div class="col-12">
+          <div class="card shadow-sm border-2" style="border-color: #1a427d">
+            <div class="card-body p-4">
+              <div class="row">
+                <div class="col-12 text-center">
+                  <h4 class="text-uppercase text-primary fw-bold mb-4">{{ row.FirstName }} {{ row.Surname }}</h4>
+                </div>
               </div>
-            </div>
 
-            <div class="row text-center mb-3">
-              <div class="col-md-6">
-                <h6 class="fw-bold">Staff Details</h6>
+              <div class="row text-center mb-3">
+                <div class="col-md-6"><h6 class="fw-bold">Staff Details</h6></div>
+                <div class="col-md-6"><h6 class="fw-bold">E-Learning Courses</h6></div>
               </div>
-              <div class="col-md-6">
-                <h6 class="fw-bold">E-Learning Courses</h6>
-              </div>
-            </div>
 
-            <div class="row g-4">
-              <div class="col-md-3">
-                <p class="mb-1"><strong>Email:</strong> {{ row.Email }}</p>
-                <p class="mb-1"><strong>First Name:</strong> {{ row.FirstName }}</p>
-                <p class="mb-1"><strong>Surname:</strong> {{ row.Surname }}</p>
-              </div>
-              <div class="col-md-3">
-                <p class="mb-1"><strong>Account Enabled:</strong> {% if row.Active == 1 %}Enabled{% else %}Disabled{% endif %}</p>
-                {% if row.Active == 1 %}
-                  <p class="mb-1"><strong>Administrator Privileges:</strong> {% if row.Admin == 1 %}Enabled{% else %}Disabled{% endif %}</p>
-                {% endif %}
-                <p class="mb-1">
-                  <strong>Last Self Review:</strong>
-                  {% if row.LastSelfReview and row.LastSelfReview|string != "NaT" %}
-                    {{ row.LastSelfReview.strftime('%d %B %Y, %H:%M') }}
-                  {% else %}N/A{% endif %}
-                </p>
-              </div>
-              <div class="col-md-6">
-                <div class="row row-cols-2 g-2">
-                  {% for col in columns if col.startswith("ELearningName_") %}
-                    {% set course_id = col.split('_')[1] %}
-                    <div class="col">
-                      <!-- phone-friendly tile -->
-                      <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center border rounded p-2 bg-light gap-2">
-                        <div class="flex-grow-1 pe-0 pe-md-3">
-                          <small>{{ row[col] }}</small>
-                        </div>
-                        <span
-                          class="course-badge badge
+              <div class="row g-4">
+                <div class="col-md-3">
+                  <p class="mb-1"><strong>Email:</strong> {{ row.Email }}</p>
+                  <p class="mb-1"><strong>First Name:</strong> {{ row.FirstName }}</p>
+                  <p class="mb-1"><strong>Surname:</strong> {{ row.Surname }}</p>
+                </div>
+
+                <div class="col-md-3">
+                  <p class="mb-1"><strong>Account Enabled:</strong> {% if row.Active == 1 %}Enabled{% else %}Disabled{% endif %}</p>
+                  {% if row.Active == 1 %}
+                    <p class="mb-1"><strong>Administrator Privileges:</strong> {% if row.Admin == 1 %}Enabled{% else %}Disabled{% endif %}</p>
+                  {% endif %}
+                  <p class="mb-1">
+                    <strong>Last Self Review:</strong>
+                    {% if row.LastSelfReview and row.LastSelfReview|string != "NaT" %}
+                      {{ row.LastSelfReview.strftime('%d %B %Y, %H:%M') }}
+                    {% else %}N/A{% endif %}
+                  </p>
+                </div>
+
+                <div class="col-md-6">
+                  <div class="row row-cols-2 g-2">
+                    {% for col in columns if col.startswith("ELearningName_") %}
+                      {% set course_id = col.split('_')[1] %}
+                      <div class="col">
+                        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center border rounded p-2 bg-light gap-2">
+                          <div class="flex-grow-1 pe-0 pe-md-3">
+                            <small>{{ row[col] }}</small>
+                          </div>
+                          <span class="course-badge badge
                             {% if row['ELearningStatus_' + course_id] == 'Passed' %}bg-success
                             {% elif row['ELearningStatus_' + course_id] == 'In Progress' %}bg-warning text-dark
                             {% elif row['ELearningStatus_' + course_id] == 'Cancelled' %}bg-danger
                             {% elif row['ELearningStatus_' + course_id] == 'Not Started' %}bg-secondary
                             {% else %}bg-secondary{% endif %}">
-                          {{ row['ELearningStatus_' + course_id] }}
-                        </span>
+                            {{ row['ELearningStatus_' + course_id] }}
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                  {% endfor %}
+                    {% endfor %}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div class="row mt-4">
-              <div class="col-12">
-                <!-- Action row -->
-                <div class="row g-2 action-row">
-                  <div class="col">
-                    <form method="POST" action="{{ url_for('survey_bp.send_survey_reminder') if row.Active == 1 else url_for('survey_bp.email_survey_link') }}">
-                      <input type="hidden" name="email" value="{{ row.Email }}" />
-                      <input type="hidden" name="firstname" value="{{ row.FirstName }}" />
-                      <input type="hidden" name="lastname" value="{{ row.Surname }}" />
-                      <input type="hidden" name="role" value="{{ row.Role }}" />
-                      <input type="hidden" name="user_id" value="{{ row.ID }}" />
-                      <input type="hidden" name="requested_by" value="{{ session['user_firstname'] ~ ' ' ~ session['user_surname'] }}" />
-                      <input type="hidden" name="from_org" value="{{ session['desc'] }}" />
-                      <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
-                      <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
-                      <button type="submit" class="btn btn-sm btn-outline-primary w-100">
-                        {% if row.Active == 1 %}Email Self Review Reminder{% else %}Email Self Review Link{% endif %}
-                      </button>
-                    </form>
-                  </div>
+              <div class="row mt-4">
+                <div class="col-12">
+                  <div class="row g-2 action-row">
 
-                  <div class="col">
-                    {% if not row.LastSelfReview or row.LastSelfReview|string == "NaT" %}
-                      <button type="button" class="btn btn-sm btn-outline-primary w-100"
-                        data-bs-toggle="popover" data-bs-trigger="focus" data-bs-placement="top"
-                        title="No Self Reviews"
-                        data-bs-content="{{ row.FirstName }} {{ row.Surname }} has not completed a self review yet.">
-                        View Past Self Reviews
-                      </button>
-                    {% else %}
-                      <form method="POST" action="{{ url_for('survey_bp.set_survey_target') }}">
-                        <input type="hidden" name="email" value="{{ row.Email }}">
-                        <input type="hidden" name="firstname" value="{{ row.FirstName }}">
-                        <input type="hidden" name="lastname" value="{{ row.Surname }}">
-                        <button type="submit" class="btn btn-sm btn-outline-primary w-100">View Past Self Reviews</button>
-                      </form>
-                    {% endif %}
-                  </div>
-
-                  <div class="col">
-                    <form method="POST" action="{{ url_for('staff_bp.send_elearning_reminder') }}">
-                      <input type="hidden" name="email" value="{{ row.Email }}" />
-                      <input type="hidden" name="firstname" value="{{ row.FirstName }}" />
-                      <input type="hidden" name="requested_by" value="{{ session['user_firstname'] ~ ' ' ~ session['user_surname'] }}" />
-                      <input type="hidden" name="from_org" value="{{ session['desc'] }}" />
-                      <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
-                      <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
-                      <button type="submit" class="btn btn-sm btn-outline-primary w-100">Email eLearning Reminder</button>
-                    </form>
-                  </div>
-
-                  <div class="col">
-                    <button class="btn btn-sm btn-outline-primary w-100" data-bs-toggle="modal" data-bs-target="#editModal_{{ safe_id }}">
-                      Edit
-                    </button>
-                  </div>
-
-                  {% if row.Active != 1 %}
-                    <!-- OPEN INVITE MODAL -->
                     <div class="col">
-                      <button
-                        type="button"
-                        class="btn btn-sm btn-outline-primary w-100"
-                        data-bs-toggle="modal"
-                        data-bs-target="#inviteModal_{{ safe_id }}">
-                        Invite User
-                      </button>
-                    </div>
-                  {% else %}
-                    <div class="col">
-                      <form method="POST" action="{{ url_for('staff_bp.disable_user') }}">
+                      <form method="POST" action="{{ url_for('survey_bp.send_survey_reminder') if row.Active == 1 else url_for('survey_bp.email_survey_link') }}">
+                        <input type="hidden" name="email" value="{{ row.Email }}" />
+                        <input type="hidden" name="firstname" value="{{ row.FirstName }}" />
+                        <input type="hidden" name="lastname" value="{{ row.Surname }}" />
+                        <input type="hidden" name="role" value="{{ row.Role }}" />
+                        <input type="hidden" name="user_id" value="{{ row.ID }}" />
+                        <input type="hidden" name="requested_by" value="{{ session['user_firstname'] ~ ' ' ~ session['user_surname'] }}" />
+                        <input type="hidden" name="from_org" value="{{ session['desc'] }}" />
                         <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
                         <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
-                        <input type="hidden" name="email" value="{{ row.Email }}" />
-                        <input type="hidden" name="firstname" value="{{ row.FirstName }}">
-                        <input type="hidden" name="admin" value="{{ row.Admin or 0 }}">
-                        <button type="submit" class="btn btn-sm btn-outline-primary w-100">Disable User</button>
+                        <button type="submit" class="btn btn-sm btn-outline-primary w-100">
+                          {% if row.Active == 1 %}Email Self Review Reminder{% else %}Email Self Review Link{% endif %}
+                        </button>
                       </form>
                     </div>
-                  {% endif %}
 
-                  <div class="col">
-                    <button type="button" class="btn btn-sm btn-outline-primary w-100"
-                      data-bs-toggle="modal" data-bs-target="#hideModal_{{ safe_id }}">
-                      Hide User
-                    </button>
+                    <div class="col">
+                      {% if not row.LastSelfReview or row.LastSelfReview|string == "NaT" %}
+                        <button type="button" class="btn btn-sm btn-outline-primary w-100"
+                          data-bs-toggle="popover" data-bs-trigger="focus" data-bs-placement="top"
+                          title="No Self Reviews"
+                          data-bs-content="{{ row.FirstName }} {{ row.Surname }} has not completed a self review yet.">
+                          View Past Self Reviews
+                        </button>
+                      {% else %}
+                        <form method="POST" action="{{ url_for('survey_bp.set_survey_target') }}">
+                          <input type="hidden" name="email" value="{{ row.Email }}">
+                          <input type="hidden" name="firstname" value="{{ row.FirstName }}">
+                          <input type="hidden" name="lastname" value="{{ row.Surname }}">
+                          <button type="submit" class="btn btn-sm btn-outline-primary w-100">View Past Self Reviews</button>
+                        </form>
+                      {% endif %}
+                    </div>
+
+                    <div class="col">
+                      <form method="POST" action="{{ url_for('staff_bp.send_elearning_reminder') }}">
+                        <input type="hidden" name="email" value="{{ row.Email }}" />
+                        <input type="hidden" name="firstname" value="{{ row.FirstName }}" />
+                        <input type="hidden" name="requested_by" value="{{ session['user_firstname'] ~ ' ' ~ session['user_surname'] }}" />
+                        <input type="hidden" name="from_org" value="{{ session['desc'] }}" />
+                        <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
+                        <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
+                        <button type="submit" class="btn btn-sm btn-outline-primary w-100">Email eLearning Reminder</button>
+                      </form>
+                    </div>
+
+                    <div class="col">
+                      <button class="btn btn-sm btn-outline-primary w-100" data-bs-toggle="modal" data-bs-target="#editModal_{{ safe_id }}">
+                        Edit
+                      </button>
+                    </div>
+
+                    {% if row.Active != 1 %}
+                      <div class="col">
+                        <button type="button" class="btn btn-sm btn-outline-primary w-100"
+                          data-bs-toggle="modal" data-bs-target="#inviteModal_{{ safe_id }}">
+                          Invite User
+                        </button>
+                      </div>
+                    {% else %}
+                      <div class="col">
+                        <form method="POST" action="{{ url_for('staff_bp.disable_user') }}">
+                          <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
+                          <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
+                          <input type="hidden" name="email" value="{{ row.Email }}" />
+                          <input type="hidden" name="firstname" value="{{ row.FirstName }}">
+                          <input type="hidden" name="admin" value="{{ row.Admin or 0 }}">
+                          <button type="submit" class="btn btn-sm btn-outline-primary w-100">Disable User</button>
+                        </form>
+                      </div>
+                    {% endif %}
+
+                    <div class="col">
+                      <button type="button" class="btn btn-sm btn-outline-primary w-100"
+                        data-bs-toggle="modal" data-bs-target="#hideModal_{{ safe_id }}">
+                        Hide User
+                      </button>
+                    </div>
+
                   </div>
                 </div>
               </div>
-            </div> <!-- /row -->
-          </div>
-        </div>
-      </div>
 
-      <!-- Hide Modal -->
-      <div class="modal fade" id="hideModal_{{ safe_id }}" tabindex="-1" aria-labelledby="hideLabel_{{ safe_id }}" aria-hidden="true">
-        <div class="modal-dialog">
-          <div class="modal-content border-0 shadow">
-            <div class="modal-header bg-danger text-white">
-              <h5 class="modal-title" id="hideLabel_{{ safe_id }}">Confirm Hide User</h5>
-              <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-              <p class="mb-2">
-                Are you sure you want to <strong>hide this user</strong>?<br><br>
-                They will no longer appear in:
-              </p>
-              <ul>
-                <li>Staff Overviews</li>
-                <li>eLearning</li>
-                <li>Self Reviews</li>
-              </ul>
-              <p class="mb-2">This is recommended for staff who no longer work for your organisation.</p>
-              {% if row.Active == 1 %}
-                <p class="text-danger fw-bold">This will also <strong>disable their login</strong>.</p>
-              {% endif %}
-            </div>
-            <div class="modal-footer">
-              <form method="POST" action="{{ url_for('staff_bp.hide_user') }}">
-                <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
-                <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
-                <input type="hidden" name="email" value="{{ row.Email }}" />
-                <button type="submit" class="btn btn-danger">Yes, Hide User</button>
-              </form>
-              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- Edit Modal -->
-      <div class="modal fade" id="editModal_{{ safe_id }}" tabindex="-1" aria-labelledby="editLabel_{{ safe_id }}" aria-hidden="true">
-        <div class="modal-dialog">
-          <div class="modal-content border-0 shadow">
-            <div class="modal-header bg-primary text-white">
-              <h5 class="modal-title" id="editLabel_{{ safe_id }}">Edit Staff Member</h5>
-              <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <form method="POST" action="{{ url_for('staff_bp.update_staff') }}">
+        <!-- Hide Modal -->
+        <div class="modal fade" id="hideModal_{{ safe_id }}" tabindex="-1" aria-labelledby="hideLabel_{{ safe_id }}" aria-hidden="true">
+          <div class="modal-dialog">
+            <div class="modal-content border-0 shadow">
+              <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="hideLabel_{{ safe_id }}">Confirm Hide User</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+              </div>
               <div class="modal-body">
-                <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
-                <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
-                <input type="hidden" name="user_id" value="{{ row.ID }}" />
-                <div class="mb-3">
-                  <label for="firstName_{{ safe_id }}" class="form-label">First Name</label>
-                  <input type="text" class="form-control" id="firstName_{{ safe_id }}" name="firstname" value="{{ row.FirstName }}" required />
-                </div>
-                <div class="mb-3">
-                  <label for="lastName_{{ safe_id }}" class="form-label">Last Name</label>
-                  <input type="text" class="form-control" id="lastName_{{ safe_id }}" name="lastname" value="{{ row.Surname }}" required />
-                </div>
-                <input type="hidden" name="old_email" value="{{ row.Email }}" />
-                <div class="mb-3">
-                  <label for="email_{{ safe_id }}" class="form-label">Email</label>
-                  <input type="email" class="form-control" id="email_{{ safe_id }}" name="email" value="{{ row.Email }}" required />
-                </div>
-                <div class="mb-3">
-                  <label for="alt_email_{{ safe_id }}" class="form-label">Alternate Email (optional)</label>
-                  <input type="email"
-                        class="form-control"
-                        id="alt_email_{{ safe_id }}"
-                        name="alternate_email"
-                        value="{{ row.AlternateEmail or '' }}"
-                        placeholder="e.g. personal Gmail">
-                </div>
+                <p class="mb-2">
+                  Are you sure you want to <strong>hide this user</strong>?<br><br>
+                  They will no longer appear in:
+                </p>
+                <ul>
+                  <li>Staff Overviews</li>
+                  <li>eLearning</li>
+                  <li>Self Reviews</li>
+                </ul>
+                <p class="mb-2">This is recommended for staff who no longer work for your organisation.</p>
                 {% if row.Active == 1 %}
-                  <div class="form-check mb-3">
-                    <input class="form-check-input" type="checkbox" id="admin_{{ safe_id }}" name="admin" value="1" {% if row.Admin == 1 %}checked{% endif %}>
-                    <label class="form-check-label" for="admin_{{ safe_id }}">Administrator Privileges</label>
-                  </div>
+                  <p class="text-danger fw-bold">This will also <strong>disable their login</strong>.</p>
                 {% endif %}
               </div>
               <div class="modal-footer">
-                <button type="submit" class="btn btn-primary">Save Changes</button>
+                <form method="POST" action="{{ url_for('staff_bp.hide_user') }}">
+                  <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
+                  <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
+                  <input type="hidden" name="email" value="{{ row.Email }}" />
+                  <button type="submit" class="btn btn-danger">Yes, Hide User</button>
+                </form>
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
               </div>
-            </form>
+            </div>
           </div>
         </div>
+
+        <!-- Edit Modal -->
+        <div class="modal fade" id="editModal_{{ safe_id }}" tabindex="-1" aria-labelledby="editLabel_{{ safe_id }}" aria-hidden="true">
+          <div class="modal-dialog">
+            <div class="modal-content border-0 shadow">
+              <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="editLabel_{{ safe_id }}">Edit Staff Member</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+              </div>
+              <form method="POST" action="{{ url_for('staff_bp.update_staff') }}">
+                <div class="modal-body">
+                  <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
+                  <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
+                  <input type="hidden" name="user_id" value="{{ row.ID }}" />
+
+                  <div class="mb-3">
+                    <label for="firstName_{{ safe_id }}" class="form-label">First Name</label>
+                    <input type="text" class="form-control" id="firstName_{{ safe_id }}" name="firstname" value="{{ row.FirstName }}" required />
+                  </div>
+                  <div class="mb-3">
+                    <label for="lastName_{{ safe_id }}" class="form-label">Last Name</label>
+                    <input type="text" class="form-control" id="lastName_{{ safe_id }}" name="lastname" value="{{ row.Surname }}" required />
+                  </div>
+
+                  <input type="hidden" name="old_email" value="{{ row.Email }}" />
+
+                  <div class="mb-3">
+                    <label for="email_{{ safe_id }}" class="form-label">Email</label>
+                    <input type="email" class="form-control" id="email_{{ safe_id }}" name="email" value="{{ row.Email }}" required />
+                  </div>
+
+                  <div class="mb-3">
+                    <label for="alt_email_{{ safe_id }}" class="form-label">Alternate Email (optional)</label>
+                    <input type="email" class="form-control" id="alt_email_{{ safe_id }}" name="alternate_email"
+                           value="{{ row.AlternateEmail or '' }}" placeholder="e.g. personal Gmail">
+                  </div>
+
+                  {% if row.Active == 1 %}
+                    <div class="form-check mb-3">
+                      <input class="form-check-input" type="checkbox" id="admin_{{ safe_id }}" name="admin" value="1"
+                             {% if row.Admin == 1 %}checked{% endif %}>
+                      <label class="form-check-label" for="admin_{{ safe_id }}">Administrator Privileges</label>
+                    </div>
+                  {% endif %}
+                </div>
+
+                <div class="modal-footer">
+                  <button type="submit" class="btn btn-primary">Save Changes</button>
+                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {% if hidden_staff and hidden_staff|length > 0 %}
+    <div class="card border-primary mt-5">
+      <div class="card-body">
+        <h5 class="text-primary mb-3">
+          {{ hidden_staff|length }} Staff Member{{ 's' if hidden_staff|length > 1 else '' }} Hidden
+        </h5>
+        <ul class="list-unstyled">
+          {% for person in hidden_staff %}
+            <li class="d-flex justify-content-between align-items-center mb-2">
+              <span>{{ person.FirstName }} {{ person.Surname }} ({{ person.Email }})</span>
+              <form method="POST" action="{{ url_for('staff_bp.unhide_user') }}" class="d-inline">
+                <input type="hidden" name="email" value="{{ person.Email }}">
+                <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
+                <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
+                <button type="submit" class="btn btn-sm btn-outline-primary">Unhide</button>
+              </form>
+            </li>
+          {% endfor %}
+        </ul>
       </div>
+    </div>
+  {% endif %}
 
-    {% endfor %}
-  </div>
-{% endif %}
+  <!-- Add New Staff Modal -->
+  <div class="modal fade" id="addStaffModal" tabindex="-1" aria-labelledby="addStaffLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <form method="POST" action="{{ url_for('staff_bp.add_staff') }}">
+          <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
+          <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
+          <div class="modal-header bg-primary text-white">
+            <h5 class="modal-title" id="addStaffLabel">Add New Staff</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
 
-{% if hidden_staff and hidden_staff|length > 0 %}
-  <div class="card border-primary mt-5">
-    <div class="card-body">
-      <h5 class="text-primary mb-3">
-        {{ hidden_staff|length }} Staff Member{{ 's' if hidden_staff|length > 1 else '' }} Hidden
-      </h5>
-      <ul class="list-unstyled">
-        {% for person in hidden_staff %}
-          <li class="d-flex justify-content-between align-items-center mb-2">
-            <span>{{ person.FirstName }} {{ person.Surname }} ({{ person.Email }})</span>
-            <form method="POST" action="{{ url_for('staff_bp.unhide_user') }}" class="d-inline">
-              <input type="hidden" name="email" value="{{ person.Email }}">
-              <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
-              <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
-              <button type="submit" class="btn btn-sm btn-outline-primary">Unhide</button>
-            </form>
-          </li>
-        {% endfor %}
-      </ul>
+            <div class="mb-3">
+              <label class="form-label">First Name</label>
+              <input type="text" class="form-control" name="first_name" required>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Last Name</label>
+              <input type="text" class="form-control" name="last_name" required>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Email</label>
+              <input type="email" class="form-control" name="email" required>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Account Status</label>
+              <select class="form-select" name="account_status" id="account_status" required>
+                <option value="enable">Enable (send welcome email)</option>
+                <option value="disable">Disable</option>
+              </select>
+            </div>
+
+            <div class="form-check mb-3" id="admin_checkbox_group">
+              <input class="form-check-input" type="checkbox" name="admin" value="1" id="admin_checkbox">
+              <label class="form-check-label" for="admin_checkbox">Grant Administrator Privileges</label>
+            </div>
+
+          </div>
+          <div class="modal-footer">
+            <button type="submit" class="btn btn-primary">Add Staff</button>
+          </div>
+        </form>
+      </div>
     </div>
   </div>
-{% endif %}
 
-<!-- Add New Staff Modal -->
-<div class="modal fade" id="addStaffModal" tabindex="-1" aria-labelledby="addStaffLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <form method="POST" action="{{ url_for('staff_bp.add_staff') }}">
-        <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
-        <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
+  <!-- Missing School Modal -->
+  <div class="modal fade" id="missingSchoolModal" tabindex="-1" aria-labelledby="missingSchoolLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content border-0 shadow">
         <div class="modal-header bg-primary text-white">
-          <h5 class="modal-title" id="addStaffLabel">Add New Staff</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          <h5 class="modal-title" id="missingSchoolLabel">Assign School to Funder</h5>
+          <button type="button" class="btn btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
-        <div class="modal-body">
-          <div class="mb-3">
-            <label for="first_name" class="form-label">First Name</label>
-            <input type="text" class="form-control" name="first_name" required>
-          </div>
-          <div class="mb-3">
-            <label for="last_name" class="form-label">Last Name</label>
-            <input type="text" class="form-control" name="last_name" required>
-          </div>
-          <div class="mb-3">
-            <label for="email" class="form-label">Email</label>
-            <input type="email" class="form-control" name="email" required>
-          </div>
-          <div class="mb-3">
-            <label for="account_status" class="form-label">Account Status</label>
-            <select class="form-select" name="account_status" id="account_status" required>
-              <option value="enable">Enable (send welcome email)</option>
-              <option value="disable">Disable</option>
-            </select>
-          </div>
-          <div class="form-check mb-3" id="admin_checkbox_group">
-            <input class="form-check-input" type="checkbox" name="admin" value="1" id="admin_checkbox">
-            <label class="form-check-label" for="admin_checkbox">Grant Administrator Privileges</label>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="submit" class="btn btn-primary">Add Staff</button>
-        </div>
-      </form>
-    </div>
-  </div>
-</div>
 
-<!-- Missing School Modal -->
-<div class="modal fade" id="missingSchoolModal" tabindex="-1" aria-labelledby="missingSchoolLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content border-0 shadow">
-      <div class="modal-header bg-primary text-white">
-        <h5 class="modal-title" id="missingSchoolLabel">Assign School to Funder</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        <form id="missingSchoolForm">
+          <div class="modal-body">
+            <div id="ms_alert" class="alert d-none" role="alert"></div>
+
+            {% if user_role == "ADM" %}
+              <div class="mb-3">
+                <label class="form-label">Funder</label>
+                <select class="form-select" id="ms_funder_select" required>
+                  <option value="" selected disabled>Loading funders…</option>
+                </select>
+                <div class="form-text">Select which funder you are assigning this school to.</div>
+              </div>
+            {% endif %}
+
+            <div class="mb-3">
+              <label class="form-label">School</label>
+              <select class="form-select" id="ms_school" required>
+                <option value="" selected disabled>Choose a funder first…</option>
+              </select>
+              <div class="form-text">
+                If you can’t find a school, contact support via the
+                <a href="{{ url_for('feedback_bp.feedback') }}" class="link-primary" target="_blank" rel="noopener">feedback form</a>.
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Provider</label>
+              <select class="form-select" id="ms_provider" required>
+                <option value="" selected disabled>Choose a funder first…</option>
+              </select>
+              <div class="form-text">Choose which facility or pick Kaiako Led.</div>
+            </div>
+
+            <div class="row g-2">
+              <div class="col-md-6">
+                <label class="form-label">Term</label>
+                <select class="form-select" id="ms_term" required>
+                  <option value="" disabled selected>Choose…</option>
+                  {% for t in terms %}
+                    <option value="{{ t }}" {% if current_term == t %}selected{% endif %}>Term {{ t }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label">Calendar Year</label>
+                <select class="form-select" id="ms_year" required>
+                  <option value="" disabled selected>Choose…</option>
+                  {% for y in years %}
+                    <option value="{{ y }}" {% if current_year == y %}selected{% endif %}>{{ y }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+
+            <!-- FunderID used for insert + provider/school fetch -->
+            <input type="hidden" id="ms_funderid"
+                   value="{{ selected_entity_id if (entity_type == 'Funder') else (funder_id or session.get('funder_id') or '') }}">
+
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button class="btn btn-primary" type="submit">Add to Funder</button>
+          </div>
+        </form>
       </div>
-
-      <form id="missingSchoolForm">
-        <div class="modal-body">
-          <div id="ms_alert" class="alert d-none" role="alert"></div>
-
-          <div class="mb-3">
-            <label class="form-label">School</label>
-            <select class="form-select" id="ms_school" required>
-              <option value="" selected disabled>Loading schools…</option>
-            </select>
-            <div class="form-text">
-              If you can’t find a school, contact support via the
-              <a href="{{ url_for('feedback_bp.feedback') }}" class="link-primary" target="_blank" rel="noopener">feedback form</a>.
-            </div>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Provider</label>
-            <select class="form-select" id="ms_provider" required>
-              <option value="" selected disabled>Loading providers…</option>
-            </select>
-            <div class="form-text">Choose which facility or pick Kaiako Led.</div>
-          </div>
-          <div class="row g-2">
-            <div class="col-md-6">
-              <label class="form-label">Term</label>
-              <select class="form-select" id="ms_term" required>
-                <option value="" disabled selected>Choose…</option>
-                {% for t in terms %}
-                  <option value="{{ t }}" 
-                          {% if term == t %}selected{% endif %}>
-                    Term {{ t }}
-                  </option>
-                {% endfor %}
-              </select>
-            </div>
-
-            <div class="col-md-6">
-              <label class="form-label">Calendar Year</label>
-              <select class="form-select" id="ms_year" required>
-                <option value="" disabled selected>Choose…</option>
-                {% for y in years %}
-                  <option value="{{ y }}"
-                          {% if year == y %}selected{% endif %}>
-                    {{ y }}
-                  </option>
-                {% endfor %}
-              </select>
-            </div>
-          </div>
-
-          <input type="hidden" id="ms_funderid"
-                 value="{{ selected_entity_id if (entity_type == 'Funder') else session.get('funder_id') }}">
-        </div>
-
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button class="btn btn-primary" type="submit">Add to Funder</button>
-        </div>
-      </form>
     </div>
   </div>
-</div>
 
 </div> <!-- /container -->
 
 <style>
-/* phone polish for e-learning tiles: badge under title on phones */
 @media (max-width: 767.98px) {
-  .course-badge {
-    align-self: flex-start;
-    margin-top: .15rem;
-  }
+  .course-badge { align-self: flex-start; margin-top: .15rem; }
 }
-
-/* equal-height, comfy tap targets for action buttons */
 .action-row .col { display: flex; }
 .action-row .col > form,
 .action-row .col > .btn { display: flex; flex: 1 1 auto; }
 .action-row .btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  min-height: 44px;        /* bigger tap target */
-  white-space: normal;     /* allow wrap for long labels */
-  line-height: 1.2;
+  display: flex; align-items: center; justify-content: center;
+  height: 100%; min-height: 44px; white-space: normal; line-height: 1.2;
 }
 .action-row { align-items: stretch; }
 </style>
@@ -554,6 +552,7 @@
       <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     `;
   }
+
   function clearModalAlert() {
     const el = document.getElementById('ms_alert');
     if (!el) return;
@@ -561,18 +560,94 @@
     el.innerHTML = '';
   }
 
+  // Providers for funder
+  function loadProvidersForFunder(funderId) {
+    const selProv = document.getElementById('ms_provider');
+    if (!selProv) return;
+
+    selProv.innerHTML = '<option value="" selected disabled>Loading providers…</option>';
+
+    fetch(`/helper?request=ProvidersByFunderID&number=${encodeURIComponent(funderId)}`, { credentials: "same-origin" })
+      .then(r => r.ok ? r.json() : Promise.reject(r))
+      .then(list => {
+        selProv.innerHTML = '<option value="" disabled selected>Choose a provider…</option>';
+        (list || []).forEach(item => {
+          const opt = document.createElement('option');
+          opt.value = item.id;
+          opt.textContent = item.name;
+          selProv.appendChild(opt);
+        });
+      })
+      .catch(() => {
+        selProv.innerHTML = '<option value="" disabled selected>Failed to load providers</option>';
+      });
+  }
+
+  // Schools for funder (Regional Council reverse)
+  function loadSchoolsForFunderRegion(funderId) {
+    const selSchool = document.getElementById('ms_school');
+    if (!selSchool) return;
+
+    selSchool.innerHTML = '<option value="" selected disabled>Loading schools…</option>';
+
+    fetch(`/api/schools_by_funder_region?funder_id=${encodeURIComponent(funderId)}`, { credentials: "same-origin" })
+      .then(r => r.ok ? r.json() : Promise.reject(r))
+      .then(payload => {
+        const list = (payload && payload.ok && Array.isArray(payload.schools)) ? payload.schools : [];
+        selSchool.innerHTML = '<option value="" disabled selected>Choose a school…</option>';
+
+        list.forEach(item => {
+          const opt = document.createElement('option');
+          opt.value = item.id;
+          opt.textContent = item.name;
+          selSchool.appendChild(opt);
+        });
+
+        if (list.length === 0) {
+          selSchool.innerHTML = '<option value="" disabled selected>No schools found for that funder</option>';
+        }
+      })
+      .catch(() => {
+        selSchool.innerHTML = '<option value="" disabled selected>Failed to load schools</option>';
+      });
+  }
+
+  function loadFundersIntoModal(selectedFunderId) {
+    const sel = document.getElementById('ms_funder_select');
+    if (!sel) return;
+
+    sel.innerHTML = '<option value="" selected disabled>Loading funders…</option>';
+
+    fetch("/api/get_entities?entity_type=Funder", { credentials: "same-origin" })
+      .then(r => r.ok ? r.json() : Promise.reject(r))
+      .then(data => {
+        const list = (data && data.ok && Array.isArray(data.entities)) ? data.entities : [];
+        sel.innerHTML = '<option value="" disabled selected>Choose a funder…</option>';
+
+        for (const f of list) {
+          const opt = document.createElement("option");
+          opt.value = String(f.id);
+          opt.textContent = f.description;
+          if (selectedFunderId && String(f.id) === String(selectedFunderId)) opt.selected = true;
+          sel.appendChild(opt);
+        }
+      })
+      .catch(() => {
+        sel.innerHTML = '<option value="" disabled selected>Failed to load funders</option>';
+      });
+  }
+
   document.addEventListener("DOMContentLoaded", function () {
     const entityTypeSelector = document.getElementById("entity_type");
     const entityDropdown = document.getElementById("entity_id");
     const entityLabel = document.getElementById("entityLabel");
-    const groupWrapper = document.getElementById("groupDropdownWrapper");
 
-    const initialEntityType = "{{ entity_type|default('', true) }}";
     const selectedEntityIDRaw = "{{ selected_entity_id|default('', true) }}";
     const selectedEntityID = (selectedEntityIDRaw && selectedEntityIDRaw !== "None")
       ? selectedEntityIDRaw.toString()
       : "";
 
+    // Default entity_type by role (if needed)
     if (entityTypeSelector && !entityTypeSelector.value) {
       const role = "{{ user_role }}";
       if (role === "PRO") entityTypeSelector.value = "Provider";
@@ -582,6 +657,24 @@
       else entityTypeSelector.value = "Provider";
     }
 
+    // Missing school wrapper visibility (FIXED for ADM + FUN)
+    const role = "{{ user_role or '' }}";
+    const funderPopupAllowed = {{ funder_popup_allowed | default(0) | int }};
+    const wrapper = document.getElementById("missingSchoolWrapper");
+
+    function toggleMissingSchoolLink() {
+      if (!wrapper) return;
+
+      const selectedType = entityTypeSelector ? entityTypeSelector.value : "";
+
+      const canSeePopup =
+        (role === "ADM") ||
+        (role === "FUN" && funderPopupAllowed === 1);
+
+      const shouldShow = (selectedType === "School" && canSeePopup);
+      wrapper.style.display = shouldShow ? "block" : "none";
+    }
+
     function updateLabelAndDropdown() {
       if (!entityTypeSelector || !entityDropdown || !entityLabel) return;
 
@@ -589,42 +682,34 @@
       entityLabel.textContent = `Select ${selectedType}`;
       entityDropdown.innerHTML = `<option disabled selected>Loading ${selectedType}s...</option>`;
 
-      if (groupWrapper) {
-        groupWrapper.style.display = (selectedType === "Group") ? "block" : "none";
-        if (selectedType !== "Group") {
-          const groupSelect = document.getElementById("group_id");
-          if (groupSelect) groupSelect.value = "";
-        }
-      }
-
-      fetch(`/get_entities?entity_type=${encodeURIComponent(selectedType)}`)
+      fetch(`/api/get_entities?entity_type=${encodeURIComponent(selectedType)}`, { credentials: "same-origin" })
         .then((response) => response.json())
-        .then((data) => {
-          entityDropdown.innerHTML = `<option disabled>-- Choose a ${selectedType} --</option>`;
-          data.forEach((item) => {
+        .then((payload) => {
+          if (!payload || payload.ok !== true || !Array.isArray(payload.entities)) {
+            entityDropdown.innerHTML = `<option disabled selected>Failed to load ${selectedType}s</option>`;
+            console.error("Bad payload:", payload);
+            return;
+          }
+
+          entityDropdown.innerHTML = `<option disabled value="">-- Choose a ${selectedType} --</option>`;
+          payload.entities.forEach((item) => {
             const option = document.createElement("option");
             option.value = item.id;
-            option.textContent = item.name;
+            option.textContent = item.description;
             if (selectedEntityID && item.id.toString() === selectedEntityID) option.selected = true;
             entityDropdown.appendChild(option);
           });
+
           if (!entityDropdown.value && entityDropdown.options.length > 1) {
             entityDropdown.selectedIndex = 1;
           }
+
           toggleMissingSchoolLink();
         })
         .catch((err) => {
-          console.error(`❌ Failed to load ${selectedType}s`, err);
+          console.error(`Failed to load ${selectedType}s`, err);
           entityDropdown.innerHTML = `<option disabled selected>Failed to load ${selectedType}s</option>`;
         });
-    }
-
-    const wrapper = document.getElementById("missingSchoolWrapper");
-    function toggleMissingSchoolLink() {
-      const selectedType = entityTypeSelector ? entityTypeSelector.value : "";
-      const role = "{{ user_role or '' }}";
-      const shouldShow = (role === "FUN" && selectedType === "School");
-      if (wrapper) wrapper.style.display = shouldShow ? "block" : "none";
     }
 
     if (entityTypeSelector && entityDropdown && entityLabel) {
@@ -633,8 +718,10 @@
         updateLabelAndDropdown();
         toggleMissingSchoolLink();
       });
+      toggleMissingSchoolLink();
     }
 
+    // Add Staff modal admin checkbox show/hide
     const accountStatusSelect = document.getElementById("account_status");
     const adminCheckboxGroup = document.getElementById("admin_checkbox_group");
     const adminCheckbox = document.getElementById("admin_checkbox");
@@ -650,92 +737,99 @@
     toggleAdminCheckbox();
     if (accountStatusSelect) accountStatusSelect.addEventListener("change", toggleAdminCheckbox);
 
-    // Missing School Modal loads
+    // Missing School Modal - load options
     const modalEl = document.getElementById('missingSchoolModal');
     modalEl?.addEventListener('show.bs.modal', () => {
-      const selSchool = document.getElementById('ms_school');
-      selSchool.innerHTML = '<option value="" selected disabled>Loading schools…</option>';
-      const userId = "{{ user_id or session.get('user_id') }}";
-      fetch(`/helper?request=FilterSchoolID&number=${encodeURIComponent(userId)}`)
-        .then(r => r.ok ? r.json() : Promise.reject(r))
-        .then(list => {
-          selSchool.innerHTML = '<option value="" disabled selected>Choose a school…</option>';
-          (list || []).forEach(item => {
-            const opt = document.createElement('option');
-            opt.value = item.id;
-            opt.textContent = item.name;
-            selSchool.appendChild(opt);
-          });
-        })
-        .catch(() => selSchool.innerHTML = '<option value="" disabled selected>Failed to load schools</option>');
+      clearModalAlert();
 
-      const selProv  = document.getElementById('ms_provider');
-      const funderId = document.getElementById('ms_funderid')?.value;
-      if (selProv && funderId) {
-        selProv.innerHTML = '<option value="" selected disabled>Loading providers…</option>';
-        fetch(`/helper?request=ProvidersByFunderID&number=${encodeURIComponent(funderId)}`)
-          .then(r => r.ok ? r.json() : Promise.reject(r))
-          .then(list => {
-            selProv.innerHTML = '<option value="" disabled selected>Choose a provider…</option>';
-            (list || []).forEach(item => {
-              const opt = document.createElement('option');
-              opt.value = item.id;
-              opt.textContent = item.name;
-              selProv.appendChild(opt);
-            });
-          })
-          .catch(() => selProv.innerHTML = '<option value="" disabled selected>Failed to load providers</option>');
+      const role = "{{ user_role or '' }}";
+      const msFunderHidden = document.getElementById("ms_funderid");
+      const msFunderSelect = document.getElementById("ms_funder_select");
+
+      const initialFunder = "{{ (selected_entity_id if entity_type == 'Funder' else (funder_id or '')) }}";
+
+      if (role === "ADM" && msFunderSelect) {
+        loadFundersIntoModal(initialFunder);
+
+        msFunderSelect.onchange = () => {
+          const fid = msFunderSelect.value;
+          if (msFunderHidden) msFunderHidden.value = fid;
+
+          if (fid) {
+            loadProvidersForFunder(fid);
+            loadSchoolsForFunderRegion(fid);
+          }
+        };
+
+        if (initialFunder) {
+          if (msFunderHidden) msFunderHidden.value = initialFunder;
+          loadProvidersForFunder(initialFunder);
+          loadSchoolsForFunderRegion(initialFunder);
+        } else {
+          const selProv = document.getElementById('ms_provider');
+          const selSchool = document.getElementById('ms_school');
+          if (selProv) selProv.innerHTML = '<option value="" disabled selected>Choose a funder first…</option>';
+          if (selSchool) selSchool.innerHTML = '<option value="" disabled selected>Choose a funder first…</option>';
+        }
+
+      } else {
+        // FUN/others: use hidden funder id to load providers + schools
+        const fid = msFunderHidden?.value;
+        if (fid) {
+          loadProvidersForFunder(fid);
+          loadSchoolsForFunderRegion(fid);
+        } else {
+          const selProv = document.getElementById('ms_provider');
+          const selSchool = document.getElementById('ms_school');
+          if (selProv) selProv.innerHTML = '<option value="" disabled selected>Choose a funder first…</option>';
+          if (selSchool) selSchool.innerHTML = '<option value="" disabled selected>Choose a funder first…</option>';
+        }
       }
     });
 
-    // POST insert to SchoolFunder
+    // Insert SchoolFunder
     const msForm = document.getElementById('missingSchoolForm');
     msForm?.addEventListener('submit', (e) => {
-  e.preventDefault();
-  clearModalAlert();
+      e.preventDefault();
+      clearModalAlert();
 
-  const MoeNumber  = document.getElementById('ms_school').value;
-  const Term       = document.getElementById('ms_term').value;
-  const Year       = document.getElementById('ms_year').value;
-  const FunderID   = document.getElementById('ms_funderid').value;
-  const ProviderID = document.getElementById('ms_provider') ? document.getElementById('ms_provider').value : null;
+      const MoeNumber  = document.getElementById('ms_school').value;
+      const Term       = document.getElementById('ms_term').value;
+      const Year       = document.getElementById('ms_year').value;
+      const FunderID   = document.getElementById('ms_funderid').value;
+      const ProviderID = document.getElementById('ms_provider') ? document.getElementById('ms_provider').value : null;
 
-  fetch('/add_school_to_funder', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({
-      MoeNumber: Number(MoeNumber),
-      Term: Number(Term),
-      CalendarYear: Number(Year),
-      FunderID: Number(FunderID),
-      ProviderID: ProviderID ? Number(ProviderID) : null
-    })
-  })
-  .then(r => r.json())
-  .then(resp => {
-    if (resp.ok) {
-      showModalAlert('success', 'School added to funder successfully.');
+      fetch('/add_school_to_funder', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          MoeNumber: Number(MoeNumber),
+          Term: Number(Term),
+          CalendarYear: Number(Year),
+          FunderID: Number(FunderID),
+          ProviderID: ProviderID ? Number(ProviderID) : null
+        })
+      })
+      .then(r => r.json())
+      .then(resp => {
+        if (resp.ok) {
+          showModalAlert('success', 'School added to funder successfully.');
+          setTimeout(() => {
+            const modalEl = document.getElementById('missingSchoolModal');
+            const bsModal = bootstrap.Modal.getInstance(modalEl);
+            bsModal?.hide();
+            setTimeout(() => window.location.reload(), 0);
+          }, 1200);
+        } else {
+          showModalAlert('danger', resp.error || 'Insert failed.');
+        }
+      })
+      .catch(() => showModalAlert('danger', 'Insert failed.'));
+    });
 
-      // Optional: refresh the page (or re-fetch the dropdowns) after a short pause
-       setTimeout(() => {
-    const modalEl = document.getElementById('missingSchoolModal');
-    const bsModal = bootstrap.Modal.getInstance(modalEl);
-    bsModal?.hide();
-
-    // reload a few seconds after closing
-    setTimeout(() => {
-      window.location.reload();
-    }, 0); // <- reload delay (2.5s) after modal closes
-
-  }, 2500); // <- delay before closing modal (0.9s)
-
-    } else {
-      showModalAlert('danger', resp.error || 'Insert failed.');
-    }
-  })
-  .catch(() => showModalAlert('danger', 'Insert failed.'));
-});
-
+    // Show wrapper on page load too
+    toggleMissingSchoolLink();
   });
 </script>
+
 {% endblock %}

@@ -297,13 +297,15 @@ def build_funder_progress_summary_pdf(
     term_blocks = _split_by_term(df_all)
     meta["terms"] = [f"{y}T{t}" for (y, t, _d) in term_blocks]
 
-    # Overall totals across terms
-    overall = _overall_totals_from_terms(term_blocks)
-    overall_pct = (overall["progressed"] / overall["students"]) if overall["students"] else 0.0
+    overall_schools = int(df_all["OverallSchoolsAllTerms"].iloc[0] or 0)
+    overall_students = int(df_all["OverallStudentsAllTerms"].iloc[0] or 0)
+    overall_progressed = int(df_all["OverallProgressedStudentsAllTerms"].iloc[0] or 0)
+
+    pct = (overall_progressed / overall_students) if overall_students else 0.0
     overall_summary_text = (
-        f"Overall Summary (All Terms): Total schools: {overall['schools']}   |   "
-        f"Total students: {overall['students']}   |   "
-        f"Progressed: {overall['progressed']} ({overall_pct*100:.1f}%)"
+        f"Overall Summary (All Terms): Total schools: {overall_schools}   |   "
+        f"Total students: {overall_students}   |   "
+        f"Progressed: {overall_progressed} ({pct*100:.1f}%)"
     )
 
     # Precompute last rendered page (fixes empty-term bug)
