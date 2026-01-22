@@ -24,9 +24,9 @@ load_dotenv()
 DB_URL       = os.getenv("DB_URL")
 SMTP_HOST    = "smtp.office365.com"
 SMTP_PORT    = 587
-SMTP_USER    = os.getenv("EMAIL")
-SMTP_PASS    = os.getenv("WSNZADMINPASS")
-FROM_EMAIL   = os.getenv("EMAIL")
+SMTP_USER  = os.getenv("MAIL_USERNAME") or os.getenv("EMAIL")
+SMTP_PASS  = os.getenv("MAIL_PASSWORD") or os.getenv("WSNZADMINPASS")
+FROM_EMAIL = SMTP_USER
 FROM_NAME    = "WSFL Team • Water Safety NZ"
 REPLY_TO     = os.getenv("REPLY_TO", FROM_EMAIL)
 
@@ -50,7 +50,7 @@ NAV_PATH_PLAIN = 'School Tools > Class Lookup'
 SIGN_OFF_NAME  = "Stella McGann"
 SIGN_OFF_TITLE = "WSFL Administration Team"
 
-engine = create_engine(DB_URL, connect_args={"TrustServerCertificate": "yes"})
+engine = get_db_engine(DB_URL)
 
 # =====================================================
 # Helpers
@@ -163,27 +163,21 @@ def build_message(email, first_name, school_name, temp_pw):
     msg.set_content(plain)
     msg.add_alternative(html, subtype="html")
     return msg
-
-def send_email(msg: EmailMessage):
+def send_email(msg: EmailMessage, *, smtp_user: str | None = None, smtp_pass: str | None = None):
     ctx = ssl.create_default_context()
 
-    smtp_user = (SMTP_USER or "").strip()
-    smtp_pass = (SMTP_PASS or "").strip()
+    smtp_user = (smtp_user or SMTP_USER or "").strip()
+    smtp_pass = (smtp_pass or SMTP_PASS or "").strip()
 
-    # Safe debug (no password content)
-    try:
-        print(
-            f"SMTP: user={smtp_user!r} pass_len={len(smtp_pass)} host={SMTP_HOST} port={SMTP_PORT}",
-            flush=True
-        )
-    except Exception:
-        # if current_app isn't available in some contexts
-        print(f"SMTP: user={smtp_user!r} pass_len={len(smtp_pass)} host={SMTP_HOST} port={SMTP_PORT}")
+    print(
+        f"SMTP: user={smtp_user!r} pass_len={len(smtp_pass)} host={SMTP_HOST} port={SMTP_PORT}",
+        flush=True,
+    )
 
     if not smtp_user or not smtp_pass:
-        raise RuntimeError("SMTP_USER/SMTP_PASS missing or empty (check Render env vars)")
+        raise RuntimeError("SMTP credentials missing/empty (check Render env vars)")
 
-    with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30) as s:
+    with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=60) as s:
         s.ehlo()
         s.starttls(context=ctx)
         s.ehlo()
