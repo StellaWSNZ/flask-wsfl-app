@@ -166,9 +166,28 @@ def build_message(email, first_name, school_name, temp_pw):
 
 def send_email(msg: EmailMessage):
     ctx = ssl.create_default_context()
-    with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as s:
+
+    smtp_user = (SMTP_USER or "").strip()
+    smtp_pass = (SMTP_PASS or "").strip()
+
+    # Safe debug (no password content)
+    try:
+        print(
+            f"SMTP: user={smtp_user!r} pass_len={len(smtp_pass)} host={SMTP_HOST} port={SMTP_PORT}",
+            flush=True
+        )
+    except Exception:
+        # if current_app isn't available in some contexts
+        print(f"SMTP: user={smtp_user!r} pass_len={len(smtp_pass)} host={SMTP_HOST} port={SMTP_PORT}")
+
+    if not smtp_user or not smtp_pass:
+        raise RuntimeError("SMTP_USER/SMTP_PASS missing or empty (check Render env vars)")
+
+    with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30) as s:
+        s.ehlo()
         s.starttls(context=ctx)
-        s.login(SMTP_USER, SMTP_PASS)
+        s.ehlo()
+        s.login(smtp_user, smtp_pass)
         s.send_message(msg)
         time.sleep(SEND_DELAY_SEC)
 
