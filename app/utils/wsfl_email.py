@@ -50,7 +50,7 @@ NAV_PATH_PLAIN = 'School Tools > Class Lookup'
 SIGN_OFF_NAME  = "Stella McGann"
 SIGN_OFF_TITLE = "WSFL Administration Team"
 
-engine = get_db_engine(DB_URL)
+engine = get_db_engine()
 
 # =====================================================
 # Helpers
