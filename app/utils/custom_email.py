@@ -4,7 +4,6 @@ from itsdangerous import URLSafeTimedSerializer
 from flask import current_app, url_for
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 import os
-import smtplib
 
 def send_reset_email(mail, email, token):
     reset_url = url_for('auth_bp.reset_password', token=token, _external=True)
