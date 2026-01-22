@@ -5,26 +5,32 @@ from flask import current_app, url_for
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 import os
 
-def send_reset_email(mail, email, token):
-    reset_url = url_for('auth_bp.reset_password', token=token, _external=True)
-    msg = Message(
-        subject='Reset Your WSFL Password',
-        recipients=[email],
-        sender=("WSFL Admin", current_app.config["MAIL_USERNAME"])
-    )
-    msg.html = f"""
-        <p>Kia ora,</p>
-        <p>We received a request to reset your WSFL account password.</p>
-        <p><a href="{reset_url}">Click here to reset your password</a></p>
-        <p>If you didn't request this, you can safely ignore this email.</p>
-        <p>Ngā mihi,<br><strong>WSFL Admin Team</strong></p>
-        <img src="cid:wsfl_logo" alt="WSFL Logo" style="height:60px;margin-top:10px;">
-    """
-    with current_app.open_resource("static/WSFLLogo.png") as fp:
-        msg.attach("WSFLLogo.png", "image/png", fp.read(), disposition='inline',
-                   headers={"Content-ID": "<wsfl_logo>"})
-    mail.send(msg)
 
+def send_reset_email(mail, email, token):
+    reset_url = url_for("auth_bp.reset_password", token=token, _external=True)
+
+    msg = Message(
+        subject="Water Skills for Life – password reset",
+        recipients=[email],
+        sender=current_app.config.get("MAIL_DEFAULT_SENDER"),
+    )
+    msg.body = f"Reset your password here: {reset_url}"
+    msg.html = f"<p>Reset your password here:</p><p><a href='{reset_url}'>{reset_url}</a></p>"
+
+    # 🔍 DEBUG — Render-safe
+    print(
+        "MAIL DEBUG |",
+        "server=", current_app.config.get("MAIL_SERVER"),
+        "port=", current_app.config.get("MAIL_PORT"),
+        "tls=", current_app.config.get("MAIL_USE_TLS"),
+        "ssl=", current_app.config.get("MAIL_USE_SSL"),
+        "username=", current_app.config.get("MAIL_USERNAME"),
+        "pass_len=", len(current_app.config.get("MAIL_PASSWORD") or ""),
+        "default_sender=", current_app.config.get("MAIL_DEFAULT_SENDER"),
+        flush=True,
+    )
+
+    mail.send(msg)
 def generate_reset_token(secret_key, email):
     serializer = URLSafeTimedSerializer(secret_key)
     return serializer.dumps(email, salt='reset-password')
@@ -194,7 +200,7 @@ def send_survey_reminder_email(mail, email, firstname, requested_by, from_org):
     <div style="font-family: Arial, sans-serif; font-size: 16px; line-height: 1.6;">
       <p>Kia ora <strong>{firstname}</strong>,</p>
       <p>This is a friendly reminder to log into the <strong>WSFL</strong> site and complete your self review.</p>
-      <p>This reminder was sent at the request of an administrator from <strong>{from_org}</strong>.</p>
+      <p>This reminder was sent at the request of {firstname} from <strong>{from_org}</strong>.</p>
       <p><a href="{login_link}">Click here to log in</a></p>
       <p>Ngā mihi,<br>The WSFL Team</p>
       <img src="cid:wsfl_logo" alt="WSFL Logo" style="margin-top: 20px; width: 200px;">

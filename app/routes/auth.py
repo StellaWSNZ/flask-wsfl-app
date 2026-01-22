@@ -28,7 +28,6 @@ from app.utils.custom_email import (
     verify_reset_token,
 )
 from app.utils.database import get_db_engine, log_alert
-
 # Blueprint
 auth_bp = Blueprint("auth_bp", __name__)
 __all__ = ["auth_bp", "login_required"]
@@ -277,6 +276,7 @@ def forgot_password():
                 return redirect(url_for('auth_bp.forgot_password'))
 
             # Send email
+            
             try:
                 send_reset_email(mail, email, token)
             except Exception as mail_err:
