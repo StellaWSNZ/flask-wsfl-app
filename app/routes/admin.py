@@ -161,8 +161,8 @@ def create_user():
                     # specific keys.
                     recipients = [{
                         "email": email,
-                        "first_name": firstname,
-                        "last_name": surname,
+                        "firstname": firstname,
+                        "lastname": surname,
                         "role": selected_role,
                     }]
 
