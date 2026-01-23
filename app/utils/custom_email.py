@@ -7,38 +7,69 @@ import os
 
 
 def send_reset_email(mail, email, token):
-    reset_url = url_for("auth_bp.reset_password", token=token, _external=True)
+    reset_url = url_for(
+        "auth_bp.reset_password",
+        token=token,
+        _external=True
+    )
 
     msg = Message(
-        subject="Water Skills for Life – password reset",
+        subject="Water Skills for Life – Reset your password",
         recipients=[email],
         sender=current_app.config.get("MAIL_DEFAULT_SENDER"),
     )
-    msg.body = f"Reset your password here: {reset_url}"
-    msg.html = f"<p>Reset your password here:</p><p><a href='{reset_url}'>{reset_url}</a></p>"
 
-    # 🔍 DEBUG — Render-safe
-    print(
-        "MAIL DEBUG |",
-        "server=", current_app.config.get("MAIL_SERVER"),
-        "port=", current_app.config.get("MAIL_PORT"),
-        "tls=", current_app.config.get("MAIL_USE_TLS"),
-        "ssl=", current_app.config.get("MAIL_USE_SSL"),
-        "username=", current_app.config.get("MAIL_USERNAME"),
-        "pass_len=", len(current_app.config.get("MAIL_PASSWORD") or ""),
-        "default_sender=", current_app.config.get("MAIL_DEFAULT_SENDER"),
-        flush=True,
-    )
-    import hashlib
+    # Plain text fallback
+    msg.body = f"""
+Kia ora,
 
-    pw = current_app.config.get("MAIL_PASSWORD") or ""
-    print(
-        "MAIL DEBUG HASH |",
-        "pass_sha256_prefix=",
-        hashlib.sha256(pw.encode("utf-8")).hexdigest()[:12],
-        flush=True,
-    )
+We received a request to reset your Water Skills for Life password.
+
+You can reset your password using the link below:
+{reset_url}
+
+If you didn’t request this, you can safely ignore this email.
+
+Ngā mihi,
+Water Safety New Zealand
+""".strip()
+
+    # HTML version
+    msg.html = f"""
+<p>Kia ora,</p>
+
+<p>
+We received a request to reset your Water Skills for Life password.
+</p>
+
+<p>
+<a href="{reset_url}"
+   style="
+     display:inline-block;
+     padding:10px 16px;
+     background:#005ea5;
+     color:#ffffff;
+     text-decoration:none;
+     border-radius:4px;
+     font-weight:600;
+   ">
+   Click here to reset your password
+</a>
+</p>
+
+<p>
+If you didn’t request this, you can safely ignore this email.
+</p>
+
+<p>
+Ngā mihi,<br>
+Water Safety New Zealand
+</p>
+"""
+
     mail.send(msg)
+    
+    
 def generate_reset_token(secret_key, email):
     serializer = URLSafeTimedSerializer(secret_key)
     return serializer.dumps(email, salt='reset-password')
