@@ -1014,7 +1014,7 @@ def _build_figure_from_results(
             caption = (
                 f"{region_label} Competency Rate for Term 3, 2024 - Term 2, 2025 | "
                 f"Generated {datetime.now(pytz.timezone('Pacific/Auckland')).strftime('%d %b %Y, %I:%M %p')}"
-            )
+            ),
             title=f"{region_label} Last Year Result vs WSNZ Target",
             bar_series="ytd",
         )
