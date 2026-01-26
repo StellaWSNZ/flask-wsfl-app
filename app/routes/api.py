@@ -60,7 +60,16 @@ def get_entities():
         # Execute Stored Procedure
         # ----------------------------
         engine = get_db_engine()
+        if entity_type == "Region":
+            with engine.connect() as conn:
+                rows = conn.execute(
+                    text("""
+                        EXEC dbo.FlaskHelperFunctions
+                            @Request = 'AllRegions'
+                    """)
+                ).mappings().all()
 
+                return jsonify({"ok": True, "entities": [dict(r) for r in rows]})
         if debug:
             current_app.logger.info("🔌 DB engine acquired")
         user_id = session.get("user_id")

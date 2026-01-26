@@ -18,9 +18,10 @@
 {% set term_3_selected = (sel_term == "3") %}
 {% set term_4_selected = (sel_term == "4") %}
 
-{% set disable_png = sel_type in ["funder_student_count", "funder_progress_summary"] %}
+{% set disable_png = sel_type in ["funder_student_count", "funder_progress_summary", "funder_teacher_review_summary"] %}
 {% set provider_name_posted = request.form.get("provider_name", "") %}
 {% set school_name_posted = request.form.get("school_name", "") %}
+{% set region_name_posted = request.form.get("region_name", "") %}
 
 <div class="container-fluid mt-4" style="max-width: 98%">
   <div class="row">
@@ -89,6 +90,10 @@
 
                   <option value="funder_targets_counts" {{ "selected" if sel_type == "funder_targets_counts" else "" }}>
                     Funder Targets vs Database Counts
+                  </option>
+
+                  <option value="region_ly_vs_target" {{ "selected" if sel_type == "region_ly_vs_target" else "" }}>
+                    Region (LY) vs WSNZ Target
                   </option>
                 {% endif %}
 
@@ -168,6 +173,22 @@
               {% endif %}
             </div>
 
+            <!-- Region (only for region reports) -->
+            <div class="mb-3" id="regionBlock" style="display: none">
+              <label for="region_id" class="form-label">Region</label>
+              <select name="region_id" id="region_id" class="form-select">
+                <option value="" disabled selected>Loading regions…</option>
+              </select>
+
+              <!-- Hidden: region name for titles -->
+              <input
+                type="hidden"
+                name="region_name"
+                id="region_name"
+                value="{{ request.form.get('region_name', '') }}"
+              />
+            </div>
+
             <!-- Provider (only for provider reports) -->
             <div class="mb-3" id="providerBlock" style="display: none">
               <label for="provider_id" class="form-label">Provider</label>
@@ -213,6 +234,7 @@
             {% else %}
               Select options and run report
             {% endif %}
+            {% if region_name_posted %} • {{ region_name_posted }}{% endif %}
             {% if provider_name_posted %} • {{ provider_name_posted }}{% endif %}
             {% if school_name_posted %} • {{ school_name_posted }}{% endif %}
           </div>
@@ -275,13 +297,8 @@
 </div>
 
 <style>
-  .fade-in {
-    opacity: 0;
-    transition: opacity 0.25s ease;
-  }
-  .fade-in.is-visible {
-    opacity: 1;
-  }
+  .fade-in { opacity: 0; transition: opacity 0.25s ease; }
+  .fade-in.is-visible { opacity: 1; }
 </style>
 
 <script>
@@ -297,6 +314,10 @@
     const funderSel = document.getElementById("selected_funder"); // ADM only
     const funderNameInput = document.getElementById("funder_name");
 
+    const regionBlock = document.getElementById("regionBlock");
+    const regionSel = document.getElementById("region_id");
+    const regionNameInput = document.getElementById("region_name");
+
     const providerBlock = document.getElementById("providerBlock");
     const providerSel = document.getElementById("provider_id");
     const providerNameInput = document.getElementById("provider_name");
@@ -309,6 +330,8 @@
     const prevFunderId = "{{ request.form.get('selected_funder', '') }}";
     const prevFunderName = "{{ request.form.get('funder_name', funder_name or '') }}";
     const prevSchoolId = "{{ request.form.get('school_id', '') }}";
+    const prevRegionId = "{{ request.form.get('region_id', '') }}";
+    const prevRegionName = "{{ request.form.get('region_name', '') }}";
 
     if (form) {
       form.addEventListener("keydown", (e) => {
@@ -334,6 +357,10 @@
         "funder_progress_summary",
         "funder_teacher_review_summary",
       ].includes(val);
+    }
+
+    function needsRegion(val) {
+      return ["region_ly_vs_target"].includes(val);
     }
 
     async function loadFunders() {
@@ -373,6 +400,47 @@
         console.error("Error loading funders:", err);
         funderSel.innerHTML = '<option value="" disabled>Error loading funders</option>';
         if (funderNameInput) funderNameInput.value = "";
+      }
+    }
+
+    async function loadRegions() {
+      if (!regionSel) return;
+      regionSel.innerHTML = '<option value="" disabled>Loading regions…</option>';
+
+      try {
+        const res = await fetch(ENTITIES_URL + "?entity_type=Region", { credentials: "same-origin" });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || "Failed to load regions");
+
+        const items = data.entities || [];
+        regionSel.innerHTML = '<option value="" disabled>Choose region…</option>';
+
+        let picked = false;
+        for (const r of items) {
+          const opt = document.createElement("option");
+          opt.value = r.description;
+          opt.textContent = r.description;
+
+          if (prevRegionId && String(r.id) === String(prevRegionId)) {
+            opt.selected = true;
+            picked = true;
+          }
+          regionSel.appendChild(opt);
+        }
+
+        if (regionNameInput) {
+          if (picked) {
+            regionNameInput.value = regionSel.options[regionSel.selectedIndex]?.textContent?.trim() || "";
+          } else if (prevRegionName) {
+            regionNameInput.value = prevRegionName;
+          } else {
+            regionNameInput.value = "";
+          }
+        }
+      } catch (err) {
+        console.error("Error loading regions:", err);
+        regionSel.innerHTML = '<option value="" disabled>Error loading regions</option>';
+        if (regionNameInput) regionNameInput.value = "";
       }
     }
 
@@ -450,6 +518,7 @@
     let fundersLoaded = false;
     let providersLoaded = false;
     let schoolsLoaded = false;
+    let regionsLoaded = false;
 
     function toggleEntityBlocks() {
       const val = reportSel ? reportSel.value : "";
@@ -461,6 +530,18 @@
           fundersLoaded = true;
           loadFunders();
         }
+      }
+
+      const wantRegion = needsRegion(val);
+      if (regionBlock) {
+        regionBlock.style.display = wantRegion ? "block" : "none";
+        if (wantRegion && !regionsLoaded) {
+          regionsLoaded = true;
+          loadRegions();
+        }
+      } else if (!wantRegion && regionSel) {
+        regionSel.innerHTML = '<option value="" disabled>Choose region…</option>';
+        if (regionNameInput) regionNameInput.value = "";
       }
 
       const wantProvider = needsProvider(val);
@@ -504,6 +585,14 @@
       });
     }
 
+    if (regionSel) {
+      regionSel.addEventListener("change", () => {
+        if (regionNameInput) {
+          regionNameInput.value = regionSel.options[regionSel.selectedIndex]?.textContent?.trim() || "";
+        }
+      });
+    }
+
     if (reportSel) {
       reportSel.addEventListener("change", () => {
         initialising = false;
@@ -537,13 +626,21 @@
       // Sync visible labels → hidden name fields
       const funderSel = document.getElementById("selected_funder");
       const funderNameInput = document.getElementById("funder_name");
+
+      const regionSel = document.getElementById("region_id");
+      const regionNameInp = document.getElementById("region_name");
+
       const providerSel = document.getElementById("provider_id");
       const providerNameInp = document.getElementById("provider_name");
+
       const schoolSel = document.getElementById("school_id");
       const schoolNameInp = document.getElementById("school_name");
 
       if (funderSel && funderNameInput && funderSel.selectedIndex >= 0) {
         funderNameInput.value = funderSel.options[funderSel.selectedIndex]?.textContent?.trim() || "";
+      }
+      if (regionSel && regionNameInp && regionSel.selectedIndex >= 0) {
+        regionNameInp.value = regionSel.options[regionSel.selectedIndex]?.textContent?.trim() || "";
       }
       if (providerSel && providerNameInp && providerSel.selectedIndex >= 0) {
         providerNameInp.value = providerSel.options[providerSel.selectedIndex]?.textContent?.trim() || "";
@@ -565,9 +662,7 @@
         btns.classList.remove("d-flex");
         btns.classList.add("d-none");
       }
-      if (pngBtn) {
-        pngBtn.classList.add("d-none");
-      }
+      if (pngBtn) pngBtn.classList.add("d-none");
 
       try {
         const fd = new FormData(form);

@@ -2,6 +2,7 @@
 
 # Standard library
 import base64
+from datetime import datetime
 import os
 import re
 import traceback
@@ -12,6 +13,7 @@ from pathlib import Path
 
 # Third-party
 import matplotlib
+import pytz
 
 matplotlib.use("Agg")  # Safe backend for servers
 import matplotlib.pyplot as plt
@@ -308,6 +310,7 @@ def _validate_required_entities(
     selected_provider_id,
     selected_school_id,
     funder_id,
+    region_id,
     is_ajax,
     selected_term,
     selected_year,
@@ -319,12 +322,28 @@ def _validate_required_entities(
     Returns a Flask response if validation fails.
     Returns None if validation passes.
     """
+    needs_region  = selected_type in {
+        "region_ly_vs_target",
+    }
+    if needs_region and not region_id:
+        msg = "Please choose a region."
+
+        try:
+            log_alert(
+                email=session.get("user_email"),
+                role=session.get("user_role"),
+                entity_id=session.get("user_id"),
+                link=request.url,
+                message="/Reports: region required but missing",
+            )
+        except Exception:
+            pass
     # ---- Provider required ----
     needs_provider = selected_type in {
         "provider_ytd_vs_target",
         "provider_ytd_vs_target_vs_funder",
     }
-
+    
     if needs_provider and not selected_provider_id:
         msg = "Please choose a provider."
 
@@ -448,6 +467,7 @@ def _execute_report(
     selected_term,
     role,
     funder_id,
+    region_id,
     selected_provider_id,
     selected_school_id,
     selected_funder_name,
@@ -541,7 +561,20 @@ def _execute_report(
         res = conn.execute(sql, params)
         results = res.mappings().all()
         current_app.logger.info("🔎 rows=%d | type=%s", len(results or []), selected_type)
-
+    elif selected_type == "region_ly_vs_target":
+        sql = text(
+            """
+            SET NOCOUNT ON;
+            EXEC GetRegionalCouncilRates
+                @CalendarYear = :CalendarYear,
+                @Term         = :Term,
+                @Region = :Region;
+            """
+        )
+        params = {"CalendarYear": 2025, "Term": 2,"Region":region_id}
+        res = conn.execute(sql, params)
+        results = res.mappings().all()
+        current_app.logger.info("🔎 rows=%d | type=%s", len(results or []), selected_type)
     # ✅ IMPORTANT: return list-of-row-mappings (NOT DataFrame)
     elif selected_type == "funder_targets_counts":
         sql = text("SET NOCOUNT ON; EXEC GetFunderTargetsCounts;")
@@ -818,6 +851,7 @@ def _build_figure_from_results(
     selected_term,
     selected_year,
     funder_id,
+    region_id,
     selected_funder_name,
     selected_provider_id,
     selected_school_id,
@@ -968,7 +1002,20 @@ def _build_figure_from_results(
             subject_name=selected_funder_name,
             title=f"{selected_funder_name or 'Funder'} YTD vs Target",
         )
-
+    elif selected_type == "region_ly_vs_target":
+        region_label = (request.form.get("region_name") or "").strip() or "Region"
+        print(rows)
+        fig = provider_portrait_with_target(
+            rows,
+            term=selected_term,
+            year=selected_year,
+            mode="region",
+            subject_name=region_label,
+            caption=f"{region_label} Competency Rate for Term 3, 2024 - Term 2, 2025 | Generated {datetime.now(pytz.timezone("Pacific/Auckland")).strftime("%d %b %Y, %I:%M %p")}",
+            title=f"{region_label} Last Year Result vs WSNZ Target",
+            bar_series="ytd",
+        )
+        
     elif selected_type == "school_ytd_vs_target":
         try:
             use_ppmori("app/static/fonts")
@@ -1094,6 +1141,10 @@ def _persist_figure_and_session(
     elif selected_type == "funder_targets_counts":
         base_label = f"FunderTargetsCounts"
         add_term = False
+    elif selected_type == "region_ly_vs_target":
+        region_label = (request.form.get("region_name") or "Region").strip()
+        base_label = f"RegionLYvsTarget_{region_label}"
+        add_term = False
     else:
         base_label = f"Report_{selected_type or 'Unknown'}"
 
@@ -1175,7 +1226,7 @@ def new_reports():
 
         # initialise here so we can reference them in except logging
         funder_id = None
-
+        region_id = None
         try:
             with engine.connect() as conn:
                 current_app.logger.debug(
@@ -1190,11 +1241,12 @@ def new_reports():
                 # Resolve funder from ADM dropdown (FUN is implied from session, PRO has none)
                 if role == "ADM":
                     selected_funder_name = request.form.get("funder_name") or None
-
+                    region_id = request.form.get("region_name") or None
                 if selected_funder_name == "Loading funders…":
                     selected_funder_name = None
 
                 current_app.logger.debug("effective funder_name=%s", selected_funder_name)
+                current_app.logger.debug("effective region_name=%s", region_id)
 
                 # If we have a funder *name*, resolve it to an ID
                 if selected_funder_name:
@@ -1269,6 +1321,7 @@ def new_reports():
                     role=role,
                     selected_provider_id=selected_provider_id,
                     selected_school_id=selected_school_id,
+                    region_id = region_id,
                     funder_id=funder_id,
                     is_ajax=is_ajax,
                     selected_term=selected_term,
@@ -1287,6 +1340,7 @@ def new_reports():
                     selected_year=selected_year,
                     selected_term=selected_term,
                     role=role,
+                    region_id = region_id,
                     funder_id=funder_id,
                     selected_provider_id=selected_provider_id,
                     selected_school_id=selected_school_id,
@@ -1314,7 +1368,9 @@ def new_reports():
                 
                 rows = results_to_rows(results)
 
-
+                if(selected_type=="region_ly_vs_target"):
+                    selected_term = 2
+                    selected_year = 2025
                 plot_payload = {
                     "year": selected_year,
                     "term": selected_term,
@@ -1332,6 +1388,7 @@ def new_reports():
                         selected_term,
                         selected_year,
                         funder_id,
+                        region_id,
                         selected_funder_name,
                         selected_provider_id,
                         selected_school_id,

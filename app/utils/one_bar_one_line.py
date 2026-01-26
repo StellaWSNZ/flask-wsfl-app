@@ -166,13 +166,11 @@ def use_ppmori(font_dir="app/static/fonts"):
 # ---------- canonical keys ----------
 TARGET_KEY   = "wsnz target"
 NATIONAL_KEY = "national rate (ytd)"
-
 def _canon_factory(mode: str):
     mode = (mode or "provider").strip().lower()
-    if mode not in {"provider", "funder", "school", "national"}:
-        raise ValueError("mode must be 'provider' or 'funder' or 'school' or 'national'")
+    if mode not in {"provider", "funder", "school", "national", "region"}:
+        raise ValueError("mode must be 'provider' or 'funder' or 'school' or 'national' or 'region'")
 
-    # Keep YTD and LY distinct
     if mode == "national":
         rate_ytd = "national rate (ytd)"
         rate_ly  = "national rate (ly)"
@@ -194,7 +192,16 @@ def _canon_factory(mode: str):
         "provider rate ly":  "provider rate (ly)",
         "funder rate ytd":   "funder rate (ytd)",
         "funder rate ly":    "funder rate (ly)",
-    
+
+        # ✅ region aliases
+        "region rate ytd":   "region rate (ytd)",
+        "region rate (ytd)": "region rate (ytd)",
+        "regional council rate (YTD)": "region rate (ytd)",
+        "region rate ly":    "region rate (ly)",
+        "region rate (ly)":  "region rate (ly)",
+        "region student count ytd": "region student count (ytd)",
+        "region student count (ytd)": "region student count (ytd)",
+
         # national aliases
         "national rate ytd": "national rate (ytd)",
         "national rate (ytd)": "national rate (ytd)",
@@ -221,7 +228,6 @@ def _canon_factory(mode: str):
         s = " ".join(s.split())
         return alias_map.get(s, s)
 
-    # return canonical keys so caller can choose which is used for bars
     return _canon, rate_ytd, rate_ly, psc_ytd
 
 # ---------- utils ----------
@@ -286,12 +292,14 @@ def provider_portrait_with_target(
     *,
     mode: str = "provider",
     subject_name: Optional[str] = None,
+    region_name: Optional[str] = None,   # ✅ NEW
     title: Optional[str] = None,
-    bar_color: str = '#2EBDC2',
+    bar_color: str = "#2EBDC2",
     target_color: str = "#2E6F8A",
     fallback_to_national: bool = False,
     debug: bool = False,
-    bar_series: str = "ly",      # "ly" or "ytd"
+    bar_series: str = "ly",
+    caption: str = None,
 ) -> plt.Figure:
     from itertools import groupby, groupby as _gb
     canon_fn, RATE_YTD_KEY, RATE_LY_KEY, PSC_KEY = _canon_factory(mode)
@@ -315,7 +323,11 @@ def provider_portrait_with_target(
     ax.set_position([0.0, 0.0, 1.0, 0.97])
     # Title
     base_title_fs = 14
-    subject_label = subject_name or mode.title()
+    if (mode or "").strip().lower() == "region":
+        subject_label = (region_name or subject_name or "Region").strip()
+    else:
+        subject_label = (subject_name or mode.title()).strip()
+
     default_title = f"{subject_label} vs Target • Term {term}, {year}"
     ttl = title or default_title
     TITLE_Y = 0.99
@@ -324,7 +336,8 @@ def provider_portrait_with_target(
     from datetime import datetime
     nz = pytz.timezone("Pacific/Auckland")
     generated_str = datetime.now(nz).strftime("%d %b %Y, %I:%M %p")
-    caption = f"Term {term}, {year} | Generated {generated_str}"
+    if(caption is None):
+        caption = f"Term {term}, {year} | Generated {generated_str}"
 
     CAPTION_Y = TITLE_Y - 0.02  # small gap under the title
     ax.text(
@@ -514,7 +527,7 @@ def build_engine():
         raise RuntimeError("Missing DB_URL in .env")
     return create_engine(db_url, pool_pre_ping=True, fast_executemany=True)
 
-def get_rates(engine, year: int, term: int, subject_id: int, mode: str) -> pd.DataFrame:
+def get_rates(engine, year: int, term: int, subject_id: int, mode: str, *, region_name: str | None = None) -> pd.DataFrame:
     mode = (mode or "").strip().lower()
     with engine.begin() as conn:
         if mode == "national":
@@ -531,8 +544,17 @@ def get_rates(engine, year: int, term: int, subject_id: int, mode: str) -> pd.Da
         elif mode == "provider":
             sql_stmt = text("EXEC GetProviderNationalRates :year, :term, :provider_id")
             df = pd.read_sql_query(sql_stmt, conn, params={"year": year, "term": term, "provider_id": subject_id})
-        else:
-            raise ValueError("mode must be 'provider', 'funder', or 'national'")
+        elif mode == "region":
+            if not region_name or not str(region_name).strip():
+                raise ValueError("mode='region' requires region_name")
+            sql_stmt = text("EXEC GetRegionalRates :year, :term, :region_name")
+            return pd.read_sql_query(
+                sql_stmt,
+                conn,
+                params={"year": year, "term": term, "region_name": region_name.strip()},
+            )
+
+        raise ValueError("mode must be 'provider', 'funder', 'region', or 'national'")
     return df
 
 def _first_nonempty(*vals):
@@ -589,10 +611,12 @@ def get_subject_name(engine, mode: str, subject_id: int, df_from_proc: Optional[
 # ---------- main ----------
 def main():
     ap = argparse.ArgumentParser(description="Render portrait chart (bars vs WSNZ target).")
-    ap.add_argument("--mode", choices=["provider", "funder", "national"], default="provider")
+    ap.add_argument("--mode", choices=["provider", "funder", "national", "region"], default="provider")
+    ap.add_argument("--region-name", type=str, default=None, help="Region name (only for --mode region)")    
     ap.add_argument("--subject-id", type=int, help="Provider/Funder ID (if pulling from DB)")
     ap.add_argument("--csv", type=str, help="Path to CSV file instead of DB query")
     ap.add_argument("--subject-name", type=str, default=None)
+    
     ap.add_argument("--year", type=int, default=2025)
     ap.add_argument("--term", type=int, default=2)
     ap.add_argument("--title", type=str, default=None)
@@ -608,12 +632,16 @@ def main():
         subject_name = args.subject_name or "CLM (All Funders)"
     else:
         engine = build_engine()
-        df = get_rates(engine, args.year, args.term, args.subject_id, args.mode)
-        print(f"📥 Loaded {len(df)} rows from DB")
+        if args.mode == "region":
+            df = get_rates(engine, args.year, args.term, subject_id=0, mode="region", region_name=args.region_name)
+            subject_name = args.subject_name or (args.region_name.strip() if args.region_name else "Region")
+        else:
+            df = get_rates(engine, args.year, args.term, args.subject_id, args.mode)
+            print(f"📥 Loaded {len(df)} rows from DB")
 
-        if args.mode == "national":
-            # No subject-id / name lookup needed
-            subject_name = args.subject_name or "National"
+        if args.mode in ("national", "region"):
+            # already set subject_name above (or default)
+            pass
         else:
             subject_name = args.subject_name or get_subject_name(engine, args.mode, args.subject_id, df)
 
