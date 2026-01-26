@@ -50,6 +50,47 @@ report_bp = Blueprint("report_bp", __name__)
 # ----------------------------
 # Logging helpers
 # ----------------------------
+def results_to_rows(results):
+    """
+    Normalise results into: List[Dict[str, Any]]
+    Supports:
+    - None / [] / ()
+    - list[dict]
+    - list[RowMapping] (SQLAlchemy mappings)
+    - pandas.DataFrame
+    """
+    if results is None:
+        return []
+
+    # pandas DataFrame
+    try:
+        import pandas as pd
+        if isinstance(results, pd.DataFrame):
+            if results.empty:
+                return []
+            return results.to_dict(orient="records")
+    except Exception:
+        pass
+
+    # SQLAlchemy RowMapping / mappings().all() already yields dict-like,
+    # but just force to dict to be safe.
+    if isinstance(results, (list, tuple)):
+        if len(results) == 0:
+            return []
+        first = results[0]
+        if isinstance(first, dict):
+            return list(results)
+        try:
+            return [dict(r) for r in results]
+        except Exception:
+            return list(results)
+
+    # single mapping object?
+    try:
+        return [dict(results)]
+    except Exception:
+        return []
+    
 def _user_ctx():
     """Common fields for structured-ish logs (kept simple)."""
     return {
@@ -429,7 +470,7 @@ def _execute_report(
             EXEC dbo.GetFunderNationalRates_All
                  @Term = :Term,
                  @CalendarYear = :CalendarYear;
-        """
+            """
         )
         params = {"Term": selected_term, "CalendarYear": selected_year}
         res = conn.execute(sql, params)
@@ -442,6 +483,7 @@ def _execute_report(
                 if (int(r.get("FunderID", 0) or 0) == funder_id)
                 or (r.get("ResultType") == "WSNZ Target")
             ]
+
             if not funder_rows:
                 unique_comps = {
                     (
@@ -478,6 +520,7 @@ def _execute_report(
                             "StudentCount": 0,
                         }
                     )
+
             results = funder_rows
         else:
             results = rows
@@ -492,12 +535,19 @@ def _execute_report(
             EXEC GetNationalRates
                 @CalendarYear = :CalendarYear,
                 @Term         = :Term;
-        """
+            """
         )
         params = {"CalendarYear": selected_year, "Term": selected_term}
         res = conn.execute(sql, params)
         results = res.mappings().all()
         current_app.logger.info("🔎 rows=%d | type=%s", len(results or []), selected_type)
+
+    # ✅ IMPORTANT: return list-of-row-mappings (NOT DataFrame)
+    elif selected_type == "funder_targets_counts":
+        sql = text("SET NOCOUNT ON; EXEC GetFunderTargetsCounts;")
+        results = conn.execute(sql).mappings().all()
+        current_app.logger.info("🔎 rows=%d | type=%s", len(results or []), selected_type)
+
     elif selected_type == "national_ytd_vs_target":
         sql = text(
             """
@@ -505,12 +555,13 @@ def _execute_report(
             EXEC GetNationalRates
                 @CalendarYear = :CalendarYear,
                 @Term         = :Term;
-        """
+            """
         )
         params = {"CalendarYear": selected_year, "Term": selected_term}
         res = conn.execute(sql, params)
         results = res.mappings().all()
         current_app.logger.info("🔎 rows=%d | type=%s", len(results or []), selected_type)
+
     # 3) Funder Missing Data (builds fig here)
     elif selected_type == "funder_missing_data":
         threshold = 0.25
@@ -522,7 +573,7 @@ def _execute_report(
                 @Term         = :Term,
                 @Threshold    = :Threshold,
                 @Email        = :Email;
-        """
+            """
         )
         params = {
             "CalendarYear": selected_year,
@@ -534,9 +585,7 @@ def _execute_report(
         rows = res.mappings().all()
         results = rows
 
-
         df_all = pd.DataFrame(rows)
-
         if selected_funder_name:
             df_funder = df_all[df_all["FunderName"] == selected_funder_name].copy()
         else:
@@ -559,7 +608,6 @@ def _execute_report(
             threshold=threshold,
             debug=False,
         )
-        
 
         current_app.logger.info("🔎 rows=%d | type=%s", len(results or []), selected_type)
 
@@ -571,9 +619,8 @@ def _execute_report(
             EXEC dbo.GetFunderNationalRates_All
                 @Term = :Term,
                 @CalendarYear = :CalendarYear;
-        """
+            """
         )
-        # NOTE: you may want to parameterise this later
         params = {"Term": 2, "CalendarYear": 2025}
         res = conn.execute(sql, params)
 
@@ -610,7 +657,7 @@ def _execute_report(
                 @CalendarYear = :CalendarYear,
                 @ProviderID   = :ProviderID,
                 @FunderID     = :FunderID;
-        """
+            """
         )
         params = {
             "Term": selected_term,
@@ -622,10 +669,14 @@ def _execute_report(
         rows = res.mappings().all()
 
         if len(rows) == 0:
-            # fallback driver_sql (kept as-is)
             res2 = conn.exec_driver_sql(
                 "SET NOCOUNT ON; EXEC dbo.GetProviderNationalRates @Term=?, @CalendarYear=?, @ProviderID=?, @FunderID=?",
-                (selected_term, selected_year, int(selected_provider_id), funder_id if funder_id is not None else None),
+                (
+                    selected_term,
+                    selected_year,
+                    int(selected_provider_id),
+                    funder_id if funder_id is not None else None,
+                ),
             )
             if getattr(res2, "cursor", None) and res2.cursor.description:
                 cols = [d[0] for d in res2.cursor.description]
@@ -647,7 +698,7 @@ def _execute_report(
                  @CalendarYear = :CalendarYear,
                  @ProviderID   = :ProviderID,
                  @FunderID     = :FunderID;
-        """
+            """
         )
         params = {
             "Term": selected_term,
@@ -657,19 +708,9 @@ def _execute_report(
         }
         res = conn.execute(sql, params)
         rows = res.mappings().all()
+        results = rows
 
         current_app.logger.info("🧪 Rows fetched: %d", len(rows))
-
-        if rows:
-            first = rows[0]
-            current_app.logger.debug("🧪 First row keys: %s", list(first.keys()))
-            current_app.logger.debug(
-                "🧪 Distinct ResultTypes: %s", {r.get("ResultType") for r in rows}
-            )
-        else:
-            current_app.logger.warning("⚠️ Stored procedure returned 0 rows for these params.")
-
-        results = rows
 
     # 7) School YTD vs Target (data only)
     elif selected_type == "school_ytd_vs_target":
@@ -680,7 +721,7 @@ def _execute_report(
                  @CalendarYear = :CalendarYear,
                  @Term         = :Term,
                  @MoeNumber    = :MoeNumber;
-        """
+            """
         )
         params = {
             "CalendarYear": selected_year,
@@ -725,12 +766,11 @@ def _execute_report(
         session["report_id"] = report_id
 
         pdf_path = REPORT_DIR / f"{report_id}.pdf"
-        footer_png = Path(current_app.static_folder) / "footer.png"
 
         preview_fig, meta = build_funder_progress_summary_pdf(
             conn=conn,
             funder_id=funder_id,
-            from_year=selected_year,     # or fixed start year if you prefer
+            from_year=selected_year,
             threshold=0.2,
             out_pdf_path=pdf_path,
             footer_png=None,
@@ -738,6 +778,7 @@ def _execute_report(
 
         results = None
         fig = preview_fig
+
     elif selected_type == "funder_teacher_review_summary":
         from app.utils.teacher_assessment import build_funder_teacher_assessment_summary_pdf
 
@@ -747,10 +788,9 @@ def _execute_report(
             current_app.logger.info("⚠️ font setup skipped: %s", font_e)
 
         report_id = session.get("report_id") or uuid.uuid4().hex
-        session["report_id"] = report_id  # important
+        session["report_id"] = report_id
 
         pdf_path = REPORT_DIR / f"{report_id}.pdf"
-        footer_png = Path(current_app.static_folder) / "footer.png"
 
         preview_fig, meta = build_funder_teacher_assessment_summary_pdf(
             conn=conn,
@@ -766,11 +806,11 @@ def _execute_report(
 
         results = None
         fig = preview_fig
+
     else:
         results = None
 
     return results, fig, no_data_banner, early_response
-
 
 def _build_figure_from_results(
     selected_type,
@@ -781,15 +821,15 @@ def _build_figure_from_results(
     selected_funder_name,
     selected_provider_id,
     selected_school_id,
+    rows,
 ):
     """Build a Matplotlib figure from the result rows. Returns (fig, no_data_banner)."""
     fig = None
     no_data_banner = None
 
-    if not results:
+    if not rows:
         return None, None
 
-    # Provider vs Funder (three-bar landscape)
     if selected_type == "provider_ytd_vs_target_vs_funder":
         vars_to_plot = ["Provider Rate (YTD)", "Funder Rate (YTD)", "WSNZ Target"]
         colors_dict = {
@@ -803,7 +843,7 @@ def _build_figure_from_results(
             or next(
                 (
                     r.get("ProviderName") or r.get("Provider")
-                    for r in (results or [])
+                    for r in (rows or [])
                     if r.get("ProviderName") or r.get("Provider")
                 ),
                 None,
@@ -817,13 +857,12 @@ def _build_figure_from_results(
             term=selected_term,
             year=selected_year,
             funder_id=funder_id,
-            rows=results,
+            rows=rows,
             vars_to_plot=vars_to_plot,
             colors_dict=colors_dict,
             funder_name=title_text,
         )
 
-    # LY Funder vs LY National vs Target
     elif selected_type == "ly_funder_vs_ly_national_vs_target":
         vars_to_plot = ["National Rate (LY)", "Funder Rate (LY)", "WSNZ Target"]
         colors_dict = {
@@ -835,14 +874,12 @@ def _build_figure_from_results(
             term=selected_term,
             year=selected_year,
             funder_id=funder_id or 0,
-            rows=results,
+            rows=rows,
             vars_to_plot=vars_to_plot,
             colors_dict=colors_dict,
             funder_name=selected_funder_name,
         )
-        
 
-    # National LY vs National YTD vs Target
     elif selected_type == "national_ly_vs_national_ytd_vs_target":
         vars_to_plot = ["National Rate (LY)", "National Rate (YTD)", "WSNZ Target"]
         colors_dict = {
@@ -853,75 +890,53 @@ def _build_figure_from_results(
         fig = r3.create_competency_report(
             term=selected_term,
             year=selected_year,
-            rows=results,
+            rows=rows,
             vars_to_plot=vars_to_plot,
             colors_dict=colors_dict,
             funder_id=None,
         )
+
     elif selected_type == "national_ytd_vs_target":
-        vars_to_plot = ["National Rate (LY)", "National Rate (YTD)", "WSNZ Target"]
-        colors_dict = {
-            "National Rate (YTD)": "#2EBDC2",
-            "WSNZ Target": "#356FB6",
-            "National Rate (LY)": "#BBE6E9",
-        }
         fig = provider_portrait_with_target(
-            results,
+            rows,
             term=selected_term,
             year=selected_year,
             mode="national",
             subject_name="",
-            title=f"National YTD vs WSNZ Target",
+            title="National YTD vs WSNZ Target",
         )
-    # Provider portrait (YTD vs Target)
+
     elif selected_type == "provider_ytd_vs_target":
         try:
             use_ppmori("app/static/fonts")
         except Exception as font_e:
             current_app.logger.info("⚠️ font setup skipped: %s", font_e)
 
-        mode = "provider"
-
-        provider_id_val = request.form.get("provider_id") or session.get("provider_id")
-        provider_id_val = int(provider_id_val) if provider_id_val not in (None, "", "None") else None
-
-        subject_name = (request.form.get("provider_name") or "").strip()
-        if not subject_name:
-            subject_name = (session.get("desc") or "").strip()
-        if not subject_name:
-            for r in results or []:
-                subj = r.get("ProviderName") or r.get("Provider") or r.get("ProviderDesc")
-                if subj:
-                    subject_name = str(subj).strip()
-                    break
-        if not subject_name:
-            subject_name = "Unknown Provider"
+        subject_name = (request.form.get("provider_name") or "").strip() or "Unknown Provider"
 
         def _is_provider_row(r):
             return str(r.get("ResultType", "")).lower().startswith("provider rate")
 
-        provider_rows = [r for r in results if _is_provider_row(r)]
-
-        filtered_results = results
+        provider_rows = [r for r in rows if _is_provider_row(r)]
+        filtered_rows = rows
         if not provider_rows:
             no_data_banner = (
                 f"No YTD provider data found for {subject_name} "
                 f"(Term {selected_term}, {selected_year}). Showing national/target series only."
             )
-            filtered_results = [r for r in results if not _is_provider_row(r)]
+            filtered_rows = [r for r in rows if not _is_provider_row(r)]
 
         chart_title = f"{subject_name} — YTD vs Target (Term {selected_term}, {selected_year})"
 
         fig = provider_portrait_with_target(
-            filtered_results,
+            filtered_rows,
             term=selected_term,
             year=selected_year,
-            mode=mode,
+            mode="provider",
             subject_name=subject_name,
             title=chart_title,
         )
 
-        # Overlay warning banner (kept as-is)
         if no_data_banner and fig is not None:
             try:
                 ax = fig.gca()
@@ -939,9 +954,6 @@ def _build_figure_from_results(
             except Exception as _e:
                 current_app.logger.info("⚠️ Could not annotate no-data banner: %s", _e)
 
-        
-
-    # Funder portrait (YTD vs Target)
     elif selected_type == "funder_ytd_vs_target":
         try:
             use_ppmori("app/static/fonts")
@@ -949,16 +961,14 @@ def _build_figure_from_results(
             current_app.logger.info("⚠️ font setup skipped: %s", font_e)
 
         fig = provider_portrait_with_target(
-            results,
+            rows,
             term=selected_term,
             year=selected_year,
             mode="funder",
             subject_name=selected_funder_name,
             title=f"{selected_funder_name or 'Funder'} YTD vs Target",
         )
-        
 
-    # School portrait (YTD vs Target)
     elif selected_type == "school_ytd_vs_target":
         try:
             use_ppmori("app/static/fonts")
@@ -966,50 +976,65 @@ def _build_figure_from_results(
             current_app.logger.info("⚠️ font setup skipped: %s", font_e)
 
         school_name = request.form.get("school_name") or next(
-            (r.get("SchoolName") for r in results if r.get("SchoolName")), None
+            (r.get("SchoolName") for r in rows if r.get("SchoolName")), None
         )
 
         fig = provider_portrait_with_target(
-            results,
+            rows,
             term=selected_term,
             year=selected_year,
             mode="school",
             subject_name=school_name,
             title=f"{school_name or 'School'} YTD vs WSNZ Target",
         )
-    elif selected_type in {"funder_student_count", "funder_progress_summary","funder_teacher_review_summary"}:
+
+    elif selected_type == "funder_targets_counts":
+        from app.utils.funder_targets_counts_report import build_funder_targets_counts_figure
+
+        try:
+            use_ppmori("app/static/fonts")
+        except Exception as font_e:
+            current_app.logger.info("⚠️ font setup skipped: %s", font_e)
+
+        # IMPORTANT: pass normalised rows + let outer code add footer once
+        fig, meta = build_funder_targets_counts_figure(
+            rows,
+            footer_svg=None,          # avoid double-footer
+            fonts_dir="app/static/fonts",
+            title="Funder Counts (Target vs Actual)",
+        )
+
+    elif selected_type in {"funder_student_count", "funder_progress_summary", "funder_teacher_review_summary"}:
         return None, None
 
-    # Default: use three-bar landscape report logic
     else:
         fig = r3.create_competency_report(
             term=selected_term,
             year=selected_year,
             funder_id=funder_id or 0,
-            rows=results,
+            rows=rows,
             vars_to_plot=r3.vars_to_plot,
             colors_dict=r3.colors_dict,
             funder_name=selected_funder_name,
         )
-    if selected_type == "funder_missing_data":
-        c = "#1a427d"
-    else:
-        c = "#1a427d40"
-    try:
-        footer_svg = os.path.join(current_app.static_folder, "footer.svg")
-        add_full_width_footer_svg(
-            fig,
-            footer_svg,
-            bottom_margin_frac=0.0,
-            max_footer_height_frac=0.20,
-            col_master=c
-        )
-    except Exception as footer_e:
-        print(
-            f"⚠ Could not add footer to figure: %s", footer_e
-        )
-    return fig, no_data_banner
 
+    # Add footer once here for all normal figures (including funder_targets_counts),
+    # BUT only if fig exists.
+    if fig is not None:
+        c = "#1a427d" if selected_type == "funder_missing_data" else "#1a427d40"
+        try:
+            footer_svg = os.path.join(current_app.static_folder, "footer.svg")
+            add_full_width_footer_svg(
+                fig,
+                footer_svg,
+                bottom_margin_frac=0.0,
+                max_footer_height_frac=0.20,
+                col_master=c,
+            )
+        except Exception as footer_e:
+            current_app.logger.info("⚠ Could not add footer to figure: %s", footer_e)
+
+    return fig, no_data_banner
 
 def _persist_figure_and_session(
     fig,
@@ -1033,21 +1058,25 @@ def _persist_figure_and_session(
     provider_name = (request.form.get("provider_name") or "").strip()
     school_name = (request.form.get("school_name") or "").strip()
 
-    if not provider_name and results:
+    # Normalise results safely for name picking (no DataFrame truthiness)
+    rows = results_to_rows(results)
+
+    if not provider_name and rows:
         provider_name = next(
             (
                 (r.get("ProviderName") or r.get("Provider") or r.get("ProviderDesc"))
-                for r in results
+                for r in rows
                 if r.get("ProviderName") or r.get("Provider") or r.get("ProviderDesc")
             ),
             "",
         )
 
-    if not school_name and results:
-        school_name = next((r.get("SchoolName") for r in results if r.get("SchoolName")), "")
-
+    if not school_name and rows:
+        school_name = next((r.get("SchoolName") for r in rows if r.get("SchoolName")), "")
+    add_term = True
     if selected_type == "funder_missing_data":
         base_label = f"MissingData_{selected_funder_name or 'Funder'}"
+        add_term = False
     elif selected_type == "funder_ytd_vs_target":
         base_label = f"FunderYTDvsTarget_{selected_funder_name or 'Funder'}"
     elif selected_type == "ly_funder_vs_ly_national_vs_target":
@@ -1062,11 +1091,15 @@ def _persist_figure_and_session(
         base_label = "NationalLYvsNationalYTDvsTarget"
     elif selected_type == "national_ytd_vs_target":
         base_label = "NationalYTDvsTarget"
+    elif selected_type == "funder_targets_counts":
+        base_label = f"FunderTargetsCounts"
+        add_term = False
     else:
         base_label = f"Report_{selected_type or 'Unknown'}"
 
     base_label = slugify_filename(base_label, fallback="WSFL_Report")
-    base_label = f"{base_label}_T{selected_term}_{selected_year}"
+    if add_term:
+        base_label = f"{base_label}_T{selected_term}_{selected_year}"
 
     session["report_id"] = report_id
     session["report_png_filename"] = f"{base_label}.png"
@@ -1074,7 +1107,6 @@ def _persist_figure_and_session(
 
     plot_png_b64 = base64.b64encode(png_path.read_bytes()).decode("ascii")
     return plot_png_b64
-
 
 @report_bp.route("/Reports", methods=["GET", "POST"])
 @login_required
@@ -1279,6 +1311,10 @@ def new_reports():
 
                 no_data_banner = no_data_banner_inner
 
+                
+                rows = results_to_rows(results)
+
+
                 plot_payload = {
                     "year": selected_year,
                     "term": selected_term,
@@ -1286,19 +1322,20 @@ def new_reports():
                     "funder_id": funder_id,
                     "provider_id": int(selected_provider_id) if selected_provider_id else None,
                     "school_id": int(selected_school_id) if selected_school_id else None,
-                    "rows": results,
+                    "rows": rows,   # ✅ JSON-safe always
                 }
 
-                if results and fig is None:
+                if rows and fig is None:
                     fig, extra_banner = _build_figure_from_results(
                         selected_type,
-                        results,
+                        results,  # keep original if some builders use it, but most use rows now
                         selected_term,
                         selected_year,
                         funder_id,
                         selected_funder_name,
                         selected_provider_id,
                         selected_school_id,
+                        rows,
                     )
                     if extra_banner:
                         no_data_banner = extra_banner

@@ -72,7 +72,7 @@ def staff_maintenance():
                     result = conn.execute(text("EXEC FlaskGetAllGroups"))
                     group_list = [{"id": row.ID, "name": row.Name} for row in result]
                     has_groups = len(group_list) > 0
-                elif user_role == "FUN":
+                elif user_role == "FUN":  
                     result = conn.execute(
                         text("EXEC FlaskGetGroupsByFunder @FunderID = :fid"),
                         {"fid": user_id}

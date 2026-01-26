@@ -1,26 +1,53 @@
+{# templates/reportingnew.html #}
 {% extends "header.html" %}
 {% block title %}Reporting{% endblock %}
 
 {% block content %}
-<div class="container-fluid mt-4" style="max-width:98%;">
+{# ---------------------------
+   Safe precomputed selections
+   --------------------------- #}
+{% set sel_year = (selected_year|string) if selected_year is not none else "" %}
+{% set sel_term = (selected_term|string) if selected_term is not none else "" %}
+{% set sel_type = selected_type if selected_type is not none else "" %}
+
+{% set year_2025_selected = (sel_year == "2025") or (not sel_year) %}
+{% set year_2026_selected = (sel_year == "2026") %}
+
+{% set term_1_selected = (sel_term == "1") %}
+{% set term_2_selected = (sel_term == "2") %}
+{% set term_3_selected = (sel_term == "3") %}
+{% set term_4_selected = (sel_term == "4") %}
+
+{% set disable_png = sel_type in ["funder_student_count", "funder_progress_summary"] %}
+{% set provider_name_posted = request.form.get("provider_name", "") %}
+{% set school_name_posted = request.form.get("school_name", "") %}
+
+<div class="container-fluid mt-4" style="max-width: 98%">
   <div class="row">
     <!-- ===== Sidebar (controls) ===== -->
     <div class="col-lg-3 mb-4">
-      <div class="card sticky-top" style="top:1rem;">
-        <div class="card-header text-white" style="background:#1a427d;">
+      <div class="card sticky-top" style="top: 1rem">
+        <div class="card-header text-white" style="background: #1a427d">
           Configure Report
         </div>
+
         <div class="card-body">
-          <form method="POST" id="report-form" action="{{ url_for('report_bp.new_reports') }}" novalidate>
+          <form
+            method="POST"
+            id="report-form"
+            action="{{ url_for('report_bp.new_reports') }}"
+            novalidate
+          >
             {% if csrf_token is defined %}
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
             {% endif %}
 
             <!-- Year -->
             <div class="mb-3">
               <label for="year" class="form-label">Year</label>
               <select name="year" id="year" class="form-select">
-                <option value="2025" {% if selected_year == 2025 or not selected_year %}selected{% endif %}>2025</option>
+                <option value="2025" {{ "selected" if year_2025_selected else "" }}>2025</option>
+                <option value="2026" {{ "selected" if year_2026_selected else "" }}>2026</option>
               </select>
             </div>
 
@@ -28,8 +55,10 @@
             <div class="mb-3">
               <label for="term" class="form-label">Term</label>
               <select name="term" id="term" class="form-select">
-                <option value="3" {% if selected_term == 3  %}selected{% endif %}>3</option>
-                <option value="4" {% if selected_term == 4   or not selected_term %}selected{% endif %}>4</option>
+                <option value="1" {{ "selected" if term_1_selected else "" }}>1</option>
+                <option value="2" {{ "selected" if term_2_selected else "" }}>2</option>
+                <option value="3" {{ "selected" if term_3_selected else "" }}>3</option>
+                <option value="4" {{ "selected" if term_4_selected else "" }}>4</option>
               </select>
             </div>
 
@@ -37,81 +66,81 @@
             <div class="mb-3">
               <label for="report_option" class="form-label">Report Type</label>
               <select name="report_option" id="report_option" class="form-select">
-                <option value="" disabled {% if not selected_type %} selected {% endif %}>-- Select a report --</option>
+                <option value="" disabled {{ "selected" if not sel_type else "" }}>
+                  -- Select a report --
+                </option>
 
                 {% if role in ["ADM"] %}
-                  <option value="national_ly_vs_national_ytd_vs_target"
-                    {% if selected_type == "national_ly_vs_national_ytd_vs_target"  %}selected{% endif %}>
+                  <option value="national_ly_vs_national_ytd_vs_target" {{ "selected" if sel_type == "national_ly_vs_national_ytd_vs_target" else "" }}>
                     National YTD vs National LY vs WSNZ Target
                   </option>
-                  <option value="national_ytd_vs_target"
-                    {% if selected_type == "national_ytd_vs_target"  %}selected{% endif %}>
+
+                  <option value="national_ytd_vs_target" {{ "selected" if sel_type == "national_ytd_vs_target" else "" }}>
                     National YTD vs WSNZ Target
                   </option>
-                  <option value="funder_progress_summary"
-                    {% if selected_type == "funder_progress_summary"  %}selected{% endif %}>
+
+                  <option value="funder_progress_summary" {{ "selected" if sel_type == "funder_progress_summary" else "" }}>
                     Funder Summary
                   </option>
-                  <option value="funder_teacher_review_summary"
-                    {% if selected_type == "funder_teacher_review_summary" %}selected{% endif %}>
+
+                  <option value="funder_teacher_review_summary" {{ "selected" if sel_type == "funder_teacher_review_summary" else "" }}>
                     Teacher Assessment Summary (Kaiako-led)
                   </option>
+
+                  <option value="funder_targets_counts" {{ "selected" if sel_type == "funder_targets_counts" else "" }}>
+                    Funder Targets
+                  </option>
                 {% endif %}
-                {% if role in ["ADM","FUN"] %}
-                
-                  <option value="funder_ytd_vs_target"
-                    {% if selected_type == "funder_ytd_vs_target"  %}selected{% endif %}>
+
+                {% if role in ["ADM", "FUN"] %}
+                  <option value="funder_ytd_vs_target" {{ "selected" if sel_type == "funder_ytd_vs_target" else "" }}>
                     YTD Funder Performance vs WSNZ Target
                   </option>
+
                   {% if role in ["FUN"] %}
-                  <option value="ly_funder_vs_ly_national_vs_target"
-                    {% if selected_type == "ly_funder_vs_ly_national_vs_target" %}selected{% endif %}>
-                    LY Funder Performance vs LY National vs WSNZ Target
-                  </option>
-                  <option value="provider_ytd_vs_target_vs_funder"
-                    {% if selected_type == "provider_ytd_vs_target_vs_funder" %}selected{% endif %}>
-                    Provider YTD vs Funder YTD vs Target
-                  </option>
+                    <option value="ly_funder_vs_ly_national_vs_target" {{ "selected" if sel_type == "ly_funder_vs_ly_national_vs_target" else "" }}>
+                      LY Funder Performance vs LY National vs WSNZ Target
+                    </option>
+
+                    <option value="provider_ytd_vs_target_vs_funder" {{ "selected" if sel_type == "provider_ytd_vs_target_vs_funder" else "" }}>
+                      Provider YTD vs Funder YTD vs Target
+                    </option>
                   {% endif %}
-                  <option value="provider_ytd_vs_target"
-                    {% if selected_type == "provider_ytd_vs_target" %}selected{% endif %}>
+
+                  <option value="provider_ytd_vs_target" {{ "selected" if sel_type == "provider_ytd_vs_target" else "" }}>
                     Provider YTD Performance vs WSNZ Target
                   </option>
-                  
-                  <option value="school_ytd_vs_target"
-                    {% if selected_type == "school_ytd_vs_target" %}selected{% endif %}>
+
+                  <option value="school_ytd_vs_target" {{ "selected" if sel_type == "school_ytd_vs_target" else "" }}>
                     School YTD Performance vs WSNZ Target
                   </option>
-                  <option value="funder_missing_data"
-                    {% if selected_type == "funder_missing_data"%}selected{% endif %}>
+
+                  <option value="funder_missing_data" {{ "selected" if sel_type == "funder_missing_data" else "" }}>
                     Funder Missing Data
                   </option>
-                  <option value="funder_student_count"
-                    {% if selected_type == "funder_student_count"  %}selected{% endif %}>
+
+                  <option value="funder_student_count" {{ "selected" if sel_type == "funder_student_count" else "" }}>
                     Funder Student Counts
                   </option>
-                  
+
                 {% elif role == "PRO" %}
-                  <option value="provider_ytd_vs_target"
-                    {% if selected_type == "provider_ytd_vs_target"  %}selected{% endif %}>
+                  <option value="provider_ytd_vs_target" {{ "selected" if sel_type == "provider_ytd_vs_target" else "" }}>
                     Provider YTD Performance vs WSNZ Target
                   </option>
-                  <option value="school_ytd_vs_target"
-                    {% if selected_type == "school_ytd_vs_target" %}selected{% endif %}>
+                  <option value="school_ytd_vs_target" {{ "selected" if sel_type == "school_ytd_vs_target" else "" }}>
                     School YTD Performance vs WSNZ Target
                   </option>
+
                 {% elif role == "GRP" %}
-                  <option value="provider_ytd_vs_target"
-                    {% if selected_type == "provider_ytd_vs_target" %}selected{% endif %}>
+                  <option value="provider_ytd_vs_target" {{ "selected" if sel_type == "provider_ytd_vs_target" else "" }}>
                     Provider YTD Performance vs WSNZ Target
                   </option>
-                  <option value="school_ytd_vs_target"
-                    {% if selected_type == "school_ytd_vs_target" %}selected{% endif %}>
+                  <option value="school_ytd_vs_target" {{ "selected" if sel_type == "school_ytd_vs_target" else "" }}>
                     School YTD Performance vs WSNZ Target
                   </option>
+
                 {% elif role == "MOE" %}
-                  <option value="school_ytd_vs_target"
-                    {% if selected_type == "school_ytd_vs_target"  %}selected{% endif %}>
+                  <option value="school_ytd_vs_target" {{ "selected" if sel_type == "school_ytd_vs_target" else "" }}>
                     YTD Performance vs WSNZ Target
                   </option>
                 {% endif %}
@@ -119,25 +148,28 @@
             </div>
 
             <!-- Funder (appears only when report type needs it) -->
-            <div class="mb-3" id="funderBlock" style="display:none;">
+            <div class="mb-3" id="funderBlock" style="display: none">
               {% if role == "ADM" %}
                 <label for="selected_funder" class="form-label">Funder</label>
                 <select name="selected_funder" id="selected_funder" class="form-select">
                   <option value="" disabled selected>Loading funders…</option>
                 </select>
+
                 <!-- Hidden: funder name for titles -->
-                <input type="hidden"
-                       name="funder_name"
-                       id="funder_name"
-                       value="{{ request.form.get('funder_name', '') }}">
+                <input
+                  type="hidden"
+                  name="funder_name"
+                  id="funder_name"
+                  value="{{ request.form.get('funder_name', '') }}"
+                />
               {% elif role == "FUN" and funder_name %}
                 <label class="form-label">Funder</label>
-                <input class="form-control" value="{{ funder_name }}" readonly>
+                <input class="form-control" value="{{ funder_name }}" readonly />
               {% endif %}
             </div>
 
             <!-- Provider (only for provider reports) -->
-            <div class="mb-3" id="providerBlock" style="display:none;">
+            <div class="mb-3" id="providerBlock" style="display: none">
               <label for="provider_id" class="form-label">Provider</label>
               <select name="provider_id" id="provider_id" class="form-select">
                 <option value="" disabled selected>Choose provider…</option>
@@ -145,7 +177,7 @@
             </div>
 
             <!-- School (MOE number) -->
-            <div class="mb-3" id="schoolBlock" style="display:none;">
+            <div class="mb-3" id="schoolBlock" style="display: none">
               <label for="school_id" class="form-label">School</label>
               <select name="school_id" id="school_id" class="form-select">
                 <option value="" disabled selected>Choose school…</option>
@@ -153,8 +185,8 @@
             </div>
 
             <!-- Hidden: provider/school names for titles -->
-            <input type="hidden" name="provider_name" id="provider_name" value="">
-            <input type="hidden" name="school_name" id="school_name" value="">
+            <input type="hidden" name="provider_name" id="provider_name" value="{{ provider_name_posted }}" />
+            <input type="hidden" name="school_name" id="school_name" value="{{ school_name_posted }}" />
 
             <div class="d-grid">
               <button type="submit" name="action" value="show_report" class="btn btn-primary">
@@ -169,9 +201,11 @@
     <!-- ===== Main content ===== -->
     <div class="col-lg-9">
       <div class="card">
-        <div id="report-header"
-             class="card-header text-white d-flex justify-content-between align-items-start"
-             style="background:#1a427d;">
+        <div
+          id="report-header"
+          class="card-header text-white d-flex justify-content-between align-items-start"
+          style="background: #1a427d"
+        >
           <div id="report-header-left">
             {% if funder_name %}{{ funder_name }} • {% endif %}
             {% if selected_term and selected_year %}
@@ -179,455 +213,419 @@
             {% else %}
               Select options and run report
             {% endif %}
-            {% set provider_name = request.form.get('provider_name') %}
-            {% set school_name = request.form.get('school_name') %}
-            {% if provider_name %} • {{ provider_name }}{% endif %}
-            {% if school_name %} • {{ school_name }}{% endif %}
+            {% if provider_name_posted %} • {{ provider_name_posted }}{% endif %}
+            {% if school_name_posted %} • {{ school_name_posted }}{% endif %}
           </div>
         </div>
 
         <div class="card-body">
-          <div id="chart-container"
-               class="position-relative text-center"
-               style="min-height:220px; max-height:85vh; overflow:visible;">
-
-            <!-- Message placeholder (this is usually the LCP element) -->
-            <div id="chart-message" style="color:#1a427d; font-weight:600;">
+          <div
+            id="chart-container"
+            class="position-relative text-center"
+            style="min-height: 220px; max-height: 85vh; overflow: visible"
+          >
+            <!-- Message placeholder -->
+            <div id="chart-message" style="color: #1a427d; font-weight: 600">
               {% if plot_png_b64 %}
-                <span style="display:none;">Report will appear here once submitted.</span>
+                <span style="display: none">Report will appear here once submitted.</span>
               {% else %}
                 Report will appear here once submitted.
               {% endif %}
             </div>
 
             <!-- Chart image -->
-            <img id="report-img"
-                 class="img-fluid mx-auto fade-in {{ 'is-visible d-block' if plot_png_b64 else 'd-none' }}"
-                 src="{{ ('data:image/png;base64,' ~ plot_png_b64) if plot_png_b64 else '' }}"
-                 alt="Report chart"
-                 style="max-width:100%; height:auto; max-height:70vh; object-fit:contain; border:1px solid #eee; border-radius:.5rem;" />
+            <img
+              id="report-img"
+              class="img-fluid mx-auto fade-in {{ 'is-visible d-block' if plot_png_b64 else 'd-none' }}"
+              src="{{ ('data:image/png;base64,' ~ plot_png_b64) if plot_png_b64 else '' }}"
+              alt="Report chart"
+              style="
+                max-width: 100%;
+                height: auto;
+                max-height: 70vh;
+                object-fit: contain;
+                border: 1px solid #eee;
+                border-radius: 0.5rem;
+              "
+            />
 
             <!-- Export buttons UNDER the image -->
-            <div id="exportButtons"
-                  class="justify-content-center gap-2 mt-3 {{ 'd-flex' if display else 'd-none' }}">
-                <a class="btn btn-sm btn-outline-primary" href="{{ url_for('report_bp.download_pdf') }}">Export PDF</a>
+            <div
+              id="exportButtons"
+              class="justify-content-center gap-2 mt-3 {{ 'd-flex' if display else 'd-none' }}"
+            >
+              <a class="btn btn-sm btn-outline-primary" href="{{ url_for('report_bp.download_pdf') }}">
+                Export PDF
+              </a>
 
-                <a id="exportPngBtn"
-                  class="btn btn-sm btn-outline-primary {{ 'd-none' if selected_type == 'funder_student_count' or selected_type == 'funder_progress_summary'else '' }}"
-                  href="{{ url_for('report_bp.download_png') }}">
-                  Export PNG
-                </a>
-              </div>
-
+              <a
+                id="exportPngBtn"
+                class="btn btn-sm btn-outline-primary {{ 'd-none' if disable_png else '' }}"
+                href="{{ url_for('report_bp.download_png') }}"
+              >
+                Export PNG
+              </a>
+            </div>
           </div>
         </div>
       </div>
     </div>
+
   </div>
 </div>
 
 <style>
-  .fade-in { opacity:0; transition:opacity .25s ease; }
-  .fade-in.is-visible { opacity:1; }
+  .fade-in {
+    opacity: 0;
+    transition: opacity 0.25s ease;
+  }
+  .fade-in.is-visible {
+    opacity: 1;
+  }
 </style>
 
 <script>
-/* ===================== Controls & data-loading ===================== */
-(function () {
-  const ENTITIES_URL   = "{{ entities_url }}";
-  const ROLE           = "{{ role }}";
-  const FUNDER_NAME    = "{{ funder_name or '' }}";
+  /* ===================== Controls & data-loading ===================== */
+  (function () {
+    const ENTITIES_URL = "{{ entities_url }}";
+    const ROLE = "{{ role }}";
 
-  const form              = document.getElementById('report-form');
-  const reportSel         = document.getElementById('report_option');
+    const form = document.getElementById("report-form");
+    const reportSel = document.getElementById("report_option");
 
-  const funderBlock       = document.getElementById('funderBlock');
-  const funderSel         = document.getElementById('selected_funder'); // ADM only
-  const funderNameInput   = document.getElementById('funder_name');
+    const funderBlock = document.getElementById("funderBlock");
+    const funderSel = document.getElementById("selected_funder"); // ADM only
+    const funderNameInput = document.getElementById("funder_name");
 
-  const providerBlock     = document.getElementById('providerBlock');
-  const providerSel       = document.getElementById('provider_id');
-  const providerNameInput = document.getElementById('provider_name');
+    const providerBlock = document.getElementById("providerBlock");
+    const providerSel = document.getElementById("provider_id");
+    const providerNameInput = document.getElementById("provider_name");
 
-  const schoolBlock       = document.getElementById('schoolBlock');
-  const schoolSel         = document.getElementById('school_id');
-  const schoolNameInput   = document.getElementById('school_name');
+    const schoolBlock = document.getElementById("schoolBlock");
+    const schoolSel = document.getElementById("school_id");
+    const schoolNameInput = document.getElementById("school_name");
 
-  const prevProviderId  = "{{ request.form.get('provider_id', '') }}";
-  const prevFunderId    = "{{ request.form.get('selected_funder', '') }}";
-  const prevFunderName  = "{{ request.form.get('funder_name', funder_name or '') }}";
-  const prevSchoolId    = "{{ request.form.get('school_id', '') }}";
+    const prevProviderId = "{{ request.form.get('provider_id', '') }}";
+    const prevFunderId = "{{ request.form.get('selected_funder', '') }}";
+    const prevFunderName = "{{ request.form.get('funder_name', funder_name or '') }}";
+    const prevSchoolId = "{{ request.form.get('school_id', '') }}";
 
-  
-  // prevent accidental submit with Enter
-  form.addEventListener('keydown', (e) => { if (e.key === 'Enter') e.preventDefault(); });
-
-  function needsProvider(val) {
-    return ['provider_ytd_vs_target', 'provider_ytd_vs_target_vs_funder'].includes(val);
-  }
-  function needsSchool(val) {
-    return ['school_ytd_vs_target', 'school_ytd_vs_target'].includes(val);
-  }
-  function needsFunder(val) {
-    return [
-      'funder_ytd_vs_target',
-      'ly_funder_vs_ly_national_vs_target',
-      'provider_ytd_vs_target_vs_funder',
-      'funder_missing_data',
-      'funder_student_count',
-      'funder_progress_summary',
-      'funder_teacher_review_summary',
-    ].includes(val);
-  }
-
-  async function loadFunders() {
-    if (!funderSel) return;
-    funderSel.innerHTML = '<option value="" disabled>Loading funders…</option>';
-
-    try {
-      const res = await fetch(ENTITIES_URL + '?entity_type=Funder', {
-        credentials: 'same-origin'
+    if (form) {
+      form.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") e.preventDefault();
       });
-      const data = await res.json();
-
-      if (!data.ok) {
-        throw new Error(data.error || 'Failed to load funders');
-      }
-
-      const items = data.entities || [];
-
-      funderSel.innerHTML = '<option value="" disabled>Choose funder…</option>';
-      let picked = false;
-
-      for (const f of items) {
-        const opt = document.createElement('option');
-        opt.value = f.id;                // ID for POST
-        opt.textContent = f.description; // label
-        if (prevFunderId && String(f.id) === String(prevFunderId)) {
-          opt.selected = true;
-          picked = true;
-        }
-        funderSel.appendChild(opt);
-      }
-
-      if (!funderSel.value) {
-        funderSel
-          .querySelector('option[disabled]')
-          ?.setAttribute('selected', 'selected');
-      }
-
-      // Set hidden funder_name
-      if (funderNameInput) {
-        if (picked) {
-          const txt = funderSel.options[funderSel.selectedIndex]?.textContent || '';
-          funderNameInput.value = txt;
-        } else if (prevFunderName) {
-          funderNameInput.value = prevFunderName;
-        } else {
-          funderNameInput.value = '';
-        }
-      }
-    } catch (err) {
-      console.error('Error loading funders:', err);
-      funderSel.innerHTML = '<option value="" disabled>Error loading funders</option>';
-      if (funderNameInput) funderNameInput.value = '';
     }
-  }
 
-  async function loadProviders() {
-    providerSel.innerHTML = '<option value="" disabled>Loading providers…</option>';
+    function needsProvider(val) {
+      return ["provider_ytd_vs_target", "provider_ytd_vs_target_vs_funder"].includes(val);
+    }
 
-    try {
-      const qs = new URLSearchParams({ entity_type: 'Provider' });
-      const res = await fetch(ENTITIES_URL + '?' + qs.toString(), {
-        credentials: 'same-origin'
+    function needsSchool(val) {
+      return ["school_ytd_vs_target"].includes(val);
+    }
+
+    function needsFunder(val) {
+      return [
+        "funder_ytd_vs_target",
+        "ly_funder_vs_ly_national_vs_target",
+        "provider_ytd_vs_target_vs_funder",
+        "funder_missing_data",
+        "funder_student_count",
+        "funder_progress_summary",
+        "funder_teacher_review_summary",
+      ].includes(val);
+    }
+
+    async function loadFunders() {
+      if (!funderSel) return;
+      funderSel.innerHTML = '<option value="" disabled>Loading funders…</option>';
+
+      try {
+        const res = await fetch(ENTITIES_URL + "?entity_type=Funder", { credentials: "same-origin" });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || "Failed to load funders");
+
+        const items = data.entities || [];
+        funderSel.innerHTML = '<option value="" disabled>Choose funder…</option>';
+
+        let picked = false;
+        for (const f of items) {
+          const opt = document.createElement("option");
+          opt.value = f.id;
+          opt.textContent = f.description;
+          if (prevFunderId && String(f.id) === String(prevFunderId)) {
+            opt.selected = true;
+            picked = true;
+          }
+          funderSel.appendChild(opt);
+        }
+
+        if (funderNameInput) {
+          if (picked) {
+            funderNameInput.value = funderSel.options[funderSel.selectedIndex]?.textContent?.trim() || "";
+          } else if (prevFunderName) {
+            funderNameInput.value = prevFunderName;
+          } else {
+            funderNameInput.value = "";
+          }
+        }
+      } catch (err) {
+        console.error("Error loading funders:", err);
+        funderSel.innerHTML = '<option value="" disabled>Error loading funders</option>';
+        if (funderNameInput) funderNameInput.value = "";
+      }
+    }
+
+    async function loadProviders() {
+      if (!providerSel) return;
+      providerSel.innerHTML = '<option value="" disabled>Loading providers…</option>';
+
+      try {
+        const qs = new URLSearchParams({ entity_type: "Provider" });
+        const res = await fetch(ENTITIES_URL + "?" + qs.toString(), { credentials: "same-origin" });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || "Failed to load providers");
+
+        const items = data.entities || [];
+        providerSel.innerHTML = '<option value="" disabled>Choose provider…</option>';
+
+        let picked = false;
+        for (const p of items) {
+          const opt = document.createElement("option");
+          opt.value = p.id;
+          opt.textContent = p.description;
+          if (prevProviderId && String(p.id) === String(prevProviderId)) {
+            opt.selected = true;
+            picked = true;
+          }
+          providerSel.appendChild(opt);
+        }
+
+        providerNameInput.value = picked
+          ? providerSel.options[providerSel.selectedIndex]?.textContent?.trim() || ""
+          : "";
+      } catch (err) {
+        console.error("Error loading providers:", err);
+        providerSel.innerHTML = '<option value="" disabled>Error loading providers</option>';
+        providerNameInput.value = "";
+      }
+    }
+
+    async function loadSchools() {
+      if (!schoolSel) return;
+      schoolSel.innerHTML = '<option value="" disabled>Loading schools…</option>';
+
+      try {
+        const qs = new URLSearchParams({ entity_type: "School" });
+        const res = await fetch(ENTITIES_URL + "?" + qs.toString(), { credentials: "same-origin" });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || "Failed to load schools");
+
+        const items = data.entities || [];
+        schoolSel.innerHTML = '<option value="" disabled>Choose school…</option>';
+
+        let picked = false;
+        for (const s of items) {
+          const opt = document.createElement("option");
+          opt.value = s.id;
+          opt.textContent = s.description;
+          if (prevSchoolId && String(s.id) === String(prevSchoolId)) {
+            opt.selected = true;
+            picked = true;
+          }
+          schoolSel.appendChild(opt);
+        }
+
+        schoolNameInput.value = picked
+          ? schoolSel.options[schoolSel.selectedIndex]?.textContent?.trim() || ""
+          : "";
+      } catch (err) {
+        console.error("Error loading schools:", err);
+        schoolSel.innerHTML = '<option value="" disabled>Error loading schools</option>';
+        schoolNameInput.value = "";
+      }
+    }
+
+    let initialising = true;
+    let fundersLoaded = false;
+    let providersLoaded = false;
+    let schoolsLoaded = false;
+
+    function toggleEntityBlocks() {
+      const val = reportSel ? reportSel.value : "";
+
+      const wantFunder = needsFunder(val);
+      if (funderBlock) {
+        funderBlock.style.display = wantFunder ? "block" : "none";
+        if (wantFunder && ROLE === "ADM" && !fundersLoaded) {
+          fundersLoaded = true;
+          loadFunders();
+        }
+      }
+
+      const wantProvider = needsProvider(val);
+      if (providerBlock) providerBlock.style.display = wantProvider ? "block" : "none";
+      if (wantProvider && !initialising && !providersLoaded) {
+        providersLoaded = true;
+        loadProviders();
+      } else if (!wantProvider && providerSel) {
+        providerSel.innerHTML = '<option value="" disabled>Choose provider…</option>';
+        providerNameInput.value = "";
+      }
+
+      const wantSchool = needsSchool(val);
+      if (schoolBlock) schoolBlock.style.display = wantSchool ? "block" : "none";
+      if (wantSchool && !initialising && !schoolsLoaded) {
+        schoolsLoaded = true;
+        loadSchools();
+      } else if (!wantSchool && schoolSel) {
+        schoolSel.innerHTML = '<option value="" disabled>Choose school…</option>';
+        schoolNameInput.value = "";
+      }
+    }
+
+    if (providerSel) {
+      providerSel.addEventListener("change", () => {
+        providerNameInput.value = providerSel.options[providerSel.selectedIndex]?.textContent?.trim() || "";
       });
-      const data = await res.json();
-
-      if (!data.ok) {
-        throw new Error(data.error || 'Failed to load providers');
-      }
-
-      const items = data.entities || [];
-
-      providerSel.innerHTML = '<option value="" disabled>Choose provider…</option>';
-      let picked = false;
-
-      for (const p of items) {
-        const opt = document.createElement('option');
-        opt.value = p.id;                // ID for POST
-        opt.textContent = p.description; // label
-        if (prevProviderId && String(p.id) === String(prevProviderId)) {
-          opt.selected = true;
-          picked = true;
-        }
-        providerSel.appendChild(opt);
-      }
-
-      if (!providerSel.value) {
-        providerSel
-          .querySelector('option[disabled]')
-          ?.setAttribute('selected', 'selected');
-      }
-
-      const txt = providerSel.options[providerSel.selectedIndex]?.textContent || '';
-      providerNameInput.value = picked ? txt : '';
-    } catch (err) {
-      console.error('Error loading providers:', err);
-      providerSel.innerHTML = '<option value="" disabled>Error loading providers</option>';
-      providerNameInput.value = '';
     }
-  }
 
-  async function loadSchools() {
-    schoolSel.innerHTML = '<option value="" disabled>Loading schools…</option>';
-
-    try {
-      const qs = new URLSearchParams({ entity_type: 'School' });
-      const res = await fetch(ENTITIES_URL + '?' + qs.toString(), {
-        credentials: 'same-origin'
+    if (schoolSel) {
+      schoolSel.addEventListener("change", () => {
+        schoolNameInput.value = schoolSel.options[schoolSel.selectedIndex]?.textContent?.trim() || "";
       });
-      const data = await res.json();
+    }
 
-      if (!data.ok) {
-        throw new Error(data.error || 'Failed to load schools');
-      }
-
-      const items = data.entities || [];
-
-      schoolSel.innerHTML = '<option value="" disabled>Choose school…</option>';
-      let picked = false;
-
-      for (const s of items) {
-        const opt = document.createElement('option');
-        opt.value = s.id;                // MOENumber as ID
-        opt.textContent = s.description; // SchoolName
-        if (prevSchoolId && String(s.id) === String(prevSchoolId)) {
-          opt.selected = true;
-          picked = true;
+    if (funderSel) {
+      funderSel.addEventListener("change", () => {
+        if (funderNameInput) {
+          funderNameInput.value = funderSel.options[funderSel.selectedIndex]?.textContent?.trim() || "";
         }
-        schoolSel.appendChild(opt);
-      }
-
-      if (!schoolSel.value) {
-        schoolSel
-          .querySelector('option[disabled]')
-          ?.setAttribute('selected', 'selected');
-      }
-
-      const txt = schoolSel.options[schoolSel.selectedIndex]?.textContent || '';
-      schoolNameInput.value = picked ? txt : '';
-    } catch (err) {
-      console.error('Error loading schools:', err);
-      schoolSel.innerHTML = '<option value="" disabled>Error loading schools</option>';
-      schoolNameInput.value = '';
-    }
-  }
-
-  // Avoid immediate fetches on initial load; only load when user interacts
-  let initialising   = true;
-  let fundersLoaded  = false;
-  let providersLoaded = false;
-  let schoolsLoaded  = false;
-
-  async function toggleEntityBlocks() {
-    const val = reportSel.value;
-
-    // Funder
-    const wantFunder = needsFunder(val);
-    if (funderBlock) {
-      funderBlock.style.display = wantFunder ? 'block' : 'none';
-      if (wantFunder && ROLE === 'ADM' && !fundersLoaded) {
-        fundersLoaded = true;
-        loadFunders();
-      }
+      });
     }
 
-    // Provider
-    const wantProvider = needsProvider(val);
-    providerBlock.style.display = wantProvider ? 'block' : 'none';
-    if (wantProvider && !initialising && !providersLoaded) {
-      providersLoaded = true;
-      loadProviders();
-    } else if (!wantProvider) {
-      providerSel.innerHTML = '<option value="" disabled>Choose provider…</option>';
-      providerNameInput.value = '';
+    if (reportSel) {
+      reportSel.addEventListener("change", () => {
+        initialising = false;
+        toggleEntityBlocks();
+      });
     }
 
-    // School
-    const wantSchool = needsSchool(val);
-    schoolBlock.style.display = wantSchool ? 'block' : 'none';
-    if (wantSchool && !initialising && !schoolsLoaded) {
-      schoolsLoaded = true;
-      loadSchools();
-    } else if (!wantSchool) {
-      schoolSel.innerHTML = '<option value="" disabled>Choose school…</option>';
-      schoolNameInput.value = '';
-    }
-  }
-
-  providerSel?.addEventListener('change', () => {
-    const txt = providerSel.options[providerSel.selectedIndex]?.textContent || '';
-    providerNameInput.value = txt;
-  });
-
-  schoolSel?.addEventListener('change', () => {
-    const txt = schoolSel.options[schoolSel.selectedIndex]?.textContent || '';
-    schoolNameInput.value = txt;
-  });
-
-  funderSel?.addEventListener('change', () => {
-    const txt = funderSel.options[funderSel.selectedIndex]?.textContent || '';
-    if (funderNameInput) {
-      funderNameInput.value = txt;
-    }
-  });
-
-  // On first change, drop the initialising guard and allow fetches
-  reportSel.addEventListener('change', () => {
-    initialising = false;
+    // Initial state: show/hide blocks with no network calls
     toggleEntityBlocks();
-  });
-
-  // Initial state: just show/hide blocks, no network calls
-  toggleEntityBlocks();
-})();
+  })();
 </script>
+
 <script>
-/* ===================== AJAX submit + export controls ===================== */
-(function () {
-  const form      = document.getElementById('report-form');
-  const reportImg = document.getElementById('report-img');
-  const msg       = document.getElementById('chart-message');
-  const btns      = document.getElementById('exportButtons');
-  const pngBtn    = document.getElementById('exportPngBtn');
+  /* ===================== AJAX submit + export controls ===================== */
+  (function () {
+    const form = document.getElementById("report-form");
+    const reportImg = document.getElementById("report-img");
+    const msg = document.getElementById("chart-message");
+    const btns = document.getElementById("exportButtons");
+    const pngBtn = document.getElementById("exportPngBtn");
 
-  if (!form) return;
+    if (!form) return;
 
-  form.addEventListener('submit', async function (e) {
-    const submitter = e.submitter;
-    const actionVal = submitter?.value || new FormData(form).get('action');
-    if (actionVal !== 'show_report') return;
+    form.addEventListener("submit", async function (e) {
+      const submitter = e.submitter;
+      const actionVal = submitter?.value || new FormData(form).get("action");
+      if (actionVal !== "show_report") return;
 
-    e.preventDefault();
+      e.preventDefault();
 
-    /* -----------------------------
-       Sync visible labels → hidden name fields
-    ----------------------------- */
-    const funderSel       = document.getElementById('selected_funder');
-    const funderNameInput = document.getElementById('funder_name');
-    const providerSel     = document.getElementById('provider_id');
-    const providerNameInp = document.getElementById('provider_name');
-    const schoolSel       = document.getElementById('school_id');
-    const schoolNameInp   = document.getElementById('school_name');
+      // Sync visible labels → hidden name fields
+      const funderSel = document.getElementById("selected_funder");
+      const funderNameInput = document.getElementById("funder_name");
+      const providerSel = document.getElementById("provider_id");
+      const providerNameInp = document.getElementById("provider_name");
+      const schoolSel = document.getElementById("school_id");
+      const schoolNameInp = document.getElementById("school_name");
 
-    if (funderSel && funderNameInput && funderSel.selectedIndex >= 0) {
-      funderNameInput.value =
-        funderSel.options[funderSel.selectedIndex]?.textContent?.trim() || '';
-    }
-    if (providerSel && providerNameInp && providerSel.selectedIndex >= 0) {
-      providerNameInp.value =
-        providerSel.options[providerSel.selectedIndex]?.textContent?.trim() || '';
-    }
-    if (schoolSel && schoolNameInp && schoolSel.selectedIndex >= 0) {
-      schoolNameInp.value =
-        schoolSel.options[schoolSel.selectedIndex]?.textContent?.trim() || '';
-    }
-
-    /* -----------------------------
-       Loading state
-    ----------------------------- */
-    if (msg) {
-      msg.textContent = 'Loading report, please wait…';
-      msg.style.display = 'block';
-    }
-    if (reportImg) {
-      reportImg.classList.remove('is-visible');
-      reportImg.classList.add('d-none');
-    }
-    if (btns) {
-      btns.classList.remove('d-flex');
-      btns.classList.add('d-none');
-    }
-    if (pngBtn) {
-      pngBtn.classList.add('d-none');
-    }
-
-    try {
-      const fd = new FormData(form);
-      if (submitter && submitter.name) fd.set(submitter.name, submitter.value);
-      fd.set('ajax', '1');
-
-      const res = await fetch(form.getAttribute('action'), {
-        method: 'POST',
-        body: fd,
-        credentials: 'same-origin',
-        headers: {
-          'X-Requested-With': 'fetch',
-          'Accept': 'application/json'
-        }
-      });
-
-      const data = await res.json();
-      if (!res.ok || !data.ok) {
-        throw new Error(data.error || `HTTP ${res.status}`);
+      if (funderSel && funderNameInput && funderSel.selectedIndex >= 0) {
+        funderNameInput.value = funderSel.options[funderSel.selectedIndex]?.textContent?.trim() || "";
+      }
+      if (providerSel && providerNameInp && providerSel.selectedIndex >= 0) {
+        providerNameInp.value = providerSel.options[providerSel.selectedIndex]?.textContent?.trim() || "";
+      }
+      if (schoolSel && schoolNameInp && schoolSel.selectedIndex >= 0) {
+        schoolNameInp.value = schoolSel.options[schoolSel.selectedIndex]?.textContent?.trim() || "";
       }
 
-      /* -----------------------------
-         Render image
-      ----------------------------- */
-      if (data.plot_png_b64) {
-        reportImg.src = 'data:image/png;base64,' + data.plot_png_b64;
-        reportImg.classList.remove('d-none');
-        requestAnimationFrame(() => reportImg.classList.add('is-visible'));
-        if (msg) msg.style.display = 'none';
-      } else {
-        if (msg) msg.textContent = data.error || 'No chart to display.';
+      // Loading state
+      if (msg) {
+        msg.textContent = "Loading report, please wait…";
+        msg.style.display = "block";
       }
-
-      /* -----------------------------
-         Export buttons
-      ----------------------------- */
+      if (reportImg) {
+        reportImg.classList.remove("is-visible");
+        reportImg.classList.add("d-none");
+      }
       if (btns) {
-        if (data.display) {
-          btns.classList.remove('d-none');
-          btns.classList.add('d-flex');
-        } else {
-          btns.classList.remove('d-flex');
-          btns.classList.add('d-none');
-        }
-      }
-
-      if (pngBtn) {
-        if (data.allow_png) {
-          pngBtn.classList.remove('d-none');
-        } else {
-          pngBtn.classList.add('d-none');
-        }
-      }
-
-      /* -----------------------------
-         Header refresh
-      ----------------------------- */
-      if (data.header_html) {
-        const headerLeft = document.getElementById('report-header-left');
-        if (headerLeft) headerLeft.innerHTML = data.header_html;
-      }
-
-    } catch (err) {
-      console.error(err);
-      if (msg) msg.textContent = 'Sorry — there was a problem loading the report.';
-      if (btns) {
-        btns.classList.remove('d-flex');
-        btns.classList.add('d-none');
+        btns.classList.remove("d-flex");
+        btns.classList.add("d-none");
       }
       if (pngBtn) {
-        pngBtn.classList.add('d-none');
+        pngBtn.classList.add("d-none");
       }
-    }
-  });
-})();
+
+      try {
+        const fd = new FormData(form);
+        if (submitter && submitter.name) fd.set(submitter.name, submitter.value);
+        fd.set("ajax", "1");
+
+        const res = await fetch(form.getAttribute("action"), {
+          method: "POST",
+          body: fd,
+          credentials: "same-origin",
+          headers: { "X-Requested-With": "fetch", Accept: "application/json" },
+        });
+
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+
+        // Render image
+        if (data.plot_png_b64) {
+          reportImg.src = "data:image/png;base64," + data.plot_png_b64;
+          reportImg.classList.remove("d-none");
+          requestAnimationFrame(() => reportImg.classList.add("is-visible"));
+          if (msg) msg.style.display = "none";
+        } else if (msg) {
+          msg.textContent = data.error || "No chart to display.";
+        }
+
+        // Export buttons
+        if (btns) {
+          if (data.display) {
+            btns.classList.remove("d-none");
+            btns.classList.add("d-flex");
+          } else {
+            btns.classList.remove("d-flex");
+            btns.classList.add("d-none");
+          }
+        }
+
+        if (pngBtn) {
+          if (data.allow_png) pngBtn.classList.remove("d-none");
+          else pngBtn.classList.add("d-none");
+        }
+
+        // Header refresh
+        if (data.header_html) {
+          const headerLeft = document.getElementById("report-header-left");
+          if (headerLeft) headerLeft.innerHTML = data.header_html;
+        }
+      } catch (err) {
+        console.error(err);
+        if (msg) msg.textContent = "Sorry — there was a problem loading the report.";
+        if (btns) {
+          btns.classList.remove("d-flex");
+          btns.classList.add("d-none");
+        }
+        if (pngBtn) pngBtn.classList.add("d-none");
+      }
+    });
+  })();
 </script>
-
 
 {% endblock %}

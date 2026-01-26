@@ -123,7 +123,7 @@ def save_page(pdf: PdfPages, fig: plt.Figure, footer_png: Optional[str] = None, 
     if footer_png and Path(footer_png).exists():
         print(f"✅ Saved page with footer {footer_png}")
     else:
-        print(f"✅ Saved page without footer")
+        print(f"✅ Saved page without footer png")
 
 
 
