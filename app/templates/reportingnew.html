@@ -93,7 +93,10 @@
                   </option>
 
                   <option value="region_ly_vs_target" {{ "selected" if sel_type == "region_ly_vs_target" else "" }}>
-                    Region (LY) vs WSNZ Target
+                    Region LY vs WSNZ Target
+                  </option>
+                  <option value="funder_ytd_vs_funder_ly" {{ "selected" if sel_type == "funder_ytd_vs_funder_ly" else "" }}>
+                    Funder LY vs Funder YTD
                   </option>
                 {% endif %}
 
@@ -356,6 +359,7 @@
         "funder_student_count",
         "funder_progress_summary",
         "funder_teacher_review_summary",
+        "funder_ytd_vs_funder_ly",
       ].includes(val);
     }
 

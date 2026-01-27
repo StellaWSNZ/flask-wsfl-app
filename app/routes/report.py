@@ -386,6 +386,7 @@ def _validate_required_entities(
         "funder_student_count",
         "funder_progress_summary",
         "funder_teacher_review_summary",
+        "funder_ytd_vs_funder_ly",
     }
 
     if needs_funder and not funder_id:
@@ -679,7 +680,35 @@ def _execute_report(
 
         results = filtered_rows
         current_app.logger.info("🔎 rows=%d | type=%s", len(results or []), selected_type)
+    elif selected_type == "funder_ytd_vs_funder_ly":
+        sql = text(
+            """
+            SET NOCOUNT ON;
+            EXEC dbo.GetFunderNationalRates_All
+                @Term = :Term,
+                @CalendarYear = :CalendarYear;
+            """
+        )
+        params = {"Term": selected_term, "CalendarYear": selected_year}
+        res = conn.execute(sql, params)
 
+        raw_rows = res.mappings().all()
+        filtered_rows = []
+        for r in raw_rows:
+            funder_matches = not funder_id or int(r.get("FunderID", 0) or 0) == funder_id
+            keep = (
+                (funder_matches and r.get("ResultType") == "Funder Rate (YTD)")
+                or (funder_matches and r.get("ResultType") == "Funder Rate (LY)")
+            )
+            if not keep:
+                continue
+
+            d = dict(r)
+            
+            filtered_rows.append(d)
+
+        results = filtered_rows
+        current_app.logger.info("🔎 rows=%d | type=%s", len(results or []), selected_type)
     # 5) Provider vs Funder (data only)
     elif selected_type == "provider_ytd_vs_target_vs_funder":
         sql = text(
@@ -896,7 +925,21 @@ def _build_figure_from_results(
             colors_dict=colors_dict,
             funder_name=title_text,
         )
-
+    elif selected_type == "funder_ytd_vs_funder_ly":
+        vars_to_plot = ["Funder Rate (YTD)", "Funder Rate (LY)"]
+        colors_dict = {
+            "Funder Rate (YTD)": "#2EBDC2",
+            "Funder Rate (LY)": "#BBE6E9",
+        }
+        fig = r3.create_competency_report(
+            term=selected_term,
+            year=selected_year,
+            funder_id=funder_id or 0,
+            rows=rows,
+            vars_to_plot=vars_to_plot,
+            colors_dict=colors_dict,
+            funder_name=selected_funder_name,
+        )
     elif selected_type == "ly_funder_vs_ly_national_vs_target":
         vars_to_plot = ["National Rate (LY)", "Funder Rate (LY)", "WSNZ Target"]
         colors_dict = {
@@ -1148,6 +1191,8 @@ def _persist_figure_and_session(
         region_label = (request.form.get("region_name") or "Region").strip()
         base_label = f"RegionLYvsTarget_{region_label}"
         add_term = False
+    elif selected_type == "funder_ytd_vs_funder_ly":
+        base_label = f"FunderLYvsFunderTY_{selected_funder_name}"
     else:
         base_label = f"Report_{selected_type or 'Unknown'}"
 
