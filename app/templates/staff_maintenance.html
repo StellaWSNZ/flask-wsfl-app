@@ -48,13 +48,27 @@
   </form>
   {% endif %}
 
-  <!-- Missing School Wrapper (JS controls visibility) -->
+  <!-- ========================= -->
+  <!-- EXISTING FUNDER/SCHOOL BLUE POPUP (leave as-is) -->
+  <!-- ========================= -->
   <div id="missingSchoolWrapper"
        class="alert alert-info mx-auto text-center py-2 mb-3"
        style="display:none; max-width: 500px;">
     <i class="bi bi-info-circle me-2"></i>
     Are you missing a school?
     <a href="#" data-bs-toggle="modal" data-bs-target="#missingSchoolModal" class="alert-link">Click here</a>
+    to add one.
+  </div>
+
+  <!-- ========================= -->
+  <!-- NEW: PROVIDER-ONLY (CLM) BLUE POPUP -->
+  <!-- ========================= -->
+  <div id="providerMissingSchoolWrapper"
+       class="alert alert-info mx-auto text-center py-2 mb-3"
+       style="display:none; max-width: 560px;">
+    <i class="bi bi-info-circle me-2"></i>
+    Are you missing a school for your provider?
+    <a href="#" data-bs-toggle="modal" data-bs-target="#providerMissingSchoolModal" class="alert-link">Click here</a>
     to add one.
   </div>
 
@@ -322,7 +336,7 @@
             <div class="modal-content border-0 shadow">
               <div class="modal-header bg-primary text-white">
                 <h5 class="modal-title" id="editLabel_{{ safe_id }}">Edit Staff Member</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
               </div>
               <form method="POST" action="{{ url_for('staff_bp.update_staff') }}">
                 <div class="modal-body">
@@ -447,7 +461,10 @@
     </div>
   </div>
 
-  <!-- Missing School Modal -->
+  <!-- ===================================================== -->
+  <!-- EXISTING: Missing School Modal (Funder/School flow) -->
+  <!-- (PASTE YOUR ORIGINAL missingSchoolModal HERE UNCHANGED) -->
+  <!-- ===================================================== -->
   <div class="modal fade" id="missingSchoolModal" tabindex="-1" aria-labelledby="missingSchoolLabel" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content border-0 shadow">
@@ -511,15 +528,68 @@
               </div>
             </div>
 
-            <!-- FunderID used for insert + provider/school fetch -->
             <input type="hidden" id="ms_funderid"
                    value="{{ selected_entity_id if (entity_type == 'Funder') else (funder_id or session.get('funder_id') or '') }}">
-
           </div>
 
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
             <button class="btn btn-primary" type="submit">Add to Funder</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================== -->
+  <!-- NEW: Provider Missing School Modal (CLM providers) -->
+  <!-- ===================================================== -->
+  <div class="modal fade" id="providerMissingSchoolModal" tabindex="-1" aria-labelledby="providerMissingSchoolLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content border-0 shadow">
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title" id="providerMissingSchoolLabel">Add School to Provider</h5>
+          <button type="button" class="btn btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <form id="providerMissingSchoolForm">
+          <div class="modal-body">
+            <div id="pms_alert" class="alert d-none" role="alert"></div>
+
+            <div class="mb-3">
+              <label class="form-label">School</label>
+              <select class="form-select" id="pms_school" required>
+                <option value="" selected disabled>Loading schools…</option>
+              </select>
+              <div class="form-text">Choose the school you want to add for the selected term/year.</div>
+            </div>
+
+            <div class="row g-2">
+              <div class="col-md-6">
+                <label class="form-label">Term</label>
+                <select class="form-select" id="pms_term" required>
+                  {% for t in terms %}
+                    <option value="{{ t }}" {% if current_term == t %}selected{% endif %}>Term {{ t }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label">Calendar Year</label>
+                <select class="form-select" id="pms_year" required>
+                  {% for y in years %}
+                    <option value="{{ y }}" {% if current_year == y %}selected{% endif %}>{{ y }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+
+            <input type="hidden" id="pms_providerid" value="{{ selected_entity_id if (selected_entity_type == 'Provider') else '' }}">
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button class="btn btn-primary" type="submit">Add School</button>
           </div>
         </form>
       </div>
@@ -637,6 +707,54 @@
       });
   }
 
+  // ===========================
+  // NEW: Provider modal alerts
+  // ===========================
+  function showPmsAlert(type, msg) {
+    const el = document.getElementById('pms_alert');
+    if (!el) return;
+    el.className = `alert alert-${type} alert-dismissible fade show`;
+    el.innerHTML = `
+      <div>${msg}</div>
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    `;
+  }
+
+  function clearPmsAlert() {
+    const el = document.getElementById('pms_alert');
+    if (!el) return;
+    el.className = 'alert d-none';
+    el.innerHTML = '';
+  }
+
+  function loadSchoolsForProviderModal(providerId) {
+    const sel = document.getElementById('pms_school');
+    if (!sel) return;
+
+    sel.innerHTML = '<option value="" selected disabled>Loading schools…</option>';
+
+    fetch(`/api/provider_add_school_schools?provider_id=${encodeURIComponent(providerId)}`, { credentials: "same-origin" })
+      .then(r => r.ok ? r.json() : Promise.reject(r))
+      .then(payload => {
+        const list = (payload && payload.ok && Array.isArray(payload.schools)) ? payload.schools : [];
+        sel.innerHTML = '<option value="" disabled selected>Choose a school…</option>';
+
+        list.forEach(item => {
+          const opt = document.createElement('option');
+          opt.value = item.id; // MOENumber
+          opt.textContent = item.name;
+          sel.appendChild(opt);
+        });
+
+        if (list.length === 0) {
+          sel.innerHTML = '<option value="" disabled selected>No schools available</option>';
+        }
+      })
+      .catch(() => {
+        sel.innerHTML = '<option value="" disabled selected>Failed to load schools</option>';
+      });
+  }
+
   document.addEventListener("DOMContentLoaded", function () {
     const entityTypeSelector = document.getElementById("entity_type");
     const entityDropdown = document.getElementById("entity_id");
@@ -657,7 +775,7 @@
       else entityTypeSelector.value = "Provider";
     }
 
-    // Missing school wrapper visibility (FIXED for ADM + FUN)
+    // Existing funder/school wrapper visibility
     const role = "{{ user_role or '' }}";
     const funderPopupAllowed = {{ funder_popup_allowed | default(0) | int }};
     const wrapper = document.getElementById("missingSchoolWrapper");
@@ -673,6 +791,17 @@
 
       const shouldShow = (selectedType === "School" && canSeePopup);
       wrapper.style.display = shouldShow ? "block" : "none";
+    }
+
+    // NEW provider wrapper visibility
+    const providerWrapper = document.getElementById("providerMissingSchoolWrapper");
+    const providerAllowed = {{ provider_add_school_allowed | default(0) | int }};
+
+    function toggleProviderMissingSchoolLink() {
+      if (!providerWrapper) return;
+      const selectedType = entityTypeSelector ? entityTypeSelector.value : "";
+      const shouldShow = (role === "PRO" && providerAllowed === 1 && selectedType === "Provider");
+      providerWrapper.style.display = shouldShow ? "block" : "none";
     }
 
     function updateLabelAndDropdown() {
@@ -705,6 +834,7 @@
           }
 
           toggleMissingSchoolLink();
+          toggleProviderMissingSchoolLink();
         })
         .catch((err) => {
           console.error(`Failed to load ${selectedType}s`, err);
@@ -717,8 +847,10 @@
       entityTypeSelector.addEventListener("change", function() {
         updateLabelAndDropdown();
         toggleMissingSchoolLink();
+        toggleProviderMissingSchoolLink();
       });
       toggleMissingSchoolLink();
+      toggleProviderMissingSchoolLink();
     }
 
     // Add Staff modal admin checkbox show/hide
@@ -737,7 +869,7 @@
     toggleAdminCheckbox();
     if (accountStatusSelect) accountStatusSelect.addEventListener("change", toggleAdminCheckbox);
 
-    // Missing School Modal - load options
+    // Existing Missing School Modal - load options
     const modalEl = document.getElementById('missingSchoolModal');
     modalEl?.addEventListener('show.bs.modal', () => {
       clearModalAlert();
@@ -787,7 +919,7 @@
       }
     });
 
-    // Insert SchoolFunder
+    // Existing Insert SchoolFunder
     const msForm = document.getElementById('missingSchoolForm');
     msForm?.addEventListener('submit', (e) => {
       e.preventDefault();
@@ -808,7 +940,8 @@
           CalendarYear: Number(Year),
           FunderID: Number(FunderID),
           ProviderID: ProviderID ? Number(ProviderID) : null
-        })
+        }),
+        credentials: "same-origin"
       })
       .then(r => r.json())
       .then(resp => {
@@ -827,8 +960,58 @@
       .catch(() => showModalAlert('danger', 'Insert failed.'));
     });
 
-    // Show wrapper on page load too
+    // NEW: Provider Missing School Modal load + submit
+    const pmsModalEl = document.getElementById('providerMissingSchoolModal');
+    pmsModalEl?.addEventListener('show.bs.modal', () => {
+      clearPmsAlert();
+      const providerId = document.getElementById('pms_providerid')?.value;
+      if (!providerId) {
+        showPmsAlert('danger', 'Please select Entity Type = Provider and choose your provider first.');
+        return;
+      }
+      loadSchoolsForProviderModal(providerId);
+    });
+
+    const pmsForm = document.getElementById('providerMissingSchoolForm');
+    pmsForm?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      clearPmsAlert();
+
+      const ProviderID = Number(document.getElementById('pms_providerid').value);
+      const MoeNumber  = Number(document.getElementById('pms_school').value);
+      const Term       = Number(document.getElementById('pms_term').value);
+      const Year       = Number(document.getElementById('pms_year').value);
+
+      fetch('/add_school_to_provider', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        credentials: "same-origin",
+        body: JSON.stringify({
+          ProviderID,
+          MoeNumber,
+          Term,
+          CalendarYear: Year
+        })
+      })
+      .then(r => r.json())
+      .then(resp => {
+        if (resp.ok) {
+          showPmsAlert('success', resp.message || 'School added successfully.');
+          setTimeout(() => {
+            const bsModal = bootstrap.Modal.getInstance(pmsModalEl);
+            bsModal?.hide();
+            setTimeout(() => window.location.reload(), 0);
+          }, 900);
+        } else {
+          showPmsAlert('danger', resp.error || 'Insert failed.');
+        }
+      })
+      .catch(() => showPmsAlert('danger', 'Insert failed.'));
+    });
+
+    // Show wrappers on page load too
     toggleMissingSchoolLink();
+    toggleProviderMissingSchoolLink();
   });
 </script>
 

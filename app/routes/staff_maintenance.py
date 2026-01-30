@@ -178,6 +178,7 @@ def staff_maintenance():
                     link=url_for("staff_bp.staff_maintenance", _external=True),
                     message=f"Staff: data fetch failed for {selected_entity_type} {selected_entity_id}: {e}\n{traceback.format_exc()}"[:4000],
                 )
+        provider_add_school_allowed = 1 if (("CLM" in (session.get("desc") or "").upper()) and user_role!="FUN") else 0
 
         return render_template(
             "staff_maintenance.html",
@@ -200,6 +201,7 @@ def staff_maintenance():
             hidden_staff=hidden_staff,
             user_id=user_id,
             funder_id=funder_id,
+            provider_add_school_allowed=provider_add_school_allowed,
             current_year=session.get("nearest_year"),
             current_term=session.get("nearest_term"),
             terms=get_terms(),
@@ -220,6 +222,117 @@ def staff_maintenance():
 
 
 
+@staff_bp.route("/api/provider_add_school_schools")
+@login_required
+def provider_add_school_schools():
+    """
+    Returns list of schools for the Provider 'Add School' modal dropdown.
+    Payload: { ok: true, schools: [{id: <MOENumber>, name: <SchoolName>}, ...] }
+
+    Uses FlaskHelperFunctions* with:
+      request = 'ProviderAddSchool_Schools'
+      number  = <ProviderID>
+    """
+    try:
+        provider_id_raw = request.args.get("provider_id", "").strip()
+        if not provider_id_raw:
+            return jsonify(ok=False, error="Missing provider_id"), 400
+
+        # Gate: only allow CLM providers (based on session desc)
+        if "CLM" not in (session.get("desc") or "").upper():
+            return jsonify(ok=False, error="Not allowed"), 403
+
+        provider_id = int(provider_id_raw)
+
+        engine = get_db_engine()
+        with engine.begin() as conn:
+            # ✅ Option A: FlaskHelperFunctionsV2 style (named params)
+            rows = conn.execute(
+                text("""
+                    EXEC dbo.FlaskHelperFunctions
+                        @Request = :Request,
+                        @Number  = :Number
+                """),
+                {"Request": "ProviderAddSchool_Schools", "Number": provider_id},
+            ).mappings().all()
+
+            # If your helper returns different column names, map them here:
+            # expected: MOENumber, SchoolName (or id, name)
+            schools = []
+            for r in rows:
+                # tolerate either schema
+                moe = r.get("MOENumber", r.get("id"))
+                name = r.get("SchoolName", r.get("name"))
+                if moe is None or name is None:
+                    continue
+                schools.append({"id": int(moe), "name": str(name)})
+
+        return jsonify(ok=True, schools=schools)
+
+    except ValueError:
+        return jsonify(ok=False, error="provider_id must be an integer"), 400
+
+    except Exception as e:
+        current_app.logger.exception("provider_add_school_schools failed")
+        return jsonify(ok=False, error=str(e)), 400
+
+@staff_bp.route("/add_school_to_provider", methods=["POST"])
+@login_required
+def add_school_to_provider():
+    """
+    Inserts school->provider mapping for a term/year (SchoolProvider).
+    Expects JSON: { ProviderID, MoeNumber, Term, CalendarYear }
+    """
+    try:
+        # Gate: only allow CLM providers (based on session desc)
+        if "CLM" not in (session.get("desc") or "").upper():
+            return jsonify(ok=False, error="This feature is only available for CLM providers."), 403
+
+        data = request.get_json(force=True) or {}
+
+        # Validate required inputs
+        missing = [k for k in ["ProviderID", "MoeNumber", "Term", "CalendarYear"] if k not in data or data[k] in [None, ""]]
+        if missing:
+            return jsonify(ok=False, error=f"Missing fields: {', '.join(missing)}"), 400
+
+        provider_id = int(data["ProviderID"])
+        moe_number  = int(data["MoeNumber"])
+        term        = int(data["Term"])
+        year        = int(data["CalendarYear"])
+
+        # Optional: extra safety - ensure ProviderID matches currently selected provider in UI context
+        # (You can remove this if it gets in the way)
+        # if str(provider_id) != str(session.get("provider_id")):
+        #     return jsonify(ok=False, error="Provider mismatch."), 403
+
+        email = session.get("user_email") or session.get("email") or ""
+
+        engine = get_db_engine()
+        with engine.begin() as conn:
+            conn.execute(
+                text("""
+                    EXEC dbo.FlaskAssignSchoolToProvider
+                        @ProviderID=:ProviderID,
+                        @MOENumber=:MOENumber,
+                        @CalendarYear=:CalendarYear,
+                        @Term=:Term,
+                        @Email=:Email
+                """),
+                {
+                    "ProviderID": provider_id,
+                    "MOENumber": moe_number,
+                    "CalendarYear": year,
+                    "Term": term,
+                    "Email": email,
+                },
+            )
+
+        return jsonify(ok=True, message="School added to provider.")
+
+    except Exception as e:
+        current_app.logger.exception("add_school_to_provider failed")
+        return jsonify(ok=False, error=str(e)), 400
+    
 @staff_bp.route("/api/schools_by_funder_region", methods=["GET"])
 @login_required
 def schools_by_funder_region():
