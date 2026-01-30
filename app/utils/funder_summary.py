@@ -112,7 +112,7 @@ def _fetch_progress_df(
         params={
             "funder_id": funder_id,
             "threshold": threshold,
-            "from_year": from_year,
+            "from_year": 2025,
         },
     )
 

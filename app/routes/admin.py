@@ -576,16 +576,41 @@ def serve_logo(logo_type, logo_id):
 def assign_provider():
     try:
         data = request.get_json(silent=True) or {}
-        moe_number = data.get("MOENumber")
-        term       = data.get("Term")
-        year       = data.get("Year")
+
+        moe_number  = data.get("MOENumber")
+        term        = data.get("Term")
+        year        = data.get("Year")
         provider_id = data.get("ProviderID")
 
+        # NEW:
+        slot        = data.get("Slot", 1)       # default slot 1
+        funder_id   = data.get("FunderID")      # required for CLM branching in SP
+
+        # -------------------------
         # Basic validation
+        # -------------------------
         if not (moe_number and term and year):
             raise ValueError("Missing required fields: MOENumber, Term, and Year are required.")
 
-        # Normalize provider_id (allow None to unassign)
+        # Slot must be 1 or 2
+        try:
+            slot = int(slot)
+        except (TypeError, ValueError):
+            raise ValueError("Slot must be 1 or 2.")
+        if slot not in (1, 2):
+            raise ValueError("Slot must be 1 or 2.")
+
+        # FunderID required (because SP checks SwimMagic CLM by funder)
+        # If you truly want to allow older callers, you can set it to None and let SP treat as non-CLM,
+        # but then CLM slot2 logic won't work reliably.
+        if funder_id in ("", None):
+            raise ValueError("Missing required field: FunderID.")
+        try:
+            funder_id = int(funder_id)
+        except (TypeError, ValueError):
+            raise ValueError("FunderID must be an integer.")
+
+        # Normalize ProviderID (allow None to clear)
         if provider_id in ("", None):
             provider_id = None
         else:
@@ -594,41 +619,131 @@ def assign_provider():
             except (TypeError, ValueError):
                 raise ValueError("ProviderID must be an integer or null.")
 
+        # Normalise numeric types (optional but tidy)
+        try:
+            moe_number = int(moe_number)
+            term = int(term)
+            year = int(year)
+        except (TypeError, ValueError):
+            raise ValueError("MOENumber, Term, and Year must be integers.")
+
+        # -------------------------
+        # Execute SP
+        # -------------------------
         engine = get_db_engine()
         with engine.begin() as conn:
-            conn.execute(text("""
-                EXEC FlaskHelperFunctionsSpecific
-                     @Request   = 'AssignProviderToSchool',
-                     @MOENumber = :moe,
-                     @Year      = :year,
-                     @Term      = :term,
-                     @ProviderID= :pid
-            """), {
-                "moe": moe_number,
-                "term": term,
-                "year": year,
-                "pid": provider_id
-            })
+            conn.execute(
+                text("""
+                    EXEC FlaskHelperFunctionsSpecific
+                         @Request   = 'AssignProviderToSchool',
+                         @MOENumber = :moe,
+                         @Year      = :year,
+                         @Term      = :term,
+                         @FunderID  = :funder_id,
+                         @Slot      = :slot,
+                         @ProviderID= :pid
+                """),
+                {
+                    "moe": moe_number,
+                    "term": term,
+                    "year": year,
+                    "funder_id": funder_id,
+                    "slot": slot,
+                    "pid": provider_id,
+                },
+            )
 
         return jsonify(success=True)
 
     except Exception as e:
         current_app.logger.exception("❌ assign_provider failed")
+
         # ---- Write error to DB (never raise from here) ----
         try:
             log_alert(
-                email=(session.get("user_email")   or "")[:320],
+                email=(session.get("user_email") or "")[:320],
                 role=(session.get("user_role") or "")[:10],
                 entity_id=session.get("user_id"),
                 link=str(request.url)[:2048],
-                message=f"assign_provider error: {str(e)[:2000]}"
+                message=f"assign_provider error: {str(e)[:2000]}",
             )
-        except Exception as log_err:
-            current_app.logger.exception(f"⚠️ Failed to log alert in assign_provider.")
+        except Exception:
+            current_app.logger.exception("⚠️ Failed to log alert in assign_provider.")
 
         return jsonify(success=False, error=str(e)), 500
 
 
+
+@admin_bp.route("/api/clm_facilities", methods=["GET"])
+@login_required
+def api_clm_facilities():
+    """
+    Returns list of CLM facilities for a funder+term+year.
+    Intended to be used only when funder is SwimMagic CLM and provider is Kaiako-led.
+    """
+    def _safe_int(x, default=None):
+        try:
+            return int(x)
+        except (TypeError, ValueError):
+            return default
+
+    funder_id = _safe_int(request.args.get("funder_id"))
+    term      = _safe_int(request.args.get("term"))
+    year      = _safe_int(request.args.get("year"))
+
+    if not (funder_id and term and year):
+        return jsonify({"success": False, "message": "Missing funder_id/term/year"}), 400
+
+    engine = get_db_engine()
+    try:
+        with engine.begin() as conn:
+            rows = conn.execute(text("""
+                EXEC FlaskHelperFunctionsSpecific
+                     @Request = 'CLMFacilities',
+                     @FunderID= :fid,
+                     @Term    = :term,
+                     @Year    = :year
+            """), {"fid": funder_id, "term": term, "year": year}).fetchall()
+
+        facilities = [dict(r._mapping) for r in rows]
+        # Expected rows: { "FacilityID": <int>, "FacilityName": <str> }
+        return jsonify({"success": True, "facilities": facilities})
+    except Exception as e:
+        current_app.logger.exception("❌ /api/clm_facilities failed")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@admin_bp.route("/api/clm_facility_staff", methods=["GET"])
+@login_required
+def api_clm_facility_staff():
+    """
+    Returns staff list for a given facility (provider) id.
+    """
+    def _safe_int(x, default=None):
+        try:
+            return int(x)
+        except (TypeError, ValueError):
+            return default
+
+    facility_id = _safe_int(request.args.get("facility_id"))
+    if not facility_id:
+        return jsonify({"success": False, "message": "Missing facility_id"}), 400
+
+    engine = get_db_engine()
+    try:
+        with engine.begin() as conn:
+            rows = conn.execute(text("""
+                EXEC FlaskHelperFunctionsSpecific
+                     @Request   = 'CLMFacilityStaff',
+                     @ProviderID= :pid
+            """), {"pid": facility_id}).fetchall()
+
+        staff = [dict(r._mapping) for r in rows]
+        # Expected rows: { "Email": <str>, "Name": <str> } (or FirstName/Surname)
+        return jsonify({"success": True, "staff": staff})
+    except Exception as e:
+        current_app.logger.exception("❌ /api/clm_facility_staff failed")
+        return jsonify({"success": False, "message": str(e)}), 500
 @admin_bp.route("/add_provider", methods=["POST"])
 @login_required
 def add_provider():
@@ -1335,7 +1450,7 @@ def provider_maintenance():
 
     funders, schools, providers, staff_list = [], [], [], []
     selected_funder_name = session.get("desc")
-    
+
     try:
         # ---------- DB work ----------
         with engine.begin() as conn:
@@ -1375,6 +1490,7 @@ def provider_maintenance():
                     {"fid": selected_funder_i}
                 ).fetchall()
                 staff_list = [dict(r._mapping) for r in rows]
+        is_swimmagic_clm = "swimmagic" in (selected_funder_name or "").lower() and "clm" in (selected_funder_name or "").lower()
 
     except Exception as e:
         current_app.logger.exception("❌ ProviderMaintenance DB load failed")
@@ -1392,7 +1508,7 @@ def provider_maintenance():
             current_app.logger.exception(f"⚠️ Failed to log alert in ProviderMaintenance.")
 
         flash("Couldn’t load some data for provider maintenance. The issue has been logged.", "warning")
-
+    print(is_swimmagic_clm)
     # ---------- Render ----------
     try:
         return render_template(
@@ -1404,6 +1520,8 @@ def provider_maintenance():
             years = get_years(),
             selected_funder=selected_funder_i,
              selected_funder_name=selected_funder_name,
+                 is_swimmagic_clm=is_swimmagic_clm,
+
             selected_term=selected_term_i,
             selected_year=selected_year_i,
             user_role=user_role,

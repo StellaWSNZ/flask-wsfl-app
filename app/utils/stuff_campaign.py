@@ -245,6 +245,14 @@ def build_lifesavings_campaign_counts_pdf(
     meta["pages"] = page_count
     return preview_fig, meta
 
+def get_db_engine():
+    connection_string = (
+        "mssql+pyodbc://"
+        f"{os.getenv('WSNZDBUSER')}:{os.getenv('WSNZDBPASS')}"
+        "@heimatau.database.windows.net:1433/WSFL"
+        "?driver=ODBC+Driver+18+for+SQL+Server"
+    )
+    return create_engine(connection_string, pool_pre_ping=True, fast_executemany=True)
 
 # ------------------------------------------------------------
 # Optional CLI runner
@@ -259,8 +267,8 @@ if __name__ == "__main__":
     FUNDER_ID = 20  # Lifesavings
     OUT_DIR = Path("out")
     OUT_DIR.mkdir(exist_ok=True)
-
-    engine = create_engine(os.getenv("db_url"))
+    print(os.getenv("DB_URL"))
+    engine = get_db_engine()
     footer = Path(__file__).parent / "static" / "footer.png"
     pdf_out = OUT_DIR / f"LifeSavingsCampaign_StudentCounts.pdf"
 

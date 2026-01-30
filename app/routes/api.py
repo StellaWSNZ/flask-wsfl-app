@@ -25,11 +25,11 @@ def get_entities():
         # ----------------------------
         entity_type = request.args.get("entity_type")
         include_inactive = int(request.args.get("include_inactive", 0))
-
         user_id   = session.get("user_id")
         user_role = session.get("user_role")
         desc      = session.get("desc")
-
+        if(user_role == "ADM" or "Example " in desc):
+            include_inactive = 1
         if debug:
             current_app.logger.info("================ API:get_entities =================")
             current_app.logger.info("📥 Request args:")

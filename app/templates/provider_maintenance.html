@@ -1,31 +1,33 @@
+{# templates/provider_maintenance.html #}
 {% extends "header.html" %}
 {% block title %}Provider Maintenance{% endblock %}
 
 {% block content %}
-  <h3 class="mb-4 text-center text-primary">Provider Maintenance</h3>
-{% if selected_funder %}
-<div class="text-center mb-4">
-  Providers with errors? <a href="{{ url_for('admin_bp.manage_providers', funder_id=selected_funder) }}"><strong>Click here to edit</strong></a>
+<h3 class="mb-4 text-center text-primary">Provider Maintenance</h3>
 
-</div>
+{% if selected_funder %}
+  <div class="text-center mb-4">
+    Providers with errors?
+    <a href="{{ url_for('admin_bp.manage_providers', funder_id=selected_funder) }}"><strong>Click here to edit</strong></a>
+  </div>
 {% endif %}
 
 <!-- Filter Form -->
 <form method="POST" class="row justify-content-center g-3 mb-4">
   {% if user_role == 'ADM' %}
-  <div class="col-md-3">
-    <label for="funder" class="form-label">Funder</label>
-    <select id="funder" name="funder" class="form-select" required>
-      {% if not selected_funder %}
-        <option value="" disabled selected>Pick a funder...</option>
-      {% endif %}
-      {% for f in funders %}
-        <option value="{{ f['id'] }}" {% if selected_funder == f['id'] %}selected{% endif %}>
-          {{ f['Description'] }}
-        </option>
-      {% endfor %}
-    </select>
-  </div>
+    <div class="col-md-3">
+      <label for="funder" class="form-label">Funder</label>
+      <select id="funder" name="funder" class="form-select" required>
+        {% if not selected_funder %}
+          <option value="" disabled selected>Pick a funder...</option>
+        {% endif %}
+        {% for f in funders %}
+          <option value="{{ f['id'] }}" {% if selected_funder == f['id'] %}selected{% endif %}>
+            {{ f['Description'] }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
   {% endif %}
 
   <div class="col-md-2">
@@ -61,189 +63,268 @@
 </style>
 
 {% if schools %}
+
+<!-- ========================= -->
+<!-- Desktop table (>= sm)     -->
+<!-- ========================= -->
 <div class="d-none d-sm-block">
-<div class="container">
-  <table class="table table-bordered table-hover align-middle">
-    <thead class="custom-header">
-      <tr>
-        <th>School Name</th>
-        <th>Total Classes</th>
-        <th>Total Students</th>
-        <th>Equity Index</th>
-        <th>Year Levels</th>
-        <th>Assign Provider</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for school in schools %}
-      <tr>
-        <td>{{ school.School }}</td>
-        <td>{{ school.TotalClasses }}</td>
-        <td>{{ school.TotalStudents }}</td>
-        <td>{{ school.EquityIndex }}</td>
-        <td>{{ school.DistinctYearLevels }}</td>
-        <td>
-          <!-- ✅ unified scope for desktop -->
-          <div class="provider-scope">
-            <div class="input-group input-group-sm">
-              <select class="form-select provider-select"
+  <div class="container">
+    <table class="table table-bordered table-hover align-middle">
+      <thead class="custom-header">
+        <tr>
+          <th>School Name</th>
+          <th>Total Classes</th>
+          <th>Total Students</th>
+          <th>Equity Index</th>
+          <th>Year Levels</th>
+          <th>Assign Provider</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        {% for school in schools %}
+          <tr>
+            <td>{{ school.School }}</td>
+            <td class="text-center">{{ school.TotalClasses }}</td>
+            <td class="text-center">{{ school.TotalStudents }}</td>
+            <td class="text-center">{{ school.EquityIndex }}</td>
+            <td>{{ school.DistinctYearLevels }}</td>
+
+            <td>
+              <div class="provider-scope"
+                   data-is-clm="{{ 1 if is_swimmagic_clm else 0 }}"
+                   data-current-provider1id="{{ school.Provider1ID or '' }}"
+                   data-current-provider2id="{{ school.Provider2ID or '' }}">
+
+                <!-- Provider 1 select (Kaiako-led OR normal single-provider) -->
+                <div class="input-group input-group-sm">
+                  <select class="form-select provider-select"
+                          data-moe="{{ school.MOENumber }}"
+                          data-term="{{ selected_term }}"
+                          data-year="{{ selected_year }}"
+                          data-funder="{{ selected_funder }}">
+                    <option value="">Not chosen</option>
+
+                    {% for provider in providers %}
+                      {% set provider_is_kaiako = 'kaiako' in (provider.Description|lower) %}
+                      <option value="{{ provider.ProviderID }}"
+                        {% if school.Provider1ID and (school.Provider1ID|int == provider.ProviderID) %}
+                          selected
+                        {% endif %}>
+                        {% if provider_is_kaiako and selected_funder_name %}
+                          Kaiako led ({{ selected_funder_name }})
+                        {% elif provider_is_kaiako %}
+                          Kaiako led
+                        {% else %}
+                          {{ provider.Description }}
+                        {% endif %}
+                      </option>
+                    {% endfor %}
+                  </select>
+
+                  <button type="button"
+                          class="btn btn-outline-secondary add-provider-btn"
+                          data-bs-toggle="modal"
+                          data-bs-target="#newProviderModal"
+                          aria-label="Add new provider">
+                    <i class="bi bi-plus-lg" aria-hidden="true"></i>
+                  </button>
+                </div>
+
+                <!-- CLM MODE: Provider 2 (Facility) + Facility staff -->
+                <div class="mt-2 clm-wrapper d-none">
+                  <label class="form-label small mb-1">Select CLM facility</label>
+                  <div class="input-group input-group-sm mb-2">
+                    <select class="form-select clm-facility-select"
+                            data-moe="{{ school.MOENumber }}"
+                            data-term="{{ selected_term }}"
+                            data-year="{{ selected_year }}"
+                            data-funder="{{ selected_funder }}">
+                      <option value="">Not selected</option>
+                      {# options populated by JS from /api/clm_facilities #}
+                    </select>
+                  </div>
+
+                  <label class="form-label small mb-1">Select facility staff member</label>
+                  <div class="input-group input-group-sm">
+                    <select class="form-select clm-staff-select"
+                            data-moe="{{ school.MOENumber }}"
+                            data-term="{{ selected_term }}"
+                            data-year="{{ selected_year }}">
+                      <option value="">Not Assigned</option>
+                      {# options populated by JS from /api/clm_facility_staff #}
+                    </select>
+                  </div>
+                  <div class="form-text">This appears only for SwimMagic CLM Kaiako-led delivery.</div>
+                </div>
+
+                <!-- NON-CLM: Kaiako staff dropdown (funder staff) -->
+                <div class="mt-2 staff-dropdown-wrapper d-none">
+                  <label class="form-label small mb-1">Assign Kaiako Staff</label>
+                  <div class="input-group input-group-sm">
+                    <select class="form-select funder-staff-select"
+                            name="staff_email_{{ school.MOENumber }}"
+                            data-moe="{{ school.MOENumber }}"
+                            data-term="{{ selected_term }}"
+                            data-year="{{ selected_year }}">
+                      <option value="">Not Assigned</option>
+                      {% for staff in staff_list %}
+                        <option value="{{ staff.Email }}"
+                          {% if school.SelectedStaffEmail == staff.Email %}selected{% endif %}>
+                          {{ staff.Name or (staff.FirstName ~ ' ' ~ staff.Surname) }}
+                        </option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  <div class="form-text">Only required for Kaiako-led delivery.</div>
+                </div>
+
+              </div>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+
+    </table>
+  </div>
+</div>
+
+<!-- ========================= -->
+<!-- Mobile cards (< sm)       -->
+<!-- ========================= -->
+<div class="d-sm-none" id="staffCards">
+  {% for school in schools %}
+    <div class="card shadow-sm mb-3">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span class="fw-semibold">{{ school.School.split('(')[0].strip() }}</span>
+        <small class="text-muted">MOE Number: {{ school.MOENumber }}</small>
+      </div>
+
+      <div class="card-body pt-3">
+        <ul class="list-group list-group-flush mb-3">
+          <li class="list-group-item d-flex justify-content-between">
+            <span>Total Classes</span>
+            <span class="badge text-bg-primary">{{ school.TotalClasses }}</span>
+          </li>
+          <li class="list-group-item d-flex justify-content-between">
+            <span>Total Students</span>
+            <span class="badge text-bg-secondary">{{ school.TotalStudents }}</span>
+          </li>
+          <li class="list-group-item d-flex justify-content-between">
+            <span>Equity Index</span>
+            <span class="badge text-bg-info">{{ school.EquityIndex }}</span>
+          </li>
+          <li class="list-group-item">
+            <div class="mb-1">Year Levels</div>
+            <div class="small text-muted">{{ school.DistinctYearLevels }}</div>
+          </li>
+        </ul>
+
+        <div class="provider-scope"
+             data-is-clm="{{ 1 if is_swimmagic_clm else 0 }}"
+             data-current-provider1id="{{ school.Provider1ID or '' }}"
+             data-current-provider2id="{{ school.Provider2ID or '' }}">
+
+          <label class="form-label small mb-1">Assign Provider</label>
+
+          <div class="input-group input-group-sm mb-2">
+            <select class="form-select provider-select"
+                    data-moe="{{ school.MOENumber }}"
+                    data-term="{{ selected_term }}"
+                    data-year="{{ selected_year }}"
+                    data-funder="{{ selected_funder }}">
+              <option value="">Not chosen</option>
+
+              {% for provider in providers %}
+                {% set provider_is_kaiako = 'kaiako' in (provider.Description|lower) %}
+                <option value="{{ provider.ProviderID }}"
+                  {% if school.Provider1ID and (school.Provider1ID|int == provider.ProviderID) %}
+                    selected
+                  {% endif %}>
+                  {% if provider_is_kaiako and selected_funder_name %}
+                    Kaiako led ({{ selected_funder_name }})
+                  {% elif provider_is_kaiako %}
+                    Kaiako led
+                  {% else %}
+                    {{ provider.Description }}
+                  {% endif %}
+                </option>
+              {% endfor %}
+            </select>
+
+            <button type="button"
+                    class="btn btn-outline-secondary add-provider-btn"
+                    data-bs-toggle="modal"
+                    data-bs-target="#newProviderModal"
+                    title="Add new provider">
+              <i class="bi bi-plus-lg"></i>
+            </button>
+          </div>
+
+          <!-- CLM mode -->
+          <div class="clm-wrapper d-none">
+            <label class="form-label small mb-1">Select CLM facility</label>
+            <div class="input-group input-group-sm mb-2">
+              <select class="form-select clm-facility-select"
                       data-moe="{{ school.MOENumber }}"
                       data-term="{{ selected_term }}"
                       data-year="{{ selected_year }}"
                       data-funder="{{ selected_funder }}">
-                <option value="">Not chosen</option>
-                {% for provider in providers %}
-  <option value="{{ provider.ProviderID }}"
-    {% if school.ProviderID and school.ProviderID|int == provider.ProviderID %}selected{% endif %}>
-    {% if 'kaiako' in provider.Description|lower and selected_funder_name %}
-      Kaiako led ({{ selected_funder_name }})
-    {% elif 'kaiako' in provider.Description|lower %}
-      Kaiako led
-    {% else %}
-      {{ provider.Description }}
-    {% endif %}
-  </option>
-{% endfor %}
-
+                <option value="">Not selected</option>
               </select>
-              <button type="button"
-        class="btn btn-outline-secondary add-provider-btn"
-        data-bs-toggle="modal"
-        data-bs-target="#newProviderModal"
-        aria-label="Add new provider">
-  <i class="bi bi-plus-lg" aria-hidden="true"></i>
-</button>
             </div>
 
-            <!-- Staff Dropdown for Kaiako Led -->
-            <div class="mt-2 staff-dropdown-wrapper {% if 'kaiako' not in school.ProviderDesc|lower %}d-none{% endif %}">
-              <div class="input-group input-group-sm">
-                <select class="form-select form-select-sm funder-staff-select"
-                  name="staff_email_{{ school.MOENumber }}"
-                  data-moe="{{ school.MOENumber }}"
-                  data-term="{{ selected_term }}"
-                  data-year="{{ selected_year }}">
-                  
-                  <option value="">Not Assigned</option>
-                  
-                  {% for staff in staff_list %}
-                    <option value="{{ staff.Email }}"
-                      {% if school.SelectedStaffEmail == staff.Email %}selected{% endif %}>
-                      {{ staff.Name or (staff.FirstName ~ ' ' ~ staff.Surname) }}
-                    </option>
-                  {% endfor %}
-                  
-                </select>
-              </div>
+            <label class="form-label small mb-1">Select facility staff member</label>
+            <div class="input-group input-group-sm">
+              <select class="form-select clm-staff-select"
+                      data-moe="{{ school.MOENumber }}"
+                      data-term="{{ selected_term }}"
+                      data-year="{{ selected_year }}">
+                <option value="">Not Assigned</option>
+              </select>
             </div>
+
+            <div class="form-text">This appears only for SwimMagic CLM Kaiako-led delivery.</div>
           </div>
-          <!-- /provider-scope -->
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</div>
-</div>
 
-<!-- Mobile cards -->
-<div class="d-sm-none" id="staffCards">
-  {% for school in schools %}
-  <div class="card shadow-sm mb-3">
-    <div class="card-header d-flex justify-content-between align-items-center">
-      <span class="fw-semibold">{{ school.School.split('(')[0].strip() }}</span>
-      <small class="text-muted">MOE Number: {{ school.MOENumber }}</small>
-    </div>
-
-    <div class="card-body pt-3">
-      <ul class="list-group list-group-flush mb-3">
-        <li class="list-group-item d-flex justify-content-between">
-          <span>Total Classes</span>
-          <span class="badge text-bg-primary">{{ school.TotalClasses }}</span>
-        </li>
-        <li class="list-group-item d-flex justify-content-between">
-          <span>Total Students</span>
-          <span class="badge text-bg-secondary">{{ school.TotalStudents }}</span>
-        </li>
-        <li class="list-group-item d-flex justify-content-between">
-          <span>Equity Index</span>
-          <span class="badge text-bg-info">{{ school.EquityIndex }}</span>
-        </li>
-        <li class="list-group-item">
-          <div class="mb-1">Year Levels</div>
-          <div class="small text-muted">{{ school.DistinctYearLevels }}</div>
-        </li>
-      </ul>
-
-      <!-- ✅ unified scope for mobile -->
-      <div class="provider-scope">
-        <!-- Assign Provider -->
-        <label class="form-label small mb-1">Assign Provider</label>
-        <div class="input-group input-group-sm mb-2">
-          <select class="form-select provider-select"
-                  data-moe="{{ school.MOENumber }}"
-                  data-term="{{ selected_term }}"
-                  data-year="{{ selected_year }}"
-                  data-funder="{{ selected_funder }}">
-            <option value="">Not chosen</option>
-            {% for provider in providers %}
-  <option value="{{ provider.ProviderID }}"
-    {% if school.ProviderID and school.ProviderID|int == provider.ProviderID %}selected{% endif %}>
-    {% if 'kaiako' in provider.Description|lower and selected_funder_name %}
-      Kaiako led ({{ selected_funder_name }})
-    {% elif 'kaiako' in provider.Description|lower %}
-      Kaiako led
-    {% else %}
-      {{ provider.Description }}
-    {% endif %}
-  </option>
-{% endfor %}
-          </select>
-          <button type="button"
-                  class="btn btn-outline-secondary add-provider-btn"
-                  data-bs-toggle="modal"
-                  data-bs-target="#newProviderModal"
-                  title="Add new provider">
-            <i class="bi bi-plus-lg"></i>
-          </button>
-        </div>
-
-        <!-- Staff Dropdown for Kaiako Led -->
-        <div class="staff-dropdown-wrapper {% if 'kaiako' not in school.ProviderDesc|lower %}d-none{% endif %}">
-          <label class="form-label small mb-1">Assign Kaiako Staff</label>
-          <div class="input-group input-group-sm">
-            <select class="form-select funder-staff-select"
-                    name="staff_email_{{ school.MOENumber }}"
-                    data-moe="{{ school.MOENumber }}"
-                    data-term="{{ selected_term }}"
-                    data-year="{{ selected_year }}">
-              <option value="">Not Assigned</option>
-              {% for staff in staff_list %}
-                <option value="{{ staff.Email }}"
-                  {% if school.SelectedStaffEmail == staff.Email %}selected{% endif %}>
-                  {{ staff.Name or (staff.FirstName ~ ' ' ~ staff.Surname) }}
-                </option>
-              {% endfor %}
-            </select>
+          <!-- Non-CLM Kaiako -->
+          <div class="staff-dropdown-wrapper d-none">
+            <label class="form-label small mb-1">Assign Kaiako Staff</label>
+            <div class="input-group input-group-sm">
+              <select class="form-select funder-staff-select"
+                      name="staff_email_{{ school.MOENumber }}"
+                      data-moe="{{ school.MOENumber }}"
+                      data-term="{{ selected_term }}"
+                      data-year="{{ selected_year }}">
+                <option value="">Not Assigned</option>
+                {% for staff in staff_list %}
+                  <option value="{{ staff.Email }}"
+                    {% if school.SelectedStaffEmail == staff.Email %}selected{% endif %}>
+                    {{ staff.Name or (staff.FirstName ~ ' ' ~ staff.Surname) }}
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-text">Only required for Kaiako-led delivery.</div>
           </div>
-          <div class="form-text">Only required for Kaiako-led delivery.</div>
+
         </div>
       </div>
-      <!-- /provider-scope -->
-
     </div>
-  </div>
   {% endfor %}
 </div>
+
 {% else %}
 <div class="d-flex justify-content-center">
   <div class="alert text-center w-40" style="background-color: #4d544120; color: #4d5441; border: 2px solid #4d5441;">
-    No schools found for the selected term and year. Please contact your schools regarding uploading the relevant class lists. 
+    No schools found for the selected term and year. Please contact your schools regarding uploading the relevant class lists.
   </div>
 </div>
 {% endif %}
 
-<!-- Modal -->
+<!-- ========================= -->
+<!-- Add Provider Modal         -->
+<!-- ========================= -->
 <div class="modal fade" id="newProviderModal" tabindex="-1" aria-labelledby="newProviderModalLabel" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
@@ -269,214 +350,354 @@
   </div>
 </div>
 
-<div class="modal fade" id="addStaffModal" tabindex="-1" aria-labelledby="addStaffLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <form method="POST" action="{{ url_for('staff_bp.add_staff') }}">
-        <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
-        <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
-        <div class="modal-header bg-primary text-white">
-          <h5 class="modal-title" id="addStaffLabel">Add New Staff</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <div class="mb-3">
-            <label for="first_name" class="form-label">First Name</label>
-            <input type="text" class="form-control" name="first_name" required>
-          </div>
-          <div class="mb-3">
-            <label for="last_name" class="form-label">Last Name</label>
-            <input type="text" class="form-control" name="last_name" required>
-          </div>
-          <div class="mb-3">
-            <label for="email" class="form-label">Email</label>
-            <input type="email" class="form-control" name="email" required>
-          </div>
-          <div class="mb-3">
-            <label for="account_status" class="form-label">Account Status</label>
-            <select class="form-select" name="account_status" id="account_status" required>
-              <option value="enable">Enable (send welcome email)</option>
-              <option value="disable">Disable</option>
-            </select>
-          </div>
-          <div class="form-check mb-3" id="admin_checkbox_group">
-            <input class="form-check-input" type="checkbox" name="admin" value="1" id="admin_checkbox">
-            <label class="form-check-label" for="admin_checkbox">
-              Grant Administrator Privileges
-            </label>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="submit" class="btn btn-primary">Add Staff</button>
-        </div>
-      </form>
-    </div>
-  </div>
-</div>
-
-<!-- JavaScript Fix -->
+<!-- ========================= -->
+<!-- JS                          -->
+<!-- ========================= -->
 <script>
-  document.addEventListener("DOMContentLoaded", () => {
-    // Just show/hide the staff dropdown, do NOT trigger assignment/deletion
-    const populateStaffDropdown = async (select) => {
-      const selectedText = select.options[select.selectedIndex]?.textContent?.toLowerCase();
+document.addEventListener("DOMContentLoaded", () => {
 
-      // ✅ works for table (td) and cards (no td)
+  // ---------- helpers ----------
+  const isKaiakoText = (txt) => (txt || "").toLowerCase().includes("kaiako");
+
+  // NOTE: backend will be changed later to support Slot (1 = Provider1, 2 = Provider2)
+  const postAssignProvider = async ({ moe, term, year, funderId, providerId, slot }) => {
+    const response = await fetch("/assign_provider", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        MOENumber: moe,
+        Term: term,
+        Year: year,
+        FunderID: funderId,
+        ProviderID: providerId || null,
+        Slot: slot
+      })
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || result.message || "assign_provider failed");
+    }
+    return result;
+  };
+
+  const postAssignKaiakoStaff = async ({ moe, term, year, email }) => {
+    const response = await fetch("/assign_kaiako_staff", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        MOENumber: moe,
+        Term: term,
+        Year: year,
+        Email: email || ""
+      })
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || "assign_kaiako_staff failed");
+    }
+    return result;
+  };
+
+  const fetchClmFacilities = async ({ funderId, term, year }) => {
+    const url = `/api/clm_facilities?funder_id=${encodeURIComponent(funderId)}&term=${encodeURIComponent(term)}&year=${encodeURIComponent(year)}`;
+    const response = await fetch(url);
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || "Failed to load CLM facilities");
+    }
+    return result.facilities || [];
+  };
+
+  const fetchClmFacilityStaff = async ({ facilityId }) => {
+    const url = `/api/clm_facility_staff?facility_id=${encodeURIComponent(facilityId)}`;
+    const response = await fetch(url);
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || "Failed to load facility staff");
+    }
+    return result.staff || [];
+  };
+
+  const populateSelectOptions = (selectEl, rows, { valueKey, labelKey, placeholderLabel }) => {
+    if (!selectEl) return;
+    const current = selectEl.value;
+
+    selectEl.innerHTML = "";
+    const ph = document.createElement("option");
+    ph.value = "";
+    ph.textContent = placeholderLabel;
+    selectEl.appendChild(ph);
+
+    rows.forEach(r => {
+      const opt = document.createElement("option");
+      opt.value = r[valueKey];
+      opt.textContent = r[labelKey];
+      selectEl.appendChild(opt);
+    });
+
+    // restore value if still present
+    if (current) {
+      const exists = Array.from(selectEl.options).some(o => String(o.value) === String(current));
+      if (exists) selectEl.value = current;
+    }
+  };
+
+  const loadFacilityStaffInto = async (scope) => {
+    const clmFacilitySelect = scope.querySelector(".clm-facility-select");
+    const clmStaffSelect    = scope.querySelector(".clm-staff-select");
+    if (!clmFacilitySelect || !clmStaffSelect) return;
+
+    const facilityId = clmFacilitySelect.value;
+    if (!facilityId) {
+      clmStaffSelect.innerHTML = `<option value="">Not Assigned</option>`;
+      return;
+    }
+
+    try {
+      const staff = await fetchClmFacilityStaff({ facilityId });
+      const mapped = staff.map(s => {
+        const name = s.Name || [s.FirstName, s.Surname].filter(Boolean).join(" ").trim();
+        return { Email: s.Email, Name: name || (s.Email || "") };
+      }).filter(x => x.Email);
+
+      populateSelectOptions(clmStaffSelect, mapped, {
+        valueKey: "Email",
+        labelKey: "Name",
+        placeholderLabel: "Not Assigned"
+      });
+
+    } catch (e) {
+      console.error("❌ Facility staff load error:", e);
+      clmStaffSelect.innerHTML = `<option value="">Not Assigned</option>`;
+    }
+  };
+
+  // ---------- core UI state update per scope ----------
+  const syncScopeUI = async (providerSelect) => {
+    const scope = providerSelect.closest(".provider-scope");
+    if (!scope) return;
+
+    const isClm = scope.dataset.isClm === "1";
+    const selectedText = providerSelect.options[providerSelect.selectedIndex]?.textContent || "";
+    const isKaiako = isKaiakoText(selectedText);
+
+    const nonClmStaffWrapper = scope.querySelector(".staff-dropdown-wrapper");
+    const nonClmStaffSelect  = scope.querySelector(".funder-staff-select");
+
+    const clmWrapper         = scope.querySelector(".clm-wrapper");
+    const clmFacilitySelect  = scope.querySelector(".clm-facility-select");
+    const clmStaffSelect     = scope.querySelector(".clm-staff-select");
+
+    // Hide everything by default
+    if (nonClmStaffWrapper) nonClmStaffWrapper.classList.add("d-none");
+    if (clmWrapper) clmWrapper.classList.add("d-none");
+
+    // If NOT kaiako, reset/hide staff & CLM controls
+    if (!isKaiako) {
+      if (nonClmStaffSelect) nonClmStaffSelect.selectedIndex = 0;
+
+      if (clmFacilitySelect) clmFacilitySelect.value = "";
+      if (clmStaffSelect) clmStaffSelect.innerHTML = `<option value="">Not Assigned</option>`;
+      return;
+    }
+
+    // Kaiako selected:
+    if (isClm) {
+      // Show CLM facility+staff UI
+      if (clmWrapper) clmWrapper.classList.remove("d-none");
+
+      // Load facilities
+      const funderId = providerSelect.dataset.funder;
+      const term = providerSelect.dataset.term;
+      const year = providerSelect.dataset.year;
+
+      try {
+        const facilities = await fetchClmFacilities({ funderId, term, year });
+        const mapped = facilities.map(f => ({
+          FacilityID: f.FacilityID ?? f.FacilityId ?? f.ProviderID ?? f.ID,
+          FacilityName: f.FacilityName ?? f.Facility ?? f.Description ?? f.Name
+        })).filter(x => x.FacilityID != null && x.FacilityName);
+
+        populateSelectOptions(clmFacilitySelect, mapped, {
+          valueKey: "FacilityID",
+          labelKey: "FacilityName",
+          placeholderLabel: "Not selected"
+        });
+
+        // Preselect current Provider2 (facility) if present
+        const currentProvider2Id = scope.dataset.currentProvider2id;
+        if (currentProvider2Id) {
+          const has = Array.from(clmFacilitySelect.options).some(
+            o => String(o.value) === String(currentProvider2Id)
+          );
+          if (has) {
+            clmFacilitySelect.value = String(currentProvider2Id);
+            await loadFacilityStaffInto(scope);
+          }
+        }
+      } catch (e) {
+        console.error("❌ CLM facilities load error:", e);
+      }
+
+    } else {
+      // Non-CLM Kaiako: show funder staff dropdown
+      if (nonClmStaffWrapper) nonClmStaffWrapper.classList.remove("d-none");
+    }
+  };
+
+  // ---------- Provider dropdown handlers ----------
+  document.querySelectorAll(".provider-select").forEach(select => {
+    let previousText = select.options[select.selectedIndex]?.textContent?.toLowerCase() || "";
+
+    // Initial UI
+    syncScopeUI(select);
+
+    select.addEventListener("change", async () => {
+      const selectedText = select.options[select.selectedIndex]?.textContent?.toLowerCase() || "";
+
+      const scope = select.closest(".provider-scope");
+      const moe  = select.dataset.moe;
+      const term = select.dataset.term;
+      const year = select.dataset.year;
+      const funderId = select.dataset.funder;
+
+      // If user changed from Kaiako to non-Kaiako, delete staff assignment + clear facility UI
+      if (previousText.includes("kaiako") && !selectedText.includes("kaiako")) {
+        try {
+          await postAssignKaiakoStaff({ moe, term, year, email: "" });
+        } catch (err) {
+          console.error("❌ Error deleting staff assignment:", err);
+        }
+
+        if (scope) {
+          const facilitySelect = scope.querySelector(".clm-facility-select");
+          const staffSelect = scope.querySelector(".clm-staff-select");
+          if (facilitySelect) facilitySelect.value = "";
+          if (staffSelect) staffSelect.innerHTML = `<option value="">Not Assigned</option>`;
+          scope.dataset.currentProvider2id = "";
+        }
+      }
+
+      // Assign Provider1 (slot 1)
+      try {
+        await postAssignProvider({
+          moe, term, year, funderId,
+          providerId: select.value || null,
+          slot: 1
+        });
+        if (scope) scope.dataset.currentProvider1id = select.value || "";
+      } catch (err) {
+        console.error("❌ Error assigning Provider1:", err);
+      }
+
+      previousText = selectedText;
+      await syncScopeUI(select);
+    });
+  });
+
+  // ---------- NON-CLM funder staff dropdown handler ----------
+  document.querySelectorAll(".funder-staff-select").forEach(dropdown => {
+    dropdown.addEventListener("change", async () => {
+      const selectedEmail = dropdown.value;
+      const moe  = dropdown.dataset.moe;
+      const term = dropdown.dataset.term;
+      const year = dropdown.dataset.year;
+
+      try {
+        await postAssignKaiakoStaff({ moe, term, year, email: selectedEmail });
+      } catch (err) {
+        console.error("❌ Error posting to /assign_kaiako_staff:", err);
+      }
+    });
+  });
+
+  // ---------- CLM facility dropdown: assigns Provider2 + loads staff ----------
+  document.querySelectorAll(".clm-facility-select").forEach(select => {
+    select.addEventListener("change", async () => {
       const scope = select.closest(".provider-scope");
       if (!scope) return;
 
-      const staffWrapper = scope.querySelector(".staff-dropdown-wrapper");
-      const staffSelect  = scope.querySelector(".funder-staff-select");
+      const facilityProviderId = select.value;
+      const moe  = select.dataset.moe;
+      const term = select.dataset.term;
+      const year = select.dataset.year;
+      const funderId = select.dataset.funder;
 
-      if (selectedText?.includes("kaiako")) {
-        staffWrapper?.classList.remove("d-none");
-      } else {
-        staffWrapper?.classList.add("d-none");
-        if (staffSelect) staffSelect.selectedIndex = 0;
+      // Assign Provider2 (slot 2)
+      try {
+        await postAssignProvider({
+          moe, term, year, funderId,
+          providerId: facilityProviderId || null,
+          slot: 2
+        });
+        scope.dataset.currentProvider2id = facilityProviderId || "";
+      } catch (err) {
+        console.error("❌ Error assigning Provider2 (facility):", err);
       }
-    };
 
-    // For each provider select
-    document.querySelectorAll(".provider-select").forEach(select => {
-      // Track previous provider text (used to detect change from Kaiako)
-      let previousText = select.options[select.selectedIndex]?.textContent?.toLowerCase();
-
-      // Initial rendering
-      populateStaffDropdown(select);
-
-      // Change event for user action
-      select.addEventListener("change", async () => {
-        const selectedText = select.options[select.selectedIndex]?.textContent?.toLowerCase();
-        const moe  = select.dataset.moe;
-        const term = select.dataset.term;
-        const year = select.dataset.year;
-
-        // ✅ Delete staff assignment only if user changed from Kaiako to non-Kaiako
-        if (previousText?.includes("kaiako") && !selectedText?.includes("kaiako")) {
-          try {
-            await fetch("/assign_kaiako_staff", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                MOENumber: moe,
-                Term: term,
-                Year: year,
-                Email: ""  // empty email means unassign
-              })
-            });
-            console.log(`🗑️ Deleted staff assignment for MOE ${moe}`);
-          } catch (err) {
-            console.error("❌ Error deleting staff assignment:", err);
-          }
-        }
-
-        previousText = selectedText;
-        await populateStaffDropdown(select); // safe now — just UI
-      });
-    });
-
-    // Staff assignment change handler
-    document.querySelectorAll(".funder-staff-select").forEach(dropdown => {
-      dropdown.addEventListener("change", async () => {
-        const selectedEmail = dropdown.value;
-        const moe  = dropdown.dataset.moe;
-        const term = dropdown.dataset.term;
-        const year = dropdown.dataset.year;
-
-        try {
-          const response = await fetch("/assign_kaiako_staff", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              MOENumber: moe,
-              Term: term,
-              Year: year,
-              Email: selectedEmail
-            })
-          });
-
-          const result = await response.json();
-          if (result.success) {
-            console.log("✅ Kaiako staff assigned successfully.");
-          } else {
-            console.error("⚠️ Failed to assign Kaiako staff:", result.message);
-          }
-        } catch (error) {
-          console.error("❌ Error posting to /assign_kaiako_staff:", error);
-        }
-      });
+      await loadFacilityStaffInto(scope);
     });
   });
 
-  document.getElementById("addProviderForm").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const form = e.target;
-    const providerName = form.provider_name.value;
-    const funderId     = form.funder_id.value;
+  // ---------- CLM facility staff dropdown: triggers assign_kaiako_staff ----------
+  document.querySelectorAll(".clm-staff-select").forEach(dropdown => {
+    dropdown.addEventListener("change", async () => {
+      const selectedEmail = dropdown.value;
+      const moe  = dropdown.dataset.moe;
+      const term = dropdown.dataset.term;
+      const year = dropdown.dataset.year;
 
-    const successAlert = document.getElementById("addProviderSuccess");
-    const errorAlert   = document.getElementById("addProviderError");
+      try {
+        await postAssignKaiakoStaff({ moe, term, year, email: selectedEmail });
+      } catch (err) {
+        console.error("❌ Error assigning CLM facility staff:", err);
+      }
+    });
+  });
 
-    successAlert.classList.add("d-none");
-    errorAlert.classList.add("d-none");
+  // ---------- Add Provider modal form ----------
+  const addProviderForm = document.getElementById("addProviderForm");
+  if (addProviderForm) {
+    addProviderForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const form = e.target;
 
-    try {
-      const response = await fetch("/add_provider", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ provider_name: providerName, funder_id: funderId })
-      });
+      const providerName = form.provider_name.value;
+      const funderId     = form.funder_id.value;
 
-      const result = await response.json();
-      if (result.success) {
-        successAlert.textContent = "✅ Provider added successfully.";
-        successAlert.classList.remove("d-none");
-        form.reset();
-        setTimeout(() => location.reload(), 1000);
-      } else {
-        errorAlert.textContent = result.message || "❌ Failed to add provider.";
+      const successAlert = document.getElementById("addProviderSuccess");
+      const errorAlert   = document.getElementById("addProviderError");
+
+      successAlert.classList.add("d-none");
+      errorAlert.classList.add("d-none");
+
+      try {
+        const response = await fetch("/add_provider", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ provider_name: providerName, funder_id: funderId })
+        });
+
+        const result = await response.json().catch(() => ({}));
+
+        if (response.ok && result.success) {
+          successAlert.textContent = "✅ Provider added successfully.";
+          successAlert.classList.remove("d-none");
+          form.reset();
+          setTimeout(() => location.reload(), 800);
+        } else {
+          errorAlert.textContent = result.message || "❌ Failed to add provider.";
+          errorAlert.classList.remove("d-none");
+        }
+      } catch (err) {
+        console.error("❌ Error adding provider:", err);
+        errorAlert.textContent = "❌ Something went wrong.";
         errorAlert.classList.remove("d-none");
       }
-    } catch (err) {
-      console.error("❌ Error adding provider:", err);
-      errorAlert.textContent = "❌ Something went wrong.";
-      errorAlert.classList.remove("d-none");
-    }
-  });
-
-  // (separate DOMContentLoaded was redundant; this stays outside but is fine)
-  document.addEventListener("DOMContentLoaded", () => {
-    // ✅ Trigger assign_provider on dropdown change
-    document.querySelectorAll(".provider-select").forEach(select => {
-      select.addEventListener("change", async () => {
-        const providerId = select.value;
-        const moe  = select.dataset.moe;
-        const term = select.dataset.term;
-        const year = select.dataset.year;
-
-        try {
-          const response = await fetch("/assign_provider", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              MOENumber: moe,
-              Term: term,
-              Year: year,
-              ProviderID: providerId || null
-            })
-          });
-
-          const result = await response.json();
-          if (result.success) {
-            console.log("✅ Provider assigned successfully.");
-          } else {
-            console.error("⚠️ Failed to assign provider:", result.message);
-          }
-        } catch (err) {
-          console.error("❌ Error assigning provider:", err);
-        }
-      });
     });
-  });
+  }
+
+});
 </script>
+
 {% endblock %}
