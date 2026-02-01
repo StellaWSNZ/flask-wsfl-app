@@ -83,7 +83,17 @@ def normalize_date_string(s):
 def is_mobile() -> bool:
     ua = (request.headers.get("User-Agent") or "").lower()
     return any(k in ua for k in ("iphone", "android", "ipad", "mobile"))
-
+def to_int_or_default(value, default):
+    """Convert value to int if possible, otherwise return default."""
+    try:
+        if value is None:
+            return default
+        if isinstance(value, int):
+            return value
+        s = str(value).strip()
+        return int(s)
+    except (ValueError, TypeError):
+        return default
 @upload_bp.route('/ClassUpload', methods=['GET', 'POST'])
 @login_required
 def classlistupload():
@@ -118,7 +128,8 @@ def classlistupload():
         selected_year = session.get("nearest_year")
         selected_teacher = selected_class = None
         selected_provider = None  # <--- NEW
-
+        selected_provider2 = None
+        selected_delivery_model = None
         selected_school = session.get("desc") or ""
         selected_moe = None
 
@@ -132,6 +143,7 @@ def classlistupload():
                     {"Request": "FunderDropdown"}
                 )
                 funders = [dict(row._mapping) for row in result]
+                
             elif role== "PRO":
                 # PRO users: funders supporting this provider
                 result = conn.execute(
@@ -140,9 +152,8 @@ def classlistupload():
                 )
                 funders = [dict(row._mapping) for row in result]
 
-                # PRO users: provider is themselves (useful default)
-                providers = [{"Description": session.get("desc"), "ProviderID": session.get("user_id")}]
-                selected_provider = session.get("user_id")
+                
+            
 
             elif role== "GRP":
                 stmt = text("""
@@ -157,16 +168,7 @@ def classlistupload():
                 funders = [dict(row._mapping) for row in result]
 
                 # Optionally populate providers from the group as well (if your SP exists)
-                if provider_ids:
-                    try:
-                        # Replace request name with your actual one if different:
-                        prov_res = conn.execute(
-                            text("EXEC FlaskHelperFunctionsSpecific @Request='ProviderDropdownFromIDs', @ProviderIDs=:ProviderIDs"),
-                            {"ProviderIDs": provider_ids}
-                        )
-                        providers = [dict(row._mapping) for row in prov_res]
-                    except Exception:
-                        pass  # If SP not available, omit providers here
+                
 
             else:
                 result = conn.execute(
@@ -184,9 +186,16 @@ def classlistupload():
             selected_funder = request.form.get('funder')
             selected_term_raw = request.form.get('term')
             selected_year_raw = request.form.get('year')
+            selected_provider2_raw = request.form.get("provider2")          # extra provider dropdown
+            selected_delivery_raw  = request.form.get("delivery_model")     # "127" or "INSTRUCTOR" (or "")
 
-            current_app.logger.info("🔍 raw POST term:", repr(selected_term_raw))
-            current_app.logger.info("🔍 raw POST year:", repr(selected_year_raw))
+            # normalise
+            selected_provider2 = to_int_or_default(selected_provider2_raw, None)
+
+            # delivery: keep as a small string (or None)
+            selected_delivery_model = (selected_delivery_raw or "").strip() or None
+            current_app.logger.info("🔍 raw POST term: %r", selected_term_raw)
+            current_app.logger.info("🔍 raw POST year: %r", selected_year_raw)
 
             selected_teacher   = request.form.get('teachername')
             selected_class     = request.form.get('classname')
@@ -198,17 +207,7 @@ def classlistupload():
                 selected_provider = request.form.get('provider')
 
             # ---- Normalise funder/term/year/provider as ints safely ----
-            def to_int_or_default(value, default):
-                """Convert value to int if possible, otherwise return default."""
-                try:
-                    if value is None:
-                        return default
-                    if isinstance(value, int):
-                        return value
-                    s = str(value).strip()
-                    return int(s)
-                except (ValueError, TypeError):
-                    return default
+            
 
             selected_funder   = to_int_or_default(selected_funder, None)
             selected_term     = to_int_or_default(selected_term_raw, session.get("nearest_term"))
@@ -220,7 +219,8 @@ def classlistupload():
                 selected_provider = to_int_or_default(selected_provider, None)
             
             current_app.logger.info(session.get("user_id"))
-            current_app.logger.info("🧩 selected_provider:", selected_provider)
+            current_app.logger.info("🧩 selected_provider: %r", selected_provider)
+
             selected_school_str = (
                 request.form.get("school")
                 or f"{session.get('desc')} ({session.get('user_id')})"
@@ -234,6 +234,9 @@ def classlistupload():
             session["selected_class"]    = selected_class
             session["selected_provider"] = selected_provider
             session["selected_school"]   = selected_school_str  # optional, for later use
+            session["selected_provider2"] = selected_provider2
+            session["selected_delivery_model"] = selected_delivery_model or ""
+
             # Parse MOE number
             try:
                 if selected_school_str.isdigit():
@@ -265,17 +268,7 @@ def classlistupload():
                 schools = []
 
             # NEW: Populate providers when a funder is chosen (for ADM/FUN/MOE/GRP users)
-            if selected_funder and role in ["ADM", "FUN", "MOE", "GRP"]:
-                try:
-                    with engine.connect() as conn:
-                        # Replace with your actual SP if different
-                        prov_res = conn.execute(
-                            text("EXEC FlaskHelperFunctionsSpecific @Request='ProvidersByFunder', @Number=:Number"),
-                            {"Number": selected_funder}
-                        )
-                        providers = [dict(row._mapping) for row in prov_res]
-                except Exception:
-                    pass
+            
 
             if action == "preview" and file and file.filename:
                 
@@ -369,12 +362,14 @@ def classlistupload():
 
 
             elif action == "validate":
+                
                 validated = True
                 if not session.get("raw_csv_json"):
                     flash("No CSV file has been uploaded for validation.", "danger")
                 else:
                     try:
-                        raw_df = pd.read_json(StringIO(session["raw_csv_json"]))
+                        raw_df = pd.read_json(StringIO(session["raw_csv_json"]), convert_dates=False)
+
                         column_mappings = json.loads(column_mappings_json)
                         
                         valid_fields = ["NSN", "FirstName", "LastName", "PreferredName", "BirthDate", "Ethnicity", "YearLevel"]
@@ -418,7 +413,7 @@ def classlistupload():
                             for i, row in enumerate(parsed_json[:5]):
                                 current_app.logger.info(f"📦 Row {i+1}: {row}")
                         except Exception as e:
-                            current_app.logger.info("❌ JSON error:", e)
+                            current_app.logger.info("❌ JSON error: %r", e)
                         try:
                             with engine.begin() as conn:
                                 result = conn.execute(
@@ -438,14 +433,20 @@ def classlistupload():
 
                         
                         for i, row in enumerate(preview_data[:5]):
-                            current_app.logger.info(f"Row {i+1} Birthdate:", row.get("Birthdate"), "Type:", type(row.get("Birthdate")))
+                            current_app.logger.info(
+                            "Row %s Birthdate: %r (type=%s)",
+                            i + 1,
+                            row.get("Birthdate"),
+                            type(row.get("Birthdate")).__name__,
+                        )
                         for row in preview_data:
                             if isinstance(row.get("Birthdate"), (datetime.date, datetime.datetime)):
                                 row["Birthdate"] = row["Birthdate"].strftime("%Y-%m-%d")
                             
-                        current_app.logger.info("🔍 Inspecting Birthdate values in preview_data:")
+                        current_app.logger.info("🔍 Inspecting Birthdate values in preview_data (post):")
                         for i, row in enumerate(preview_data[:5]):
-                            current_app.logger.info(f"Row {i+1} Birthdate:", row.get("Birthdate"), "Type:", type(row.get("Birthdate")))
+                            bd = row.get("Birthdate")
+                            current_app.logger.info("Row %s Birthdate (post): %r (type=%s)", i + 1, bd, type(bd).__name__)
                         
                     except Exception as e:
                         flash(f"Error during validation: {str(e)}", "danger")
@@ -474,7 +475,10 @@ def classlistupload():
             preview_data=preview_data,
             validated = validated,
             original_columns = original_columns,
-            has_headers = session.get("has_headers", True)
+            has_headers = session.get("has_headers", True),
+            
+            selected_provider2=selected_provider2,
+            selected_delivery_model=selected_delivery_model,
 
         )
     except Exception as e:
@@ -715,7 +719,14 @@ def submitclass():
         classname   = session.get("selected_class")
         preview_data = session.get("preview_data")
         selected_provider = session.get("selected_provider")  # may be None
-
+        selected_provider2 = session.get("selected_provider2")
+        selected_delivery_model = session.get("selected_delivery_model")
+        provider2_for_proc = selected_provider2
+        if not provider2_for_proc:
+            if str(selected_delivery_model) == "127":
+                provider2_for_proc = 127
+            else:
+                provider2_for_proc = None
         missing = []
         if not funder_id:    missing.append("funder_id")
         if not moe_number:   missing.append("moe_number")
@@ -756,32 +767,23 @@ def submitclass():
         else:
             selected_provider = None
 
-        with engine.begin() as conn:
-            conn.execute(
-                text("""
-                    EXEC FlaskInsertClassList
-                        @FunderID     = :FunderID,
-                        @MOENumber    = :MOENumber,
-                        @Term         = :Term,
-                        @CalendarYear = :CalendarYear,
-                        @TeacherName  = :TeacherName,
-                        @ClassName    = :ClassName,
-                        @InputJSON    = :InputJSON,
-                        @Email        = :Email,
-                        @ProviderID   = :ProviderID
-                """),
-                {
-                    "FunderID": funder_id,
-                    "MOENumber": moe_number,
-                    "Term": term,
-                    "CalendarYear": year,
-                    "TeacherName": teacher,
-                    "ClassName": classname,
-                    "InputJSON": input_json,
-                    "Email": session.get("user_email"),
-                    "ProviderID": selected_provider
-                }
-            )
+        current_app.logger.info(
+            "📤 /submitclass payload | role=%s | funder_id=%r | moe_number=%r | term=%r | year=%r | "
+            "teacher=%r | classname=%r | provider=%r | provider2=%r| actualprovider2=%r  | delivery_model=%r | "
+            "preview_rows=%s",
+            user_role,
+            funder_id,
+            moe_number,
+            term,
+            year,
+            teacher,
+            classname,
+            selected_provider,
+            selected_provider2,
+            provider2_for_proc,
+            selected_delivery_model,
+            len(preview_data) if preview_data else 0,
+        )
 
         flash("✅ Class submitted successfully!", "success")
         return redirect(url_for("upload_bp.classlistupload"))

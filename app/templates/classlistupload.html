@@ -22,24 +22,35 @@
     </div>
 
     {# Provider (FUN + MOE only) #}
-    {% if user_role in ['FUN', 'MOE'] %}
+    {% if user_role in ['FUN', 'MOE','ADM'] %}
     <div class="col-md-6">
       <label for="provider" class="form-label">Provider</label>
       <select id="provider" name="provider" class="form-select" required>
-        <option value="">Select a provider</option>
-        {# Optional server-preload #}
-        {% if providers %}
-          {% for p in providers %}
-          <option value="{{ p.ProviderID }}"
-          {% if selected_provider|string == p.ProviderID|string %}selected{% endif %}>
-    {{ p.ProviderName or p.Description }}
-  </option>
-          {% endfor %}
-        {% endif %}
-      </select>
+  <option value="">Select a provider</option>
+</select>
     </div>
     {% endif %} 
+{# Extra provider dropdown (required when: CLM funder + provider contains 'kaiako') #}
+<div class="col-md-6" id="provider2-container" style="display:none;">
+  <label for="provider2" class="form-label">Additional Provider</label>
+  <select id="provider2" name="provider2" class="form-select">
+    <option value="">Select an additional provider</option>
+  </select>
+  <div class="form-text">
+    Required when the selected provider is Kaiako.
+  </div>
+</div>
 
+{# Delivery model dropdown (required when: CLM funder + provider NOT kaiako) #}
+<div class="col-md-6" id="delivery-model-container" style="display:none;">
+  <label for="delivery_model" class="form-label">Delivery model</label>
+  <select id="delivery_model" name="delivery_model" class="form-select">
+  <option value="">Select a delivery model</option>
+  <option value="INSTRUCTOR">Instructor led</option>
+  <option value="127">Kaiako led</option>
+</select>
+  
+</div>
 
 
     <!-- School -->
@@ -260,15 +271,42 @@
 {% block scripts %}
 <script>
 document.addEventListener("DOMContentLoaded", () => {
-  const userRole         = "{{ user_role|e }}";
-  const funderSel        = document.getElementById("funder");
-  const providerSel      = document.getElementById("provider");
-  const selectedProvider = "{{ selected_provider or '' }}";
+  const userRole    = "{{ user_role|e }}";
+  const funderSel   = document.getElementById("funder");
+  const providerSel = document.getElementById("provider");
 
-  async function loadProvidersForFunder(funderId) {
-    if (!providerSel || !funderId) return; // not visible for non FUN/MOE or no funder
-    providerSel.innerHTML = '<option value="">Loading providers…</option>';
-    providerSel.disabled = true;
+  // CLM controls (may not exist for some roles/views)
+  const provider2Container = document.getElementById("provider2-container");
+  const provider2Sel       = document.getElementById("provider2");
+  const deliveryContainer  = document.getElementById("delivery-model-container");
+  const deliverySel        = document.getElementById("delivery_model");
+
+  // Optional: preserve selections on postback (set these in your route if you want)
+  const selectedProvider1 = "{{ selected_provider or '' }}";
+  const selectedProvider2 = "{{ selected_provider2 or '' }}";
+  const selectedDelivery  = "{{ selected_delivery_model or '' }}"; // e.g. "127" or "INSTRUCTOR" or ""
+
+  function optionTextLower(selectEl) {
+    if (!selectEl || !selectEl.options || selectEl.selectedIndex < 0) return "";
+    const opt = selectEl.options[selectEl.selectedIndex];
+    return (opt?.textContent || "").trim().toLowerCase();
+  }
+
+  function isCLMFunderSelected() {
+    // Match on the *label text* (Description) of the currently selected funder
+    return optionTextLower(funderSel).includes("clm");
+  }
+
+  function providerLooksKaiako() {
+    // Match on the *label text* of the currently selected provider
+    return optionTextLower(providerSel).includes("kaiako");
+  }
+
+  async function loadProvidersInto(selectEl, funderId, { excludeId = null, selectedValue = "" } = {}) {
+    if (!selectEl || !funderId) return;
+
+    selectEl.innerHTML = '<option value="">Loading providers…</option>';
+    selectEl.disabled = true;
 
     try {
       const url = "{{ url_for('overview_bp.providers_by_funder') }}"
@@ -276,73 +314,153 @@ document.addEventListener("DOMContentLoaded", () => {
       const res = await fetch(url, { headers: { "Accept": "application/json" } });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-      /** expects: [{ id, name }] */
       let items = await res.json();
       if (!Array.isArray(items)) items = [];
 
-      providerSel.innerHTML = '<option value="">Select a provider</option>';
+      selectEl.innerHTML = '<option value="">Select a provider</option>';
+
       for (const p of items) {
         if (!p || !p.id || !p.name) continue;
-        const opt = document.createElement('option');
+        if (excludeId && String(p.id) === String(excludeId)) continue;
+
+        const opt = document.createElement("option");
         opt.value = p.id;
         opt.textContent = p.name;
-        providerSel.appendChild(opt);
+        selectEl.appendChild(opt);
       }
 
-      if (selectedProvider) providerSel.value = selectedProvider;
-      providerSel.disabled = false;
+      if (selectedValue) selectEl.value = selectedValue;
+      selectEl.disabled = false;
     } catch (e) {
       console.error("Provider load failed:", e);
-      providerSel.innerHTML = '<option value="">(Failed to load providers)</option>';
-      providerSel.disabled = false;
+      selectEl.innerHTML = '<option value="">(Failed to load providers)</option>';
+      selectEl.disabled = false;
     }
   }
 
-  // Funders -> school dropdown (skip for MOE to avoid wiping the locked school)
-  funderSel?.addEventListener("change", function () {
-    const fid = this.value;
+  async function refreshProvider1ListForFunder(funderId) {
+    if (!providerSel || !funderId) return;
+    await loadProvidersInto(providerSel, funderId, { selectedValue: selectedProvider1 });
+  }
 
-    if (userRole === "MOE") {
-      if (providerSel && fid) loadProvidersForFunder(fid);
+  async function refreshProvider2ListForFunder(funderId) {
+    if (!provider2Sel || !funderId) return;
+    const excludeId = providerSel?.value || null;
+    await loadProvidersInto(provider2Sel, funderId, {
+      excludeId,
+      selectedValue: selectedProvider2
+    });
+  }
+
+  function setRequired(el, required) {
+    if (!el) return;
+    el.required = !!required;
+    if (!required) el.value = ""; // clear when not needed
+  }
+
+  async function applyCLMProviderRules() {
+    // Only apply rules where provider dropdown exists for these roles
+    if (!providerSel || !["FUN", "MOE", "ADM"].includes(userRole)) return;
+
+    const isCLM = isCLMFunderSelected();
+
+    // Non-CLM: hide everything
+    if (!isCLM) {
+      if (provider2Container) provider2Container.style.display = "none";
+      if (deliveryContainer) deliveryContainer.style.display = "none";
+      setRequired(provider2Sel, false);
+      setRequired(deliverySel, false);
       return;
     }
 
-    // Non-MOE: refresh schools for this funder
-    fetch(`/get_schools_for_funder?funder_id=${encodeURIComponent(fid)}`)
-      .then((res) => res.json())
-      .then((data) => {
-        const schoolDropdown = document.getElementById("school");
-        if (!schoolDropdown) return;
-        schoolDropdown.innerHTML = '<option value="">Select a school</option>';
-        (data || []).forEach((s) => {
-          const option = document.createElement("option");
-          option.value = s;
-          option.textContent = s;
-          schoolDropdown.appendChild(option);
-        });
-      })
-      .catch(err => console.error("School load failed:", err));
+    const isKaiakoProvider = providerLooksKaiako();
 
-    // FUN/MOE: also load providers for the selected funder
-    if (['FUN','MOE'].includes(userRole) && providerSel && fid) {
-      loadProvidersForFunder(fid);
+    if (isKaiakoProvider) {
+      // CLM + kaiako provider => must choose another provider
+      if (deliveryContainer) deliveryContainer.style.display = "none";
+      setRequired(deliverySel, false);
+
+      if (provider2Container) provider2Container.style.display = "";
+      setRequired(provider2Sel, true);
+
+      if (funderSel?.value) {
+        await refreshProvider2ListForFunder(funderSel.value);
+      }
+    } else {
+      // CLM + not kaiako provider => must choose delivery model
+      if (provider2Container) provider2Container.style.display = "none";
+      setRequired(provider2Sel, false);
+
+      if (deliveryContainer) deliveryContainer.style.display = "";
+      setRequired(deliverySel, true);
+
+      // Restore postback selection if present
+      if (selectedDelivery !== undefined && selectedDelivery !== null) {
+        deliverySel.value = selectedDelivery;
+      }
     }
-  });
-
-  // On load: if funder already selected, populate providers for FUN/MOE
-  if (funderSel && providerSel && ['FUN','MOE'].includes(userRole) && funderSel.value) {
-    loadProvidersForFunder(funderSel.value);
   }
 
-  // ----- Column mapping persistence -----
+  // ONE funder change handler: refresh schools, refresh providers, apply CLM rules
+  funderSel?.addEventListener("change", async function () {
+    const fid = this.value;
+
+    // Refresh schools (skip MOE because school is locked)
+    if (userRole !== "MOE") {
+      fetch(`/get_schools_for_funder?funder_id=${encodeURIComponent(fid)}`)
+        .then((res) => res.json())
+        .then((data) => {
+          const schoolDropdown = document.getElementById("school");
+          if (!schoolDropdown) return;
+          schoolDropdown.innerHTML = '<option value="">Select a school</option>';
+          (data || []).forEach((s) => {
+            const option = document.createElement("option");
+            option.value = s;
+            option.textContent = s;
+            schoolDropdown.appendChild(option);
+          });
+        })
+        .catch(err => console.error("School load failed:", err));
+    }
+
+    // Refresh providers for FUN/MOE/ADM
+    if (providerSel && ["FUN", "MOE", "ADM"].includes(userRole) && fid) {
+      await refreshProvider1ListForFunder(fid);
+      if (selectedProvider1) providerSel.value = selectedProvider1;
+    }
+
+    await applyCLMProviderRules();
+  });
+
+  // When provider changes, re-apply CLM rules (kaiako vs not)
+  providerSel?.addEventListener("change", async () => {
+    await applyCLMProviderRules();
+  });
+
+  // Initial load: if funder selected, populate provider list then apply rules
+  (async () => {
+    if (funderSel?.value && providerSel && ["FUN", "MOE", "ADM"].includes(userRole)) {
+      await refreshProvider1ListForFunder(funderSel.value);
+      if (selectedProvider1) providerSel.value = selectedProvider1;
+    }
+    await applyCLMProviderRules();
+  })();
+
+  // -----------------------------
+  // Column mapping persistence
+  // -----------------------------
   const selects = document.querySelectorAll('select[name^="map_"]');
   const stored = localStorage.getItem("column_mappings");
   if (stored) {
-    const map = JSON.parse(stored);
-    selects.forEach((s) => {
-      const key = s.getAttribute("data-remember");
-      if (map[key]) s.value = map[key];
-    });
+    try {
+      const map = JSON.parse(stored);
+      selects.forEach((s) => {
+        const key = s.getAttribute("data-remember");
+        if (map[key]) s.value = map[key];
+      });
+    } catch (e) {
+      console.warn("Failed to parse stored column mappings:", e);
+    }
   }
 
   function updateMappingOptions() {
@@ -358,20 +476,22 @@ document.addEventListener("DOMContentLoaded", () => {
   selects.forEach(s => s.addEventListener("change", updateMappingOptions));
   updateMappingOptions();
 
-  document.getElementById("upload-form").addEventListener("submit", () => {
+  document.getElementById("upload-form")?.addEventListener("submit", () => {
     const mapping = {};
     selects.forEach(s => {
       const col = s.name.replace("map_", "");
       if (s.value) mapping[col] = s.value;
     });
-    document.getElementById("column_mappings").value = JSON.stringify(mapping);
+    const hidden = document.getElementById("column_mappings");
+    if (hidden) hidden.value = JSON.stringify(mapping);
     localStorage.setItem("column_mappings", JSON.stringify(mapping));
   });
 
   // Show preview button only when a file is chosen
   const fileInput = document.getElementById("csv_file");
   const previewContainer = document.getElementById("preview-button-container");
-  fileInput.addEventListener("change", () => {
+  fileInput?.addEventListener("change", () => {
+    if (!previewContainer) return;
     previewContainer.style.display = fileInput.files.length > 0 ? "block" : "none";
   });
 
@@ -393,10 +513,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (!(hasNSN && hasLastName && hasFirstOrPreferred)) {
         e.preventDefault();
-        const modal = new bootstrap.Modal(document.getElementById("validationErrorModal"));
-        modal.show();
+        const modalEl = document.getElementById("validationErrorModal");
+        if (modalEl && typeof bootstrap !== "undefined") {
+          const modal = new bootstrap.Modal(modalEl);
+          modal.show();
+        }
       } else {
-        document.getElementById("validate-button").style.display = "none";
+        validateButton.style.display = "none";
         const postButtons = document.getElementById("post-validate-buttons");
         if (postButtons) postButtons.style.display = "flex";
       }
