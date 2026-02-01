@@ -766,7 +766,35 @@ def submitclass():
             selected_provider = int(selected_provider)
         else:
             selected_provider = None
+        with engine.begin() as conn:
+            conn.execute(
+                text("""
+                    EXEC FlaskInsertClassList
+                        @FunderID     = :FunderID,
+                        @MOENumber    = :MOENumber,
+                        @Term         = :Term,
+                        @CalendarYear = :CalendarYear,
+                        @TeacherName  = :TeacherName,
+                        @ClassName    = :ClassName,
+                        @InputJSON    = :InputJSON,
+                        @Email        = :Email,
+                        @ProviderID   = :ProviderID,
+                        @ProviderID2  = :ProviderID2
+                """),
+                {
+                    "FunderID": funder_id,
+                    "MOENumber": moe_number,
+                    "Term": term,
+                    "CalendarYear": year,
+                    "TeacherName": teacher,
+                    "ClassName": classname,
+                    "InputJSON": input_json,
+                    "Email": session.get("user_email"),
+                    "ProviderID": selected_provider,
+                                "ProviderID2": provider2_for_proc,
 
+                }
+            )
         current_app.logger.info(
             "📤 /submitclass payload | role=%s | funder_id=%r | moe_number=%r | term=%r | year=%r | "
             "teacher=%r | classname=%r | provider=%r | provider2=%r| actualprovider2=%r  | delivery_model=%r | "
