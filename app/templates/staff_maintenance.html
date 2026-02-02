@@ -49,7 +49,7 @@
   {% endif %}
 
   <!-- ========================= -->
-  <!-- EXISTING FUNDER/SCHOOL BLUE POPUP (leave as-is) -->
+  <!-- EXISTING FUNDER/SCHOOL BLUE POPUP -->
   <!-- ========================= -->
   <div id="missingSchoolWrapper"
        class="alert alert-info mx-auto text-center py-2 mb-3"
@@ -61,7 +61,7 @@
   </div>
 
   <!-- ========================= -->
-  <!-- NEW: PROVIDER-ONLY (CLM) BLUE POPUP -->
+  <!-- PROVIDER-ONLY (CLM) BLUE POPUP -->
   <!-- ========================= -->
   <div id="providerMissingSchoolWrapper"
        class="alert alert-info mx-auto text-center py-2 mb-3"
@@ -463,7 +463,6 @@
 
   <!-- ===================================================== -->
   <!-- EXISTING: Missing School Modal (Funder/School flow) -->
-  <!-- (PASTE YOUR ORIGINAL missingSchoolModal HERE UNCHANGED) -->
   <!-- ===================================================== -->
   <div class="modal fade" id="missingSchoolModal" tabindex="-1" aria-labelledby="missingSchoolLabel" aria-hidden="true">
     <div class="modal-dialog">
@@ -542,7 +541,7 @@
   </div>
 
   <!-- ===================================================== -->
-  <!-- NEW: Provider Missing School Modal (CLM providers) -->
+  <!-- Provider Missing School Modal (CLM providers) -->
   <!-- ===================================================== -->
   <div class="modal fade" id="providerMissingSchoolModal" tabindex="-1" aria-labelledby="providerMissingSchoolLabel" aria-hidden="true">
     <div class="modal-dialog">
@@ -555,6 +554,16 @@
         <form id="providerMissingSchoolForm">
           <div class="modal-body">
             <div id="pms_alert" class="alert d-none" role="alert"></div>
+
+            <!-- Delivery Type (fixed placement) -->
+            <div class="mb-3">
+              <label class="form-label">Delivery Type</label>
+              <select class="form-select" id="pms_delivery" required>
+                <option value="INSTR" selected>Instructor-led</option>
+                <option value="KAI">Kaiako-led</option>
+              </select>
+              <div class="form-text">This affects which schools are available to add.</div>
+            </div>
 
             <div class="mb-3">
               <label class="form-label">School</label>
@@ -707,9 +716,7 @@
       });
   }
 
-  // ===========================
-  // NEW: Provider modal alerts
-  // ===========================
+  // Provider modal alerts
   function showPmsAlert(type, msg) {
     const el = document.getElementById('pms_alert');
     if (!el) return;
@@ -731,18 +738,23 @@
     const sel = document.getElementById('pms_school');
     if (!sel) return;
 
+    const delivery = document.getElementById('pms_delivery')?.value || "INSTR";
+
     sel.innerHTML = '<option value="" selected disabled>Loading schools…</option>';
 
-    fetch(`/api/provider_add_school_schools?provider_id=${encodeURIComponent(providerId)}`, { credentials: "same-origin" })
+    fetch(`/api/provider_add_school_schools?provider_id=${encodeURIComponent(providerId)}&delivery=${encodeURIComponent(delivery)}`, { credentials: "same-origin" })
       .then(r => r.ok ? r.json() : Promise.reject(r))
       .then(payload => {
-        const list = (payload && payload.ok && Array.isArray(payload.schools)) ? payload.schools : [];
+        const list = Array.isArray(payload)
+          ? payload
+          : (payload && payload.ok && Array.isArray(payload.schools) ? payload.schools : []);
+
         sel.innerHTML = '<option value="" disabled selected>Choose a school…</option>';
 
         list.forEach(item => {
           const opt = document.createElement('option');
-          opt.value = item.id; // MOENumber
-          opt.textContent = item.name;
+          opt.value = item.id;
+          opt.textContent = item.description || item.name;
           sel.appendChild(opt);
         });
 
@@ -793,14 +805,14 @@
       wrapper.style.display = shouldShow ? "block" : "none";
     }
 
-    // NEW provider wrapper visibility
+    // Provider wrapper visibility
     const providerWrapper = document.getElementById("providerMissingSchoolWrapper");
     const providerAllowed = {{ provider_add_school_allowed | default(0) | int }};
 
     function toggleProviderMissingSchoolLink() {
       if (!providerWrapper) return;
       const selectedType = entityTypeSelector ? entityTypeSelector.value : "";
-      const shouldShow = (role === "PRO" && providerAllowed === 1 && selectedType === "Provider");
+      const shouldShow = (role === "PRO" && providerAllowed === 1 && selectedType === "School");
       providerWrapper.style.display = shouldShow ? "block" : "none";
     }
 
@@ -905,7 +917,6 @@
         }
 
       } else {
-        // FUN/others: use hidden funder id to load providers + schools
         const fid = msFunderHidden?.value;
         if (fid) {
           loadProvidersForFunder(fid);
@@ -960,7 +971,7 @@
       .catch(() => showModalAlert('danger', 'Insert failed.'));
     });
 
-    // NEW: Provider Missing School Modal load + submit
+    // Provider Missing School Modal load + submit
     const pmsModalEl = document.getElementById('providerMissingSchoolModal');
     pmsModalEl?.addEventListener('show.bs.modal', () => {
       clearPmsAlert();
@@ -972,6 +983,11 @@
       loadSchoolsForProviderModal(providerId);
     });
 
+    document.getElementById('pms_delivery')?.addEventListener('change', () => {
+      const providerId = document.getElementById('pms_providerid')?.value;
+      if (providerId) loadSchoolsForProviderModal(providerId);
+    });
+
     const pmsForm = document.getElementById('providerMissingSchoolForm');
     pmsForm?.addEventListener('submit', (e) => {
       e.preventDefault();
@@ -981,6 +997,7 @@
       const MoeNumber  = Number(document.getElementById('pms_school').value);
       const Term       = Number(document.getElementById('pms_term').value);
       const Year       = Number(document.getElementById('pms_year').value);
+      const DeliveryType = document.getElementById('pms_delivery')?.value || "INSTR";
 
       fetch('/add_school_to_provider', {
         method: 'POST',
@@ -990,7 +1007,8 @@
           ProviderID,
           MoeNumber,
           Term,
-          CalendarYear: Year
+          CalendarYear: Year,
+          DeliveryType
         })
       })
       .then(r => r.json())

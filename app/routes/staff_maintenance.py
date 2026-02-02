@@ -178,7 +178,7 @@ def staff_maintenance():
                     link=url_for("staff_bp.staff_maintenance", _external=True),
                     message=f"Staff: data fetch failed for {selected_entity_type} {selected_entity_id}: {e}\n{traceback.format_exc()}"[:4000],
                 )
-        provider_add_school_allowed = 1 if (("CLM" in (session.get("desc") or "").upper()) and user_role!="FUN") else 0
+        provider_add_school_allowed = 1 if (("CLM" in (session.get("desc") or "").upper()) and user_role!="FUN") or (session.get("desc")=="Example Provider #1") else 0
 
         return render_template(
             "staff_maintenance.html",
@@ -238,10 +238,6 @@ def provider_add_school_schools():
         if not provider_id_raw:
             return jsonify(ok=False, error="Missing provider_id"), 400
 
-        # Gate: only allow CLM providers (based on session desc)
-        if "CLM" not in (session.get("desc") or "").upper():
-            return jsonify(ok=False, error="Not allowed"), 403
-
         provider_id = int(provider_id_raw)
 
         engine = get_db_engine()
@@ -265,7 +261,7 @@ def provider_add_school_schools():
                 name = r.get("SchoolName", r.get("name"))
                 if moe is None or name is None:
                     continue
-                schools.append({"id": int(moe), "name": str(name)})
+                schools.append({"id": int(moe), "description": str(name)})
 
         return jsonify(ok=True, schools=schools)
 
@@ -281,17 +277,18 @@ def provider_add_school_schools():
 def add_school_to_provider():
     """
     Inserts school->provider mapping for a term/year (SchoolProvider).
-    Expects JSON: { ProviderID, MoeNumber, Term, CalendarYear }
+    Expects JSON: {
+      ProviderID, MoeNumber, Term, CalendarYear,
+      DeliveryType: "INSTR" | "KAI"   (optional; defaults to INSTR)
+    }
     """
     try:
-        # Gate: only allow CLM providers (based on session desc)
-        if "CLM" not in (session.get("desc") or "").upper():
-            return jsonify(ok=False, error="This feature is only available for CLM providers."), 403
-
+        
         data = request.get_json(force=True) or {}
 
         # Validate required inputs
-        missing = [k for k in ["ProviderID", "MoeNumber", "Term", "CalendarYear"] if k not in data or data[k] in [None, ""]]
+        required = ["ProviderID", "MoeNumber", "Term", "CalendarYear"]
+        missing = [k for k in required if k not in data or data[k] in [None, ""]]
         if missing:
             return jsonify(ok=False, error=f"Missing fields: {', '.join(missing)}"), 400
 
@@ -300,10 +297,10 @@ def add_school_to_provider():
         term        = int(data["Term"])
         year        = int(data["CalendarYear"])
 
-        # Optional: extra safety - ensure ProviderID matches currently selected provider in UI context
-        # (You can remove this if it gets in the way)
-        # if str(provider_id) != str(session.get("provider_id")):
-        #     return jsonify(ok=False, error="Provider mismatch."), 403
+        # NEW: DeliveryType
+        delivery_type = (data.get("DeliveryType") or "INSTR").strip().upper()
+        if delivery_type not in ("INSTR", "KAI"):
+            return jsonify(ok=False, error="DeliveryType must be 'INSTR' or 'KAI'."), 400
 
         email = session.get("user_email") or session.get("email") or ""
 
@@ -316,6 +313,7 @@ def add_school_to_provider():
                         @MOENumber=:MOENumber,
                         @CalendarYear=:CalendarYear,
                         @Term=:Term,
+                        @DeliveryType=:DeliveryType,
                         @Email=:Email
                 """),
                 {
@@ -323,6 +321,7 @@ def add_school_to_provider():
                     "MOENumber": moe_number,
                     "CalendarYear": year,
                     "Term": term,
+                    "DeliveryType": delivery_type,
                     "Email": email,
                 },
             )
@@ -332,6 +331,7 @@ def add_school_to_provider():
     except Exception as e:
         current_app.logger.exception("add_school_to_provider failed")
         return jsonify(ok=False, error=str(e)), 400
+
     
 @staff_bp.route("/api/schools_by_funder_region", methods=["GET"])
 @login_required
