@@ -290,12 +290,28 @@
               <div class="table-responsive">
                 <table class="table table-bordered text-center align-middle">
                   <thead class="table-light">
-                    <tr>
-                      {% for col in cols %}
-                        <th>{{ col.replace('_',' ') }}</th>
-                      {% endfor %}
-                    </tr>
-                  </thead>
+  <tr>
+    {% for col in cols %}
+      {% set col_clean = col.replace('_',' ') %}
+      <th>
+        {% if col_clean|lower in ['classes edited','class edited','classes_edited','class_edited'] %}
+          Classes Edited
+          <span
+            class="info-dot ms-1"
+            data-bs-toggle="tooltip"
+            data-bs-placement="top"
+            title="This is calculated by counting classes where 25% of students were edited."
+            aria-label="About Classes Edited"
+            role="button"
+            tabindex="0"
+          >i</span>
+        {% else %}
+          {{ col_clean }}
+        {% endif %}
+      </th>
+    {% endfor %}
+  </tr>
+</thead>
                   <tbody>
                     {% for row in schools %}
                       <tr>
@@ -400,8 +416,34 @@
     .staff-name { font-size: 1.05rem; }
   }
   .badge.bg-warning.text-dark { border: 1px solid rgba(0,0,0,.15); }
+  .info-dot{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:18px;
+  height:18px;
+  border-radius:50%;
+  background:#1a427d;
+  color:#fff;
+  font-size:12px;
+  font-weight:700;
+  line-height:1;
+  cursor:help;
+  user-select:none;
+}
+.info-dot:focus{
+  outline:2px solid rgba(26,66,125,.35);
+  outline-offset:2px;
+}
 </style>
-
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  if (typeof bootstrap === "undefined") return;
+  document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+    new bootstrap.Tooltip(el);
+  });
+});
+</script>
 <script>
 document.addEventListener("DOMContentLoaded", function () {
   const entityTypeSel = document.getElementById("entity_type");
