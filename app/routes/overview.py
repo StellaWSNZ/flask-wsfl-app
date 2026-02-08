@@ -138,7 +138,7 @@ def funder_dashboard():
 
     try:
         engine = get_db_engine()
-        user_role = session.get("user_role")
+        user_role = (session.get("user_role") or "").strip().upper()
         user_id = session.get("user_id")
 
         entity_type = request.form.get("entity_type") or session.get("entity_type") or "Funder"
@@ -274,7 +274,6 @@ def funder_dashboard():
         with _timed("compute_has_groups"):
             has_groups = compute_has_groups(engine, user_role, user_id)
 
-
         # ----------------------------------------------------------
         # Resolve selected entity id
         # ----------------------------------------------------------
@@ -304,7 +303,6 @@ def funder_dashboard():
                 entity_type=entity_type,
                 title="Overview",
                 has_groups=has_groups,
-                # NEW (safe defaults)
                 provider_funders=[],
                 selected_scope_funder_id=None,
                 needs_funder_scope=False,
@@ -334,30 +332,22 @@ def funder_dashboard():
         # ----------------------------------------------------------
         scope_funder_id: int | None = None
         if (entity_type == "Provider" or user_role == "PRO"):
-            # FUN users: always scope by their own funder_id
             if user_role == "FUN":
                 scope_funder_id = int(user_id)
 
-            # ADM users: require them to pick a funder when viewing Provider
             elif user_role == "ADM":
                 provider_funders = get_funders_by_provider(engine, int(selected_entity_id))
-
                 scope_funder_id = None
 
-                # If the dropdown is present in the POST:
-                # - blank means "All funders" (NULL) and should clear session
-                # - digit means selected funder
                 if "scope_funder_id" in request.form:
                     posted_scope = (request.form.get("scope_funder_id") or "").strip()
                     if posted_scope.isdigit():
                         scope_funder_id = int(posted_scope)
                         session["scope_funder_id"] = scope_funder_id
                     else:
-                        # blank / non-digit => All funders
                         scope_funder_id = None
                         session.pop("scope_funder_id", None)
 
-                # Otherwise fallback to session (e.g., term/year change submits filterForm)
                 elif session.get("scope_funder_id"):
                     try:
                         scope_funder_id = int(session["scope_funder_id"])
@@ -365,20 +355,20 @@ def funder_dashboard():
                         scope_funder_id = None
                         session.pop("scope_funder_id", None)
 
-                # Validate: if a funder id is selected, ensure it's in provider funders
                 if scope_funder_id is not None:
                     valid_ids = {int(x["id"]) for x in provider_funders}
                     if scope_funder_id not in valid_ids:
                         scope_funder_id = None
                         session.pop("scope_funder_id", None)
 
-                # Only require the dropdown when Admin is viewing Provider
                 needs_funder_scope = True
                 selected_scope_funder_id = scope_funder_id
 
         # ----------------------------------------------------------
         # Pull data
         # ----------------------------------------------------------
+        email = session.get("user_email") or "unknown@example.com"
+
         with engine.begin() as conn:
             # entity name
             entity_desc = session.get("desc")
@@ -391,21 +381,21 @@ def funder_dashboard():
             # -----------------------
             # eLearning
             # -----------------------
-            
             eLearning_df = pd.read_sql(
                 text(f"EXEC {proc_elearning} @{id_param_name} = :id_val, @Email = :email"),
                 conn,
-                params={
-                    "id_val": selected_entity_id,
-                    "email": session.get("user_email") or "unknown@example.com",
-                },
+                params={"id_val": selected_entity_id, "email": email},
             )
 
             # -----------------------
-            # School summary (all years/terms)
+            # Get ALL years/terms (for dropdowns)
             # -----------------------
-            if (entity_type == "Provider" or user_role == "PRO"):
-                # Provider summary proc must accept @FunderID INT = NULL
+            selected_year = int(request.form.get("year") or session.get("nearest_year") or None)
+            selected_term = int(request.form.get("term") or session.get("nearest_term") or None)
+
+            session["nearest_year"] = selected_year
+            session["nearest_term"] = selected_term
+            if (entity_type in ["Provider"] or user_role == "PRO"):
                 school_df_all = pd.read_sql(
                     text(
                         f"""
@@ -421,10 +411,10 @@ def funder_dashboard():
                     conn,
                     params={
                         "id_val": selected_entity_id,
-                        "CalendarYear": None,
-                        "Term": None,
-                        "Email": session.get("user_email") or "unknown@example.com",
-                        "t": 0.25,
+                        "CalendarYear": selected_year,
+                        "Term": selected_term,
+                        "Email": email,
+                        "t": 0.25,  # <-- choose your default threshold here
                         "funder_id": scope_funder_id,
                     },
                 )
@@ -443,15 +433,15 @@ def funder_dashboard():
                     conn,
                     params={
                         "id_val": selected_entity_id,
-                        "CalendarYear": None,
-                        "Term": None,
-                        "Email": session.get("user_email") or "unknown@example.com",
-                        "t": 0.25,
+                        "CalendarYear": selected_year,
+                        "Term": selected_term,
+                        "Email": email,
+                        "t": 0.25,  # <-- choose your default threshold here
                     },
                 )
 
         # ----------------------------------------------------------
-        # Decide year/term lists
+        # Decide year/term lists FROM returned data (not get_years/get_terms)
         # ----------------------------------------------------------
         available_years = sorted(
             school_df_all.get("CalendarYear", pd.Series(dtype=int)).dropna().unique(),
@@ -461,32 +451,27 @@ def funder_dashboard():
             school_df_all.get("Term", pd.Series(dtype=int)).dropna().unique()
         )
 
-        selected_year = int(
-            request.form.get(
-                "year",
-                session.get("nearest_year", available_years[0] if available_years else 2025),
-            )
-        )
-        selected_term = int(
-            request.form.get(
-                "term",
-                session.get("nearest_term", available_terms[0] if available_terms else 1),
-            )
-        )
+        # Pick selected year/term (fallback to first available)
+        default_year = available_years[0] if available_years else session.get("nearest_year", 2025)
+        default_term = available_terms[0] if available_terms else session.get("nearest_term", 1)
+
+        selected_year = int(request.form.get("year", session.get("nearest_year", default_year)))
+        selected_term = int(request.form.get("term", session.get("nearest_term", default_term)))
+
+        # persist selections
+        session["nearest_year"] = selected_year
+        session["nearest_term"] = selected_term
 
         # ----------------------------------------------------------
-        # If ADM viewing Provider but hasn't chosen a funder yet,
-        # render page with a flag so HTML can show the funder dropdown.
-        # (Don’t block the page; just don’t show mixed data.)
+        # Filter to selected year/term
         # ----------------------------------------------------------
-        
-
-        # ----------------------------------------------------------
-        # Normal flow (with data)
-        # ----------------------------------------------------------
-        school_df = school_df_all[
-            (school_df_all["CalendarYear"] == selected_year) & (school_df_all["Term"] == selected_term)
-        ]
+        if not school_df_all.empty and "CalendarYear" in school_df_all.columns and "Term" in school_df_all.columns:
+            school_df = school_df_all[
+                (school_df_all["CalendarYear"] == selected_year) &
+                (school_df_all["Term"] == selected_term)
+            ].copy()
+        else:
+            school_df = school_df_all.copy()
 
         school_df = school_df.drop(columns=["CalendarYear", "Term"], errors="ignore").rename(
             columns={
@@ -508,8 +493,8 @@ def funder_dashboard():
             schools=school_df.to_dict(orient="records"),
             selected_year=selected_year,
             selected_term=selected_term,
-            available_years=get_years(),
-            available_terms=get_terms(),
+            available_years=available_years,
+            available_terms=available_terms,
             no_eLearning=eLearning_df.empty,
             no_schools=school_df.empty,
             summary_string=summary_string,
@@ -519,7 +504,6 @@ def funder_dashboard():
             title=page_title,
             has_groups=has_groups,
             ethnicity_table=ethnicity_table,
-            # NEW: drive UI
             provider_funders=provider_funders,
             selected_scope_funder_id=selected_scope_funder_id,
             needs_funder_scope=needs_funder_scope,
