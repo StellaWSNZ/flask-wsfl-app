@@ -163,7 +163,7 @@ def staff_maintenance():
                     rows = result.fetchall()
                     staff_data = pd.DataFrame(rows, columns=result.keys())
                     columns = result.keys()
-
+                    print(staff_data.columns)
                     hidden_result = conn.execute(
                         text("EXEC FlaskGetHiddenStaff @EntityType = :etype, @EntityID = :eid"),
                         {"etype": role_type, "eid": target_id}
