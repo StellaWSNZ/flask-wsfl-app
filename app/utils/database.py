@@ -29,9 +29,7 @@ def get_db_engine():
     )
 
     # 🔐 Safety check — NEVER skip this
-    with engine.connect() as conn:
-        db = conn.execute(text("SELECT DB_NAME()")).scalar()
-        print(f"✅ Connected to database: {db}")
+    
 
     return engine
     

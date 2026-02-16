@@ -547,14 +547,14 @@ def get_rates(engine, year: int, term: int, subject_id: int, mode: str, *, regio
         elif mode == "region":
             if not region_name or not str(region_name).strip():
                 raise ValueError("mode='region' requires region_name")
-            sql_stmt = text("EXEC GetRegionalRates :year, :term, :region_name")
+            sql_stmt = text("EXEC GetRegionalCouncilRates :year, :term, :region_name")
             return pd.read_sql_query(
                 sql_stmt,
                 conn,
                 params={"year": year, "term": term, "region_name": region_name.strip()},
             )
-
-        raise ValueError("mode must be 'provider', 'funder', 'region', or 'national'")
+        else:
+            raise ValueError("mode must be 'provider', 'funder', 'region', or 'national'")
     return df
 
 def _first_nonempty(*vals):
@@ -632,18 +632,22 @@ def main():
         subject_name = args.subject_name or "CLM (All Funders)"
     else:
         engine = build_engine()
-        if args.mode == "region":
+
+        if args.mode == "national":
+            df = get_rates(engine, args.year, args.term, subject_id=0, mode="national")
+            subject_name = args.subject_name or "National"
+
+        elif args.mode == "region":
             df = get_rates(engine, args.year, args.term, subject_id=0, mode="region", region_name=args.region_name)
             subject_name = args.subject_name or (args.region_name.strip() if args.region_name else "Region")
-        else:
-            df = get_rates(engine, args.year, args.term, args.subject_id, args.mode)
-            print(f"📥 Loaded {len(df)} rows from DB")
 
-        if args.mode in ("national", "region"):
-            # already set subject_name above (or default)
-            pass
         else:
+            if args.subject_id is None:
+                raise ValueError("--subject-id is required for provider/funder mode")
+            df = get_rates(engine, args.year, args.term, args.subject_id, args.mode)
             subject_name = args.subject_name or get_subject_name(engine, args.mode, args.subject_id, df)
+
+        print(f"📥 Loaded {len(df)} rows from DB")
 
     fig = provider_portrait_with_target(
         df,
