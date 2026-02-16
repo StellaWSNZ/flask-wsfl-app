@@ -14,16 +14,10 @@ def get_db_engine():
     load_dotenv()
 
     #env = os.getenv("FLASK_ENV", "local").lower()
-    env = ""
-    if env == "production":
-        db_url = os.getenv("AZURE_DB_URL")
-        if not db_url:
-            raise RuntimeError("AZURE_DB_URL not set")
-    else:
-        db_url = os.getenv("LOCAL_DB_URL")
-        if not db_url:
-            raise RuntimeError("LOCAL_DB_URL not set")
-    print("LOCAL_DB_URL =", os.getenv("LOCAL_DB_URL"))
+    db_url = os.getenv("DB_URL")
+        
+    
+    
     engine = create_engine(
         db_url,
         pool_pre_ping=True,
