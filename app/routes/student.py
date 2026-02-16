@@ -66,26 +66,27 @@ def student_search_page():
         current_app.logger.exception("/Students failed")
         return _json_error("Unexpected error occurred", 500)
 
-
 @students_bp.route("/Students/search")
 @login_required
 def live_student_search():
     try:
         if not _is_moe_admin_or_adm():
-            return jsonify([])  # or: return _json_error("Forbidden", 403)
+            return jsonify([])
 
         query = (request.args.get("q") or "").strip()
         if len(query) < 2:
             return jsonify([])
 
-        role = session.get("user_role")
+        role = (session.get("user_role") or "").upper().strip()
         moe_number = session.get("user_id") if role == "MOE" else None
 
         engine = get_db_engine()
+
+        # IMPORTANT: don't pass query into 3 params if the SQL uses AND logic
         params = {
-            "FirstName": query,
-            "LastName": query,
-            "PreferredName": query,
+            "FirstName": query,        # use this as the general "name/fragment" input
+            "LastName": None,
+            "PreferredName": None,
             "DateOfBirth": None,
             "MOENumber": moe_number
         }
@@ -93,7 +94,7 @@ def live_student_search():
         with engine.connect() as conn:
             result = conn.execute(
                 text("""
-                    EXEC FlaskStudentSearch
+                    EXEC dbo.FlaskStudentSearch
                         @FirstName      = :FirstName,
                         @LastName       = :LastName,
                         @PreferredName  = :PreferredName,
@@ -105,7 +106,6 @@ def live_student_search():
             rows = result.fetchall()
 
         return jsonify([dict(r._mapping) for r in rows])
-
 
     except Exception as e:
         try:

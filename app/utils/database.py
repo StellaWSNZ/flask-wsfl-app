@@ -13,32 +13,32 @@ from dotenv import load_dotenv
 def get_db_engine():
     load_dotenv()
 
-    odbc = (
-        "DRIVER={ODBC Driver 18 for SQL Server};"
-        "SERVER=heimatau.database.windows.net,1433;"
-        "DATABASE=WSFL;"
-        f"UID={os.getenv('WSNZDBUSER')};"
-        f"PWD={os.getenv('WSNZDBPASS')};"
-        "Encrypt=yes;"
-        "TrustServerCertificate=no;"
-        "MARS_Connection=Yes;"
-        "Login Timeout=30;"
-        "Connection Timeout=30;"
-        "ApplicationIntent=ReadWrite;"
-        "MultiSubnetFailover=Yes;"
-    )
-    params = urllib.parse.quote_plus(odbc)
-
-    # NOTE: avoid connect_args timeout here; rely on ODBC timeouts above
+    #env = os.getenv("FLASK_ENV", "local").lower()
+    env = ""
+    if env == "production":
+        db_url = os.getenv("AZURE_DB_URL")
+        if not db_url:
+            raise RuntimeError("AZURE_DB_URL not set")
+    else:
+        db_url = os.getenv("LOCAL_DB_URL")
+        if not db_url:
+            raise RuntimeError("LOCAL_DB_URL not set")
+    print("LOCAL_DB_URL =", os.getenv("LOCAL_DB_URL"))
     engine = create_engine(
-        f"mssql+pyodbc:///?odbc_connect={params}",
+        db_url,
         pool_pre_ping=True,
-        pool_recycle=300,     # recycle idle conns before Azure drops them
+        pool_recycle=300,
         pool_size=5,
         max_overflow=10,
         pool_timeout=30,
         future=True,
     )
+
+    # 🔐 Safety check — NEVER skip this
+    with engine.connect() as conn:
+        db = conn.execute(text("SELECT DB_NAME()")).scalar()
+        print(f"✅ Connected to database: {db}")
+
     return engine
     
 # --- helpers (you can move this to a shared utils module) ------------------

@@ -851,22 +851,43 @@ def filter_classes():
 
         except Exception:
             current_app.logger.exception("Error loading classes")
-            flash("Could not load classes.", "danger")
+            flash("Could not load classes. You may have moved the last one to another term!", "danger")
 
-    return render_template(
-        "classes.html",
-        user_role=user_role,
-        user_admin=user_admin,
-        terms=terms,
-        years=years,
-        classes=classes,
-        suggestions=suggestions,
-        schools=schools,          # always empty
-        moe_number=moe_number,
-        selected_term=selected_term,
-        selected_year=selected_year,
-        desc = session.get("desc"),
-    )
+    try:
+        return render_template(
+            "classes.html",
+            user_role=user_role,
+            user_admin=user_admin,
+            terms=terms,
+            years=years,
+            classes=classes,
+            suggestions=suggestions,
+            schools=schools,          # always empty
+            moe_number=moe_number,
+            selected_term=selected_term,
+            selected_year=selected_year,
+            desc=session.get("desc"),
+        )
+    except Exception:
+        current_app.logger.exception("Failed to render classes.html")
+
+        # Fallback: render page with safe defaults
+        return render_template(
+            "classes.html",
+            user_role=user_role,
+            user_admin=user_admin,
+            terms=terms or [],
+            years=years or [],
+            classes=[],
+            suggestions=[],
+            schools=[],
+            moe_number=moe_number,
+            selected_term=selected_term,
+            selected_year=selected_year,
+            desc=session.get("desc"),
+            error="There was a problem loading classes. Please try again.",
+        ), 500
+
 
 
 @class_bp.route("/Class/print/<int:moe_number>/<int:class_id>/<int:term>/<int:year>")
@@ -1179,44 +1200,60 @@ def add_student_to_class():
     if not _require_moe_or_adm():
         return _json_error("Forbidden", 403)
 
-    # --- Parse body without consuming the stream ---
-    # get_data() defaults cache=True, so get_json() can still read it.
     raw = request.get_data(as_text=True)
-
     data = request.get_json(silent=True)
+
     if data is None and raw:
-        # Fallback: try manual JSON load (handles wrong Content-Type)
         try:
             data = json.loads(raw)
-        except Exception as e:
+        except Exception:
             return _json_error("Invalid JSON", 400)
     elif data is None:
         return _json_error("Invalid JSON", 400)
 
-
     nsn = data.get("nsn")
     class_id = data.get("class_id")
+    moe = data.get("moe")  # ✅ NEW
+    term = data.get("term")
+    calendaryear = data.get("calendaryear")
     year_level = data.get("year_level")
-
+    print(moe)
+    print(class_id)
     # normalize year_level: empty string -> None
     if year_level in ("", None):
         year_level = None
 
-   
-
-    if not (nsn and class_id):
-        return _json_error("nsn and class_id are required")
+    # Basic validation
+    if not (nsn and class_id and moe and term and calendaryear):
+        return _json_error("nsn, class_id, moe, term, and calendaryear are required", 400)
 
     try:
         engine = get_db_engine()
-        sql = "EXEC FlaskAddStudentToClass @NSN=:n, @ClassID=:cid, @YearLevelID=:yl"
-        params = {"n": nsn, "cid": class_id, "yl": year_level}
+
+        sql = """
+        EXEC dbo.FlaskAddStudentToClass
+            @NSN=:n,
+            @ClassID=:cid,
+            @MOENumber=:m,
+            @Term=:t,
+            @CalendarYear=:y,
+            @YearLevelID=:yl
+        """
+
+        params = {
+            "n": nsn,
+            "cid": class_id,
+            "m": moe,
+            "t": term,
+            "y": calendaryear,
+            "yl": year_level,
+        }
 
         with engine.begin() as conn:
             conn.execute(text(sql), params)
 
         return jsonify({"ok": True})
-    except Exception as e:
+    except Exception:
         traceback.print_exc()
         return _json_error("Failed to add student to class", 500)
 
@@ -1227,45 +1264,62 @@ def create_student_and_add():
         return _json_error("Forbidden", 403)
 
     d = request.get_json(silent=True) or {}
+
     class_id   = d.get("class_id")
+    moe        = d.get("moe") or d.get("MOENumber") or d.get("moenumber")
+    term_in    = d.get("term")
+    year_in    = d.get("calendaryear") or d.get("year")  # allow either key
     student    = d.get("student") or {}
     year_level = d.get("year_level")
-    term_in    = d.get("term")   # may be None; proc can derive
-    year_in    = d.get("year")   # may be None; proc can derive
 
     if not class_id:
-        return _json_error("class_id is required")
+        return _json_error("class_id is required", 400)
+    if moe in (None, "", []):
+        return _json_error("moe is required", 400)
+    if term_in in (None, "", []):
+        return _json_error("term is required", 400)
+    if year_in in (None, "", []):
+        return _json_error("calendaryear is required", 400)
+
+    # NSN validation
     nsn = student.get("NSN")
     if nsn in (None, "", []):
-        return _json_error("NSN is required and must be numeric")
+        return _json_error("NSN is required and must be numeric", 400)
     try:
         nsn = int(str(nsn).strip())
     except ValueError:
-        return _json_error("NSN must be numeric")
+        return _json_error("NSN must be numeric", 400)
+
+    # Required names
     if not (student.get("FirstName") and student.get("LastName")):
-        return _json_error("Student FirstName and LastName are required")
+        return _json_error("Student FirstName and LastName are required", 400)
+
     first = (student.get("FirstName") or "").strip()
     last  = (student.get("LastName")  or "").strip()
     pref  = (student.get("PreferredName") or None)
     dob   = (student.get("DateOfBirth") or None)
-    eth   = (student.get("EthnicityID") or 0)
+    eth   = student.get("EthnicityID")  # allow null
     yl    = (year_level if year_level not in ("", None) else None)
-    term  = None if term_in in ("", None) else str(term_in)
-    year  = year_in  # pass through (None is fine)
+
+    try:
+        moe  = int(str(moe).strip())
+        term = int(str(term_in).strip())
+        year = int(str(year_in).strip())
+    except ValueError:
+        return _json_error("moe, term, and calendaryear must be numeric", 400)
 
     eng = get_db_engine()
     try:
-        with eng.begin() as conn:            
-
+        with eng.begin() as conn:
             conn.exec_driver_sql("""
                 SET NOCOUNT ON;
-                DECLARE @NSN BIGINT = ?;
-                EXEC  FlaskCreateStudentAddToClassAndSeed
-                     @NSN=@NSN OUTPUT,
+                DECLARE @NSN INT = ?;
+                EXEC dbo.FlaskCreateStudentAddToClassAndSeed
+                     @NSN=@NSN ,
                      @FirstName=?, @LastName=?, @PreferredName=?, @DateOfBirth=?, @EthnicityID=?,
-                     @ClassID=?, @CalendarYear=?, @Term=?, @YearLevelID=?,
+                     @ClassID=?, @MOENumber=?, @CalendarYear=?, @Term=?, @YearLevelID=?,
                      @SeedScenarios=1, @SeedCompetencies=1;
-            """, (nsn, first, last, pref, dob, eth, class_id, year, term, yl))
+            """, (nsn, first, last, pref, dob, eth, class_id, moe, year, term, yl))
 
         return jsonify({"ok": True, "nsn": nsn, "class_id": class_id})
 
@@ -1273,7 +1327,7 @@ def create_student_and_add():
         status, friendly, sql_code = friendly_sql_error(e)
         current_app.logger.exception("create_student_and_add failed (sql=%s)", sql_code)
         return jsonify({"ok": False, "error": friendly, "sql_error": sql_code}), status
-    except Exception as e:
+    except Exception:
         current_app.logger.exception("create_student_and_add failed (non-DB)")
         return jsonify({"ok": False, "error": "Unexpected error. Please try again."}), 500
     
@@ -1464,27 +1518,71 @@ def apply_upload():
     except Exception as e:
         traceback.print_exc()
         return jsonify({"ok": False, "error": str(e)}), 500
-
-# ---- API: remove student from class ----
 @class_bp.route("/remove_from_class", methods=["POST"])
 @login_required
 def remove_from_class():
     if not _require_moe_or_adm():
         return _json_error("Forbidden", 403)
 
-    d = request.get_json(force=True)
+    d = request.get_json(force=True) or {}
+
     nsn = d.get("nsn")
     class_id = d.get("class_id")
-    if not (nsn and class_id):
-        return _json_error("nsn and class_id are required")
+    term = d.get("term")
+    calendaryear = d.get("calendaryear")
+
+    try:
+        nsn_i = _require_int(nsn, "nsn")                 # BIGINT ok
+        class_id_i = _require_int(class_id, "class_id")
+        term_i = _require_int(term, "term")
+        year_i = _require_int(calendaryear, "calendaryear")
+    except ValueError as e:
+        return _json_error(str(e), 400)
+
+    # optional sanity checks
+    if term_i < 1 or term_i > 4:
+        return _json_error("term must be between 1 and 4", 400)
+    if year_i < 2000 or year_i > 2100:
+        return _json_error("calendaryear looks invalid", 400)
 
     engine = get_db_engine()
-    with engine.begin() as conn:
-        conn.execute(
-            text("EXEC FlaskRemoveStudentFromClass @NSN=:n, @ClassID=:cid, @PerformedByEmail=:em"),
-            {"n": nsn, "cid": class_id, "em": session.get("user_email")}
-        )
-    return jsonify({"ok": True})
+    try:
+        with engine.begin() as conn:
+            row = conn.execute(
+                text("""
+                    EXEC dbo.FlaskRemoveStudentFromClass
+                         @NSN = :n,
+                         @ClassID = :cid,
+                         @Term = :t,
+                         @CalendarYear = :y,
+                         @PerformedByEmail = :em
+                """),
+                {
+                    "n": nsn_i,
+                    "cid": class_id_i,
+                    "t": term_i,
+                    "y": year_i,
+                    "em": session.get("user_email"),
+                }
+            ).fetchone()
+
+        # proc returns a single row: Ok, Message, RowsAffected, ...
+        if row is not None:
+            m = row._mapping
+            if not m.get("Ok", True):
+                return _json_error(m.get("Message") or "Failed to remove student.", 400)
+
+            return jsonify({
+                "ok": True,
+                "message": m.get("Message"),
+                "rows_affected": m.get("RowsAffected", 0),
+            })
+
+        # fallback (shouldn't happen)
+        return jsonify({"ok": True})
+
+    except SQLAlchemyError as e:
+        return _json_error(f"Database error removing student: {str(e)}", 500)
 
 @class_bp.route("/move-class", methods=["POST"])
 @login_required
@@ -1516,44 +1614,55 @@ def move_class():
     current_app.logger.exception("Move class failed")
     return jsonify({"ok": False, "error": str(e)}), 500
 
+
 @class_bp.route("/delete-class", methods=["POST"])
 @login_required
 def delete_class():
     """
-    AJAX endpoint to delete a class via DeleteClass stored procedure.
-    Expects JSON: {"class_id": <int>}
-    Returns JSON: {"ok": true} or {"ok": false, "error": "..."}
-    """
+    AJAX endpoint to delete a class via dbo.DeleteClass stored procedure.
 
+    Expects JSON:
+      {"class_id": <int>, "term": <int>, "year": <int>}
+
+    Returns:
+      {"ok": true} or {"ok": false, "error": "..."}
+    """
     # Parse input
     try:
         payload = request.get_json(force=True) or {}
         class_id = int(payload.get("class_id", 0))
+        term     = int(payload.get("term", 0))
+        year     = int(payload.get("year", 0))  # CalendarYear
     except (TypeError, ValueError):
-        return jsonify({"ok": False, "error": "Invalid class ID."}), 400
+        return jsonify({"ok": False, "error": "Invalid payload (class_id/term/year)."}), 400
 
     if class_id <= 0:
-        return jsonify({"ok": False, "error": "Missing or invalid class ID."}), 400
+        return jsonify({"ok": False, "error": "Missing or invalid class_id."}), 400
+    if term <= 0:
+        return jsonify({"ok": False, "error": "Missing or invalid term."}), 400
+    if year <= 0:
+        return jsonify({"ok": False, "error": "Missing or invalid year."}), 400
 
     engine = get_db_engine()
 
     try:
         with engine.begin() as conn:
+            # If your proc is now: DeleteClass(@ClassID, @Term, @CalendarYear)
             conn.execute(
-                text("EXEC dbo.DeleteClass @ClassID = :cid"),
-                {"cid": class_id},
+                text("EXEC dbo.DeleteClass @ClassID=:cid, @Term=:term, @CalendarYear=:year"),
+                {"cid": class_id, "term": term, "year": year},
             )
 
-        # If the proc RAISERRORs, we won't get here (exception is thrown)
         return jsonify({"ok": True})
 
     except Exception as e:
-        # Log full stack trace server-side
-        current_app.logger.exception("DeleteClass failed for ClassID=%s", class_id)
+        current_app.logger.exception(
+            "DeleteClass failed for ClassID=%s Term=%s Year=%s",
+            class_id, term, year
+        )
 
         # Try to surface a helpful message to the UI
         msg = str(e)
-        # If it's a SQLAlchemy DBAPI error, the SQL Server message is often in e.orig
         try:
             if hasattr(e, "orig") and hasattr(e.orig, "args") and e.orig.args:
                 msg = str(e.orig.args[0])
@@ -1784,6 +1893,7 @@ def get_classes_by_school():
             }
             for r in rows
         ]
+        print(out)
         return jsonify(out)
     except SQLAlchemyError as e:
         return _json_error(f"Database error loading classes: {str(e)}", 500)
@@ -1813,22 +1923,53 @@ def classes_for_term():
     out = [{"id": r._mapping["ClassID"], "name": r._mapping["ClassName"]} for r in rows]
     return jsonify(out)
 
-# ---- API: get students in a class ----
+
 @class_bp.route("/students/<int:class_id>")
 @login_required
 def get_class_students(class_id):
     if not _require_moe_or_adm():
         return _json_error("Forbidden", 403)
 
-    engine = get_db_engine()
-    with engine.begin() as conn:
-        rows = conn.execute(
-            text("EXEC FlaskGetClassStudents @ClassID=:cid"),
-            {"cid": class_id}
-        ).fetchall()
+    term = request.args.get("term")
+    year = request.args.get("year")
 
-    # expected columns from your proc:
-    # NSN, FirstName, PreferredName, LastName, YearLevel, Ethnicity, DateOfBirth
+    engine = get_db_engine()
+
+    # Fallback: if term/year missing, derive from Class table
+    if not term or not year:
+        try:
+            with engine.begin() as conn:
+                row = conn.execute(
+                    text("SELECT TOP (1) Term, CalendarYear FROM dbo.[Class] WHERE ClassID = :cid"),
+                    {"cid": class_id},
+                ).fetchone()
+            if not row:
+                return _json_error("Class not found.", 404)
+            term_i = int(row[0])
+            year_i = int(row[1])
+        except Exception as e:
+            return _json_error(f"Could not derive term/year for class: {str(e)}", 500)
+    else:
+        try:
+            term_i = _require_int(term, "term")
+            year_i = _require_int(year, "year")
+        except ValueError as e:
+            return _json_error(str(e), 400)
+
+    try:
+        with engine.begin() as conn:
+            rows = conn.execute(
+                text("""
+                    EXEC dbo.FlaskGetClassStudents
+                         @ClassID = :cid,
+                         @Term = :term,
+                         @CalendarYear = :year
+                """),
+                {"cid": class_id, "term": term_i, "year": year_i}
+            ).fetchall()
+    except SQLAlchemyError as e:
+        return _json_error(f"Database error loading students: {str(e)}", 500)
+
     out = []
     for r in rows:
         m = r._mapping
@@ -1840,7 +1981,7 @@ def get_class_students(class_id):
             "YearLevel": m.get("YearLevelID"),
             "Ethnicity": m.get("Ethnicity"),
             "DateOfBirth": str(m.get("DateOfBirth") or "")[:10],
-            "Deletable": m.get("Deletable")
+            "Deletable": m.get("Deletable"),
         })
     return jsonify(out)
 

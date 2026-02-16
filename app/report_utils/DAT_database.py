@@ -15,8 +15,11 @@ _ENGINE: Optional[Engine] = None
 def get_engine() -> Engine:
     """Create (or return) a module-level SQLAlchemy engine using DB_URL from .env."""
     global _ENGINE
+    #print("con")
     if _ENGINE is None:
+        
         db_url = os.getenv("DB_URL")
+        #print(db_url)
         if not db_url:
             raise ValueError("DB_URL is not set in your .env file")
         _ENGINE = create_engine(db_url, pool_pre_ping=True, pool_recycle=1800)

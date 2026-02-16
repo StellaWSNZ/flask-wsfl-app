@@ -255,7 +255,7 @@ def funder_dashboard():
 
             available_years = uniq_sorted(class_df_all, "CalendarYear", reverse=True)
             available_terms = uniq_sorted(class_df_all, "Term", reverse=False)
-
+            
             return render_template(
                 "school_overview.html",
                 title="School Overview",
@@ -450,7 +450,8 @@ def funder_dashboard():
         available_terms = sorted(
             school_df_all.get("Term", pd.Series(dtype=int)).dropna().unique()
         )
-
+        available_years = get_years()
+        available_terms = get_terms()
         # Pick selected year/term (fallback to first available)
         default_year = available_years[0] if available_years else session.get("nearest_year", 2025)
         default_term = available_terms[0] if available_terms else session.get("nearest_term", 1)
@@ -458,9 +459,6 @@ def funder_dashboard():
         selected_year = int(request.form.get("year", session.get("nearest_year", default_year)))
         selected_term = int(request.form.get("term", session.get("nearest_term", default_term)))
 
-        # persist selections
-        session["nearest_year"] = selected_year
-        session["nearest_term"] = selected_term
 
         # ----------------------------------------------------------
         # Filter to selected year/term
@@ -939,16 +937,36 @@ def admin_dashboard():
 
                 schools_grouped = defaultdict(list)
                 names = {}
+
                 for row in schools:
-                    pid = row["ProviderID"]
-                    names[pid] = row.get("ProviderName")
+                    pid = row.get("ProviderID")
+                    funder = row.get("Funder")  # must exist from proc
+                    key = (pid, funder)
+
+                    # Card title: keep provider stable, add funder as subtitle
+                    # If your proc ProviderName is "Kaiako (Sport Northland)", this strips it back to "Kaiako"
+                    provider_title = (row.get("ProviderName") or "").split(" (")[0].strip() or row.get("ProviderName")
+                    names[key] = f"{provider_title} — {funder}"
+
+                    # rename for display
                     row["School Name"] = row.pop("SchoolName", None)
                     row["No. Classes"] = row.pop("NumClasses", None)
                     row["Edited Classes"] = row.pop("EditedClasses", None)
                     row["Total Students"] = row.pop("TotalStudents", None)
+
+                    # drop control cols
                     trimmed = {k: v for k, v in row.items()
-                               if k not in ["CalendarYear", "Term", "ProviderID", "ProviderName","TotalStudentsUnedited"]}
-                    schools_grouped[pid].append(trimmed)
+                            if k not in ["CalendarYear", "Term", "ProviderID", "ProviderName", "TotalStudentsUnedited"]}
+
+                    schools_grouped[key].append(trimmed)
+
+                for (pid, funder), schools_list in schools_grouped.items():
+                    funder_data.append({
+                        "id": f"{pid}_{funder}",          # string id so cards are unique
+                        "name": names.get((pid, funder)),
+                        "schools": schools_list,
+                        "elearning_summary": elearning_grouped.get(pid, {})  # still just by provider
+                    })
                 current_app.logger.debug("")
                 for pid, schools_list in schools_grouped.items():
                     funder_data.append({

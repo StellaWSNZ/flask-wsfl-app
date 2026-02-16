@@ -1,9 +1,10 @@
-{% extends "header.html" %} {% block title %}Edit Class List{% endblock %}
+{% extends "header.html" %}
+{% block title %}Edit Class List{% endblock %}
 {% block content %}
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" />
 
-<!-- Expose real route URLs from Flask so JS doesn't guess paths -->
+{# prettier-ignore #}
 <div
   id="routes"
   data-classes-for-term="{{ url_for('class_bp.classes_for_term') }}"
@@ -12,19 +13,27 @@
   data-update-student="{{ url_for('class_bp.update_student') }}"
   data-remove-from-class="{{ url_for('class_bp.remove_from_class') }}"
   data-create-student-and-add="{{ url_for('class_bp.create_student_and_add') }}"
+  data-add-student="{{ url_for('class_bp.add_student_to_class') }}"
   data-get-entities="{{ url_for('api_bp.get_entities') }}?entity_type=School"
   data-ethnicities="{{ url_for('api_bp.ethnicities') }}"
 ></div>
 
 <style>
-  .info-pill{
+  .info-pill {
     --size: 1.25rem;
-    width: var(--size); height: var(--size);
-    background:#fff; color: var(--bs-primary);
-    border:1px solid var(--bs-primary); border-radius:50%;
-    display:inline-grid; place-items:center; line-height:1;
+    width: var(--size);
+    height: var(--size);
+    background: #fff;
+    color: var(--bs-primary);
+    border: 1px solid var(--bs-primary);
+    border-radius: 50%;
+    display: inline-grid;
+    place-items: center;
+    line-height: 1;
   }
-  .info-pill i{ font-size:.9rem; }
+  .info-pill i {
+    font-size: 0.9rem;
+  }
 </style>
 
 <div class="container my-4">
@@ -36,27 +45,25 @@
       <label class="form-label">School</label>
       <select id="school-select" class="form-select"></select>
     </div>
-    <div class="col-md-2">
-  <label class="form-label">Term</label>
-  <select id="term-select" class="form-select">
-    {% for t in terms %}
-      <option value="{{ t }}" {{ 'selected' if t == current_term else '' }}>
-        Term {{ t }}
-      </option>
-    {% endfor %}
-  </select>
-</div>
 
-<div class="col-md-2">
-  <label class="form-label">Year</label>
-  <select id="year-input" class="form-select">
-    {% for y in years %}
-      <option value="{{ y }}" {{ 'selected' if y == current_year else '' }}>
-        {{ y }}
-      </option>
-    {% endfor %}
-  </select>
-</div>
+    <div class="col-md-2">
+      <label class="form-label">Term</label>
+      <select id="term-select" class="form-select">
+        {% for t in terms %}
+          <option value="{{ t }}" {{ "selected" if t == current_term else "" }}>Term {{ t }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="col-md-2">
+      <label class="form-label">Year</label>
+      <select id="year-input" class="form-select">
+        {% for y in years %}
+          <option value="{{ y }}" {{ "selected" if y == current_year else "" }}>{{ y }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
     <div class="col-md-4">
       <label class="form-label">Class</label>
       <select id="class-select" class="form-select"></select>
@@ -80,7 +87,12 @@
         <option value="desc">Descending</option>
       </select>
 
-      <button id="add-student-btn" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#addStudentModal">
+      <button
+        id="add-student-btn"
+        class="btn btn-sm btn-success"
+        data-bs-toggle="modal"
+        data-bs-target="#addStudentModal"
+      >
         Add Student
       </button>
     </div>
@@ -90,14 +102,23 @@
     <table class="table table-bordered table-hover align-middle">
       <thead class="custom-header">
         <tr>
-          <th>NSN</th><th>First Name</th><th>Preferred Name</th><th>Last Name</th>
-          <th>Year Level</th><th>Ethnicity</th><th>Date of Birth</th>
+          <th>NSN</th>
+          <th>First Name</th>
+          <th>Preferred Name</th>
+          <th>Last Name</th>
+          <th>Year Level</th>
+          <th>Ethnicity</th>
+          <th>Date of Birth</th>
           <th style="width: 160px">
             Actions
-            <button type="button" class="btn btn-link p-0 align-baseline ms-1"
-              data-bs-toggle="tooltip" data-bs-placement="top"
+            <button
+              type="button"
+              class="btn btn-link p-0 align-baseline ms-1"
+              data-bs-toggle="tooltip"
+              data-bs-placement="top"
               title="You can delete a student only if they have NO competencies marked achieved within this term’s dates, or they are enrolled in more than one class for the same year/term."
-              aria-label="Deletion rules">
+              aria-label="Deletion rules"
+            >
               <span class="info-pill"><i class="bi bi-info-lg"></i></span>
             </button>
           </th>
@@ -110,102 +131,142 @@
 
 <!-- Edit Student Modal -->
 <div class="modal fade" id="editStudentModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog"><div class="modal-content border-0">
-    <div class="modal-header bg-primary text-white">
-      <h5 class="modal-title">Edit Student</h5>
-      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+  <div class="modal-dialog">
+    <div class="modal-content border-0">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title">Edit Student</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div id="edit-modal-alert-host" class="mb-2"></div>
+        <form id="edit-student-form">
+          <input type="hidden" id="edit-nsn" />
+          <div class="mb-3">
+            <label class="form-label">First Name</label>
+            <input type="text" class="form-control" id="edit-first-name" required />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Last Name</label>
+            <input type="text" class="form-control" id="edit-last-name" required />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Preferred Name</label>
+            <input type="text" class="form-control" id="edit-preferred-name" />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Ethnicity</label>
+            <select class="form-select" id="edit-ethnicity"></select>
+          </div>
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+        </form>
+      </div>
     </div>
-    <div class="modal-body">
-      <div id="edit-modal-alert-host" class="mb-2"></div>
-      <form id="edit-student-form">
-        <input type="hidden" id="edit-nsn" />
-        <div class="mb-3"><label class="form-label">First Name</label><input type="text" class="form-control" id="edit-first-name" required /></div>
-        <div class="mb-3"><label class="form-label">Last Name</label><input type="text" class="form-control" id="edit-last-name" required /></div>
-        <div class="mb-3"><label class="form-label">Preferred Name</label><input type="text" class="form-control" id="edit-preferred-name" /></div>
-        <div class="mb-3"><label class="form-label">Ethnicity</label><select class="form-select" id="edit-ethnicity"></select></div>
-        <button type="submit" class="btn btn-primary">Save Changes</button>
-      </form>
-    </div>
-  </div></div>
+  </div>
 </div>
 
 <!-- Delete Confirmation Modal -->
 <div class="modal fade" id="deleteStudentModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog"><div class="modal-content border-0">
-    <div class="modal-header bg-danger text-white">
-      <h5 class="modal-title">Remove from Class</h5>
-      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+  <div class="modal-dialog">
+    <div class="modal-content border-0">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title">Remove from Class</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div id="delete-modal-alert-host" class="mb-2"></div>
+        Are you sure you want to remove this student from this class?
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button id="confirm-delete-btn" class="btn btn-danger">Remove</button>
+      </div>
     </div>
-    <div class="modal-body">
-      <div id="delete-modal-alert-host" class="mb-2"></div>
-      Are you sure you want to remove this student from this class?
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-      <button id="confirm-delete-btn" class="btn btn-danger">Remove</button>
-    </div>
-  </div></div>
+  </div>
 </div>
 
 <!-- Add Student Modal -->
 <div class="modal fade" id="addStudentModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg"><div class="modal-content border-0">
-    <div class="modal-header bg-success text-white">
-      <h5 class="modal-title">Add Student to Class</h5>
-      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-    </div>
-    <div class="modal-body">
-      <div id="add-modal-alert-host" class="mb-2"></div>
-  
-      <div class="mb-3">
-        <label class="form-label">Search by NSN or name</label>
-        <div class="input-group">
-          <input id="search-q" class="form-control" placeholder="NSN, first, last, or preferred name" />
-          <button id="search-btn" class="btn btn-outline-secondary" type="button">Search</button>
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content border-0">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title">Add Student to Class</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="add-modal-alert-host" class="mb-2"></div>
+
+        <div class="mb-3">
+          <label class="form-label">Search by NSN or name</label>
+          <div class="input-group">
+            <input id="search-q" class="form-control" placeholder="NSN, first, last, or preferred name" />
+            <button id="search-btn" class="btn btn-outline-secondary" type="button">Search</button>
+          </div>
+        </div>
+        <div id="search-results" class="mb-4"></div>
+
+        <hr class="my-3" />
+
+        <h6>Create New Student</h6>
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label">NSN (required)</label>
+            <input id="new-nsn" class="form-control" placeholder="numeric only" required />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">First Name</label>
+            <input id="new-first" class="form-control" required />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Last Name</label>
+            <input id="new-last" class="form-control" required />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Preferred Name</label>
+            <input id="new-pref" class="form-control" />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">DOB</label>
+            <input id="new-dob" type="date" class="form-control" />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Ethnicity</label>
+            <select id="new-eth" class="form-select"></select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Year Level</label>
+            <input id="new-yearlevel" type="number" min="0" max="13" class="form-control" placeholder="e.g., 4" />
+          </div>
         </div>
       </div>
-      <div id="search-results" class="mb-4"></div>
-
-      <hr class="my-3" />
-
-      <!-- Create New Student -->
-      <h6>Create New Student</h6>
-      <div class="row g-3">
-        <div class="col-md-4"><label class="form-label">NSN (required)</label><input id="new-nsn" class="form-control" placeholder="numeric only" required /></div>
-        <div class="col-md-4"><label class="form-label">First Name</label><input id="new-first" class="form-control" required /></div>
-        <div class="col-md-4"><label class="form-label">Last Name</label><input id="new-last" class="form-control" required /></div>
-        <div class="col-md-4"><label class="form-label">Preferred Name</label><input id="new-pref" class="form-control" /></div>
-        <div class="col-md-4"><label class="form-label">DOB</label><input id="new-dob" type="date" class="form-control" /></div>
-        <div class="col-md-4"><label class="form-label">Ethnicity</label><select id="new-eth" class="form-select"></select></div>
-        <div class="col-md-4"><label class="form-label">Year Level</label><input id="new-yearlevel" type="number" min="0" max="13" class="form-control" placeholder="e.g., 4" /></div>
+      <div class="modal-footer">
+        <button id="create-and-add-btn" class="btn btn-success">Create & Add</button>
       </div>
     </div>
-    <div class="modal-footer">
-      <button id="create-and-add-btn" class="btn btn-success">Create & Add</button>
-    </div>
-  </div></div>
+  </div>
 </div>
 
 <!-- Year Level Modal (for adding existing student) -->
 <div class="modal fade" id="yearLevelModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog"><div class="modal-content border-0">
-    <div class="modal-header bg-info text-white">
-      <h5 class="modal-title">Set Year Level</h5>
-      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-    </div>
-    <div class="modal-body">
-      <div id="yearlevel-modal-alert-host" class="mb-2"></div>
-      <div class="mb-3">
-        <label class="form-label">Year level for this class</label>
-        <input id="yearlevel-input" type="number" min="0" max="13" class="form-control" placeholder="e.g., 4" required />
-        <div class="form-text">Allowed: 0–13.</div>
+  <div class="modal-dialog">
+    <div class="modal-content border-0">
+      <div class="modal-header bg-info text-white">
+        <h5 class="modal-title">Set Year Level</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div id="yearlevel-modal-alert-host" class="mb-2"></div>
+        <div class="mb-3">
+          <label class="form-label">Year level for this class</label>
+          <input id="yearlevel-input" type="number" min="0" max="13" class="form-control" placeholder="e.g., 4" required />
+          <div class="form-text">Allowed: 0–13.</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button id="confirm-yearlevel-btn" class="btn btn-info">Add to Class</button>
       </div>
     </div>
-    <div class="modal-footer">
-      <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-      <button id="confirm-yearlevel-btn" class="btn btn-info">Add to Class</button>
-    </div>
-  </div></div>
+  </div>
 </div>
 
 <script>
@@ -225,13 +286,25 @@
   const URL_UPDATE_STUDENT        = routesEl.dataset.updateStudent;
   const URL_REMOVE_FROM_CLASS     = routesEl.dataset.removeFromClass;
   const URL_CREATE_AND_ADD        = routesEl.dataset.createStudentAndAdd;
+  const URL_ADD_STUDENT           = routesEl.dataset.addStudent;
   const URL_GET_ENTITIES          = routesEl.dataset.getEntities;
   const URL_ETHNICITIES           = routesEl.dataset.ethnicities;
 
-  function studentsUrl(classId){ return URL_STUDENTS_URL_TEMPLATE.replace(/0$/, String(classId)); }
+  // ✅ UPDATED: include term + year + moe query params
+  function studentsUrl(classId) {
+    const base = URL_STUDENTS_URL_TEMPLATE.replace(/0$/, String(classId));
+    const qs = new URLSearchParams({ term: $term.value, year: $year.value, moe: $school.value });
+    return `${base}?${qs.toString()}`;
+  }
 
-  // 🔧 Helper: disable/enable a button with spinner
-  function setButtonBusy(btn, busy, idleLabel = "Create & Add"){
+  function currentTermYear() {
+    return {
+      term: Number($term.value),
+      calendaryear: Number($year.value),
+    };
+  }
+
+  function setButtonBusy(btn, busy, idleLabel = "Create & Add") {
     if (!btn) return;
     if (busy) {
       if (btn.disabled) return;
@@ -252,13 +325,16 @@
   let _studentsCache   = [];
   let _reopenAddAfterYearLevel = false;
 
-  /* Tooltips */
-  function initTooltips(scope=document){
+  function initTooltips(scope = document) {
     const els = Array.from(scope.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    els.forEach(el => bootstrap.Tooltip.getOrCreateInstance(el, { container:'body', trigger:'hover focus' }));
+    els.forEach((el) =>
+      bootstrap.Tooltip.getOrCreateInstance(el, {
+        container: "body",
+        trigger: "hover focus",
+      })
+    );
   }
 
-  /* Alerts inside modals */
   function showModalAlert(modalId, type, message, opts = {}) {
     const modal = document.querySelector(modalId);
     if (!modal) return;
@@ -271,8 +347,9 @@
       null;
     if (!host) return;
 
-    const { timeout = (type === "success" || type === "info" ? 4000 : 0), scroll  = true } = opts;
+    const { timeout = type === "success" || type === "info" ? 4000 : 0, scroll = true } = opts;
     const id = "al_" + Math.random().toString(36).slice(2, 9);
+
     host.insertAdjacentHTML(
       "beforeend",
       `<div id="${id}" class="alert alert-${type} alert-dismissible fade show" role="alert">
@@ -280,56 +357,64 @@
          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
        </div>`
     );
+
     const el = document.getElementById(id);
     if (scroll && el) el.scrollIntoView({ behavior: "smooth", block: "nearest" });
     if (timeout > 0) setTimeout(() => bootstrap.Alert.getOrCreateInstance(el)?.close(), timeout);
   }
 
-  /* Re-run the search (only if the user has a query typed) */
-  function rerunSearchIfRelevant(){
+  function rerunSearchIfRelevant() {
     const qEl = document.getElementById("search-q");
     const q = qEl ? qEl.value.trim() : "";
     if (q) doSearch();
   }
 
-  /* Wire events then load data */
   document.addEventListener("DOMContentLoaded", () => {
     wireEvents();
     initTooltips();
 
-    // Reopen Add modal after YearLevel modal closes (if we hid it)
-    document.getElementById("yearLevelModal")
-      .addEventListener("hidden.bs.modal", () => {
-        if (_reopenAddAfterYearLevel) {
-          const addEl = document.getElementById("addStudentModal");
-          bootstrap.Modal.getOrCreateInstance(addEl).show();
-          setTimeout(() => document.getElementById("search-q")?.focus(), 200);
-        }
-        _reopenAddAfterYearLevel = false;
-      });
+    document.getElementById("yearLevelModal").addEventListener("hidden.bs.modal", () => {
+      if (_reopenAddAfterYearLevel) {
+        const addEl = document.getElementById("addStudentModal");
+        bootstrap.Modal.getOrCreateInstance(addEl).show();
+        setTimeout(() => document.getElementById("search-q")?.focus(), 200);
+      }
+      _reopenAddAfterYearLevel = false;
+    });
 
-    loadSchools().catch(err => console.error("loadSchools failed:", err));
-    loadEthnicities().catch(err => console.error("loadEthnicities failed:", err));
+    loadSchools().catch((err) => console.error("loadSchools failed:", err));
+    loadEthnicities().catch((err) => console.error("loadEthnicities failed:", err));
   });
 
-  function debounce(fn, ms=350){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; }
+  function debounce(fn, ms = 350) {
+    let t;
+    return (...a) => {
+      clearTimeout(t);
+      t = setTimeout(() => fn(...a), ms);
+    };
+  }
 
-  function wireEvents(){
+  function wireEvents() {
     $school.addEventListener("change", loadClasses);
     $term.addEventListener("change", loadClasses);
     $year.addEventListener("change", loadClasses);
     $year.addEventListener("input", debounce(loadClasses, 400));
 
-    $class.addEventListener("change", () => { currentClassId = parseInt($class.value, 10); loadStudents(); });
+    $class.addEventListener("change", () => {
+      currentClassId = parseInt($class.value, 10);
+      loadStudents();
+    });
 
     $sortField.addEventListener("change", renderStudentsSorted);
     $sortDir.addEventListener("change", renderStudentsSorted);
 
-    // Search triggers
     document.getElementById("search-btn").addEventListener("click", doSearch);
     const $searchQ = document.getElementById("search-q");
     $searchQ.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") { e.preventDefault(); doSearch(); }
+      if (e.key === "Enter") {
+        e.preventDefault();
+        doSearch();
+      }
     });
 
     document.getElementById("create-and-add-btn").addEventListener("click", createAndAdd);
@@ -337,70 +422,83 @@
     document.getElementById("confirm-delete-btn").addEventListener("click", confirmDelete);
     document.getElementById("confirm-yearlevel-btn").addEventListener("click", confirmYearLevel);
     document.getElementById("yearlevel-input").addEventListener("keydown", (e) => {
-      if (e.key === "Enter") { e.preventDefault(); confirmYearLevel(); }
+      if (e.key === "Enter") {
+        e.preventDefault();
+        confirmYearLevel();
+      }
     });
   }
 
-  /* Loads */
-  async function loadSchools(){
-  try {
-    $school.innerHTML = '<option value="">Loading schools…</option>';
+  async function loadSchools() {
+    try {
+      $school.innerHTML = '<option value="">Loading schools…</option>';
 
-    const r = await fetch(URL_GET_ENTITIES, { credentials:"same-origin" });
-    if (!r.ok) {
+      const r = await fetch(URL_GET_ENTITIES, { credentials: "same-origin" });
+      if (!r.ok) {
+        $school.innerHTML = '<option value="">Failed to load schools</option>';
+        return;
+      }
+
+      const data = await r.json();
+      const rows = Array.isArray(data.entities) ? data.entities : Array.isArray(data) ? data : [];
+
+      if (!rows.length) {
+        $school.innerHTML = '<option value="">No schools found</option>';
+        return;
+      }
+
+      $school.innerHTML = rows
+        .map((e) => `<option value="${e.id}">${escapeHtml(e.description || e.name || String(e.id))}</option>`)
+        .join("");
+
+      if ($school.value) await loadClasses();
+    } catch (err) {
+      console.error("loadSchools error:", err);
       $school.innerHTML = '<option value="">Failed to load schools</option>';
-      return;
     }
-
-    const data = await r.json();
-    // New shape: { entities: [ { id, description, ... }, ... ] }
-    const rows = Array.isArray(data.entities)
-      ? data.entities
-      : (Array.isArray(data) ? data : []);
-
-    if (!rows.length) {
-      $school.innerHTML = '<option value="">No schools found</option>';
-      return;
-    }
-
-    $school.innerHTML =
-      rows.map(e =>
-        `<option value="${e.id}">${escapeHtml(e.description || e.name || String(e.id))}</option>`
-      ).join("");
-
-    // Auto-load classes once the first school is selected
-    if ($school.value) await loadClasses();
-  } catch (err) {
-    console.error("loadSchools error:", err);
-    $school.innerHTML = '<option value="">Failed to load schools</option>';
   }
-}
 
-
-  async function loadEthnicities(){
-    const r = await fetch(URL_ETHNICITIES, { credentials:"same-origin" });
+  async function loadEthnicities() {
+    const r = await fetch(URL_ETHNICITIES, { credentials: "same-origin" });
     if (!r.ok) return;
     const rows = await r.json();
-    const opts = rows.map(e => `<option value="${e.id}">${escapeHtml(e.desc)}</option>`).join("");
+    const opts = rows.map((e) => `<option value="${e.id}">${escapeHtml(e.desc)}</option>`).join("");
     document.getElementById("edit-ethnicity").innerHTML = opts;
     document.getElementById("new-eth").innerHTML = opts;
   }
 
-  async function loadClasses(){
-    try{
-      $class.innerHTML = ""; $tbody.innerHTML = "";
-      const url = `${URL_CLASSES_FOR_TERM}?${new URLSearchParams({moe:$school.value, term:$term.value, year:$year.value})}`;
-      const r = await fetch(url, { credentials:"same-origin" });
+  async function loadClasses() {
+    try {
+      $class.innerHTML = "";
+      $tbody.innerHTML = "";
+      _studentsCache = [];
+
+      const url = `${URL_CLASSES_FOR_TERM}?` + new URLSearchParams({
+        moe: $school.value,
+        term: $term.value,
+        year: $year.value,
+      });
+
+      const r = await fetch(url, { credentials: "same-origin" });
       if (!r.ok) return;
+
       const rows = await r.json();
-      $class.innerHTML = rows.map(e => `<option value="${e.id}">${e.name}</option>`).join("");
-      if ($class.value){ currentClassId = parseInt($class.value, 10); await loadStudents(); }
-    } catch(err){ console.error("loadClasses error:", err); }
+      $class.innerHTML = (rows || [])
+        .map((e) => `<option value="${e.id}">${escapeHtml(e.name)}</option>`)
+        .join("");
+
+      if ($class.value) {
+        currentClassId = parseInt($class.value, 10);
+        await loadStudents();
+      }
+    } catch (err) {
+      console.error("loadClasses error:", err);
+    }
   }
 
-  async function loadStudents(){
+  async function loadStudents() {
     if (!currentClassId) return;
-    const r = await fetch(studentsUrl(currentClassId), { credentials:"same-origin" });
+    const r = await fetch(studentsUrl(currentClassId), { credentials: "same-origin" });
     if (!r.ok) return;
     const rows = await r.json();
     _studentsCache = rows || [];
@@ -408,46 +506,62 @@
   }
 
   /* Sorting */
-  const collator = new Intl.Collator("en", { sensitivity:"base", numeric:true });
-  const cmpStrings = (a,b)=> collator.compare((a||"").trim(), (b||"").trim());
-  const toNumber = x => { const n = Number(x); return Number.isFinite(n) ? n : null; };
-  const toDate   = x => { const t = x ? Date.parse(x) : NaN; return Number.isFinite(t) ? t : null; };
-  function nullsLastCompare(va,vb){ const aN=va==null,bN=vb==null; if(aN&&bN)return 0; if(aN)return 1; if(bN)return -1; return 0; }
-  function getComparator(){
-    const field=$sortField.value, dir=$sortDir.value==="desc"?-1:1;
-    return (a,b)=>{
-      let va,vb,prim=0;
-      switch(field){
-        case "FirstName": prim = cmpStrings(a.FirstName,b.FirstName); break;
-        case "PreferredName": prim = cmpStrings(a.PreferredName,b.PreferredName); break;
-        case "LastName": prim = cmpStrings(a.LastName,b.LastName); break;
+  const collator = new Intl.Collator("en", { sensitivity: "base", numeric: true });
+  const cmpStrings = (a, b) => collator.compare((a || "").trim(), (b || "").trim());
+  const toNumber = (x) => {
+    const n = Number(x);
+    return Number.isFinite(n) ? n : null;
+  };
+  const toDate = (x) => {
+    const t = x ? Date.parse(x) : NaN;
+    return Number.isFinite(t) ? t : null;
+  };
+  function nullsLastCompare(va, vb) {
+    const aN = va == null, bN = vb == null;
+    if (aN && bN) return 0;
+    if (aN) return 1;
+    if (bN) return -1;
+    return 0;
+  }
+  function getComparator() {
+    const field = $sortField.value, dir = $sortDir.value === "desc" ? -1 : 1;
+    return (a, b) => {
+      let va, vb, prim = 0;
+      switch (field) {
+        case "FirstName": prim = cmpStrings(a.FirstName, b.FirstName); break;
+        case "PreferredName": prim = cmpStrings(a.PreferredName, b.PreferredName); break;
+        case "LastName": prim = cmpStrings(a.LastName, b.LastName); break;
         case "YearLevel":
-          va=toNumber(a.YearLevel); vb=toNumber(b.YearLevel);
-          { const nl = nullsLastCompare(va,vb); prim = (nl!==0)?nl:(va===vb?0:(va<vb?-1:1)); } break;
+          va = toNumber(a.YearLevel); vb = toNumber(b.YearLevel);
+          { const nl = nullsLastCompare(va, vb); prim = nl !== 0 ? nl : va === vb ? 0 : va < vb ? -1 : 1; }
+          break;
         case "DateOfBirth":
-          va=toDate(a.DateOfBirth); vb=toDate(b.DateOfBirth);
-          { const nl = nullsLastCompare(va,vb); prim = (nl!==0)?nl:(va===vb?0:(va<vb?-1:1)); } break;
+          va = toDate(a.DateOfBirth); vb = toDate(b.DateOfBirth);
+          { const nl = nullsLastCompare(va, vb); prim = nl !== 0 ? nl : va === vb ? 0 : va < vb ? -1 : 1; }
+          break;
       }
-      if (prim!==0) return prim*dir;
-      const tb1=cmpStrings(a.LastName,b.LastName); if (tb1) return tb1*dir;
-      const tb2=cmpStrings(a.FirstName,b.FirstName); if (tb2) return tb2*dir;
-      const na=toNumber(a.NSN), nb=toNumber(b.NSN);
-      if (na!=null && nb!=null && na!==nb) return na<nb?-1:1;
+      if (prim !== 0) return prim * dir;
+      const tb1 = cmpStrings(a.LastName, b.LastName);
+      if (tb1) return tb1 * dir;
+      const tb2 = cmpStrings(a.FirstName, b.FirstName);
+      if (tb2) return tb2 * dir;
+      const na = toNumber(a.NSN), nb = toNumber(b.NSN);
+      if (na != null && nb != null && na !== nb) return na < nb ? -1 : 1;
       return 0;
     };
   }
-  function renderStudentsSorted(){
+  function renderStudentsSorted() {
     const rows = [..._studentsCache].sort(getComparator());
     $tbody.innerHTML = rows.map(trStudent).join("");
     initTooltips($tbody);
   }
 
-  /* Row render (shows Delete only when Deletable is truthy) */
-  function trStudent(s){
+  /* Row render */
+  function trStudent(s) {
     const dob = s.DateOfBirth || "";
-    const yl  = s.YearLevel ?? "";
+    const yl = s.YearLevel ?? "";
     const eth = s.Ethnicity || "";
-    const canDelete = (s.Deletable === 1 || s.Deletable === "1" || s.Deletable === true);
+    const canDelete = s.Deletable === 1 || s.Deletable === "1" || s.Deletable === true;
 
     return `
       <tr data-nsn="${s.NSN}">
@@ -466,28 +580,35 @@
               '${escapeAttr(s.PreferredName || "")}',
               '${escapeAttr(s.Ethnicity || "")}')">Edit</button>
 
-          ${ canDelete
-              ? `<button class=\"btn btn-sm btn-outline-danger\" onclick=\"openDelete('${s.NSN}')\">Delete</button>`
-              : `<button class=\"btn btn-sm btn-outline-danger\" disabled
-                   data-bs-toggle=\"tooltip\"
-                   title=\"Cannot delete: this is the student's only class for this year/term and they have activity in the term window.\">Delete</button>`}
+          ${
+            canDelete
+              ? `<button class="btn btn-sm btn-outline-danger" onclick="openDelete('${s.NSN}')">Delete</button>`
+              : `<button class="btn btn-sm btn-outline-danger" disabled
+                   data-bs-toggle="tooltip"
+                   title="Cannot delete: this is the student's only class for this year/term and they have activity in the term window.">Delete</button>`
+          }
         </td>
       </tr>`;
   }
 
   /* Edit */
-  function openEdit(nsn, first, last, pref, eth){
+  window.openEdit = function (nsn, first, last, pref, eth) {
     document.getElementById("edit-nsn").value = nsn;
     document.getElementById("edit-first-name").value = first;
-    document.getElementById("edit-last-name").value  = last;
+    document.getElementById("edit-last-name").value = last;
     document.getElementById("edit-preferred-name").value = pref;
 
     const sel = document.getElementById("edit-ethnicity");
-    for (const opt of sel.options) if (opt.textContent.trim() === (eth||"").trim()) { sel.value = opt.value; break; }
+    for (const opt of sel.options) {
+      if (opt.textContent.trim() === (eth || "").trim()) {
+        sel.value = opt.value;
+        break;
+      }
+    }
     new bootstrap.Modal(document.getElementById("editStudentModal")).show();
-  }
+  };
 
-  async function saveEdit(ev){
+  async function saveEdit(ev) {
     ev.preventDefault();
     const payload = {
       NSN: document.getElementById("edit-nsn").value,
@@ -496,55 +617,77 @@
       PreferredName: document.getElementById("edit-preferred-name").value,
       EthnicityID: document.getElementById("edit-ethnicity").value || null,
     };
-    try{
+    try {
       const resp = await fetch(URL_UPDATE_STUDENT, {
-        method:"POST", headers:{ "Content-Type":"application/json" }, credentials:"same-origin", body: JSON.stringify(payload)
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify(payload),
       });
-      if (!resp.ok) { showModalAlert("#editStudentModal","danger","Failed to update student."); return; }
+      if (!resp.ok) {
+        showModalAlert("#editStudentModal", "danger", "Failed to update student.");
+        return;
+      }
       await loadStudents();
-      showModalAlert("#editStudentModal","success","Student updated.",{timeout:2000});
-      setTimeout(()=> bootstrap.Modal.getInstance(document.getElementById("editStudentModal"))?.hide(), 600);
+      showModalAlert("#editStudentModal", "success", "Student updated.", { timeout: 2000 });
+      setTimeout(() => bootstrap.Modal.getInstance(document.getElementById("editStudentModal"))?.hide(), 600);
     } catch {
-      showModalAlert("#editStudentModal","danger","Network error while updating student.");
+      showModalAlert("#editStudentModal", "danger", "Network error while updating student.");
     }
   }
 
   /* Delete */
-  function openDelete(nsn){
+  window.openDelete = function (nsn) {
     pendingDeleteNSN = nsn;
     new bootstrap.Modal(document.getElementById("deleteStudentModal")).show();
-  }
-  async function confirmDelete(){
+  };
+
+  async function confirmDelete() {
     if (!pendingDeleteNSN || !currentClassId) return;
-    const payload = { nsn: pendingDeleteNSN, class_id: currentClassId };
-    try{
+
+    const { term, calendaryear } = currentTermYear();
+    const payload = {
+      nsn: pendingDeleteNSN,
+      class_id: currentClassId,
+      moe: $school.value,         // ✅ ADD THIS
+      term,
+      calendaryear
+    };
+
+    try {
       const resp = await fetch(URL_REMOVE_FROM_CLASS, {
-        method:"POST", headers:{ "Content-Type":"application/json" }, credentials:"same-origin", body: JSON.stringify(payload)
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify(payload),
       });
-      if (!resp.ok) { showModalAlert("#deleteStudentModal","danger","Failed to remove student from class."); return; }
+      if (!resp.ok) {
+        showModalAlert("#deleteStudentModal", "danger", "Failed to remove student from class.");
+        return;
+      }
       await loadStudents();
       rerunSearchIfRelevant();
-      showModalAlert("#deleteStudentModal","success","Student removed from class.",{timeout:1500});
-      setTimeout(()=> bootstrap.Modal.getInstance(document.getElementById("deleteStudentModal"))?.hide(), 600);
+      showModalAlert("#deleteStudentModal", "success", "Student removed from class.", { timeout: 1500 });
+      setTimeout(() => bootstrap.Modal.getInstance(document.getElementById("deleteStudentModal"))?.hide(), 600);
       pendingDeleteNSN = null;
     } catch {
-      showModalAlert("#deleteStudentModal","danger","Network error while removing student.");
+      showModalAlert("#deleteStudentModal", "danger", "Network error while removing student.");
     }
   }
 
-  /* Search & Add Existing (with Enter key + resilient JSON handling) */
-  async function doSearch(){
+  /* Search */
+  async function doSearch() {
     const $results = document.getElementById("search-results");
     const q = (document.getElementById("search-q").value || "").trim();
     const moe = document.getElementById("school-select").value;
     const cid = document.getElementById("class-select").value;
 
     if (!cid) {
-      showModalAlert("#addStudentModal","warning","Pick a class first.");
+      showModalAlert("#addStudentModal", "warning", "Pick a class first.");
       return;
     }
     if (!q) {
-      showModalAlert("#addStudentModal","info","Type an NSN or name to search.");
+      showModalAlert("#addStudentModal", "info", "Type an NSN or name to search.");
       return;
     }
 
@@ -554,61 +697,66 @@
         <span>Searching…</span>
       </div>`;
 
-    const url = `${URL_SEARCH_STUDENTS}?${new URLSearchParams({q, moe, class_id: cid})}`;
-    try{
-      const r = await fetch(url, {
-        credentials:"same-origin",
-        headers: { "Accept": "application/json" } // nudge Flask to return JSON
-      });
+    const url = `${URL_SEARCH_STUDENTS}?` + new URLSearchParams({
+      q,
+      moe,
+      class_id: cid,
+      term: $term.value,
+      year: $year.value
+    });
+
+    try {
+      const r = await fetch(url, { credentials: "same-origin", headers: { Accept: "application/json" } });
 
       const ct = (r.headers.get("Content-Type") || "").toLowerCase();
       if (!ct.includes("application/json")) {
         $results.innerHTML = "";
-        showModalAlert("#addStudentModal","danger","Your session may have expired. Please refresh and sign in again.");
+        showModalAlert("#addStudentModal", "danger", "Your session may have expired. Please refresh and sign in again.");
         return;
-        }
-
+      }
       if (!r.ok) {
         $results.innerHTML = "";
-        showModalAlert("#addStudentModal","danger",`Search failed (HTTP ${r.status}).`);
+        showModalAlert("#addStudentModal", "danger", `Search failed (HTTP ${r.status}).`);
         return;
       }
 
       const rows = await r.json();
       if (!Array.isArray(rows) || rows.length === 0) {
         $results.innerHTML = '<div class="text-muted">No results.</div>';
-        showModalAlert("#addStudentModal","warning","No students matched your search.",{timeout:2500, scroll:false});
+        showModalAlert("#addStudentModal", "warning", "No students matched your search.", { timeout: 2500, scroll: false });
         return;
       }
 
-      showModalAlert("#addStudentModal","info",`Found ${rows.length} result(s).`,{timeout:2000, scroll:false});
+      showModalAlert("#addStudentModal", "info", `Found ${rows.length} result(s).`, { timeout: 2000, scroll: false });
       $results.innerHTML = `
         <table class="table table-sm align-middle">
           <thead><tr><th>NSN</th><th>Name</th><th>DOB</th><th>Ethnicity</th><th></th></tr></thead>
           <tbody>
-            ${rows.map(s => `
+            ${rows.map((s) => `
               <tr>
                 <td>${s.NSN ?? ""}</td>
                 <td>${escapeHtml(s.FirstName || "")} ${escapeHtml(s.LastName || "")}</td>
                 <td>${s.DateOfBirth || ""}</td>
                 <td>${escapeHtml(s.Ethnicity || "")}</td>
                 <td>
-                  ${s.InClass
-                    ? '<button class="btn btn-sm btn-secondary" disabled>Already in class</button>'
-                    : `<button class="btn btn-sm btn-success" onclick="openYearLevelModal('${s.NSN}')">Add</button>`}
+                  ${
+                    s.InClass
+                      ? '<button class="btn btn-sm btn-secondary" disabled>Already in class</button>'
+                      : `<button class="btn btn-sm btn-success" onclick="openYearLevelModal('${s.NSN}')">Add</button>`
+                  }
                 </td>
               </tr>`).join("")}
           </tbody>
         </table>`;
-    } catch (err){
+    } catch (err) {
       console.error("Search error:", err);
       $results.innerHTML = "";
-      showModalAlert("#addStudentModal","danger","Network/parse error during search.");
+      showModalAlert("#addStudentModal", "danger", "Network/parse error during search.");
     }
   }
 
-  /* Year-level modal flow for existing student — hides Add modal, reopens after */
-  function openYearLevelModal(nsn){
+  /* Year level modal flow */
+  window.openYearLevelModal = function (nsn) {
     pendingAddNSN = nsn;
     document.getElementById("yearlevel-input").value = "";
     document.querySelector("#yearLevelModal #yearlevel-modal-alert-host").innerHTML = "";
@@ -624,34 +772,41 @@
 
     bootstrap.Modal.getOrCreateInstance(document.getElementById("yearLevelModal")).show();
     setTimeout(() => document.getElementById("yearlevel-input")?.focus(), 200);
-  }
+  };
 
-  async function confirmYearLevel(){
-    if (!currentClassId || !pendingAddNSN){
-      showModalAlert("#yearLevelModal","danger","Missing class or student selection.");
+  async function confirmYearLevel() {
+    if (!currentClassId || !pendingAddNSN) {
+      showModalAlert("#yearLevelModal", "danger", "Missing class or student selection.");
       return;
     }
+
     const input = document.getElementById("yearlevel-input");
     const raw = (input.value || "").trim();
     const n = Number(raw);
-    if (!raw || !Number.isFinite(n) || n < 0 || n > 13){
-      showModalAlert("#yearLevelModal","warning","Please enter a year level between 0 and 13.");
+    if (!raw || !Number.isFinite(n) || n < 0 || n > 13) {
+      showModalAlert("#yearLevelModal", "warning", "Please enter a year level between 0 and 13.");
       input.focus();
       return;
     }
 
-    const payload = { nsn: pendingAddNSN, class_id: currentClassId, year_level: n };
-    try{
-      const resp = await fetch("{{ url_for('class_bp.add_student_to_class') }}", {
-        method:"POST",
-        headers:{ "Content-Type":"application/json" },
-        credentials:"same-origin",
-        body: JSON.stringify(payload)
+    const { term, calendaryear } = currentTermYear();
+    const moe = $school.value;
+
+    const payload = { nsn: pendingAddNSN, class_id: currentClassId, moe, term, calendaryear, year_level: n };
+
+    try {
+      const resp = await fetch(URL_ADD_STUDENT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify(payload),
       });
-      if (!resp.ok){
-        showModalAlert("#yearLevelModal","danger","Failed to add student to class.");
+
+      if (!resp.ok) {
+        showModalAlert("#yearLevelModal", "danger", "Failed to add student to class.");
         return;
       }
+
       await loadStudents();
       rerunSearchIfRelevant();
 
@@ -659,97 +814,103 @@
 
       setTimeout(() => {
         if (_reopenAddAfterYearLevel) {
-          showModalAlert("#addStudentModal","success","Student added to class.",{timeout:1500});
+          showModalAlert("#addStudentModal", "success", "Student added to class.", { timeout: 1500 });
         }
       }, 300);
 
       pendingAddNSN = null;
     } catch {
-      showModalAlert("#yearLevelModal","danger","Network error while adding student.");
+      showModalAlert("#yearLevelModal", "danger", "Network error while adding student.");
     }
   }
 
-  /* Create & Add — disable button on click, strict success check + friendly errors */
-  async function createAndAdd(){
+  /* Create & Add */
+  async function createAndAdd() {
     const btn = document.getElementById("create-and-add-btn");
     if (btn?.disabled) return;
 
-    if (!currentClassId){
-      showModalAlert("#addStudentModal","warning","Pick a class first.");
+    if (!currentClassId) {
+      showModalAlert("#addStudentModal", "warning", "Pick a class first.");
       return;
     }
 
     const nsnRaw = (document.getElementById("new-nsn").value || "").trim();
-    if (!/^\d+$/.test(nsnRaw)){
-      showModalAlert("#addStudentModal","warning","NSN is required and must be numeric.");
+    if (!/^\d+$/.test(nsnRaw)) {
+      showModalAlert("#addStudentModal", "warning", "NSN is required and must be numeric.");
       return;
     }
 
-    // Year level optional; validate if present
     const ylRaw = (document.getElementById("new-yearlevel").value || "").trim();
     const ylNum = ylRaw === "" ? null : Number(ylRaw);
-    if (ylRaw !== "" && (!Number.isFinite(ylNum) || ylNum < 0 || ylNum > 13)){
-      showModalAlert("#addStudentModal","warning","Year level must be between 0 and 13.");
+    if (ylRaw !== "" && (!Number.isFinite(ylNum) || ylNum < 0 || ylNum > 13)) {
+      showModalAlert("#addStudentModal", "warning", "Year level must be between 0 and 13.");
       document.getElementById("new-yearlevel").focus();
       return;
     }
 
     const ethRaw = document.getElementById("new-eth").value;
-    const ethId  = (ethRaw === "" || ethRaw == null) ? null : Number(ethRaw);
+    const ethId = ethRaw === "" || ethRaw == null ? null : Number(ethRaw);
+
+    const { term, calendaryear } = currentTermYear();
 
     const payload = {
       class_id: currentClassId,
+      moe: $school.value,           // ✅ ADD THIS
+      term,
+      calendaryear,
       year_level: ylNum,
       student: {
         NSN: parseInt(nsnRaw, 10),
         FirstName: (document.getElementById("new-first").value || "").trim(),
-        LastName:  (document.getElementById("new-last").value  || "").trim(),
+        LastName: (document.getElementById("new-last").value || "").trim(),
         PreferredName: (document.getElementById("new-pref").value || "").trim(),
-        DateOfBirth: (document.getElementById("new-dob").value  || null),
-        EthnicityID: Number.isFinite(ethId) ? ethId : null
-      }
+        DateOfBirth: document.getElementById("new-dob").value || null,
+        EthnicityID: Number.isFinite(ethId) ? ethId : null,
+      },
     };
 
     setButtonBusy(btn, true);
 
-    try{
+    try {
       const resp = await fetch(URL_CREATE_AND_ADD, {
-        method:"POST",
-        headers:{ "Content-Type":"application/json" },
-        credentials:"same-origin",
-        body: JSON.stringify(payload)
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify(payload),
       });
 
       const bodyText = await resp.text();
-      let data = null; try { data = bodyText ? JSON.parse(bodyText) : null; } catch {}
+      let data = null;
+      try { data = bodyText ? JSON.parse(bodyText) : null; } catch {}
 
-      if (!resp.ok || !data || data.ok !== true){
-        const msg = (data && data.error)
-          ? data.error
-          : (bodyText || `HTTP ${resp.status}`);
-        showModalAlert("#addStudentModal","danger", msg);
+      if (!resp.ok || !data || data.ok !== true) {
+        const msg = data && data.error ? data.error : bodyText || `HTTP ${resp.status}`;
+        showModalAlert("#addStudentModal", "danger", msg);
         return;
       }
 
-      // Clear inputs on success
-      ["new-nsn","new-first","new-last","new-pref","new-dob","new-yearlevel"].forEach(id => {
-        const el = document.getElementById(id); if (el) el.value = "";
+      ["new-nsn", "new-first", "new-last", "new-pref", "new-dob", "new-yearlevel"].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.value = "";
       });
+
       await loadStudents();
       rerunSearchIfRelevant();
-      showModalAlert("#addStudentModal","success","Student created and added to class.");
-
-    } catch (e){
+      showModalAlert("#addStudentModal", "success", "Student created and added to class.");
+    } catch (e) {
       console.error("Network/JS error in createAndAdd:", e);
-      showModalAlert("#addStudentModal","danger","Network error while creating/adding student.");
+      showModalAlert("#addStudentModal", "danger", "Network error while creating/adding student.");
     } finally {
       setButtonBusy(btn, false);
     }
   }
 
-  /* utils */
-  function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[m])); }
-  function escapeAttr(s){ return String(s).replace(/"/g,"&quot;").replace(/'/g,"&#39;"); }
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]));
+  }
+  function escapeAttr(s) {
+    return String(s).replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
 </script>
 
 {% endblock %}
