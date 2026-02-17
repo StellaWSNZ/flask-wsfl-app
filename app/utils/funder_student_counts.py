@@ -258,8 +258,7 @@ def build_funder_student_counts_pdf(
             ],
             base_row_facecolor="#ffffff",
             row_color_fn=row_highlight,
-            merge_col_indicies=[0],
-            merge_key="Month",
+            merge_col_indices=[0],
             shift = True,
         )
 
