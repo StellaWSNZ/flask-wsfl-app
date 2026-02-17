@@ -218,8 +218,6 @@ def build_lifesavings_campaign_counts_pdf(
             body_fontsize= 11,
             base_row_facecolor="#ffffff",
             row_color_fn=row_highlight,
-            merge_first_col=False,
-            merge_key="",
             wrap=True,
             max_wrap_lines=10,
             shift=True,

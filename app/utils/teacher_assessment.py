@@ -392,8 +392,6 @@ def build_funder_teacher_assessment_summary_pdf(
                 columns=cols,
                 base_row_facecolor="#ffffff",
                 row_color_fn=row_highlight,
-                merge_first_col=False,
-                merge_key="",
                 wrap=True,
                 max_wrap_lines=10,
                 shift=True,

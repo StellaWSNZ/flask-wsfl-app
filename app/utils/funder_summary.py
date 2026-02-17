@@ -460,7 +460,6 @@ def build_funder_progress_summary_pdf(
 
             merge_first = bool(provider_col) and (provider_col in df_page.columns)
             merge_key = provider_col or ""
-
             draw_dataframe_table_v2(
                 ax,
                 df=df_page,
@@ -472,8 +471,7 @@ def build_funder_progress_summary_pdf(
                 columns=cols,
                 base_row_facecolor="#ffffff",
                 row_color_fn=row_highlight,
-                merge_first_col=merge_first,
-                merge_key=merge_key,
+                merge_col_indices=[0] if merge_first else None,
                 shift=False,
             )
 
