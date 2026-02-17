@@ -127,8 +127,15 @@ def save_page(pdf: PdfPages, fig: plt.Figure, footer_png: Optional[str] = None, 
 
 
 
-def close_pdf(pdf: PdfPages) -> str:
-    """Close PdfPages and return the absolute file path."""
-    path = Path(pdf._file.fh.name)  # type: ignore[attr-defined]
-    pdf.close()
-    return str(path.resolve())
+def close_pdf(pdf):
+    """
+    Close PdfPages safely across matplotlib versions.
+    Do NOT rely on pdf._file (private, can be None).
+    """
+    if pdf is None:
+        return
+
+    try:
+        pdf.close()
+    except Exception as e:
+        print(f"⚠️ close_pdf: could not close PDF cleanly: {e}")

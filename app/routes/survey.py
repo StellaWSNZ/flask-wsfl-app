@@ -164,7 +164,6 @@ def api_dropdown_options(survey_id, question_id):
             pass
         return jsonify([]), 500
 
-
 @survey_bp.route("/submit/<string:routename>", methods=["POST"])
 def submit_survey(routename):
     try:
@@ -172,17 +171,66 @@ def submit_survey(routename):
         if not email:
             return "Email required", 400
 
-        form = request.form  # MultiDict
-        current_app.logger.info("📝 submit_survey start | routename=%s | email=%s", routename, email)
+        form = request.form
+        current_app.logger.info(
+            "📝 submit_survey start | routename=%s | email=%s",
+            routename,
+            email,
+        )
 
-        # ---- Parse qN + qN_id pairs into dict
+        # -------------------------------------------------
+        # Helper execution wrappers (CLOSE RESULTS PROPERLY)
+        # -------------------------------------------------
+
+        def exec_one(conn, stmt, params=None):
+            r = conn.execute(stmt, params or {})
+            try:
+                return r.fetchone()
+            finally:
+                r.close()
+
+        def exec_scalar(conn, stmt, params=None):
+            r = conn.execute(stmt, params or {})
+            try:
+                row = r.fetchone()
+                return None if not row else row[0]
+            finally:
+                r.close()
+
+        def exec_all_mappings(conn, stmt, params=None):
+            r = conn.execute(stmt, params or {})
+            try:
+                return r.mappings().all()
+            finally:
+                r.close()
+
+        def exec_noresult(conn, stmt, params=None):
+            r = conn.execute(stmt, params or {})
+            try:
+                # consume any pending result sets safely
+                while True:
+                    if r.returns_rows:
+                        r.fetchall()
+                    if not r.nextset():
+                        break
+            except Exception:
+                pass
+            finally:
+                r.close()
+
+        # -------------------------------------------------
+        # Parse form into question dictionary
+        # -------------------------------------------------
+
         answers = {}
         for key in form.keys():
             m = re.fullmatch(r"q(\d+)(?:_id)?", key)
             if not m:
                 continue
+
             qid = m.group(1)
             answers.setdefault(qid, {"value": None, "id": None})
+
             if key.endswith("_id"):
                 answers[qid]["id"] = form.get(key) or None
             else:
@@ -191,79 +239,116 @@ def submit_survey(routename):
         current_app.logger.info("📦 parsed answers: %d questions", len(answers))
 
         engine = get_db_engine()
+
         with engine.begin() as conn:
-            # ---- Resolve SurveyID from route
+
+            # -------------------------------------------------
+            # Resolve SurveyID
+            # -------------------------------------------------
+
             if routename.startswith("guest/") and routename.split("/", 1)[1].isdigit():
                 survey_id = int(routename.split("/", 1)[1])
             else:
-                res = conn.execute(
+                row = exec_one(
+                    conn,
                     text("EXEC SVY_GetSurveyIDByRouteName @RouteName = :r"),
                     {"r": routename},
                 )
-                row = res.fetchone()
                 if not row:
-                    current_app.logger.warning("🔎 survey not found | routename=%s", routename)
                     return f"Survey '{routename}' not found", 400
-                survey_id = row[0] if hasattr(row, "__getitem__") else row.SurveyID
+                survey_id = row[0]
 
             current_app.logger.info("✅ resolved SurveyID=%s", survey_id)
 
-            # ---- Upsert respondent + fetch RespondentID
-            conn.execute(
+            # -------------------------------------------------
+            # Upsert respondent
+            # -------------------------------------------------
+
+            exec_noresult(
+                conn,
                 text("""
-                    EXEC SVY_InsertRespondent 
+                    EXEC SVY_InsertRespondent
                         @SurveyID = :sid,
                         @Email    = :email,
                         @RespondentID = NULL;
                 """),
                 {"sid": survey_id, "email": email},
             )
-            respondent_id = conn.execute(
-                text("EXEC SVY_GetRespondentID @SurveyID=:sid, @Email=:email;"),
+
+            respondent_id = exec_scalar(
+                conn,
+                text("""
+                    EXEC SVY_GetRespondentID
+                        @SurveyID = :sid,
+                        @Email    = :email;
+                """),
                 {"sid": survey_id, "email": email},
-            ).scalar()
+            )
+
             if not respondent_id:
                 raise RuntimeError("Could not retrieve RespondentID")
+
             current_app.logger.info("👤 RespondentID=%s", respondent_id)
 
-            # ---- Map QuestionID -> QuestionCode
-            qtypes = conn.execute(
-                text("EXEC SVY_GetQuestionTypesBySurveyID @SurveyID=:sid"),
+            # -------------------------------------------------
+            # Load Question Types
+            # -------------------------------------------------
+
+            qtypes = exec_all_mappings(
+                conn,
+                text("""
+                    EXEC SVY_GetQuestionTypesBySurveyID
+                        @SurveyID = :sid
+                """),
                 {"sid": survey_id},
-            ).mappings().all()
-            qtype_map = {str(r["QuestionID"]): r["QuestionCode"] for r in qtypes}
+            )
+
+            qtype_map = {
+                str(r["QuestionID"]): r["QuestionCode"]
+                for r in qtypes
+            }
+
             current_app.logger.info("🗺️ loaded %d question types", len(qtype_map))
 
-            # ---- Truthy/falsy sets
             truthy = {"1", "true", "t", "yes", "y", "on"}
             falsy  = {"0", "false", "f", "no", "n", "off"}
 
-            # ---- Insert answers
             inserted = 0
+
+            # -------------------------------------------------
+            # Insert Answers
+            # -------------------------------------------------
+
             for qid_str, payload in answers.items():
+
                 qtype = qtype_map.get(qid_str)
                 if not qtype:
                     continue
+
                 qid = int(qid_str)
                 val = payload.get("value")
                 opt_id_raw = payload.get("id")
                 opt_id = int(opt_id_raw) if (opt_id_raw and opt_id_raw.isdigit()) else None
 
+                # ----- Likert
                 if qtype == "LIK":
                     if val:
-                        conn.execute(
+                        exec_noresult(
+                            conn,
                             text("""
-                                EXEC SVY_InsertAnswer2 
-                                    @RespondentID = :rid, 
-                                    @QuestionID   = :qid, 
+                                EXEC SVY_InsertAnswer2
+                                    @RespondentID = :rid,
+                                    @QuestionID   = :qid,
                                     @AnswerLikert = :val;
                             """),
                             {"rid": respondent_id, "qid": qid, "val": int(val)},
                         )
                         inserted += 1
 
+                # ----- Dropdown
                 elif qtype == "DDL":
-                    row = conn.execute(
+                    row = exec_one(
+                        conn,
                         text("""
                             DECLARE @Resolved INT, @IsValid BIT;
                             EXEC dbo.SVY_ResolveAndValidateOption
@@ -273,37 +358,33 @@ def submit_survey(routename):
                                 @PostedValue=:v,
                                 @ResolvedOptionID=@Resolved OUTPUT,
                                 @IsValid=@IsValid OUTPUT;
-                            SELECT Resolved=@Resolved, IsValid=@IsValid;
+                            SELECT @Resolved AS Resolved;
                         """),
                         {"sid": survey_id, "qid": qid, "opt": opt_id, "v": val},
-                    ).mappings().first()
+                    )
 
-                    resolved_opt = row["Resolved"] if row else None
+                    resolved_opt = row[0] if row else None
 
                     if resolved_opt is not None:
-                        conn.execute(
+                        exec_noresult(
+                            conn,
                             text("""
                                 EXEC SVY_InsertAnswer2
-                                    @RespondentID    = :rid,
-                                    @QuestionID      = :qid,
-                                    @AnswerOptionID  = :opt,
-                                    @AnswerText      = :val;
+                                    @RespondentID   = :rid,
+                                    @QuestionID     = :qid,
+                                    @AnswerOptionID = :opt,
+                                    @AnswerText     = :val;
                             """),
-                            {"rid": respondent_id, "qid": qid, "opt": int(resolved_opt), "val": (val or None)},
-                        )
-                        inserted += 1
-                    elif val:
-                        conn.execute(
-                            text("""
-                                EXEC SVY_InsertAnswer2
-                                    @RespondentID = :rid,
-                                    @QuestionID   = :qid,
-                                    @AnswerText   = :val;
-                            """),
-                            {"rid": respondent_id, "qid": qid, "val": val},
+                            {
+                                "rid": respondent_id,
+                                "qid": qid,
+                                "opt": int(resolved_opt),
+                                "val": (val or None),
+                            },
                         )
                         inserted += 1
 
+                # ----- Boolean / YesNo / Checkbox
                 elif qtype in ("BOOL", "YN", "CHK"):
                     if val is not None:
                         v = str(val).strip().lower()
@@ -313,7 +394,9 @@ def submit_survey(routename):
                             b = 0
                         else:
                             b = 1 if v else 0
-                        conn.execute(
+
+                        exec_noresult(
+                            conn,
                             text("""
                                 EXEC SVY_InsertAnswer2
                                     @RespondentID  = :rid,
@@ -324,31 +407,43 @@ def submit_survey(routename):
                         )
                         inserted += 1
 
+                # ----- Text
                 else:
                     if val:
-                        conn.execute(
+                        exec_noresult(
+                            conn,
                             text("""
                                 EXEC SVY_InsertAnswer2
-                                    @RespondentID = :rid, 
-                                    @QuestionID   = :qid, 
+                                    @RespondentID = :rid,
+                                    @QuestionID   = :qid,
                                     @AnswerText   = :val;
                             """),
                             {"rid": respondent_id, "qid": qid, "val": val},
                         )
                         inserted += 1
 
-        current_app.logger.info("✅ submit_survey done | answers_inserted=%d", inserted)
+        current_app.logger.info(
+            "✅ submit_survey done | answers_inserted=%d",
+            inserted,
+        )
+
         flash("✅ Survey submitted successfully!", "success")
 
         rn_lower = routename.lower()
         if rn_lower.startswith("form/guest") or rn_lower.startswith("guest/"):
             return redirect("/thankyou")
+
         return redirect(url_for("survey_bp.list_my_surveys"))
 
     except Exception as e:
         tb = traceback.format_exc()
-        current_app.logger.error("❌ submit_survey error | route=%s | %s", routename, e, exc_info=True)
-        # best-effort DB alert
+        current_app.logger.error(
+            "❌ submit_survey error | route=%s | %s",
+            routename,
+            e,
+            exc_info=True,
+        )
+
         try:
             log_alert(
                 email=session.get("user_email"),
@@ -361,9 +456,11 @@ def submit_survey(routename):
             pass
 
         flash(f"❌ Error submitting survey: {e}", "danger")
+
         rn_lower = routename.lower()
         if rn_lower.startswith("form/guest") or rn_lower.startswith("guest/"):
             return redirect("/thankyou")
+
         return redirect(url_for("survey_bp.list_my_surveys"))
 
 @survey_bp.route("/submit/guest/<int:survey_id>", methods=["POST"])
