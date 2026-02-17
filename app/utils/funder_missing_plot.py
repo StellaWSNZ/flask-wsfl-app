@@ -273,7 +273,7 @@ def create_funder_missing_figure(
     load_ppmori_fonts("app/static/fonts")
 
     # ---- Filter to this funder (base df) ----
-    df_funder = df_all.loc[df_all["FunderName"] == funder_name].copy()
+    df_funder = df_all
     if debug:
         print("  ▶ after funder filter")
         print(f"    df_funder shape={df_funder.shape}")
@@ -594,4 +594,184 @@ def create_funder_missing_figure(
     fig.tight_layout()
     if debug:
         print("✅ create_funder_missing_figure completed successfully")
+    return fig
+
+def create_provider_missing_figure(
+    df_all: pd.DataFrame,
+    provider_name: str,
+    term: int,
+    calendaryear: int,
+    threshold: float = 0.5,
+    debug: bool = False,
+):
+    load_ppmori_fonts("app/static/fonts")
+
+    # ---- Filter to this provider ----
+    df_provider = df_all.loc[df_all["Provider"] == provider_name].copy()
+    if df_provider.empty:
+        return None
+
+    # -------------------------------
+    # 1) SCHOOL TABLE (school-level)
+    # -------------------------------
+    schools_df = df_provider[
+        ["FunderName", "SchoolName", "NumClasses", "EditedClasses", "TotalStudentsUnedited"]
+    ].copy()
+
+    schools_df["Classes edited (edited/total)"] = (
+        schools_df["EditedClasses"].fillna(0).astype(int).astype(str)
+        + " / "
+        + schools_df["NumClasses"].fillna(0).astype(int).astype(str)
+    )
+
+    schools_df["Students in unedited classes"] = (
+        schools_df["TotalStudentsUnedited"].fillna(0).astype(int)
+    )
+
+    dfd_schools = (
+        schools_df[
+            ["SchoolName", "FunderName", "Classes edited (edited/total)", "Students in unedited classes"]
+        ]
+        .sort_values(["FunderName", "SchoolName"])
+        .reset_index(drop=True)
+    )
+
+    # -------------------------------
+    # 2) FUNDER SUMMARY (optional)
+    # -------------------------------
+    tmp = df_provider.copy()
+    tmp["MissingClasses"] = (
+        tmp["NumClasses"].fillna(0) - tmp["EditedClasses"].fillna(0)
+    ).clip(lower=0)
+
+    funder_df = (
+        tmp.groupby("FunderName", as_index=False)
+        .agg(
+            **{
+                "Schools with Classes Yet to Submit Data": (
+                    "MissingClasses",
+                    lambda s: int((s > 0).sum()),
+                ),
+                "Total Classes Yet to Submit Data": ("MissingClasses", "sum"),
+            }
+        )
+        .sort_values("FunderName")
+        .reset_index(drop=True)
+    )
+
+    # -------------------------------
+    # 3) FIGURE + HEADER
+    # -------------------------------
+    fig, ax = plt.subplots(figsize=(8.27, 11.69))
+    ax.set_axis_off()
+
+    poly = rounded_rect_polygon(
+        cx=0.5, cy=0.955, width=0.88, height=0.05, ratio=0.45, corners_round=[1, 3], n_arc=64
+    )
+    ax.add_patch(
+        mpatches.Polygon(
+            list(poly.exterior.coords),
+            closed=True,
+            facecolor="#1a427d",
+            edgecolor="#1a427d",
+            linewidth=0.8,
+            transform=ax.transAxes,
+        )
+    )
+
+    draw_text_in_polygon(
+        ax,
+        poly=poly,
+        text=f"{get_display_name(provider_name)} Data Overview (Term {term}, {calendaryear})",
+        fontfamily="PP Mori",
+        fontsize=20,
+        fontweight="semibold",
+        color="#ffffff",
+        pad_frac=0.05,
+        wrap=True,
+        autoshrink=True,
+        min_fontsize=10,
+        clip_to_polygon=True,
+        zorder=6,
+    )
+
+    # -------------------------------
+    # 4) COLUMN DEFINITIONS
+    # -------------------------------
+    cols_school = [
+        {"key": "SchoolName", "label": "School", "width_frac": 0.38, "align": "left"},
+        {"key": "FunderName", "label": "Funder", "width_frac": 0.22, "align": "left"},
+        {"key": "Classes edited (edited/total)", "label": "Classes edited\n(edited/total)", "width_frac": 0.20, "align": "center"},
+        {"key": "Students in unedited classes", "label": "Students in\nunedited classes", "width_frac": 0.20, "align": "center"},
+    ]
+
+    cols_funder = [
+        {"key": "FunderName", "label": "Funder", "width_frac": 0.40, "align": "left"},
+        {"key": "Schools with Classes Yet to Submit Data", "label": "Schools with Classes\nYet to Submit Data", "width_frac": 0.30, "align": "center"},
+        {"key": "Total Classes Yet to Submit Data", "label": "Total Classes\nYet to Submit Data", "width_frac": 0.30, "align": "center"},
+    ]
+
+    blocks = [
+        Block(df=dfd_schools, columns=cols_school, header_height_frac=0.08, key="schools"),
+        Block(df=funder_df, columns=cols_funder, header_height_frac=0.12, key="funders"),
+    ]
+
+    poses = layout_tables_by_rows(
+        blocks, y_top=0.92, y_bottom=0.02, target_row_h=0.022, min_row_h=0.012, gap=0.020
+    )
+
+    FIXED_HEADER_AXES = 0.045
+
+    for b, p in zip(blocks, poses):
+        if b.df is None or b.df.empty or p.height <= 0:
+            ax.add_patch(Rectangle((0.06, p.y), 0.88, max(0.08, p.height),
+                                   transform=ax.transAxes, facecolor="#ffffff",
+                                   edgecolor="#cdd6e6", lw=0.8))
+            ax.text(0.50, p.y + max(0.08, p.height) / 2, "No data to display",
+                    transform=ax.transAxes, ha="center", va="center",
+                    fontsize=10, color="#667085", fontfamily="PP Mori")
+            continue
+
+        header_height_frac = FIXED_HEADER_AXES / max(p.height, 1e-6)
+        header_height_frac = max(0.02, min(header_height_frac, 0.40))
+
+        draw_dataframe_table(
+            ax,
+            df=b.df,
+            x=0.06, y=p.y, width=0.88, height=p.height,
+            columns=b.columns,
+            header_height_frac=header_height_frac,
+            header_facecolor="#1a427d",
+            header_textcolor="#ffffff",
+            header_fontfamily="PP Mori",
+            header_fontsize=10,
+            header_fontweight="semibold",
+            body_fontfamily="PP Mori",
+            body_fontsize=10,
+            body_textcolor="#101828",
+            row_alt_facecolor="#f2f5fb",
+            row_facecolor="#ffffff",
+            show_grid=True,
+            grid_color="#cdd6e6",
+            grid_linewidth=0.6,
+            border_color="#1a427d",
+            border_linewidth=1.0,
+            pad_x_frac=0.01,
+            pad_y_frac=0.005,
+            default_align="left",
+            wrap=True,
+            max_wrap_lines=3,
+            footer=(
+                f"Edited = classes with over {threshold*100:.0f}% of students changed. Unedited students = total students in those classes."
+                if b.key == "schools"
+                else None
+            ),
+            footer_align="left",
+            footer_fontsize=9,
+            footer_color="#667085",
+            footer_gap_frac=0.005,
+            DEBUG=False,
+        )
+
+    fig.tight_layout()
     return fig

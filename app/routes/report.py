@@ -323,7 +323,7 @@ def _validate_required_entities(
     Returns None if validation passes.
     """
     needs_region  = selected_type in {
-        "region_ly_vs_target",
+        "region_ly_vs_target","region_ytd",
     }
     if needs_region and not region_id:
         msg = "Please choose a region."
@@ -576,6 +576,20 @@ def _execute_report(
         res = conn.execute(sql, params)
         results = res.mappings().all()
         current_app.logger.info("🔎 rows=%d | type=%s", len(results or []), selected_type)
+    elif selected_type == "region_ytd":
+        sql = text(
+            """
+            SET NOCOUNT ON;
+            EXEC [GetRegionalCouncilRates_kaiako]
+                @CalendarYear = :CalendarYear,
+                @Term         = :Term,
+                @Region = :Region;
+            """
+        )
+        params = {"CalendarYear": selected_year, "Term": selected_term,"Region":region_id}
+        res = conn.execute(sql, params)
+        results = res.mappings().all()
+        current_app.logger.info("🔎 rows=%d | type=%s", len(results or []), selected_type)
     # ✅ IMPORTANT: return list-of-row-mappings (NOT DataFrame)
     elif selected_type == "funder_targets_counts":
         sql = text("SET NOCOUNT ON; EXEC GetFunderTargetsCounts;")
@@ -602,11 +616,12 @@ def _execute_report(
         sql = text(
             """
             SET NOCOUNT ON;
-            EXEC FlaskGetSchoolSummaryAllFunders
+            EXEC FlaskGetSchoolSummaryByFunder
                 @CalendarYear = :CalendarYear,
                 @Term         = :Term,
                 @Threshold    = :Threshold,
-                @Email        = :Email;
+                @Email        = :Email,
+                @FunderName = :f;
             """
         )
         params = {
@@ -614,18 +629,15 @@ def _execute_report(
             "Term": selected_term,
             "Threshold": threshold,
             "Email": session.get("user_email"),
+            "f": selected_funder_name,
         }
         res = conn.execute(sql, params)
         rows = res.mappings().all()
         results = rows
 
         df_all = pd.DataFrame(rows)
-        if selected_funder_name:
-            df_funder = df_all[df_all["FunderName"] == selected_funder_name].copy()
-        else:
-            df_funder = df_all.copy()
-
-        if df_funder.empty:
+        
+        if df_all.empty:
             msg = f"No data found for funder: {selected_funder_name}"
             if is_ajax:
                 early_response = (jsonify({"ok": False, "error": msg}), 400)
@@ -635,7 +647,7 @@ def _execute_report(
             return results, fig, no_data_banner, early_response
 
         fig = create_funder_missing_figure(
-            df_all=df_funder,
+            df_all=df_all,
             funder_name=selected_funder_name,
             term=selected_term,
             calendaryear=selected_year,
@@ -1061,7 +1073,28 @@ def _build_figure_from_results(
             title=f"{region_label} Last Year Result vs WSNZ Target",
             bar_series="ytd",
         )
-        
+    elif selected_type == "region_ytd":
+        vars_to_plot = ["Region Rate (YTD)", "Region Kaiako-Led Rate (YTD)", "Region Instructor-Led Rate (YTD)"]
+        colors_dict = {
+            "Region Instructor-Led Rate (YTD)": "#2EBDC2",
+            "Region Rate (YTD)": "#356FB6",
+            "Region Kaiako-Led Rate (YTD)": "#BBE6E9",
+        }
+        region_name = {
+            r["RegionalCouncil"]
+            for r in rows
+            if r.get("RegionalCouncil") is not None
+        }
+        region_name = next(iter(region_name), None) 
+        fig = r3.create_competency_report(
+            term=selected_term,
+            year=selected_year,
+            rows=rows,
+            funder_id = None,
+            vars_to_plot=vars_to_plot,
+            colors_dict=colors_dict,
+            region_name=region_name
+        )
     elif selected_type == "school_ytd_vs_target":
         try:
             use_ppmori("app/static/fonts")

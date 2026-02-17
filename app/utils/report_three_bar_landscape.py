@@ -324,7 +324,7 @@ def make_yeargroup_plot(ax, x, y_top, cell_height, title,
     draw_key(ax, cell_center, y_current - 0.05, vars_to_plot, colors_dict)
 
 def create_competency_report(term, year, funder_id, vars_to_plot, colors_dict,
-                             funder_name=None, rows=None):
+                             funder_name=None, region_name = None, rows=None):
     con = get_db_engine()
     competencies_df = load_competencies(con, year, term)
     competencies_df = competencies_df[competencies_df["WaterBased"] == 1]
@@ -339,6 +339,8 @@ def create_competency_report(term, year, funder_id, vars_to_plot, colors_dict,
         title = f"Competency Report for {funder_name}"
     elif funder_name is not None:
         title = f"Competency Report for {funder_name}"
+    elif region_name is not None:
+        title = f"{region_name} Competency Report"
     else:
         title = "Competency Report"
 

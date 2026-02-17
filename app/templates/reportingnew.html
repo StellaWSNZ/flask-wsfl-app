@@ -95,6 +95,9 @@
                   <option value="region_ly_vs_target" {{ "selected" if sel_type == "region_ly_vs_target" else "" }}>
                     Region LY vs WSNZ Target
                   </option>
+                  <option value="region_ytd" {{ "selected" if sel_type == "region_ytd" else "" }}>
+                    Region YTD (Kaiako vs Funder)
+                  </option>
                   <option value="funder_ytd_vs_funder_ly" {{ "selected" if sel_type == "funder_ytd_vs_funder_ly" else "" }}>
                     Funder LY vs Funder YTD
                   </option>
@@ -364,7 +367,7 @@
     }
 
     function needsRegion(val) {
-      return ["region_ly_vs_target"].includes(val);
+      return ["region_ly_vs_target","region_ytd",].includes(val);
     }
 
     async function loadFunders() {
@@ -518,7 +521,7 @@
       }
     }
 
-    let initialising = false;
+    let initialising = true;
     let fundersLoaded = false;
     let providersLoaded = false;
     let schoolsLoaded = false;
