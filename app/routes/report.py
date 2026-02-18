@@ -39,6 +39,7 @@ from app.utils.funder_missing_plot import (
     create_funder_missing_figure,
 )
 from app.utils.one_bar_one_line import provider_portrait_with_target, use_ppmori
+from app.utils.missing_classes_report import build_missing_classes_pdf
 
 import app.utils.report_three_bar_landscape as r3  # kept for other report types
 
@@ -342,6 +343,7 @@ def _validate_required_entities(
     needs_provider = selected_type in {
         "provider_ytd_vs_target",
         "provider_ytd_vs_target_vs_funder",
+        "provider_missing_classes",
     }
     
     if needs_provider and not selected_provider_id:
@@ -387,6 +389,7 @@ def _validate_required_entities(
         "funder_progress_summary",
         "funder_teacher_review_summary",
         "funder_ytd_vs_funder_ly",
+        "funder_missing_classes", 
     }
 
     if needs_funder and not funder_id:
@@ -758,7 +761,99 @@ def _execute_report(
 
         results = rows
         current_app.logger.info("🔎 rows=%d | type=%s", len(results or []), selected_type)
+    elif selected_type == "funder_missing_classes":
+    # --- PDF report (multi-page) for FUNDERS ---
+        try:
+            use_ppmori("app/static/fonts")
+        except Exception as font_e:
+            current_app.logger.info("⚠️ font setup skipped: %s", font_e)
 
+        report_id = session.get("report_id") or uuid.uuid4().hex
+        session["report_id"] = report_id
+
+        pdf_path = REPORT_DIR / f"{report_id}.pdf"
+
+        base_label_prefix = "funder-missing_classes"
+        threshold = 0.25
+
+        # Build PDF + return a preview fig for UI
+        preview_fig, meta = build_missing_classes_pdf(
+            conn=conn,
+            calendar_year=selected_year,
+            term=selected_term,
+            funder_id=int(funder_id) if funder_id is not None else None,
+            provider_id=None,  # ✅ IMPORTANT: funder-wide
+            threshold=threshold,
+            email=session.get("user_email"),
+            out_pdf_path=pdf_path,
+            footer_svg=Path(current_app.static_folder) / "footer.svg",
+            dpi=300,
+            page_size="A4",
+            orientation="portrait",
+            fonts_dir="app/static/fonts",
+            max_rows_per_page=25,
+        )
+
+        current_app.logger.info(
+            "📄 funder_missing_classes PDF pages=%s rows=%s raw=%s mode=%s funder_id=%s",
+            meta.get("pages"),
+            meta.get("rows_display"),
+            meta.get("rows_raw"),
+            meta.get("mode"),
+            funder_id,
+        )
+
+        results = None
+        fig = preview_fig
+    elif selected_type == "provider_missing_classes":
+        # --- PDF report (multi-page) ---
+        try:
+            use_ppmori("app/static/fonts")
+        except Exception as font_e:
+            current_app.logger.info("⚠️ font setup skipped: %s", font_e)
+
+        report_id = session.get("report_id") or uuid.uuid4().hex
+        session["report_id"] = report_id
+
+        pdf_path = REPORT_DIR / f"{report_id}.pdf"
+
+        # If you want the filename to say provider-missing_classes
+        provider_name = (request.form.get("provider_name") or "").strip() or "Provider"
+        base_label_prefix = "provider-missing_classes"
+
+        # threshold: match your stored proc default usage
+        threshold = 0.25
+
+        # Build PDF + return a preview fig for UI
+        preview_fig, meta = build_missing_classes_pdf(
+            conn=conn,
+            calendar_year=selected_year,
+            term=selected_term,
+            funder_id=int(funder_id) if funder_id is not None else None,
+            provider_id=int(selected_provider_id),
+            threshold=threshold,
+            email=session.get("user_email"),
+            out_pdf_path=pdf_path,
+            footer_svg=Path(current_app.static_folder) / "footer.svg",
+            dpi=300,
+            page_size="A4",
+            orientation="portrait",
+            fonts_dir="app/static/fonts",
+            max_rows_per_page=25,
+        )
+
+        # optional: log meta for debugging
+        current_app.logger.info(
+            "📄 provider_missing_classes PDF pages=%s rows=%s raw=%s mode=%s",
+            meta.get("pages"),
+            meta.get("rows_display"),
+            meta.get("rows_raw"),
+            meta.get("mode"),
+        )
+
+        # results are not used for this report type
+        results = None
+        fig = preview_fig
     # 6) Provider YTD vs Target (data only)
     elif selected_type == "provider_ytd_vs_target":
         if role == "ADM":
@@ -1146,7 +1241,8 @@ def _build_figure_from_results(
 
     # Add footer once here for all normal figures (including funder_targets_counts),
     # BUT only if fig exists.
-    if fig is not None:
+    if fig is not None and selected_type not in {"provider_missing_classes", "funder_missing_classes"}:
+
         c = "#1a427d" if selected_type == "funder_missing_data" else "#1a427d40"
         try:
             footer_svg = os.path.join(current_app.static_folder, "footer.svg")
@@ -1211,6 +1307,10 @@ def _persist_figure_and_session(
         base_label = f"ProviderVsFunder_{provider_name or 'Provider'}_{selected_funder_name or 'Funder'}"
     elif selected_type == "provider_ytd_vs_target":
         base_label = f"ProviderYTDvsTarget_{provider_name or 'Provider'}"
+    elif selected_type =="provider_missing_classes":
+        base_label = f"ProviderMissingClasses_{provider_name or 'Provider'}"
+    elif selected_type == "funder_missing_classes":
+        base_label = f"FunderMissingClasses_{selected_funder_name or 'Funder'}"
     elif selected_type == "school_ytd_vs_target":
         base_label = f"SchoolYTDvsTarget_{school_name or f'MOE_{selected_school_id}'}"
     elif selected_type == "national_ly_vs_national_ytd_vs_target":
@@ -1223,6 +1323,10 @@ def _persist_figure_and_session(
     elif selected_type == "region_ly_vs_target":
         region_label = (request.form.get("region_name") or "Region").strip()
         base_label = f"RegionLYvsTarget_{region_label}"
+        add_term = False
+    elif selected_type == "region_ytd":
+        region_label = (request.form.get("region_name") or "Region").strip()
+        base_label = f"RegionYTD_Kaiako_vs_Instructor_{region_label}"
         add_term = False
     elif selected_type == "funder_ytd_vs_funder_ly":
         base_label = f"FunderLYvsFunderTY_{selected_funder_name}"
@@ -1428,7 +1532,8 @@ def new_reports():
                     selected_funder_name=selected_funder_name,
                     is_ajax=is_ajax,
                 )
-                if fig is not None:
+                if fig is not None and selected_type not in {"provider_missing_classes", "funder_missing_classes"}:
+
                     try:
                         footer_svg = os.path.join(current_app.static_folder, "footer.svg")
                         c = "#1a427d" if selected_type == "funder_missing_data" else "#1a427d40"
@@ -1478,7 +1583,7 @@ def new_reports():
                     if extra_banner:
                         no_data_banner = extra_banner
                 
-                if selected_type in {"funder_student_count", "funder_progress_summary", "funder_teacher_review_summary"}:
+                if selected_type in {"funder_student_count", "funder_progress_summary", "funder_teacher_review_summary", "provider_missing_classes","funder_missing_classes",}:
                     if fig is not None:
                         prefix = (
                             "Funder_Student_Count"
@@ -1486,6 +1591,18 @@ def new_reports():
                             else "Funder_Progress_Summary"
                             if selected_type == "funder_progress_summary"
                             else "Funder_Teacher_Reviews_Summary"
+                            if selected_type == "funder_teacher_review_summary"
+                            else "provider_missing_classes"
+                            if selected_type == "provider_missing_classes"
+                            else "funder_missing_classes"   # ✅ NEW
+                        )
+
+                        provider_label = (request.form.get("provider_name") or "").strip() or f"Provider_{selected_provider_id or ''}"
+
+                        name_for_file = (
+                            provider_label
+                            if selected_type == "provider_missing_classes"
+                            else selected_funder_name   # funder_missing_classes + other funder PDFs
                         )
 
                         plot_png_b64 = _persist_preview_for_existing_report(
@@ -1493,7 +1610,7 @@ def new_reports():
                             fig=fig,
                             selected_term=selected_term,
                             selected_year=selected_year,
-                            selected_funder_name=selected_funder_name,
+                            selected_funder_name=name_for_file,
                             base_label_prefix=prefix,
                         )
                         display = True
@@ -1534,7 +1651,13 @@ def new_reports():
 
                     header_html = " • ".join(left_bits)
                     allow_png = bool(display) and (
-                        selected_type not in {"funder_student_count", "funder_progress_summary", "funder_teacher_review_summary"}
+                        selected_type not in {
+                            "funder_student_count",
+                            "funder_progress_summary",
+                            "funder_teacher_review_summary",
+                            "provider_missing_classes",
+                               "funder_missing_classes", 
+                        }
                     )
                     return jsonify(
                         {

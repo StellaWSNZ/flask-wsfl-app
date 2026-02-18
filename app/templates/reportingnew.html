@@ -133,7 +133,12 @@
                   <option value="funder_student_count" {{ "selected" if sel_type == "funder_student_count" else "" }}>
                     Funder Student Counts
                   </option>
-
+                  <option value="funder_missing_classes" {{ "selected" if sel_type == "funder_missing_classes" else "" }}>
+                    Funder Missing Classes
+                  </option>
+                  <option value="provider_missing_classes" {{ "selected" if sel_type == "provider_missing_classes" else "" }}>
+                    Provider Missing Classes
+                  </option>
                 {% elif role == "PRO" %}
                   <option value="provider_ytd_vs_target" {{ "selected" if sel_type == "provider_ytd_vs_target" else "" }}>
                     Provider YTD Performance vs WSNZ Target
@@ -141,7 +146,9 @@
                   <option value="school_ytd_vs_target" {{ "selected" if sel_type == "school_ytd_vs_target" else "" }}>
                     School YTD Performance vs WSNZ Target
                   </option>
-
+                  <option value="provider_missing_classes" {{ "selected" if sel_type == "provider_missing_classes" else "" }}>
+                    Provider Missing Classes
+                  </option>
                 {% elif role == "GRP" %}
                   <option value="provider_ytd_vs_target" {{ "selected" if sel_type == "provider_ytd_vs_target" else "" }}>
                     Provider YTD Performance vs WSNZ Target
@@ -346,7 +353,7 @@
     }
 
     function needsProvider(val) {
-      return ["provider_ytd_vs_target", "provider_ytd_vs_target_vs_funder"].includes(val);
+      return ["provider_ytd_vs_target", "provider_ytd_vs_target_vs_funder","provider_missing_classes"].includes(val);
     }
 
     function needsSchool(val) {
@@ -363,6 +370,7 @@
         "funder_progress_summary",
         "funder_teacher_review_summary",
         "funder_ytd_vs_funder_ly",
+        "funder_missing_classes",
       ].includes(val);
     }
 

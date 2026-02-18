@@ -22,7 +22,7 @@ def draw_text_in_polygon(
     wrap: bool = True,
     max_lines: int = 1,
     autoshrink: bool = True,
-    min_fontsize: float = 9,
+    min_fontsize: float = 6,
     clip_to_polygon: bool = True,
     zorder: int = 10,
 ):
