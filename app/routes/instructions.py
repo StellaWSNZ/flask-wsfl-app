@@ -2,10 +2,9 @@
 from __future__ import annotations
 
 import os
-import traceback
 import mimetypes
+import traceback
 from pathlib import Path
-from typing import Optional
 
 import pandas as pd
 from flask import (
@@ -18,7 +17,7 @@ from flask import (
     session,
     redirect,
     send_file,
-    make_response,
+    Response,
 )
 
 from app.routes.auth import login_required
@@ -32,7 +31,7 @@ instructions_bp = Blueprint("instructions_bp", __name__)
 # -----------------------------------------------------------------------------
 # Config / constants
 # -----------------------------------------------------------------------------
-ALLOWED_ROLES = {"PRO", "GRP", "FUN", "MOE"}  # Provider, Provider Group, Funder, School
+ALLOWED_ROLES = {"PRO", "GRP", "FUN", "MOE"}
 ADMIN_CODE = "ADM"
 
 ROLE_TO_LABEL = {
@@ -44,12 +43,6 @@ ROLE_TO_LABEL = {
 
 VIDEO_EXTS = {".mp4", ".webm", ".mov"}
 PDF_EXT = ".pdf"
-
-# Ensure correct MIME types in Linux containers
-mimetypes.add_type("video/mp4", ".mp4")
-mimetypes.add_type("video/webm", ".webm")
-mimetypes.add_type("video/quicktime", ".mov")
-mimetypes.add_type("application/pdf", ".pdf")
 
 
 def _is_render() -> bool:
@@ -68,15 +61,10 @@ def _label_to_role(label: str) -> str | None:
     }.get(key)
 
 
-def _is_admin_user(user_admin_val) -> bool:
-    # session might store 0/1 as int, bool, or string
-    return str(user_admin_val or "0") not in ("0", "", "None", "false", "False")
-
-
 def _log_role_dir_debug(role_code: str, role_dir: Path) -> None:
+    """Render-only filesystem debug logging."""
     if not _is_render():
         return
-
     try:
         current_app.logger.warning("=== INSTRUCTIONS DEBUG (RENDER) ===")
         current_app.logger.warning("role_code: %s", role_code)
@@ -86,121 +74,140 @@ def _log_role_dir_debug(role_code: str, role_dir: Path) -> None:
         current_app.logger.warning("role_dir_exists: %s", role_dir.exists())
 
         if role_dir.exists():
-            try:
-                children = sorted([p.name for p in role_dir.iterdir()], key=str.lower)
-            except Exception as e:
-                children = [f"<iterdir failed: {e}>"]
+            children = sorted([p.name for p in role_dir.iterdir()], key=str.lower)
             current_app.logger.warning("role_dir_children: %s", children)
 
-            try:
-                all_files = sorted(
-                    [str(p.relative_to(role_dir)) for p in role_dir.rglob("*") if p.is_file()],
-                    key=str.lower,
-                )
-                current_app.logger.warning("role_dir_rglob_file_count: %s", len(all_files))
-                current_app.logger.warning("role_dir_rglob_files_head: %s", all_files[:60])
-            except Exception as e:
-                current_app.logger.warning("role_dir_rglob_failed: %s", e)
+            all_files = sorted(
+                [str(p.relative_to(role_dir)) for p in role_dir.rglob("*") if p.is_file()],
+                key=str.lower,
+            )
+            current_app.logger.warning("role_dir_rglob_file_count: %s", len(all_files))
+            current_app.logger.warning("role_dir_rglob_files_head: %s", all_files[:60])
 
         current_app.logger.warning("=== END INSTRUCTIONS DEBUG (RENDER) ===")
     except Exception:
         current_app.logger.exception("Render debug logging failed")
 
 
+def _safe_resolve_under(base_dir: Path, filename: str) -> Path:
+    """
+    Prevent ../ traversal and ensure resolved path stays under base_dir.
+    """
+    if not filename or filename.strip() == "":
+        abort(404)
+
+    # Block path separators explicitly (we only allow files directly in role folder)
+    if "/" in filename or "\\" in filename:
+        abort(404)
+
+    full = (base_dir / filename).resolve()
+    base = base_dir.resolve()
+
+    if not str(full).startswith(str(base) + os.sep) and full != base:
+        abort(404)
+
+    if not full.exists() or not full.is_file():
+        abort(404)
+
+    return full
+
+
+def _user_can_access_role(role_code: str) -> bool:
+    user_role = (session.get("user_role") or "").upper()
+    if user_role == ADMIN_CODE:
+        return True
+    return user_role == role_code
+
+
+def _guess_mime(path: Path) -> str:
+    # Ensure MP4 is correct (mimetypes can be flaky in some containers)
+    suf = path.suffix.lower()
+    if suf == ".mp4":
+        return "video/mp4"
+    if suf == ".webm":
+        return "video/webm"
+    if suf == ".mov":
+        return "video/quicktime"
+    if suf == ".pdf":
+        return "application/pdf"
+    return mimetypes.guess_type(str(path))[0] or "application/octet-stream"
+
+
 # -----------------------------------------------------------------------------
-# ASSET ROUTE (fixes MP4 + inline PDF behaviour)
+# Asset route (THIS is the important bit for Render)
 # -----------------------------------------------------------------------------
 @instructions_bp.route("/instructions_asset/<role_code>/<path:filename>")
 @login_required
 def instructions_asset(role_code: str, filename: str):
     """
-    Serve instruction assets from static/instructions/<ROLE>/ with:
-      - correct mimetype
-      - inline PDF when requested
-      - Range-friendly video streaming (send_file supports conditional requests)
-    Query params:
-      ?inline=1   -> force Content-Disposition: inline
-      ?download=1 -> force Content-Disposition: attachment
+    Serves instruction assets with:
+      - auth checks
+      - safe path resolution
+      - conditional=True for Range/206 streaming
+      - correct Content-Disposition (inline vs attachment)
     """
     role = (role_code or "").upper()
     if role not in ALLOWED_ROLES:
         abort(404)
 
-    user_role = (session.get("user_role") or "").upper()
-    if user_role != ADMIN_CODE and user_role != role:
+    if not _user_can_access_role(role):
         abort(403)
 
     base_dir = Path(current_app.static_folder) / "instructions" / role
-    if not base_dir.exists():
-        abort(404)
+    full_path = _safe_resolve_under(base_dir, filename)
 
-    # Prevent path traversal
-    safe_path = (base_dir / filename).resolve()
-    if not str(safe_path).startswith(str(base_dir.resolve())):
-        abort(404)
+    mime = _guess_mime(full_path)
+    is_video = full_path.suffix.lower() in VIDEO_EXTS
+    is_pdf = full_path.suffix.lower() == PDF_EXT
 
-    if not safe_path.exists() or not safe_path.is_file():
-        abort(404)
+    # Query: ?download=1 (only meaningful for PDFs; videos should always be inline)
+    download = request.args.get("download", "").strip() in {"1", "true", "yes"}
+    inline = True if is_video else (not download)
 
-    ext = safe_path.suffix.lower()
-    if ext not in VIDEO_EXTS and ext != PDF_EXT:
-        abort(404)
-
-    mime, _ = mimetypes.guess_type(str(safe_path))
-    if not mime:
-        # fallback
-        mime = "application/octet-stream"
-
-    inline = request.args.get("inline") == "1"
-    download = request.args.get("download") == "1"
-
-    # If neither specified, default:
-    # - PDFs: inline (so “Open PDF” works)
-    # - Videos: inline
-    if ext == PDF_EXT and not download:
-        inline = True
-
-    as_attachment = bool(download) and not inline
-
-    # Key bit: conditional=True enables 206 for Range requests (video tag uses Range)
-    resp = send_file(
-        safe_path,
+    # Serve the file (conditional=True enables Range support when possible)
+    resp: Response = send_file(
+        full_path,
         mimetype=mime,
-        as_attachment=as_attachment,
-        download_name=safe_path.name if as_attachment else None,
+        as_attachment=(not inline),
+        download_name=full_path.name,
         conditional=True,
         max_age=0,
         etag=True,
         last_modified=True,
     )
 
-    # Force Content-Disposition for inline PDFs (browser opens tab instead of downloading)
-    if inline and not as_attachment:
-        # Werkzeug may omit Content-Disposition for inline; set explicitly
-        resp.headers["Content-Disposition"] = f'inline; filename="{safe_path.name}"'
+    # Force headers explicitly (helps browser behavior)
+    resp.headers["Content-Type"] = mime
+    resp.headers["Accept-Ranges"] = "bytes"
 
-    # Extra: tighten CSP issues (if you have strict CSP in header.html, this helps)
-    # (Only if you want; harmless if you don’t set CSP elsewhere)
-    resp.headers.setdefault("X-Content-Type-Options", "nosniff")
+    # Many browsers care about this for inline rendering
+    disp = "inline" if inline else "attachment"
+    resp.headers["Content-Disposition"] = f'{disp}; filename="{full_path.name}"'
 
-    # Render debugging: log exactly what the browser asked for
+    # Helpful debug
     if _is_render():
+        status = getattr(resp, "status_code", None)
+        rng = request.headers.get("Range")
         current_app.logger.warning(
             "INSTRUCTIONS_ASSET: role=%s file=%s status=%s range=%r mime=%s inline=%s download=%s user_role=%s",
             role,
-            filename,
-            resp.status_code,
-            request.headers.get("Range"),
+            full_path.name,
+            status,
+            rng,
             mime,
             inline,
             download,
-            user_role,
+            (session.get("user_role") or ""),
         )
 
     return resp
 
 
 def _discover_items_for_role(role_code: str, user_admin: int | None):
+    """
+    Scan static/instructions/<ROLE_CODE>/ and pair files by stem.
+    Admin-only items start with ADM_ and are hidden unless user_admin truthy.
+    """
     static_root = Path(current_app.static_folder)
     role_dir = static_root / "instructions" / role_code
 
@@ -214,17 +221,6 @@ def _discover_items_for_role(role_code: str, user_admin: int | None):
     for p in role_dir.rglob("*"):
         if p.is_file():
             stems.setdefault(p.stem, []).append(p)
-
-    def _asset_url(p: Path, *, inline: Optional[bool] = None, download: Optional[bool] = None) -> str:
-        rel = p.relative_to(role_dir).as_posix()
-        qs = {}
-        if inline is True:
-            qs["inline"] = "1"
-        if download is True:
-            qs["download"] = "1"
-        if qs:
-            return url_for("instructions_bp.instructions_asset", role_code=role_code, filename=rel, **qs)
-        return url_for("instructions_bp.instructions_asset", role_code=role_code, filename=rel)
 
     items = []
     for stem, files in stems.items():
@@ -242,19 +238,28 @@ def _discover_items_for_role(role_code: str, user_admin: int | None):
             continue
 
         is_admin_item = stem.upper().startswith("ADM_")
-        if is_admin_item and not _is_admin_user(user_admin):
+        if is_admin_item and not user_admin:
             continue
 
         clean_stem = stem[4:] if is_admin_item else stem
         title = clean_stem.replace("_", " ").strip()
 
+        def asset_url(p: Path, *, download: bool = False) -> str:
+            return url_for(
+                "instructions_bp.instructions_asset",
+                role_code=role_code,
+                filename=p.name,
+                download=("1" if download else None),
+            )
+
         items.append(
             {
                 "title": title,
-                "video_url": _asset_url(video_path) if video_path else None,
-                # For “open pdf”, we want inline; for “download pdf”, your HTML can add ?download=1
-                "pdf_url": _asset_url(pdf_path, inline=True) if pdf_path else None,
-                "pdf_download_url": _asset_url(pdf_path, download=True) if pdf_path else None,
+                # videos: ALWAYS inline
+                "video_url": asset_url(video_path) if video_path else None,
+                # pdf: provide both URLs so template can choose
+                "pdf_open_url": asset_url(pdf_path, download=False) if pdf_path else None,
+                "pdf_download_url": asset_url(pdf_path, download=True) if pdf_path else None,
                 "admin_only": bool(is_admin_item),
             }
         )
@@ -322,25 +327,12 @@ def instructions_for_label(label: str):
         if display_label == "ProviderGroup":
             display_label = "Provider Group"
 
-        debug_info = None
-        if _is_render() and user_role == ADMIN_CODE:
-            base_dir = Path(current_app.static_folder) / "instructions" / role_code
-            debug_info = {
-                "static_folder": str(current_app.static_folder),
-                "role_dir": str(base_dir),
-                "exists": base_dir.exists(),
-                "files": sorted([p.name for p in base_dir.iterdir() if p.is_file()], key=str.lower)
-                if base_dir.exists()
-                else [],
-            }
-
         return render_template(
             "instructions.html",
             role_code=role_code,
             role_label=display_label,
             items=items,
             user_role=user_role,
-            debug_info=debug_info,
         )
 
     except Exception as e:
@@ -421,7 +413,7 @@ def instructions_for_code(role_code: str):
 
 
 # -----------------------------------------------------------------------------
-# FAQ
+# FAQ (kept since you had it in this file)
 # -----------------------------------------------------------------------------
 def load_faq_rows():
     static_dir = Path(current_app.static_folder)
@@ -438,6 +430,7 @@ def load_faq_rows():
         raise RuntimeError(f"FAQ file is missing required columns: {missing}")
 
     df = df.dropna(how="all")
+
     records = df.to_dict(orient="records")
 
     grouped = {}
