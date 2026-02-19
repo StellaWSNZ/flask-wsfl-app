@@ -70,7 +70,11 @@ content %}
 
           <div class="d-flex gap-2">
             {% if item.pdf_url %}
-            <a class="btn btn-primary" href="{{ item.pdf_download_url }}">
+            <a
+              class="btn btn-primary"
+              href="{{ item.pdf_download_url or item.pdf_url }}"
+              download
+            >
               Download PDF
             </a>
 

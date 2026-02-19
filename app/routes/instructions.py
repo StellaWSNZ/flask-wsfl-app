@@ -46,18 +46,7 @@ VIDEO_EXTS = {".mp4", ".webm", ".mov"}
 PDF_EXT = ".pdf"
 
 
-
 def _discover_items_for_role(role_code: str, user_admin: int):
-    """
-    Scan static/instructions/<ROLE_CODE>/ and pair files by prefix (stem).
-
-    Naming rule:
-      - Normal item:     Staff_Maintenance.mp4 / Staff_Maintenance.pdf
-      - Admin only item: ADM_Staff_Maintenance.mp4 / ADM_Staff_Maintenance.pdf
-
-    Admin only items (stem starts with ADM_) are only shown if user_admin is truthy.
-    The ADM_ prefix is removed from the displayed title.
-    """
     static_root = Path(current_app.static_folder)
     role_dir = static_root / "instructions" / role_code
     if not role_dir.exists():
@@ -72,6 +61,7 @@ def _discover_items_for_role(role_code: str, user_admin: int):
     for stem, files in stems.items():
         video_path = None
         pdf_path = None
+
         for f in files:
             suf = f.suffix.lower()
             if suf in VIDEO_EXTS and video_path is None:
@@ -82,43 +72,31 @@ def _discover_items_for_role(role_code: str, user_admin: int):
         if not (video_path or pdf_path):
             continue
 
-        # Admin only flag based on stem prefix
         is_admin_item = stem.upper().startswith("ADM_")
-
-        # Hide admin items for non admin users
         if is_admin_item and not user_admin:
             continue
 
-        # Build clean title (strip ADM_ then replace underscores)
-        if is_admin_item:
-            clean_stem = stem[4:]  # drop "ADM_"
-        else:
-            clean_stem = stem
-
+        clean_stem = stem[4:] if is_admin_item else stem
         title = clean_stem.replace("_", " ").strip()
 
-        video_url = (
-            url_for(
+        def _static_url(path: Path) -> str:
+            return url_for(
                 "static",
-                filename=str(video_path.relative_to(static_root)).replace("\\", "/"),
+                filename=str(path.relative_to(static_root)).replace("\\", "/"),
             )
-            if video_path
-            else None
-        )
-        pdf_url = (
-            url_for(
-                "static",
-                filename=str(pdf_path.relative_to(static_root)).replace("\\", "/"),
-            )
-            if pdf_path
-            else None
-        )
+
+        video_url = _static_url(video_path) if video_path else None
+        pdf_url = _static_url(pdf_path) if pdf_path else None
+
+        # Download URL: same file, but we’ll add ?download=1 (works even if you later add logic)
+        pdf_download_url = (pdf_url + "?download=1") if pdf_url else None
 
         items.append(
             {
                 "title": title,
                 "video_url": video_url,
                 "pdf_url": pdf_url,
+                "pdf_download_url": pdf_download_url,
                 "admin_only": bool(is_admin_item),
             }
         )
