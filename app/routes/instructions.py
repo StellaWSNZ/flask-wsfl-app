@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import traceback
+import mimetypes
 from pathlib import Path
 
 import pandas as pd
@@ -15,6 +16,7 @@ from flask import (
     current_app,
     session,
     redirect,
+    send_from_directory,
 )
 
 from app.routes.auth import login_required
@@ -41,9 +43,15 @@ ROLE_TO_LABEL = {
 VIDEO_EXTS = {".mp4", ".webm", ".mov"}
 PDF_EXT = ".pdf"
 
+# Ensure correct MIME types in Linux containers
+mimetypes.add_type("video/mp4", ".mp4")
+mimetypes.add_type("video/webm", ".webm")
+mimetypes.add_type("video/quicktime", ".mov")
+mimetypes.add_type("application/pdf", ".pdf")
+
 
 def _is_render() -> bool:
-    # Render sets RENDER=true in the environment
+    # Render sets RENDER=true or has RENDER_SERVICE_ID
     return os.environ.get("RENDER") == "true" or bool(os.environ.get("RENDER_SERVICE_ID"))
 
 
@@ -75,14 +83,12 @@ def _log_role_dir_debug(role_code: str, role_dir: Path) -> None:
         current_app.logger.warning("role_dir_exists: %s", role_dir.exists())
 
         if role_dir.exists():
-            # show top-level files and folders
             try:
                 children = sorted([p.name for p in role_dir.iterdir()], key=str.lower)
             except Exception as e:
                 children = [f"<iterdir failed: {e}>"]
             current_app.logger.warning("role_dir_children: %s", children)
 
-            # show first N discovered files recursively (helps if you use subfolders)
             try:
                 all_files = sorted(
                     [str(p.relative_to(role_dir)) for p in role_dir.rglob("*") if p.is_file()],
@@ -96,8 +102,43 @@ def _log_role_dir_debug(role_code: str, role_dir: Path) -> None:
         current_app.logger.warning("=== END INSTRUCTIONS DEBUG (RENDER) ===")
 
     except Exception:
-        # never let debug logging crash the request
         current_app.logger.exception("Render debug logging failed")
+
+
+# -----------------------------------------------------------------------------
+# Asset route: serves MP4/PDF with Range support (fixes black/blank video on Render)
+# -----------------------------------------------------------------------------
+@instructions_bp.route("/instructions_asset/<role_code>/<path:filename>")
+@login_required
+def instructions_asset(role_code: str, filename: str):
+    """
+    Serve instruction assets with proper headers + Range/206 support via conditional=True.
+    This avoids MP4 "black box" / unclickable players on some deployments.
+    """
+    role = (role_code or "").upper()
+    if role not in ALLOWED_ROLES:
+        abort(404)
+
+    user_role = (session.get("user_role") or "").upper()
+    if user_role != ADMIN_CODE and user_role != role:
+        abort(403)
+
+    base_dir = Path(current_app.static_folder) / "instructions" / role
+    if not base_dir.exists():
+        abort(404)
+
+    # (Optional) Block sneaky extensions if you want
+    # ext = Path(filename).suffix.lower()
+    # if ext not in VIDEO_EXTS and ext != PDF_EXT:
+    #     abort(404)
+
+    # conditional=True enables Range requests for MP4 (206 Partial Content)
+    return send_from_directory(
+        directory=str(base_dir),
+        path=filename,
+        conditional=True,
+        max_age=0,  # set >0 later if you want caching
+    )
 
 
 def _discover_items_for_role(role_code: str, user_admin: int | None):
@@ -114,11 +155,9 @@ def _discover_items_for_role(role_code: str, user_admin: int | None):
     static_root = Path(current_app.static_folder)
     role_dir = static_root / "instructions" / role_code
 
-    # Render-only debug logging right where things go wrong
     _log_role_dir_debug(role_code, role_dir)
 
     if not role_dir.exists():
-        # Keep returning [] in production, but this log is critical on Render
         current_app.logger.warning("Instructions folder missing: %s", role_dir)
         return []
 
@@ -126,6 +165,11 @@ def _discover_items_for_role(role_code: str, user_admin: int | None):
     for p in role_dir.rglob("*"):
         if p.is_file():
             stems.setdefault(p.stem, []).append(p)
+
+    def _asset_url(p: Path) -> str:
+        # Build URL relative to role_dir (so subfolders work too)
+        rel = p.relative_to(role_dir).as_posix()
+        return url_for("instructions_bp.instructions_asset", role_code=role_code, filename=rel)
 
     items = []
     for stem, files in stems.items():
@@ -143,21 +187,20 @@ def _discover_items_for_role(role_code: str, user_admin: int | None):
             continue
 
         is_admin_item = stem.upper().startswith("ADM_")
-        if is_admin_item and not user_admin:
+        # IMPORTANT: session might store "0"/"1" as strings; coerce safely
+        is_admin_user = str(user_admin or "0") not in ("0", "", "None", "false", "False")
+
+        if is_admin_item and not is_admin_user:
             continue
 
         clean_stem = stem[4:] if is_admin_item else stem
         title = clean_stem.replace("_", " ").strip()
 
-        def _to_static_url(p: Path) -> str:
-            rel = p.relative_to(static_root).as_posix()
-            return url_for("static", filename=rel)
-
         items.append(
             {
                 "title": title,
-                "video_url": _to_static_url(video_path) if video_path else None,
-                "pdf_url": _to_static_url(pdf_path) if pdf_path else None,
+                "video_url": _asset_url(video_path) if video_path else None,
+                "pdf_url": _asset_url(pdf_path) if pdf_path else None,
                 "admin_only": bool(is_admin_item),
             }
         )
@@ -165,11 +208,7 @@ def _discover_items_for_role(role_code: str, user_admin: int | None):
     items.sort(key=lambda x: x["title"].lower())
 
     if _is_render():
-        current_app.logger.warning(
-            "RENDER: discovered %d items for role=%s",
-            len(items),
-            role_code,
-        )
+        current_app.logger.warning("RENDER: discovered %d items for role=%s", len(items), role_code)
 
     return items
 
@@ -194,9 +233,7 @@ def instructions_me():
 
         if user_role == ADMIN_CODE:
             DEFAULT_ADMIN_LABEL = "Funder"  # or "Provider" / "School" / "ProviderGroup"
-            return redirect(
-                url_for("instructions_bp.instructions_for_label", label=DEFAULT_ADMIN_LABEL)
-            )
+            return redirect(url_for("instructions_bp.instructions_for_label", label=DEFAULT_ADMIN_LABEL))
 
         return (
             render_template("error.html", error="You are not authorised to view that page.", code=403),
@@ -263,7 +300,7 @@ def instructions_for_label(label: str):
             role_label=display_label,
             items=items,
             user_role=user_role,
-            debug_info=debug_info,  # safe to ignore in template if not used
+            debug_info=debug_info,
         )
 
     except Exception as e:
@@ -283,11 +320,6 @@ def instructions_for_label(label: str):
 def instructions_debug(label: str):
     """
     Debug helper to confirm what files the server can see.
-    Visit:
-      /instructions_debug/provider
-      /instructions_debug/funder
-      /instructions_debug/school
-      /instructions_debug/providergroup
     """
     role_code = _label_to_role(label)
     if not role_code:
@@ -386,8 +418,7 @@ def load_faq_rows():
 @instructions_bp.route("/FAQ")
 def faq_page():
     """
-    FAQ page – reads the Excel each request so changes show as soon as
-    you save the file.
+    FAQ page – reads the Excel each request so changes show as soon as you save the file.
     """
     try:
         faq_groups = load_faq_rows()

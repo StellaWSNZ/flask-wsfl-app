@@ -42,10 +42,27 @@ content %}
         <div class="accordion-body">
           {% if item.video_url %}
           <div class="ratio ratio-16x9 mb-3">
-            <video controls preload="metadata" style="border-radius: 8px">
-              <source src="{{ item.video_url }}" type="video/mp4" />
+            <video
+              controls
+              playsinline
+              preload="metadata"
+              src="{{ item.video_url }}"
+              style="border-radius: 8px; width: 100%; height: 100%"
+            >
               Your browser does not support the video tag.
             </video>
+          </div>
+
+          <!-- Fallback: if video player fails, user can still open it -->
+          <div class="mb-3">
+            <a
+              class="btn btn-outline-primary btn-sm"
+              href="{{ item.video_url }}"
+              target="_blank"
+              rel="noopener"
+            >
+              Open video in new tab
+            </a>
           </div>
           {% else %}
           <p class="text-muted">No video available for this topic.</p>
@@ -53,16 +70,20 @@ content %}
 
           <div class="d-flex gap-2">
             {% if item.pdf_url %}
-            <a class="btn btn-primary" href="{{ item.pdf_url }}" download>
-              <i class="bi bi-file-earmark-arrow-down"></i> Download PDF
-            </a>
             <a
-              class="btn btn-outline-primary"
+              class="btn btn-primary"
               href="{{ item.pdf_url }}"
               target="_blank"
               rel="noopener"
             >
-              <i class="bi bi-box-arrow-up-right"></i> Open PDF
+              Open PDF
+            </a>
+            <a
+              class="btn btn-outline-primary"
+              href="{{ item.pdf_url }}"
+              download
+            >
+              Download PDF
             </a>
             {% else %}
             <span class="badge bg-secondary">No PDF</span>
