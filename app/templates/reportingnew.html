@@ -169,7 +169,7 @@
             <div class="mb-3" id="funderBlock" style="display: none">
               {% if role == "ADM" %}
                 <label for="selected_funder" class="form-label">Funder</label>
-                <select name="selected_funder" id="selected_funder" class="form-select">
+                <select name="selected_funder" id="selected_funder" class="form-select" disabled>
                   <option value="" disabled selected>Loading funders…</option>
                 </select>
 
@@ -189,7 +189,7 @@
             <!-- Region (only for region reports) -->
             <div class="mb-3" id="regionBlock" style="display: none">
               <label for="region_id" class="form-label">Region</label>
-              <select name="region_id" id="region_id" class="form-select">
+              <select name="region_id" id="region_id" class="form-select" disabled>
                 <option value="" disabled selected>Loading regions…</option>
               </select>
 
@@ -205,7 +205,7 @@
             <!-- Provider (only for provider reports) -->
             <div class="mb-3" id="providerBlock" style="display: none">
               <label for="provider_id" class="form-label">Provider</label>
-              <select name="provider_id" id="provider_id" class="form-select">
+              <select name="provider_id" id="provider_id" class="form-select" disabled>
                 <option value="" disabled selected>Choose provider…</option>
               </select>
             </div>
@@ -213,7 +213,7 @@
             <!-- School (MOE number) -->
             <div class="mb-3" id="schoolBlock" style="display: none">
               <label for="school_id" class="form-label">School</label>
-              <select name="school_id" id="school_id" class="form-select">
+              <select name="school_id" id="school_id" class="form-select" disabled>
                 <option value="" disabled selected>Choose school…</option>
               </select>
             </div>
@@ -353,7 +353,7 @@
     }
 
     function needsProvider(val) {
-      return ["provider_ytd_vs_target", "provider_ytd_vs_target_vs_funder","provider_missing_classes"].includes(val);
+      return ["provider_ytd_vs_target", "provider_ytd_vs_target_vs_funder", "provider_missing_classes"].includes(val);
     }
 
     function needsSchool(val) {
@@ -375,11 +375,26 @@
     }
 
     function needsRegion(val) {
-      return ["region_ly_vs_target","region_ytd",].includes(val);
+      return ["region_ly_vs_target", "region_ytd"].includes(val);
+    }
+
+    function hideAndClear(blockEl, selectEl, hiddenNameEl) {
+      if (blockEl) blockEl.style.display = "none";
+      if (selectEl) {
+        selectEl.disabled = true;
+        selectEl.value = "";
+      }
+      if (hiddenNameEl) hiddenNameEl.value = "";
+    }
+
+    function showAndEnable(blockEl, selectEl) {
+      if (blockEl) blockEl.style.display = "block";
+      if (selectEl) selectEl.disabled = false;
     }
 
     async function loadFunders() {
       if (!funderSel) return;
+      funderSel.disabled = false;
       funderSel.innerHTML = '<option value="" disabled>Loading funders…</option>';
 
       try {
@@ -388,7 +403,7 @@
         if (!data.ok) throw new Error(data.error || "Failed to load funders");
 
         const items = data.entities || [];
-        funderSel.innerHTML = '<option value="" disabled>Choose funder…</option>';
+        funderSel.innerHTML = '<option value="" disabled selected>Choose funder…</option>';
 
         let picked = false;
         for (const f of items) {
@@ -414,12 +429,14 @@
       } catch (err) {
         console.error("Error loading funders:", err);
         funderSel.innerHTML = '<option value="" disabled>Error loading funders</option>';
+        funderSel.disabled = true;
         if (funderNameInput) funderNameInput.value = "";
       }
     }
 
     async function loadRegions() {
       if (!regionSel) return;
+      regionSel.disabled = false;
       regionSel.innerHTML = '<option value="" disabled>Loading regions…</option>';
 
       try {
@@ -428,12 +445,12 @@
         if (!data.ok) throw new Error(data.error || "Failed to load regions");
 
         const items = data.entities || [];
-        regionSel.innerHTML = '<option value="" disabled>Choose region…</option>';
+        regionSel.innerHTML = '<option value="" disabled selected>Choose region…</option>';
 
         let picked = false;
         for (const r of items) {
           const opt = document.createElement("option");
-          opt.value = r.description;
+          opt.value = r.id;
           opt.textContent = r.description;
 
           if (prevRegionId && String(r.id) === String(prevRegionId)) {
@@ -455,12 +472,14 @@
       } catch (err) {
         console.error("Error loading regions:", err);
         regionSel.innerHTML = '<option value="" disabled>Error loading regions</option>';
+        regionSel.disabled = true;
         if (regionNameInput) regionNameInput.value = "";
       }
     }
 
     async function loadProviders() {
       if (!providerSel) return;
+      providerSel.disabled = false;
       providerSel.innerHTML = '<option value="" disabled>Loading providers…</option>';
 
       try {
@@ -470,7 +489,7 @@
         if (!data.ok) throw new Error(data.error || "Failed to load providers");
 
         const items = data.entities || [];
-        providerSel.innerHTML = '<option value="" disabled>Choose provider…</option>';
+        providerSel.innerHTML = '<option value="" disabled selected>Choose provider…</option>';
 
         let picked = false;
         for (const p of items) {
@@ -490,12 +509,14 @@
       } catch (err) {
         console.error("Error loading providers:", err);
         providerSel.innerHTML = '<option value="" disabled>Error loading providers</option>';
+        providerSel.disabled = true;
         providerNameInput.value = "";
       }
     }
 
     async function loadSchools() {
       if (!schoolSel) return;
+      schoolSel.disabled = false;
       schoolSel.innerHTML = '<option value="" disabled>Loading schools…</option>';
 
       try {
@@ -505,7 +526,7 @@
         if (!data.ok) throw new Error(data.error || "Failed to load schools");
 
         const items = data.entities || [];
-        schoolSel.innerHTML = '<option value="" disabled>Choose school…</option>';
+        schoolSel.innerHTML = '<option value="" disabled selected>Choose school…</option>';
 
         let picked = false;
         for (const s of items) {
@@ -525,6 +546,7 @@
       } catch (err) {
         console.error("Error loading schools:", err);
         schoolSel.innerHTML = '<option value="" disabled>Error loading schools</option>';
+        schoolSel.disabled = true;
         schoolNameInput.value = "";
       }
     }
@@ -538,63 +560,74 @@
     function toggleEntityBlocks() {
       const val = reportSel ? reportSel.value : "";
 
+      // FUNDER
       const wantFunder = needsFunder(val);
-      if (funderBlock) {
-        funderBlock.style.display = wantFunder ? "block" : "none";
-        if (wantFunder && ROLE === "ADM" && !fundersLoaded) {
+      if (wantFunder) {
+        showAndEnable(funderBlock, funderSel);
+        if (ROLE === "ADM" && funderSel && !fundersLoaded) {
           fundersLoaded = true;
           loadFunders();
         }
+      } else {
+        hideAndClear(funderBlock, funderSel, funderNameInput);
       }
 
+      // REGION
       const wantRegion = needsRegion(val);
-      if (regionBlock) {
-        regionBlock.style.display = wantRegion ? "block" : "none";
-        if (wantRegion && !regionsLoaded) {
+      if (wantRegion) {
+        showAndEnable(regionBlock, regionSel);
+        if (!regionsLoaded) {
           regionsLoaded = true;
           loadRegions();
         }
-      } else if (!wantRegion && regionSel) {
-        regionSel.innerHTML = '<option value="" disabled>Choose region…</option>';
-        if (regionNameInput) regionNameInput.value = "";
+      } else {
+        hideAndClear(regionBlock, regionSel, regionNameInput);
       }
 
+      // PROVIDER
       const wantProvider = needsProvider(val);
-      if (providerBlock) providerBlock.style.display = wantProvider ? "block" : "none";
-      if (wantProvider && !initialising && !providersLoaded) {
-        providersLoaded = true;
-        loadProviders();
-      } else if (!wantProvider && providerSel) {
-        providerSel.innerHTML = '<option value="" disabled>Choose provider…</option>';
-        providerNameInput.value = "";
+      if (wantProvider) {
+        showAndEnable(providerBlock, providerSel);
+        if (!initialising && !providersLoaded) {
+          providersLoaded = true;
+          loadProviders();
+        }
+      } else {
+        hideAndClear(providerBlock, providerSel, providerNameInput);
       }
 
+      // SCHOOL
       const wantSchool = needsSchool(val);
-      if (schoolBlock) schoolBlock.style.display = wantSchool ? "block" : "none";
-      if (wantSchool && !initialising && !schoolsLoaded) {
-        schoolsLoaded = true;
-        loadSchools();
-      } else if (!wantSchool && schoolSel) {
-        schoolSel.innerHTML = '<option value="" disabled>Choose school…</option>';
-        schoolNameInput.value = "";
+      if (wantSchool) {
+        showAndEnable(schoolBlock, schoolSel);
+        if (!initialising && !schoolsLoaded) {
+          schoolsLoaded = true;
+          loadSchools();
+        }
+      } else {
+        hideAndClear(schoolBlock, schoolSel, schoolNameInput);
       }
     }
 
     if (providerSel) {
       providerSel.addEventListener("change", () => {
-        providerNameInput.value = providerSel.options[providerSel.selectedIndex]?.textContent?.trim() || "";
+        if (!providerSel.disabled) {
+          providerNameInput.value = providerSel.options[providerSel.selectedIndex]?.textContent?.trim() || "";
+        }
       });
     }
 
     if (schoolSel) {
       schoolSel.addEventListener("change", () => {
-        schoolNameInput.value = schoolSel.options[schoolSel.selectedIndex]?.textContent?.trim() || "";
+        if (!schoolSel.disabled) {
+          schoolNameInput.value = schoolSel.options[schoolSel.selectedIndex]?.textContent?.trim() || "";
+        }
       });
     }
 
     if (funderSel) {
       funderSel.addEventListener("change", () => {
-        if (funderNameInput) {
+        if (!funderSel.disabled && funderNameInput) {
           funderNameInput.value = funderSel.options[funderSel.selectedIndex]?.textContent?.trim() || "";
         }
       });
@@ -602,7 +635,7 @@
 
     if (regionSel) {
       regionSel.addEventListener("change", () => {
-        if (regionNameInput) {
+        if (!regionSel.disabled && regionNameInput) {
           regionNameInput.value = regionSel.options[regionSel.selectedIndex]?.textContent?.trim() || "";
         }
       });
@@ -638,7 +671,7 @@
 
       e.preventDefault();
 
-      // Sync visible labels → hidden name fields
+      // Sync visible labels → hidden name fields (ONLY if enabled)
       const funderSel = document.getElementById("selected_funder");
       const funderNameInput = document.getElementById("funder_name");
 
@@ -651,17 +684,28 @@
       const schoolSel = document.getElementById("school_id");
       const schoolNameInp = document.getElementById("school_name");
 
-      if (funderSel && funderNameInput && funderSel.selectedIndex >= 0) {
+      if (funderSel && funderNameInput && !funderSel.disabled && funderSel.selectedIndex >= 0) {
         funderNameInput.value = funderSel.options[funderSel.selectedIndex]?.textContent?.trim() || "";
+      } else if (funderNameInput) {
+        funderNameInput.value = "";
       }
-      if (regionSel && regionNameInp && regionSel.selectedIndex >= 0) {
+
+      if (regionSel && regionNameInp && !regionSel.disabled && regionSel.selectedIndex >= 0) {
         regionNameInp.value = regionSel.options[regionSel.selectedIndex]?.textContent?.trim() || "";
+      } else if (regionNameInp) {
+        regionNameInp.value = "";
       }
-      if (providerSel && providerNameInp && providerSel.selectedIndex >= 0) {
+
+      if (providerSel && providerNameInp && !providerSel.disabled && providerSel.selectedIndex >= 0) {
         providerNameInp.value = providerSel.options[providerSel.selectedIndex]?.textContent?.trim() || "";
+      } else if (providerNameInp) {
+        providerNameInp.value = "";
       }
-      if (schoolSel && schoolNameInp && schoolSel.selectedIndex >= 0) {
+
+      if (schoolSel && schoolNameInp && !schoolSel.disabled && schoolSel.selectedIndex >= 0) {
         schoolNameInp.value = schoolSel.options[schoolSel.selectedIndex]?.textContent?.trim() || "";
+      } else if (schoolNameInp) {
+        schoolNameInp.value = "";
       }
 
       // Loading state

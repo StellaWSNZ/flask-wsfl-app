@@ -421,28 +421,41 @@ def helper():
             message=f"/helper failed (request={req}, number={number}): {e}\n{traceback.format_exc()}"[:4000],
         )
         return jsonify([]), 500
-
-
 @staff_bp.post("/add_school_to_funder")
 @login_required
 def add_school_to_funder():
+    print("\n==============================")
+    print("🚀 add_school_to_funder called")
+    print("==============================")
+
     data = request.get_json(silent=True) or {}
+    print("📦 Raw payload:", data)
+
     moe       = data.get("MoeNumber")
     term      = data.get("Term")
     year      = data.get("CalendarYear")
     funder    = data.get("FunderID")
     provider  = data.get("ProviderID")   # optional
 
+    print(f"➡ Parsed values | MOE={moe} | Term={term} | Year={year} | Funder={funder} | Provider={provider}")
+
     # Validate
     if not all([moe, term, year, funder]):
+        print("❌ Missing required fields")
         return jsonify(ok=False, error="Missing required fields."), 400
 
-    # Authorize (FUN only)
-
-
     try:
+        term_i = int(term)
+        year_i = int(year)
+        moe_i  = int(moe)
+        fid_i  = int(funder)
+        pid_i  = int(provider) if provider is not None else None
+
+        print(f"🔢 Converted to ints | MOE={moe_i} | Term={term_i} | Year={year_i} | Funder={fid_i} | Provider={pid_i}")
+
         with get_db_engine().begin() as conn:
-            # Call stored proc; include ProviderID if given
+            print("🗄 Executing stored procedure AddSchoolFunder")
+
             result = conn.execute(
                 text("""
                     EXEC FlaskHelperFunctionsSpecific
@@ -454,54 +467,50 @@ def add_school_to_funder():
                         @request    = :req
                 """),
                 {
-                    "term": int(term),
-                    "yr":   int(year),
-                    "moe":  int(moe),
-                    "fid":  int(funder),
-                    "pid":  int(provider) if provider is not None else None,
+                    "term": term_i,
+                    "yr":   year_i,
+                    "moe":  moe_i,
+                    "fid":  fid_i,
+                    "pid":  pid_i,
                     "req":  "AddSchoolFunder",
                 }
             )
 
-            # Optional: read a returned (ok, message)
+            print("✅ Stored procedure executed")
+
+            # Read returned row if exists
             try:
                 row = result.fetchone()
+                print("📄 Stored procedure returned:", row)
+
                 if row is not None:
                     ok  = row[0] if len(row) > 0 else True
                     msg = row[1] if len(row) > 1 else None
-                    if str(ok).lower() in ("0", "false", "none"):
-                        return jsonify(ok=False, error=msg or "Stored procedure reported failure."), 400
-            except Exception:
-                # No result set returned; assume success if no exception thrown
-                pass
 
+                    print(f"🔎 SP Result | ok={ok} | message={msg}")
+
+                    if str(ok).lower() in ("0", "false", "none"):
+                        print("❌ SP reported failure")
+                        return jsonify(ok=False, error=msg or "Stored procedure reported failure."), 400
+
+            except Exception as read_err:
+                print("ℹ No result set returned from stored procedure:", read_err)
+
+        print("🎉 add_school_to_funder SUCCESS")
         return jsonify(ok=True)
 
     except Exception as e:
-        # Specific duplicate key handling
-        msg = str(e)
-        if "2627" in msg or "2601" in msg:
-            friendly = "This school/term/year is already linked to this funder."
-            # Log duplicate as well (useful to track)
-            log_alert(
-                email=session.get("user_email"),
-                role=session.get("user_role"),
-                entity_id=session.get("user_id"),
-                link=url_for("staff_bp.add_school_to_funder", _external=True),
-                message=f"Duplicate link attempt in add_school_to_funder: {data}\n{msg}",
-            )
-            return jsonify(ok=False, error=friendly), 409
+        print("🔥 Exception in add_school_to_funder")
+        print("Error:", e)
+        print(traceback.format_exc())
 
-        # Log unexpected errors
-        log_alert(
-            email=session.get("user_email"),
-            role=session.get("user_role"),
-            entity_id=session.get("user_id"),
-            link=url_for("staff_bp.add_school_to_funder", _external=True),
-            message=f"add_school_to_funder failed payload={data}: {e}\n{traceback.format_exc()}"[:4000],
-        )
+        msg = str(e)
+
+        if "2627" in msg or "2601" in msg:
+            print("⚠ Duplicate key detected")
+            return jsonify(ok=False, error="This school/term/year is already linked to this funder."), 409
+
         return jsonify(ok=False, error=msg), 500
-    
     
 
 
