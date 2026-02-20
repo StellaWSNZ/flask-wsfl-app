@@ -206,7 +206,8 @@
                           <tr>
                             <th>Year</th>
                             <th>Term</th>
-                            <th class="text-end">Class Lists Uploaded</th>
+                            <th>Class Lists Uploaded</th>
+                            <th>Provider</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -214,7 +215,8 @@
                             <tr>
                               <td>{{ c['CalendarYear'] }}</td>
                               <td>Term {{ c['Term'] }}</td>
-                              <td class="text-end">{{ c['Count'] }}</td>
+                              <td >{{ c['Count'] }}</td>
+                                <td>{{ c.get('Providers', 'Unassigned') }}</td>
 
                             </tr>
                           {% endfor %}

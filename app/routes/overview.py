@@ -477,6 +477,7 @@ def funder_dashboard():
                 "NumClasses": "Number of Classes",
                 "EditedClasses": "Classes Edited",
                 "TotalStudents": "Total Students",
+                "TotalStudentsUnedited": "Total Students Unedited",
             }
         )
 
@@ -1062,7 +1063,6 @@ def funder_schools():
     engine  = get_db_engine()
     user_id = session.get("user_id")
 
-    # ✅ safe session parsing (can be None)
     sel_term_raw = (session.get("nearest_term") or "")
     sel_year_raw = (session.get("nearest_year") or "")
     sel_term = int(sel_term_raw) if str(sel_term_raw).isdigit() else None
@@ -1085,6 +1085,9 @@ def funder_schools():
 
     try:
         with engine.connect() as conn:
+            # ----------------------------
+            # Resolve funder for ADM vs FUN
+            # ----------------------------
             if user_role == "ADM":
                 funders = conn.execute(
                     text("EXEC FlaskHelperFunctions @Request = :r"),
@@ -1110,6 +1113,11 @@ def funder_schools():
                     selected_term=sel_term,
                 )
 
+            # ----------------------------
+            # Pull raw data (includes ClassCountsJson)
+            # ClassCountsJson items should now include:
+            #   CalendarYear, Term, Count, Providers
+            # ----------------------------
             raw = conn.execute(
                 text("EXEC FlaskHelperFunctions @Request = :r, @Number = :fid"),
                 {"r": "FunderSchoolOverview", "fid": selected_funder}
@@ -1120,6 +1128,8 @@ def funder_schools():
 
             for r in raw:
                 class_counts = parse_list(r.get("ClassCountsJson"))
+
+                # Track all available year/term pairs
                 for c in class_counts:
                     y = c.get("CalendarYear")
                     t = c.get("Term")
@@ -1129,32 +1139,48 @@ def funder_schools():
                 pre_rows.append({
                     "MOENumber":        r.get("MOENumber"),
                     "SchoolName":       r.get("SchoolName"),
+
                     "ActiveUserCount":  int(r.get("ActiveUserCount", 0) or 0),
                     "HasActiveUsers":   int(r.get("HasActiveUsers", 0) or 0),
                     "Contacts":         parse_list(r.get("ContactsJson")),
                     "InactiveContacts": parse_list(r.get("InactiveContactsJson")),
+
+                    "InactiveUserCount": int(r.get("InactiveUserCount", 0) or 0),
+                    "OtherStaffCount":   int(r.get("OtherStaffCount", 0) or 0),
+                    "OtherStaff":        parse_list(r.get("OtherStaffJson")),
+
                     "TotalClasses":     int(r.get("TotalClasses", 0) or 0),
                     "ClassCounts":      class_counts,
                 })
 
+            # Default selection if session didn't have it
             if (sel_year is None or sel_term is None) and all_year_terms:
                 latest_y, latest_t = sorted(all_year_terms, key=lambda p: (p[0], p[1]), reverse=True)[0]
                 sel_year = latest_y if sel_year is None else sel_year
                 sel_term = latest_t if sel_term is None else sel_term
 
+            # ----------------------------
+            # Compute SelectedClasses + SelectedProviders per school
+            # ----------------------------
             rows = []
             for r in pre_rows:
-                selected_count = 0
-                if isinstance(sel_year, int) and isinstance(sel_term, int):
-                    for c in (r["ClassCounts"] or []):
-                        if c.get("CalendarYear") == sel_year and c.get("Term") == sel_term:
-                            selected_count += int(c.get("Count", 0) or 0)
+                # Build quick lookup: (year, term) -> entry
+                counts_lookup = {
+                    (c.get("CalendarYear"), c.get("Term")): c
+                    for c in (r.get("ClassCounts") or [])
+                }
+                entry = counts_lookup.get((sel_year, sel_term), {}) or {}
 
                 r["SelectedYear"] = sel_year
                 r["SelectedTerm"] = sel_term
-                r["SelectedClasses"] = selected_count
-                rows.append(r)
+                r["SelectedClasses"] = int(entry.get("Count", 0) or 0)
 
+                # NEW: Providers for the selected term/year
+                prov = entry.get("Providers")
+                r["SelectedProviders"] = str(prov).strip() if prov is not None and str(prov).strip() else "Unassigned"
+
+                rows.append(r)
+        
         return render_template(
             "funder_schools.html",
             rows=rows,
@@ -1170,7 +1196,7 @@ def funder_schools():
         current_app.logger.exception(f"[FunderSchools ERROR] err_id={err_id}")
 
         try:
-            log_alert(  # or log_alerts — make sure the name matches your real function
+            log_alert(
                 email=session.get("user_email"),
                 role=session.get("user_role"),
                 entity_id=selected_funder,
