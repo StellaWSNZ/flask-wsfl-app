@@ -162,6 +162,15 @@ def staff_maintenance():
                     )
                     rows = result.fetchall()
                     staff_data = pd.DataFrame(rows, columns=result.keys())
+                    id_cols = ["LastSelfReviewID", "LastExternalReviewID"]
+
+                    for c in id_cols:
+                        if c in staff_data.columns:
+                            staff_data[c] = pd.to_numeric(staff_data[c], errors="coerce")
+                            staff_data[c] = staff_data[c].astype("Int64")  # nullable integer
+
+                    # 🔹 Convert pandas NA to real Python None before sending to Jinja
+                    staff_rows = staff_data.where(pd.notnull(staff_data), None).to_dict("records")
                     columns = result.keys()
                     print(staff_data.columns)
                     hidden_result = conn.execute(
@@ -192,7 +201,7 @@ def staff_maintenance():
             funder_list=[],
             allowed_popup=funder_popup_allowed,
             funder_popup_allowed=funder_popup_allowed,  # ✅ IMPORTANT for the JS
-            data=staff_data.to_dict(orient="records"),
+            data = staff_data.where(pd.notnull(staff_data), None).to_dict(orient="records"),
             columns=columns,
             name=(desc or "") + "'s Staff eLearning",
             user_role=user_role,

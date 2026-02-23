@@ -173,16 +173,27 @@
                   {% endif %}
                   <p class="mb-1">
                     <strong>Last Self Review:</strong>
-                    {% if row.LastSelfReview and row.LastSelfReview|string != "NaT" %}
-                      {{ row.LastSelfReview.strftime('%d %B %Y, %H:%M') }}
-                    {% else %}N/A{% endif %}
+                    {% if row.LastSelfReview and row.LastSelfReviewID %}
+                      <a href="{{ url_for('survey_bp.view_my_survey_response', respondent_id=row.LastSelfReviewID) }}"   class="text-decoration-none text-dark">
+
+                        {{ row.LastSelfReview.strftime('%d %B %Y, %H:%M') }}
+                      </a>
+                    {% else %}
+                      N/A
+                    {% endif %}
                   </p>
-                  <p class="mb-1"><strong>Last External Review:</strong>
-                  {% if row.LastExternalReview and row.LastExternalReview|string != "NaT" %}
-                      {{ row.LastExternalReview.strftime('%d %B %Y, %H:%M') }}
-                    {% else %}N/A{% endif %}
-                  </p>
-                </div>
+                 <p class="mb-1">
+  <strong>Last External Review:</strong>
+  {% if row.LastExternalReview and row.LastExternalReviewID %}
+    <a href="{{ url_for('survey_bp.view_my_survey_response', respondent_id=row.LastExternalReviewID) }}"   class="text-decoration-none text-dark">
+
+      {{ row.LastExternalReview.strftime('%d %B %Y, %H:%M') }}
+    </a>
+  {% else %}
+    N/A
+  {% endif %}
+</p>
+                  </div>
 
                 <div class="col-md-6">
                   <div class="row row-cols-2 g-2">
