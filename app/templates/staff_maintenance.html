@@ -163,6 +163,7 @@
                   <p class="mb-1"><strong>Email:</strong> {{ row.Email }}</p>
                   <p class="mb-1"><strong>First Name:</strong> {{ row.FirstName }}</p>
                   <p class="mb-1"><strong>Surname:</strong> {{ row.Surname }}</p>
+                  <p></p>
                 </div>
 
                 <div class="col-md-3">
@@ -174,6 +175,11 @@
                     <strong>Last Self Review:</strong>
                     {% if row.LastSelfReview and row.LastSelfReview|string != "NaT" %}
                       {{ row.LastSelfReview.strftime('%d %B %Y, %H:%M') }}
+                    {% else %}N/A{% endif %}
+                  </p>
+                  <p class="mb-1"><strong>Last External Review:</strong>
+                  {% if row.LastExternalReview and row.LastExternalReview|string != "NaT" %}
+                      {{ row.LastExternalReview.strftime('%d %B %Y, %H:%M') }}
                     {% else %}N/A{% endif %}
                   </p>
                 </div>
