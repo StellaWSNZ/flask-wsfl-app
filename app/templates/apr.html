@@ -1,0 +1,950 @@
+{# templates/apr.html #}
+{% extends "header.html" %}
+{% block title %}Approved Entities{% endblock %}
+
+{% block content %}
+
+<style>
+.entity-card{
+  border: 2px solid #1a427d;
+  border-radius: 10px;
+  overflow: hidden;
+  background: rgb(246 250 255 / 95%);
+}
+.entity-header{
+  background-color: rgb(246 250 255 / 95%);
+  border-bottom: 1px solid rgb(239 244 251 / 100%);
+}
+.entity-title{
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #1a427d;
+  line-height: 1.2;
+}
+
+/* BRAND */
+:root{
+  --brand-green:  #1f7a3f;
+  --brand-orange: #cc6d1f;
+  --brand-red:    #c0392b;
+  --brand-grey:   #6c757d;
+}
+
+/* OUTLINE badges */
+.badge-outline{
+  background-color: #ffffff;
+  border: 2px solid;
+  font-weight: 600;
+  padding: .35rem .7rem;
+  border-radius: 999px;
+  line-height: 1.1;
+}
+.badge-brand-green-outline{  color:var(--brand-green);  border-color:var(--brand-green); }
+.badge-brand-orange-outline{ color:var(--brand-orange); border-color:var(--brand-orange); }
+.badge-brand-red-outline{    color:var(--brand-red);    border-color:var(--brand-red); }
+.badge-brand-grey-outline{   color:var(--brand-grey);   border-color:var(--brand-grey); }
+.entity-badge{ font-size: 0.85rem; }
+
+/* SOLID badges */
+.badge-solid{
+  font-weight: 600;
+  padding: .35rem .7rem;
+  border-radius: 8px;
+  line-height: 1.1;
+}
+.badge-brand-green{  background-color:var(--brand-green);  color:#ffffff; }
+.badge-brand-orange{ background-color:var(--brand-orange); color:#ffffff; }
+.badge-brand-red{    background-color:var(--brand-red);    color:#ffffff; }
+.badge-brand-grey{   background-color:var(--brand-grey);   color:#ffffff; }
+
+.req-wrap{ margin-top:.6rem; }
+.req-badge{ font-size:0.8rem; font-weight:600; }
+
+.entity-card .card-header{ border-bottom: 0 !important; }
+.entity-card .card-body{ border-top: 0 !important; background: rgb(246 250 255 / 95%); }
+.details-body{ background: transparent; }
+
+.filter-card{
+  background: rgb(246 250 255 / 95%);
+  border: 1px solid rgb(239 244 251 / 100%);
+  border-radius: 10px;
+  padding: 12px;
+}
+.filter-row{ flex-wrap: nowrap; }
+.filter-col{ min-width: 220px; }
+@media (max-width: 991.98px){
+  .filter-row{ flex-wrap: wrap; }
+  .filter-col{ min-width: 0; }
+}
+
+/* Toast */
+#saveToast{
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 2000;
+  display: none;
+  min-width: 220px;
+}
+
+/* Equal height helpers */
+.equal-row { align-items: stretch; }
+.equal-card { height: 100%; display:flex; flex-direction:column; }
+.equal-card .form-control,
+.equal-card .form-select { flex: 1 1 auto; }
+</style>
+
+<div id="saveToast" class="alert alert-success shadow-sm">Saved ✓</div>
+
+<div class="row justify-content-center">
+  <div class="col-12 col-lg-10">
+
+    <!-- HEADER + ADD ENTITY BUTTON -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h2 class="mb-0">Approved Entities</h2>
+      <button
+        class="btn btn-primary"
+        type="button"
+        id="btnAddEntity"
+        data-bs-toggle="modal"
+        data-bs-target="#addEntityModal"
+      >+ Add entity</button>
+    </div>
+
+    <!-- ADD ENTITY MODAL -->
+    <div class="modal fade" id="addEntityModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+
+          <div class="modal-header">
+            <h5 class="modal-title">Add entity</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+
+          <div class="modal-body">
+            <label class="form-label">Entity</label>
+            <select class="form-select" id="addEntitySelect">
+              <option value="">Loading...</option>
+            </select>
+            <div class="form-text">Choose a provider or group to add.</div>
+
+            <div class="alert alert-danger mt-3 d-none" id="addEntityError"></div>
+            <div class="alert alert-success mt-3 d-none" id="addEntitySuccess">
+              Added (may be hidden by filters — press Clear to view) ✓
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+            <button class="btn btn-primary" type="button" id="btnAddEntitySubmit">Add</button>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- FILTER BAR -->
+    <div class="filter-card mb-4">
+      <form method="get" class="d-flex justify-content-center">
+        <div class="w-100" style="max-width: 1200px;">
+          <div class="row g-2 mb-2 justify-content-center filter-row">
+
+            <div class="col-12 col-md-auto filter-col">
+              <label class="form-label">Approved Status</label>
+              {% set picked_approved = request.args.getlist('approved[]') %}
+              <select name="approved[]" class="form-select" multiple size="4">
+                {% for opt in approved_statuses %}
+                  <option value="{{ opt.ID }}" {% if (opt.ID|string) in picked_approved %}selected{% endif %}>
+                    {{ opt.Description }}
+                  </option>
+                {% endfor %}
+              </select>
+              <div class="form-text">Leave empty = Any</div>
+            </div>
+
+            <div class="col-12 col-md-auto filter-col">
+              <label class="form-label">Lesson Plan Status</label>
+              {% set picked_lesson = request.args.getlist('lesson[]') %}
+              <select name="lesson[]" class="form-select" multiple size="4">
+                {% for opt in lesson_statuses %}
+                  <option value="{{ opt.ID }}" {% if (opt.ID|string) in picked_lesson %}selected{% endif %}>
+                    {{ opt.Description }}
+                  </option>
+                {% endfor %}
+              </select>
+              <div class="form-text">Leave empty = Any</div>
+            </div>
+
+            <div class="col-12 col-md-auto filter-col">
+              <label class="form-label">External Review Status</label>
+              {% set picked_external = request.args.getlist('external[]') %}
+              <select name="external[]" class="form-select" multiple size="4">
+                {% for opt in external_statuses %}
+                  <option value="{{ opt.ID }}" {% if (opt.ID|string) in picked_external %}selected{% endif %}>
+                    {{ opt.Description }}
+                  </option>
+                {% endfor %}
+              </select>
+              <div class="form-text">Leave empty = Any</div>
+            </div>
+
+            <div class="col-12 col-md-auto filter-col">
+              <label class="form-label">Database Training Status</label>
+              {% set picked_db = request.args.getlist('db[]') %}
+              <select name="db[]" class="form-select" multiple size="4">
+                {% for opt in database_statuses %}
+                  <option value="{{ opt.ID }}" {% if (opt.ID|string) in picked_db %}selected{% endif %}>
+                    {{ opt.Description }}
+                  </option>
+                {% endfor %}
+              </select>
+              <div class="form-text">Leave empty = Any</div>
+            </div>
+
+            <div class="col-12 col-md-auto filter-col">
+              <label class="form-label">Self Review</label>
+              {% set picked_self = request.args.getlist('self[]') %}
+              <select name="self[]" class="form-select" multiple size="4">
+                {% for opt in self_statuses %}
+                  <option value="{{ opt.Value }}" {% if (opt.Value|string) in picked_self %}selected{% endif %}>
+                    {{ opt.Label }}
+                  </option>
+                {% endfor %}
+              </select>
+              <div class="form-text">Leave empty = Any</div>
+            </div>
+
+          </div>
+
+          <div class="d-flex justify-content-center gap-3 mt-2">
+            <button type="submit" class="btn btn-primary px-4">Apply</button>
+            <a href="{{ request.path }}" class="btn btn-outline-secondary px-4">Clear</a>
+          </div>
+
+        </div>
+      </form>
+    </div>
+
+    <!-- CARDS -->
+    <div id="aprCards">
+    {% for row in df_approved %}
+      {% set key = row.Code ~ '_' ~ row.EntityID %}
+
+      <div class="card mb-4 shadow-sm entity-card" id="card_{{ key }}">
+
+        <!-- HEADER -->
+        <div class="card-header entity-header">
+          <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+
+            <!-- LEFT -->
+            <div>
+              <div class="d-flex align-items-center flex-wrap gap-2">
+                <div class="entity-title" id="title_{{ key }}">{{ row.EntityName }}</div>
+
+                <span class="badge badge-outline entity-badge" id="badge_affiliation_{{ key }}"></span>
+                <span class="badge badge-outline entity-badge" id="badge_requirements_{{ key }}"></span>
+              </div>
+
+              <div class="small text-muted mt-1" id="subtitle_{{ key }}">
+                {{ row.Subtitle or '' }}
+              </div>
+
+              <div class="small text-muted" id="smallline_{{ key }}"></div>
+
+              <div class="d-flex flex-wrap gap-2 req-wrap">
+                <span class="badge badge-solid req-badge" id="badge_lesson_{{ key }}"></span>
+                <span class="badge badge-solid req-badge" id="badge_external_{{ key }}"></span>
+                <span class="badge badge-solid req-badge" id="badge_self_{{ key }}"></span>
+                <span class="badge badge-solid req-badge" id="badge_db_{{ key }}"></span>
+                <span class="badge badge-solid req-badge" id="badge_elearn_{{ key }}"></span>
+              </div>
+            </div>
+
+            <!-- RIGHT -->
+            <div class="d-flex gap-2">
+              <button
+                class="btn btn-outline-primary btn-sm details-toggle"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#details_{{ key }}"
+                aria-expanded="false"
+                aria-controls="details_{{ key }}"
+                data-show-text="View details"
+                data-hide-text="Hide details"
+              >View details</button>
+
+              <button
+                type="button"
+                class="btn btn-outline-secondary btn-sm btn-edit"
+                data-key="{{ key }}"
+                data-entity-id="{{ row.EntityID }}"
+                data-code="{{ row.Code }}"
+              >Edit</button>
+
+              <button
+                type="button"
+                class="btn btn-primary btn-sm d-none btn-save"
+                data-key="{{ key }}"
+                data-entity-id="{{ row.EntityID }}"
+                data-code="{{ row.Code }}"
+              >Save</button>
+
+              <button
+                type="button"
+                class="btn btn-outline-secondary btn-sm d-none btn-cancel"
+                data-key="{{ key }}"
+                data-entity-id="{{ row.EntityID }}"
+                data-code="{{ row.Code }}"
+              >Cancel</button>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- DETAILS -->
+        <div class="collapse" id="details_{{ key }}">
+          <div class="card-body details-body">
+
+            <form class="entity-form" id="entity_form_{{ key }}" data-key="{{ key }}" onsubmit="return false;">
+              <div class="row g-3">
+
+                <!-- Approved -->
+                {% set approved_id = (row.ApprovedStatusID or 0) | int %}
+                <div class="col-12 col-md-3">
+                  <label class="form-label">Approved Status</label>
+                  <select
+                    name="ApprovedStatusID"
+                    class="form-select status-select editable"
+                    data-date-target="ApprovedStatusDate_{{ key }}"
+                    data-set-today-id="{{ APPROVED_SET_TODAY_ID }}"
+                    disabled
+                  >
+                    <option value="0">-- Select Status --</option>
+                    {% for opt in approved_statuses %}
+                      <option value="{{ opt.ID }}" {% if approved_id == (opt.ID | int) %}selected{% endif %}>
+                        {{ opt.Description }}
+                      </option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <div class="col-12 col-md-3">
+                  <label class="form-label">Approved Date</label>
+                  <input
+                    type="date"
+                    name="ApprovedStatusDate"
+                    id="ApprovedStatusDate_{{ key }}"
+                    class="form-control editable"
+                    value="{{ row.ApprovedStatusDate.strftime('%Y-%m-%d') if row.ApprovedStatusDate else '' }}"
+                    disabled
+                  />
+                </div>
+
+                <!-- Lesson -->
+                {% set lesson_id = (row.LessonPlanStatusID or 0) | int %}
+                <div class="col-12 col-md-3">
+                  <label class="form-label">Lesson Plan Status</label>
+                  <select
+                    name="LessonPlanStatusID"
+                    class="form-select status-select editable"
+                    data-date-target="LessonPlanStatusDate_{{ key }}"
+                    data-set-today-id="{{ LESSON_SET_TODAY_ID }}"
+                    disabled
+                  >
+                    <option value="0">-- Select Status --</option>
+                    {% for opt in lesson_statuses %}
+                      <option value="{{ opt.ID }}" {% if lesson_id == (opt.ID | int) %}selected{% endif %}>
+                        {{ opt.Description }}
+                      </option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <div class="col-12 col-md-3">
+                  <label class="form-label">Lesson Plan Date</label>
+                  <input
+                    type="date"
+                    name="LessonPlanStatusDate"
+                    id="LessonPlanStatusDate_{{ key }}"
+                    class="form-control editable"
+                    value="{{ row.LessonPlanStatusDate.strftime('%Y-%m-%d') if row.LessonPlanStatusDate else '' }}"
+                    disabled
+                  />
+                </div>
+
+                <!-- External -->
+                {% set external_id = (row.ExternalReviewStatusID or 0) | int %}
+                <div class="col-12 col-md-3">
+                  <label class="form-label">External Review Status</label>
+                  <select
+                    name="ExternalReviewStatusID"
+                    class="form-select status-select editable"
+                    data-date-target="ExternalReviewStatusDate_{{ key }}"
+                    data-set-today-id="{{ EXTERNAL_SET_TODAY_ID }}"
+                    disabled
+                  >
+                    <option value="0">-- Select Status --</option>
+                    {% for opt in external_statuses %}
+                      <option value="{{ opt.ID }}" {% if external_id == (opt.ID | int) %}selected{% endif %}>
+                        {{ opt.Description }}
+                      </option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <div class="col-12 col-md-3">
+                  <label class="form-label">External Date</label>
+                  <input
+                    type="date"
+                    name="ExternalReviewStatusDate"
+                    id="ExternalReviewStatusDate_{{ key }}"
+                    class="form-control editable"
+                    value="{{ row.ExternalReviewStatusDate.strftime('%Y-%m-%d') if row.ExternalReviewStatusDate else '' }}"
+                    disabled
+                  />
+                </div>
+
+                <!-- DB Training -->
+                {% set dbtrain_id = (row.DatabaseTrainingStatusID or 0) | int %}
+                <div class="col-12 col-md-3">
+                  <label class="form-label">Database Training Status</label>
+                  <select
+                    name="DatabaseTrainingStatusID"
+                    class="form-select status-select editable"
+                    data-date-target="DatabaseTrainingStatusDate_{{ key }}"
+                    data-set-today-id="{{ DATABASE_SET_TODAY_ID }}"
+                    disabled
+                  >
+                    <option value="0">-- Select Status --</option>
+                    {% for opt in database_statuses %}
+                      <option value="{{ opt.ID }}" {% if dbtrain_id == (opt.ID | int) %}selected{% endif %}>
+                        {{ opt.Description }}
+                      </option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <div class="col-12 col-md-3">
+                  <label class="form-label">Database Date</label>
+                  <input
+                    type="date"
+                    name="DatabaseTrainingStatusDate"
+                    id="DatabaseTrainingStatusDate_{{ key }}"
+                    class="form-control editable"
+                    value="{{ row.DatabaseTrainingStatusDate.strftime('%Y-%m-%d') if row.DatabaseTrainingStatusDate else '' }}"
+                    disabled
+                  />
+                </div>
+
+                <!-- Bottom area -->
+                <div class="row g-3 equal-row mt-1">
+
+                  <!-- CONTACTS -->
+                  <div class="col-12 col-md-3">
+                    <div class="equal-card">
+                      <label class="form-label">Contacts</label>
+                      <select
+                        name="Contacts"
+                        class="form-select editable"
+                        multiple
+                        size="8"
+                        disabled
+                      >
+                        {% for c in (row.Contacts or []) %}
+                          {% set c_email = (c.email or '')|lower|trim %}
+                          <option value="{{ c_email }}"
+                            {% if c_email and (c_email in (row.SelectedContactEmails or [])) %}selected{% endif %}
+                          >
+                            {{ c.name }} ({{ c_email }})
+                          </option>
+                        {% endfor %}
+                      </select>
+                      <div class="form-text">Select none = no contact</div>
+                    </div>
+                  </div>
+
+                  <!-- Progress -->
+                  <div class="col-12 col-md-3">
+                    <div class="equal-card">
+                      <label class="form-label">Progress</label>
+
+                      <input type="text" class="form-control mb-2" disabled
+                        value="Self review: {{ row.SelfReviewCount or '' }} ({{ row.SelfReviewStatus or '' }})" />
+
+                      <input type="text" class="form-control mb-2" disabled
+                        value="External: {{ row.ExternalReviewCount or '' }} ({{ row.ExternalReviewCompletionStatus or '' }})" />
+
+                      <input type="text" class="form-control" disabled
+                        value="eLearning: {{ row.PA_AllActiveCoursesText or '' }} ({{ row.ActiveCoursesTotal or 0 }} courses)" />
+                    </div>
+                  </div>
+
+                  <!-- Note -->
+                  <div class="col-12 col-md-6">
+                    <div class="equal-card">
+                      <label class="form-label">Note</label>
+                      <textarea class="form-control editable" name="Note" rows="8" disabled>{{ row.Note or '' }}</textarea>
+                    </div>
+                  </div>
+
+                </div>
+
+              </div>
+            </form>
+
+          </div>
+        </div>
+
+      </div>
+    {% endfor %}
+    </div>
+
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+
+<script>
+window.__APR_ROWS = {{ df_approved | tojson }};
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+  // ----------------------------
+  // Helpers
+  // ----------------------------
+  function todayYMD() {
+    const d = new Date();
+    return d.getFullYear() + "-" +
+      String(d.getMonth() + 1).padStart(2, "0") + "-" +
+      String(d.getDate()).padStart(2, "0");
+  }
+
+  function showToast() {
+    const t = document.getElementById("saveToast");
+    if (!t) return;
+    t.style.display = "block";
+    clearTimeout(window.__toastTimer);
+    window.__toastTimer = setTimeout(() => { t.style.display = "none"; }, 1800);
+  }
+
+  function setEditable(form, enabled) {
+    form.querySelectorAll(".editable").forEach(el => { el.disabled = !enabled; });
+  }
+
+  function stashOriginals(form) {
+    form.querySelectorAll(".editable").forEach(el => {
+      if (el.tagName === "SELECT" && el.multiple) {
+        const selected = Array.from(el.selectedOptions).map(o => o.value);
+        el.dataset.originalMulti = JSON.stringify(selected);
+      } else {
+        el.dataset.originalValue = el.value;
+      }
+    });
+  }
+
+  function restoreOriginals(form) {
+    form.querySelectorAll(".editable").forEach(el => {
+      if (el.tagName === "SELECT" && el.multiple) {
+        const selected = JSON.parse(el.dataset.originalMulti || "[]");
+        Array.from(el.options).forEach(opt => { opt.selected = selected.includes(opt.value); });
+      } else if (el.dataset.originalValue !== undefined) {
+        el.value = el.dataset.originalValue;
+      }
+    });
+  }
+
+  function toggleButtons(key, editing) {
+    const editBtn   = document.querySelector(`.btn-edit[data-key="${key}"]`);
+    const saveBtn   = document.querySelector(`.btn-save[data-key="${key}"]`);
+    const cancelBtn = document.querySelector(`.btn-cancel[data-key="${key}"]`);
+    if (!editBtn || !saveBtn || !cancelBtn) return;
+    if (editing) {
+      editBtn.classList.add("d-none");
+      saveBtn.classList.remove("d-none");
+      cancelBtn.classList.remove("d-none");
+    } else {
+      editBtn.classList.remove("d-none");
+      saveBtn.classList.add("d-none");
+      cancelBtn.classList.add("d-none");
+    }
+  }
+
+  function setBadge(el, solidClass, text) {
+    if (!el) return;
+    el.classList.remove("badge-brand-green", "badge-brand-orange", "badge-brand-red", "badge-brand-grey");
+    el.classList.add("badge-solid", solidClass);
+    el.textContent = text;
+  }
+
+  function setOutlineBadge(el, outlineClass, text) {
+    if (!el) return;
+    el.classList.remove(
+      "badge-brand-green-outline",
+      "badge-brand-orange-outline",
+      "badge-brand-red-outline",
+      "badge-brand-grey-outline"
+    );
+    el.classList.add("badge-outline", outlineClass);
+    el.textContent = text;
+  }
+
+  function computeBadgesFromRow(row) {
+    const lesson_id = parseInt(row.LessonPlanStatusID || 0, 10);
+    const lesson_ok = (lesson_id === 2);
+    const lesson_badge = lesson_ok ? "badge-brand-green" : (lesson_id === 1 ? "badge-brand-orange" : "badge-brand-red");
+    const lesson_text = "Lesson plan" + (row.LessonPlanStatus ? (": " + row.LessonPlanStatus) : "");
+
+    const db_id = parseInt(row.DatabaseTrainingStatusID || 0, 10);
+    const db_ok = (db_id === 2);
+    const db_badge = db_ok ? "badge-brand-green" : (db_id === 1 ? "badge-brand-orange" : "badge-brand-red");
+    const db_text = "Database training" + (row.DatabaseTrainingStatus ? (": " + row.DatabaseTrainingStatus) : "");
+
+    const ext_id = parseInt(row.ExternalReviewStatusID || 0, 10);
+    const ext_found = parseInt(row.ExternalReviewFoundInText || 0, 10);
+    const ext_ok = (ext_id === 3) || (ext_found >= 1);
+    const ext_badge = ext_ok ? "badge-brand-green" : ([1,2].includes(ext_id) ? "badge-brand-orange" : "badge-brand-red");
+    const ext_label = (ext_found >= 1) ? (ext_found + " completed") : (row.ExternalReviewStatus || "Not started");
+    const ext_text = "External review: " + ext_label;
+
+    const self_total = parseInt(row.SelfReviewTotal || 0, 10);
+    const self_done  = parseInt(row.SelfReviewCompleted || 0, 10);
+    const self_ok = (self_total > 0 && self_done >= self_total);
+
+    let self_badge = "badge-brand-red";
+    let self_label = `0/${self_total} complete`;
+    if (self_total === 0) { self_badge = "badge-brand-grey"; self_label = "No staff"; }
+    else if (self_done >= self_total) { self_badge = "badge-brand-green"; self_label = `${self_done}/${self_total} complete`; }
+    else if (self_done > 0) { self_badge = "badge-brand-orange"; self_label = `${self_done}/${self_total} complete`; }
+
+    const self_text = "Self review: " + self_label;
+
+    const elearn_active = parseInt(row.ActiveCoursesTotal || 0, 10);
+    const elearn_done = parseInt(row.PA_AllActiveCoursesCount || 0, 10);
+    const elearn_text = row.PA_AllActiveCoursesText || "";
+
+    let elearn_badge = "badge-brand-red";
+    let elearn_ok = false;
+
+    if (self_total === 0) { elearn_badge = "badge-brand-grey"; elearn_ok = false; }
+    else if (elearn_active === 0) { elearn_badge = "badge-brand-grey"; elearn_ok = false; }
+    else if (elearn_done >= self_total) { elearn_badge = "badge-brand-green"; elearn_ok = true; }
+    else if (elearn_done > 0) { elearn_badge = "badge-brand-orange"; elearn_ok = false; }
+    else { elearn_badge = "badge-brand-red"; elearn_ok = false; }
+
+    const elearn_display = "eLearning: " + (elearn_text || "0");
+
+    const approved_txt = (row.ApprovedStatus || "").toLowerCase().trim();
+    const is_approved = approved_txt.includes("approved");
+    const is_affiliated = approved_txt.includes("affiliated") || approved_txt.includes("affiliate");
+
+    const affiliation_class = is_approved ? "badge-brand-green-outline" :
+                              (is_affiliated ? "badge-brand-orange-outline" : "badge-brand-grey-outline");
+    const affiliation_text = is_approved ? "Approved" : (is_affiliated ? "Affiliated" : "Unknown");
+
+    const conditions_met = lesson_ok && ext_ok && self_ok && db_ok && elearn_ok;
+    const req_class = conditions_met ? "badge-brand-green-outline" : "badge-brand-red-outline";
+    const req_text = conditions_met ? "All requirements met" : "Requirements not yet met";
+
+    return {
+      lesson_badge, lesson_text,
+      db_badge, db_text,
+      ext_badge, ext_text,
+      self_badge, self_text,
+      elearn_badge, elearn_display,
+      affiliation_class, affiliation_text,
+      req_class, req_text
+    };
+  }
+
+  function renderCardFromRow(key, row) {
+    if (!row || !row.Code || row.EntityID === undefined || row.EntityID === null) {
+      console.warn("renderCardFromRow: invalid row", row);
+      return;
+    }
+
+    const b = computeBadgesFromRow(row);
+
+    setOutlineBadge(document.getElementById(`badge_affiliation_${key}`), b.affiliation_class, b.affiliation_text);
+    setOutlineBadge(document.getElementById(`badge_requirements_${key}`), b.req_class, b.req_text);
+
+    setBadge(document.getElementById(`badge_lesson_${key}`), b.lesson_badge, b.lesson_text);
+    setBadge(document.getElementById(`badge_external_${key}`), b.ext_badge, b.ext_text);
+    setBadge(document.getElementById(`badge_self_${key}`), b.self_badge, b.self_text);
+    setBadge(document.getElementById(`badge_db_${key}`), b.db_badge, b.db_text);
+    setBadge(document.getElementById(`badge_elearn_${key}`), b.elearn_badge, b.elearn_display);
+
+    const subtitleEl = document.getElementById(`subtitle_${key}`);
+    if (subtitleEl) subtitleEl.textContent = row.Subtitle || "";
+
+    const smallLine = document.getElementById(`smallline_${key}`);
+    if (smallLine) {
+      let base = `Code: ${row.Code} | ID: ${row.EntityID}`;
+      if (row.ApprovedStatus) base += ` | ${row.ApprovedStatus}`;
+      smallLine.textContent = base;
+    }
+  }
+
+  // ✅ NEW: ensure card details expand when editing
+  function ensureDetailsExpanded(key) {
+    const detailsEl = document.getElementById(`details_${key}`);
+    if (!detailsEl) return;
+
+    if (!detailsEl.classList.contains("show")) {
+      const collapse = bootstrap.Collapse.getOrCreateInstance(detailsEl, { toggle: false });
+      collapse.show();
+
+      const toggleBtn = document.querySelector(`.details-toggle[data-bs-target="#details_${key}"]`);
+      if (toggleBtn) toggleBtn.textContent = toggleBtn.dataset.hideText || "Hide details";
+    }
+  }
+
+  // Initial paint
+  (window.__APR_ROWS || []).forEach(r => {
+    if (!r) return;
+    const key = `${r.Code}_${r.EntityID}`;
+    renderCardFromRow(key, r);
+  });
+
+  // Auto-set today
+  document.querySelectorAll(".status-select").forEach(select => {
+    select.addEventListener("change", function () {
+      const setTodayId = parseInt(this.dataset.setTodayId || "0", 10);
+      const selectedId = parseInt(this.value || "0", 10);
+      const dateInput = document.getElementById(this.dataset.dateTarget);
+      if (!dateInput) return;
+      if (selectedId === setTodayId) dateInput.value = todayYMD();
+    });
+  });
+
+  // Edit (✅ expand first)
+  document.querySelectorAll(".btn-edit").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const key = btn.dataset.key;
+
+      // ✅ force expand if not open
+      ensureDetailsExpanded(key);
+
+      const form = document.getElementById(`entity_form_${key}`);
+      if (!form) return;
+
+      stashOriginals(form);
+      setEditable(form, true);
+      toggleButtons(key, true);
+    });
+  });
+
+  // Cancel
+  document.querySelectorAll(".btn-cancel").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const key = btn.dataset.key;
+      const form = document.getElementById(`entity_form_${key}`);
+      if (!form) return;
+      restoreOriginals(form);
+      setEditable(form, false);
+      toggleButtons(key, false);
+    });
+  });
+
+  // ✅ Save (Option A): in-place update if backend returns data.entity
+  document.addEventListener("click", async (ev) => {
+    const btn = ev.target.closest(".btn-save");
+    if (!btn) return;
+
+    const key = btn.dataset.key;
+    const entityId = btn.dataset.entityId;
+    const code = btn.dataset.code;
+
+    const form = document.getElementById(`entity_form_${key}`);
+    if (!form) return;
+
+    const contactSelect = form.querySelector('[name="Contacts"]');
+    let contacts = [];
+    if (contactSelect) {
+      contacts = Array.from(contactSelect.selectedOptions)
+        .map(o => o.value)
+        .filter(v => v && v.trim() !== "");
+    }
+
+    const payload = {
+      EntityID: parseInt(entityId, 10),
+      Code: code,
+
+      ApprovedStatusID: form.querySelector('[name="ApprovedStatusID"]')?.value || "0",
+      ApprovedStatusDate: form.querySelector('[name="ApprovedStatusDate"]')?.value || "",
+
+      LessonPlanStatusID: form.querySelector('[name="LessonPlanStatusID"]')?.value || "0",
+      LessonPlanStatusDate: form.querySelector('[name="LessonPlanStatusDate"]')?.value || "",
+
+      ExternalReviewStatusID: form.querySelector('[name="ExternalReviewStatusID"]')?.value || "0",
+      ExternalReviewStatusDate: form.querySelector('[name="ExternalReviewStatusDate"]')?.value || "",
+
+      DatabaseTrainingStatusID: form.querySelector('[name="DatabaseTrainingStatusID"]')?.value || "0",
+      DatabaseTrainingStatusDate: form.querySelector('[name="DatabaseTrainingStatusDate"]')?.value || "",
+
+      ContactEmails: contacts,
+      Note: form.querySelector('[name="Note"]')?.value || ""
+    };
+
+    btn.disabled = true;
+    const oldText = btn.textContent;
+    btn.textContent = "Saving...";
+
+    try {
+      const res = await fetch("/apr/update_entity", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        alert(data.error || "Save failed");
+        return;
+      }
+
+      // exit edit mode
+      stashOriginals(form);
+      setEditable(form, false);
+      toggleButtons(key, false);
+
+      // repaint card in place (requires backend to return data.entity)
+      if (data.entity) {
+        window.__APR_ROWS = window.__APR_ROWS || [];
+        const idx = window.__APR_ROWS.findIndex(r => `${r.Code}_${r.EntityID}` === key);
+        if (idx >= 0) window.__APR_ROWS[idx] = data.entity;
+        else window.__APR_ROWS.unshift(data.entity);
+
+        renderCardFromRow(key, data.entity);
+      }
+
+      showToast();
+
+    } catch (err) {
+      console.error(err);
+      alert("Save failed (network/server error)");
+    } finally {
+      btn.disabled = false;
+      btn.textContent = oldText;
+    }
+  });
+
+  // Toggle button text
+  document.querySelectorAll(".details-toggle").forEach(btn => {
+    const targetSel = btn.getAttribute("data-bs-target");
+    const target = targetSel ? document.querySelector(targetSel) : null;
+    if (!target) return;
+
+    target.addEventListener("shown.bs.collapse", () => {
+      btn.textContent = btn.dataset.hideText || "Hide details";
+    });
+    target.addEventListener("hidden.bs.collapse", () => {
+      btn.textContent = btn.dataset.showText || "View details";
+    });
+  });
+
+  // ----------------------------
+  // Add Entity: dropdown + submit
+  // ----------------------------
+  async function loadAddEntityDropdown() {
+    const sel = document.getElementById("addEntitySelect");
+    const err = document.getElementById("addEntityError");
+    const ok  = document.getElementById("addEntitySuccess");
+    if (!sel) return;
+
+    if (err) err.classList.add("d-none");
+    if (ok)  ok.classList.add("d-none");
+
+    sel.innerHTML = `<option value="">Loading...</option>`;
+
+    try {
+      const res = await fetch("/apr/entity_dropdown");
+      const data = await res.json();
+
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || "Failed to load dropdown");
+      }
+
+      const items = data.items || [];
+      if (items.length === 0) {
+        sel.innerHTML = `<option value="">No available entities</option>`;
+        return;
+      }
+
+      sel.innerHTML =
+        `<option value="">-- Select --</option>` +
+        items.map(x => {
+          const Code = (x.Code || x.code || "").toString();
+          const ID   = (x.ID   || x.id   || "").toString();
+          const Desc = (x.Description || x.description || "").toString();
+          const v = `${Code}|${ID}`;
+          const label = `[${Code}] ${Desc}`;
+          return `<option value="${v}">${label}</option>`;
+        }).join("");
+
+    } catch (e) {
+      sel.innerHTML = `<option value="">(error)</option>`;
+      if (err) { err.textContent = e.message; err.classList.remove("d-none"); }
+    }
+  }
+
+  const addModalEl = document.getElementById("addEntityModal");
+  if (addModalEl) {
+    addModalEl.addEventListener("shown.bs.modal", loadAddEntityDropdown);
+  }
+
+  const btnAddSubmit = document.getElementById("btnAddEntitySubmit");
+  if (btnAddSubmit) {
+    btnAddSubmit.addEventListener("click", async () => {
+      const sel = document.getElementById("addEntitySelect");
+      const err = document.getElementById("addEntityError");
+      const ok  = document.getElementById("addEntitySuccess");
+
+      if (err) err.classList.add("d-none");
+      if (ok)  ok.classList.add("d-none");
+
+      const v = (sel?.value || "").trim();
+      if (!v) {
+        if (err) { err.textContent = "Please select an entity."; err.classList.remove("d-none"); }
+        return;
+      }
+
+      const [Code, EntityIDStr] = v.split("|");
+      const EntityID = parseInt(EntityIDStr, 10);
+
+      btnAddSubmit.disabled = true;
+      btnAddSubmit.textContent = "Adding...";
+
+      try {
+        const res = await fetch("/apr/add_entity", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ Code, EntityID })
+        });
+
+        const data = await res.json();
+        if (!res.ok || !data.ok) {
+          throw new Error(data.error || "Add failed");
+        }
+
+        if (ok) { ok.classList.remove("d-none"); }
+
+        // simplest: reload so new card appears + badges painted
+        window.location.reload();
+
+      } catch (e) {
+        if (err) { err.textContent = e.message; err.classList.remove("d-none"); }
+      } finally {
+        btnAddSubmit.disabled = false;
+        btnAddSubmit.textContent = "Add";
+      }
+    });
+  }
+
+});
+</script>
+
+{% endblock %}

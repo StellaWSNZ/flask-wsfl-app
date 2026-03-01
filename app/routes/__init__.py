@@ -10,6 +10,7 @@ from .admin import admin_bp
 from .view_class import class_bp
 from .survey import survey_bp
 from .student import students_bp
+from .apr import apr_bp
 from .staff_maintenance import staff_bp
 from app.routes.overview import overview_bp
 from app.routes.eLearning import eLearning_bp
@@ -33,6 +34,7 @@ def register_routes(app):
     app.register_blueprint(overview_bp)
     app.register_blueprint(user_bp)
     app.register_blueprint(instructions_bp)  
+    app.register_blueprint(apr_bp)  
     
 
 

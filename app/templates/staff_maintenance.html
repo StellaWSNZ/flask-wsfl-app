@@ -183,16 +183,16 @@
                     {% endif %}
                   </p>
                  <p class="mb-1">
-  <strong>Last External Review:</strong>
-  {% if row.LastExternalReview and row.LastExternalReviewID %}
-    <a href="{{ url_for('survey_bp.view_my_survey_response', respondent_id=row.LastExternalReviewID) }}"   class="text-decoration-none text-dark">
+                    <strong>Last External Review:</strong>
+                    {% if row.LastExternalReview and row.LastExternalReviewID %}
+                      <a href="{{ url_for('survey_bp.view_my_survey_response', respondent_id=row.LastExternalReviewID) }}"   class="text-decoration-none text-dark">
 
-      {{ row.LastExternalReview.strftime('%d %B %Y, %H:%M') }}
-    </a>
-  {% else %}
-    N/A
-  {% endif %}
-</p>
+                        {{ row.LastExternalReview.strftime('%d %B %Y, %H:%M') }}
+                      </a>
+                    {% else %}
+                      N/A
+                    {% endif %}
+                  </p>
                   </div>
 
                 <div class="col-md-6">
