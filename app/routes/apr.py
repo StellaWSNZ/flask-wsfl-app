@@ -1,7 +1,7 @@
 # app/routes/apr.py
 from __future__ import annotations
 
-from flask import Blueprint, render_template, request, jsonify
+from flask import Blueprint, current_app, render_template, request, jsonify, session
 from datetime import datetime
 import json
 import pandas as pd
@@ -9,7 +9,7 @@ from sqlalchemy import text
 
 from app.utils.database import get_db_engine
 
-apr_bp = Blueprint("apr", __name__)
+apr_bp = Blueprint("apr_bp", __name__)
 
 
 # -----------------------------
@@ -92,6 +92,9 @@ def normalize_email_list(x):
 # -----------------------------
 @apr_bp.route("/ApprovedProviders", methods=["GET"])
 def apr_page():
+    if session.get("user_role") != "ADM":
+        current_app.logger.warning("🚫 /ApprovedProviders unauthorized | user=%s", session.get("user_email"))
+        return "Unauthorized", 403
     engine = get_db_engine()
 
     with engine.begin() as conn:

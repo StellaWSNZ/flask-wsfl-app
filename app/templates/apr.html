@@ -92,6 +92,17 @@
 .equal-card { height: 100%; display:flex; flex-direction:column; }
 .equal-card .form-control,
 .equal-card .form-select { flex: 1 1 auto; }
+
+.filter-inner{
+  display:inline-block;
+  width:fit-content;
+  max-width:100%;
+}
+
+.filter-tip{
+  width:100%;
+}
+
 </style>
 
 <div id="saveToast" class="alert alert-success shadow-sm">Saved ✓</div>
@@ -145,87 +156,101 @@
     </div>
 
     <!-- FILTER BAR -->
-    <div class="filter-card mb-4">
-      <form method="get" class="d-flex justify-content-center">
-        <div class="w-100" style="max-width: 1200px;">
-          <div class="row g-2 mb-2 justify-content-center filter-row">
+<div class="filter-card mb-4">
+  <form method="get" class="d-flex justify-content-center">
 
-            <div class="col-12 col-md-auto filter-col">
-              <label class="form-label">Approved Status</label>
-              {% set picked_approved = request.args.getlist('approved[]') %}
-              <select name="approved[]" class="form-select" multiple size="4">
-                {% for opt in approved_statuses %}
-                  <option value="{{ opt.ID }}" {% if (opt.ID|string) in picked_approved %}selected{% endif %}>
-                    {{ opt.Description }}
-                  </option>
-                {% endfor %}
-              </select>
-              <div class="form-text">Leave empty = Any</div>
-            </div>
+    <div style="max-width:1200px; width:100%; text-align:center;">
 
-            <div class="col-12 col-md-auto filter-col">
-              <label class="form-label">Lesson Plan Status</label>
-              {% set picked_lesson = request.args.getlist('lesson[]') %}
-              <select name="lesson[]" class="form-select" multiple size="4">
-                {% for opt in lesson_statuses %}
-                  <option value="{{ opt.ID }}" {% if (opt.ID|string) in picked_lesson %}selected{% endif %}>
-                    {{ opt.Description }}
-                  </option>
-                {% endfor %}
-              </select>
-              <div class="form-text">Leave empty = Any</div>
-            </div>
+      <!-- 👇 This wrapper makes alert + dropdowns the same width -->
+      <div class="filter-inner text-start">
 
-            <div class="col-12 col-md-auto filter-col">
-              <label class="form-label">External Review Status</label>
-              {% set picked_external = request.args.getlist('external[]') %}
-              <select name="external[]" class="form-select" multiple size="4">
-                {% for opt in external_statuses %}
-                  <option value="{{ opt.ID }}" {% if (opt.ID|string) in picked_external %}selected{% endif %}>
-                    {{ opt.Description }}
-                  </option>
-                {% endfor %}
-              </select>
-              <div class="form-text">Leave empty = Any</div>
-            </div>
+        <!-- INFO ALERT -->
+        <div class="alert alert-info py-2 text-center mb-3 filter-tip" role="alert">
+          <strong>Tip:</strong> These filters allow multiple selections. Hold
+          <strong>Ctrl</strong> (Windows) / <strong>Cmd</strong> (Mac)
+          to select multiple, or <strong>Shift</strong> to select a range.
+        </div>
 
-            <div class="col-12 col-md-auto filter-col">
-              <label class="form-label">Database Training Status</label>
-              {% set picked_db = request.args.getlist('db[]') %}
-              <select name="db[]" class="form-select" multiple size="4">
-                {% for opt in database_statuses %}
-                  <option value="{{ opt.ID }}" {% if (opt.ID|string) in picked_db %}selected{% endif %}>
-                    {{ opt.Description }}
-                  </option>
-                {% endfor %}
-              </select>
-              <div class="form-text">Leave empty = Any</div>
-            </div>
+        <!-- FILTER ROW -->
+        <div class="row g-2 mb-2 justify-content-center filter-row">
 
-            <div class="col-12 col-md-auto filter-col">
-              <label class="form-label">Self Review</label>
-              {% set picked_self = request.args.getlist('self[]') %}
-              <select name="self[]" class="form-select" multiple size="4">
-                {% for opt in self_statuses %}
-                  <option value="{{ opt.Value }}" {% if (opt.Value|string) in picked_self %}selected{% endif %}>
-                    {{ opt.Label }}
-                  </option>
-                {% endfor %}
-              </select>
-              <div class="form-text">Leave empty = Any</div>
-            </div>
-
+          <div class="col-12 col-md-auto filter-col">
+            <label class="form-label">Approved Status</label>
+            {% set picked_approved = request.args.getlist('approved[]') %}
+            <select name="approved[]" class="form-select" multiple size="4">
+              {% for opt in approved_statuses %}
+                <option value="{{ opt.ID }}" {% if (opt.ID|string) in picked_approved %}selected{% endif %}>
+                  {{ opt.Description }}
+                </option>
+              {% endfor %}
+            </select>
+            <div class="form-text">Leave empty = Any</div>
           </div>
 
-          <div class="d-flex justify-content-center gap-3 mt-2">
-            <button type="submit" class="btn btn-primary px-4">Apply</button>
-            <a href="{{ request.path }}" class="btn btn-outline-secondary px-4">Clear</a>
+          <div class="col-12 col-md-auto filter-col">
+            <label class="form-label">Lesson Plan Status</label>
+            {% set picked_lesson = request.args.getlist('lesson[]') %}
+            <select name="lesson[]" class="form-select" multiple size="4">
+              {% for opt in lesson_statuses %}
+                <option value="{{ opt.ID }}" {% if (opt.ID|string) in picked_lesson %}selected{% endif %}>
+                  {{ opt.Description }}
+                </option>
+              {% endfor %}
+            </select>
+            <div class="form-text">Leave empty = Any</div>
+          </div>
+
+          <div class="col-12 col-md-auto filter-col">
+            <label class="form-label">External Review Status</label>
+            {% set picked_external = request.args.getlist('external[]') %}
+            <select name="external[]" class="form-select" multiple size="4">
+              {% for opt in external_statuses %}
+                <option value="{{ opt.ID }}" {% if (opt.ID|string) in picked_external %}selected{% endif %}>
+                  {{ opt.Description }}
+                </option>
+              {% endfor %}
+            </select>
+            <div class="form-text">Leave empty = Any</div>
+          </div>
+
+          <div class="col-12 col-md-auto filter-col">
+            <label class="form-label">Database Training Status</label>
+            {% set picked_db = request.args.getlist('db[]') %}
+            <select name="db[]" class="form-select" multiple size="4">
+              {% for opt in database_statuses %}
+                <option value="{{ opt.ID }}" {% if (opt.ID|string) in picked_db %}selected{% endif %}>
+                  {{ opt.Description }}
+                </option>
+              {% endfor %}
+            </select>
+            <div class="form-text">Leave empty = Any</div>
+          </div>
+
+          <div class="col-12 col-md-auto filter-col">
+            <label class="form-label">Self Review</label>
+            {% set picked_self = request.args.getlist('self[]') %}
+            <select name="self[]" class="form-select" multiple size="4">
+              {% for opt in self_statuses %}
+                <option value="{{ opt.Value }}" {% if (opt.Value|string) in picked_self %}selected{% endif %}>
+                  {{ opt.Label }}
+                </option>
+              {% endfor %}
+            </select>
+            <div class="form-text">Leave empty = Any</div>
           </div>
 
         </div>
-      </form>
-    </div>
 
+        <!-- BUTTONS -->
+        <div class="d-flex justify-content-center gap-3 mt-2">
+          <button type="submit" class="btn btn-primary px-4">Apply</button>
+          <a href="{{ request.path }}" class="btn btn-outline-secondary px-4">Clear</a>
+        </div>
+
+      </div>
+    </div>
+  </form>
+</div>
     <!-- CARDS -->
     <div id="aprCards">
     {% for row in df_approved %}
@@ -250,7 +275,6 @@
                 {{ row.Subtitle or '' }}
               </div>
 
-              <div class="small text-muted" id="smallline_{{ key }}"></div>
 
               <div class="d-flex flex-wrap gap-2 req-wrap">
                 <span class="badge badge-solid req-badge" id="badge_lesson_{{ key }}"></span>
@@ -681,12 +705,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const subtitleEl = document.getElementById(`subtitle_${key}`);
     if (subtitleEl) subtitleEl.textContent = row.Subtitle || "";
 
-    const smallLine = document.getElementById(`smallline_${key}`);
-    if (smallLine) {
-      let base = `Code: ${row.Code} | ID: ${row.EntityID}`;
-      if (row.ApprovedStatus) base += ` | ${row.ApprovedStatus}`;
-      smallLine.textContent = base;
-    }
+   
   }
 
   // ✅ NEW: ensure card details expand when editing
