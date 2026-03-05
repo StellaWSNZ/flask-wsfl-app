@@ -15,6 +15,7 @@ NEXT STEPS
 
 {% if role == "MOE" %}
 • In "School Tools > Class Lookup", check that all classes are present and correct.
+• If classes are not present, follow the instructions to upload the current class lists.
 {% if make_admin %}
 • In "Staff > Manage My Staff", make sure staff access is up to date.
 {% endif %}
