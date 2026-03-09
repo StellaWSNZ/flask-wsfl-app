@@ -616,6 +616,7 @@ def _execute_report(
         results = res.mappings().all()
         current_app.logger.info("🔎 rows=%d | type=%s", len(results or []), selected_type)
     elif selected_type == "region_ytd":
+        
         sql = text(
             """
             SET NOCOUNT ON;
