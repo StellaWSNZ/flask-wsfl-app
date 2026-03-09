@@ -245,7 +245,7 @@ def apr_update_entity():
     entity_id = to_int(data.get("EntityID"))
     entity_type = (data.get("Code") or "").upper().strip()
 
-    if entity_id <= 0 or entity_type not in ("PRO", "GRP"):
+    if entity_id <= 0 or entity_type not in ("PRO", "GRP","FUN"):
         return jsonify(ok=False, error="Invalid Entity"), 400
 
     contact_emails = data.get("ContactEmails") or []
@@ -350,7 +350,7 @@ def apr_add_entity():
     code = (data.get("Code") or "").strip().upper()
     entity_id = to_int(data.get("EntityID"))
 
-    if code not in ("PRO", "GRP"):
+    if code not in ("PRO", "GRP", "FUN"):
         return jsonify(ok=False, error="Invalid Code"), 400
     if entity_id <= 0:
         return jsonify(ok=False, error="Invalid EntityID"), 400
