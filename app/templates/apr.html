@@ -901,7 +901,7 @@ document.addEventListener("DOMContentLoaded", function () {
           const ID   = (x.ID   || x.id   || "").toString();
           const Desc = (x.Description || x.description || "").toString();
           const v = `${Code}|${ID}`;
-          const label = `[${Code}] ${Desc}`;
+          const label = `${Desc}`;
           return `<option value="${v}">${label}</option>`;
         }).join("");
 
