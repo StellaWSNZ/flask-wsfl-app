@@ -1335,6 +1335,10 @@ def _persist_figure_and_session(
     if selected_type == "funder_missing_data":
         base_label = f"MissingData_{selected_funder_name or 'Funder'}"
         add_term = False
+    elif selected_type=="region_full_report":
+        region_label = (request.form.get("region_name") or "Region").strip()
+        base_label = f"Region_full_summary_{region_label}"
+        add_term = False
     elif selected_type == "funder_ytd_vs_target":
         base_label = f"FunderYTDvsTarget_{selected_funder_name or 'Funder'}"
     elif selected_type == "ly_funder_vs_ly_national_vs_target":
