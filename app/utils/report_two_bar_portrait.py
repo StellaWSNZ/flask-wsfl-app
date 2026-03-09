@@ -119,6 +119,50 @@ def draw_key(ax, x, y, vars_to_plot, colors_dict):
             edgecolor='red', facecolor='none', linestyle='dashed'
         ))
 
+def draw_page_key(ax, *, vars_to_plot, colors_dict, x=0.5, y=0.03, fontsize=9):
+    """
+    Single legend/key for the whole page (bottom centre).
+    Draws coloured squares + labels in one row.
+    """
+    # measure / layout
+    n = len(vars_to_plot)
+    if n == 0:
+        return
+
+    box = 0.016          # square size in axes coords
+    gap = 0.012          # gap between square and label
+    item_gap = 0.02      # gap between items
+
+    # We draw centred: compute total width in a rough way
+    # (good enough because we're in axes coords)
+    approx_label_w = 0.007  # per character-ish
+    widths = []
+    for v in vars_to_plot:
+        widths.append(box + gap + approx_label_w * len(str(v)))
+    total_w = sum(widths) + item_gap * (n - 1)
+
+    x0 = x - total_w / 2.0
+    y0 = y
+
+    cur = x0
+    for v, w in zip(vars_to_plot, widths):
+        col = colors_dict.get(v, "#cccccc")
+
+        ax.add_patch(plt.Rectangle(
+            (cur, y0), box, box,
+            transform=ax.transAxes,
+            facecolor=col, edgecolor="none",
+            zorder=50,  clip_on=False, 
+        ))
+        ax.text(
+            cur + box + gap, y0 + box/2,
+            str(v),
+            transform=ax.transAxes,
+            ha="left", va="center",
+            fontsize=fontsize,
+            zorder=51
+        )
+        cur += w + item_gap
 def make_yeargroup(ax, DEBUG, height, y, BUFFER, subtitle_space, df, vars_to_plot, colors_dict):
     """
     Draws one year-group block. Plots each competency with bars for the series in vars_to_plot.
@@ -132,7 +176,7 @@ def make_yeargroup(ax, DEBUG, height, y, BUFFER, subtitle_space, df, vars_to_plo
 
     # Layout
     rate_space = 0.10            # gap between competency label column and bar column
-    bar_height = 0.018
+    bar_height = 0.022
     bar_vgap = 0.006
     comp_vgap = 0.012
     bar_area_left = 0.5 + rate_space / 2
@@ -164,7 +208,7 @@ def make_yeargroup(ax, DEBUG, height, y, BUFFER, subtitle_space, df, vars_to_plo
             0.5 - rate_space / 2,
             comp_center,
             "\n".join(textwrap.wrap(str(comp), width=50)),
-            ha='right', va='center', fontsize=8
+            ha='right', va='center', fontsize=10
         )
 
         # Bars for each requested series, in declared order
@@ -184,8 +228,11 @@ def make_yeargroup(ax, DEBUG, height, y, BUFFER, subtitle_space, df, vars_to_plo
                     (bar_area_left, bar_y),
                     max(0.0, value) * bar_area_width,
                     bar_height,
-                    edgecolor='none',
-                    facecolor=colors_dict.get(series, "#CCCCCC")
+                    edgecolor='red',
+                    linewidth=0.8,
+                    facecolor=colors_dict.get(series, "#CCCCCC"),
+                    zorder=100,
+                    clip_on=False
                 ))
             bar_y -= (bar_height + bar_vgap)
 
@@ -238,6 +285,74 @@ def make_figure(df, DEBUG, PAGE_SIZE, TITLE_SPACE, subtitle_space, row_heights, 
     )
     return fig
 
+def make_figure_region(
+    df,
+    DEBUG,
+    PAGE_SIZE,
+    HEADER_SPACE,
+    FOOTER_SPACE,
+    subtitle_space,
+    row_heights,
+    BUFFER,
+    vars_to_plot,
+    colors_dict,
+):
+
+    fig, ax = plt.subplots(figsize=PAGE_SIZE)
+
+    # shrink drawable area so header + footer have space
+    ax.set_position([
+        0.02,                     # left
+        FOOTER_SPACE,             # bottom
+        0.96,                     # width
+        1 - HEADER_SPACE - FOOTER_SPACE   # height
+    ])
+
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+
+    ax.set_xticks([])
+    ax.set_yticks([])
+
+    start_y = 1.01
+
+    start_y = 1.01
+    last_key_y = None
+
+    for group in df['YearGroupDesc'].drop_duplicates():
+
+        if group in row_heights:
+
+            last_key_y = make_yeargroup_region(
+                ax,
+                DEBUG,
+                row_heights[group],
+                start_y,
+                BUFFER,
+                subtitle_space,
+                df[df['YearGroupDesc'] == group],
+                vars_to_plot,
+                colors_dict
+            )
+
+            start_y -= row_heights[group] + 0.01
+
+        else:
+            print(f"Missing rowheight for {group}")
+
+    if last_key_y is not None:
+        draw_page_key(
+            ax,
+            vars_to_plot=vars_to_plot,
+            colors_dict=colors_dict,
+            x=0.5,
+            y=last_key_y,
+            fontsize=7
+        )
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+
+    return fig
 # ===================
 # PUBLIC API
 # ===================
@@ -291,3 +406,118 @@ if __name__ == "__main__":
         os.startfile(output_filename)
     except Exception:
         pass
+
+
+def make_yeargroup_region(ax, DEBUG, height, y, BUFFER, subtitle_space, df, vars_to_plot, colors_dict):
+    """
+    Draws one year-group block. Auto-scales bar heights/gaps to fit inside `height`.
+    """
+    year_group = df['YearGroupDesc'].unique()[0]
+    ax.text(0.5, y - subtitle_space / 2, f"Years {year_group}", ha='center', va='top', weight='demibold')
+
+    # Keep only requested series, deduplicate on (CompetencyDesc, ResultType)
+    df = df[df['ResultType'].isin(vars_to_plot)]
+    df = df[['CompetencyDesc', 'ResultType', 'Rate']].drop_duplicates()
+
+    # Layout (base / preferred)
+    rate_space = 0.10
+    bar_height0 = 0.03
+    bar_vgap0   = 0.006
+    comp_vgap0  = 0.012
+
+    bar_area_left = 0.5 + rate_space / 2
+    bar_area_right = 1 - BUFFER
+    bar_area_width = bar_area_right - bar_area_left
+
+    competencies = sorted(df['CompetencyDesc'].drop_duplicates().tolist(), key=lambda x: str(x).lower())
+    if not competencies:
+        return
+
+    # -------------------------
+    # AUTO-FIT: shrink vertical geometry to fit "height"
+    # -------------------------
+    n_series = len(vars_to_plot)
+    n_comp   = len(competencies)
+
+    block_h0 = (n_series * (bar_height0 + bar_vgap0)) - bar_vgap0
+
+    # How much vertical space is actually available for bars+gaps?
+    # We reserve: subtitle_space at top, and a little legend/key room at bottom.
+    key_room = 0.055  # tweak if you want the key closer/further
+    usable = height - subtitle_space - key_room
+    usable = max(usable, 0.02)  # avoid divide-by-zero
+
+    needed0 = n_comp * block_h0 + (n_comp - 1) * comp_vgap0
+
+    if needed0 > usable:
+        scale = usable / needed0
+        # clamp so it doesn't become microscopic
+        scale = max(scale, 0.45)
+
+        bar_height = bar_height0 * scale
+        bar_vgap   = bar_vgap0 * scale
+        comp_vgap  = comp_vgap0 * scale
+    else:
+        bar_height = bar_height0
+        bar_vgap   = bar_vgap0
+        comp_vgap  = comp_vgap0
+
+    block_height = (n_series * (bar_height + bar_vgap)) - bar_vgap
+
+    # -------------------------
+    # Draw
+    # -------------------------
+    y_cursor = y - subtitle_space  # top of the first competency block
+
+    if DEBUG:
+        ax.add_patch(plt.Rectangle(
+            (BUFFER, y - height),
+            1 - 2 * BUFFER,
+            height,
+            edgecolor='red', facecolor='none', linestyle='dashed'
+        ))
+
+    import textwrap
+
+    for comp in competencies:
+        comp_rows = df[df['CompetencyDesc'] == comp]
+        comp_center = y_cursor - block_height / 2
+
+        # Competency label
+        ax.text(
+            0.5 - rate_space / 2,
+            comp_center,
+            "\n".join(textwrap.wrap(str(comp), width=50)),
+            ha='right', va='center', fontsize=8
+        )
+
+        # Bars
+        bar_y = y_cursor - bar_height
+        for series in vars_to_plot:
+            row = comp_rows[comp_rows['ResultType'] == series]
+            if not row.empty:
+                value = float(row['Rate'].iloc[0])  # 0..1
+                ax.text(
+                    0.5, bar_y + bar_height / 2,
+                    f"{value * 100:.2f}%",
+                    ha='center', va='center', fontsize=9
+                )
+                ax.add_patch(plt.Rectangle(
+                    (bar_area_left, bar_y),
+                    max(0.0, value) * bar_area_width,
+                    bar_height,
+                    edgecolor=None,
+                    linewidth=0.8,
+                    facecolor=colors_dict.get(series, "#CCCCCC"),
+                    zorder=100,
+                    clip_on=False
+                ))
+            bar_y -= (bar_height + bar_vgap)
+
+        y_cursor -= (block_height + comp_vgap)
+
+    # Key under this year group (fits because we reserved key_room)
+    key_y = max(y - height + 0.01, y_cursor - 0.015)
+    key_y_suggested =  y_cursor - 0.02
+
+    return key_y_suggested

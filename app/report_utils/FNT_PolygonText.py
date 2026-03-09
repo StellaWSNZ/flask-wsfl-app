@@ -1,13 +1,15 @@
 import textwrap
 import matplotlib.patches as mpatches
-from matplotlib.text import TextPath
 
 def _get_renderer(ax):
-    rend = ax.figure.canvas.get_renderer()
-    if rend is None:
-        ax.figure.canvas.draw()  # force a draw to create renderer
-        rend = ax.figure.canvas.get_renderer()
-    return rend
+    # Works across backends
+    fig = ax.figure
+    try:
+        return fig.canvas.get_renderer()
+    except Exception:
+        fig.canvas.draw()
+        return fig.canvas.get_renderer()
+
 
 def draw_text_in_polygon(
     ax,
@@ -18,18 +20,23 @@ def draw_text_in_polygon(
     fontsize: float = 18,
     fontweight: str = "semibold",
     color: str = "#ffffff",
-    pad_frac: float = 0.06,        # padding as fraction of polygon height
+    pad_frac: float = 0.06,
     wrap: bool = True,
-    max_lines: int = 1,
+    max_lines: int | None = 1,
     autoshrink: bool = True,
     min_fontsize: float = 6,
     clip_to_polygon: bool = True,
     zorder: int = 10,
+    # --- new ---
+    bold_first_line: bool = False,
+    first_line_weight: str = "bold",
+    rest_weight: str = "normal",
+    linespacing: float = 1.10,
 ):
     """
     Draw centered text inside a Shapely polygon defined in ax.transAxes coordinates.
-    - pad_frac pads all sides relative to polygon height.
-    - wrap uses a quick char-per-line estimate; autoshrink reduces font until it fits.
+    If bold_first_line=True, the first line is drawn in bold and the whole block
+    is vertically centered as a combined unit.
     """
     # polygon -> Matplotlib patch (axes coords)
     xy_axes = list(poly.exterior.coords)
@@ -68,7 +75,7 @@ def draw_text_in_polygon(
         avg_char_px = 0.55 * fs_pt * px_per_pt
         return max(1, int(box_w_px / avg_char_px))
 
-    def make_wrapped(s: str, fs_pt: float) -> str:
+    def apply_wrap(s: str, fs_pt: float) -> str:
         if not wrap:
             return s
         width = chars_per_line(fs_pt)
@@ -76,54 +83,128 @@ def draw_text_in_polygon(
         if max_lines is not None:
             lines = wrapped.splitlines()
             if len(lines) > max_lines:
-                # keep first max_lines; truncate last line with ellipsis
                 lines = lines[:max_lines]
                 if len(lines[-1]) > 3:
-                    lines[-1] = lines[-1].rstrip()
-                    lines[-1] = (lines[-1][:max(0, len(lines[-1]) - 3)] + "…")
+                    lines[-1] = (lines[-1].rstrip()[:-3] + "…") if len(lines[-1].rstrip()) > 3 else "…"
                 wrapped = "\n".join(lines)
         return wrapped
 
-    # place text, shrink if necessary to fit height
-    xs, ys = zip(*poly.exterior.coords)
-    height_axes = max(ys) - min(ys)
-    fig_h_in = ax.figure.get_size_inches()[1]
-    dpi = ax.figure.dpi
-    height_px = height_axes * fig_h_in * dpi
+    # If you passed explicit newlines and wrap=False, keep them as-is
+    def make_text(fs_pt: float) -> str:
+        return apply_wrap(text, fs_pt)
 
-    # heuristic: 1pt ≈ 1.33 px; we want ~font_height ≈ 0.6 * rect_height
-    fontsize = (height_px * 0.6) / 1.33
-    fs = fontsize
-    txt = None
+    # Create artists lazily so we can update them in autoshrink loop
+    txt_single = None
+    txt_bold = None
+    txt_rest = None
+
+    fs = float(fontsize)
+
+    def measure_artist(t):
+        bb = t.get_window_extent(renderer=rend)
+        return bb.width, bb.height
+
+    def px_to_axes_dy(dy_px: float) -> float:
+        # Convert a pixel delta (vertical) to axes coords delta at current axes transform
+        x_ref, y_ref = ax.transAxes.transform((0.0, 0.0))
+        x_ref2, y_ref2 = x_ref, y_ref + dy_px
+        _, y_axes = ax.transAxes.inverted().transform((x_ref, y_ref))
+        _, y_axes2 = ax.transAxes.inverted().transform((x_ref2, y_ref2))
+        return (y_axes2 - y_axes)
+
     while True:
-        s = make_wrapped(text, fs)
-        if txt is None:
-            txt = ax.text(
-                cx, cy, s,
+        s = make_text(fs)
+
+        if not bold_first_line:
+            if txt_single is None:
+                txt_single = ax.text(
+                    cx, cy, s,
+                    transform=ax.transAxes,
+                    ha="center", va="center",
+                    color=color, fontsize=fs,
+                    fontweight=fontweight, fontfamily=fontfamily,
+                    linespacing=linespacing,
+                    zorder=zorder + 1,
+                    clip_on=False,
+                )
+            else:
+                txt_single.set_text(s)
+                txt_single.set_fontsize(fs)
+
+            w_px, h_px = measure_artist(txt_single)
+            fits = (w_px <= box_w_px) and (h_px <= box_h_px)
+
+            if fits or not autoshrink or fs <= min_fontsize:
+                if clip_to_polygon:
+                    txt_single.set_clip_path(poly_patch)
+                return txt_single
+
+            fs = max(min_fontsize, fs - 1.0)
+            continue
+
+        # ----- bold-first-line mode -----
+        lines = s.splitlines() if s else [""]
+        first = lines[0] if lines else ""
+        rest = "\n".join(lines[1:]) if len(lines) > 1 else ""
+
+        # Create texts with va="top" so we can place them from a known top y
+        if txt_bold is None:
+            txt_bold = ax.text(
+                cx, cy, first,
                 transform=ax.transAxes,
-                ha="center", va="center",
+                ha="center", va="top",
                 color=color, fontsize=fs,
-                fontweight=fontweight, fontfamily=fontfamily,
-                linespacing=1.1,
-                zorder=zorder+1,
-                clip_on=False  # we will optionally set clip_path below
+                fontweight=first_line_weight, fontfamily=fontfamily,
+                linespacing=linespacing,
+                zorder=zorder + 2,
+                clip_on=False,
             )
         else:
-            txt.set_text(s)
-            txt.set_fontsize(fs)
+            txt_bold.set_text(first)
+            txt_bold.set_fontsize(fs)
 
-        # measure in pixels
-        bbox = txt.get_window_extent(renderer=rend)
-        text_w_px = bbox.width
-        text_h_px = bbox.height
+        if txt_rest is None:
+            txt_rest = ax.text(
+                cx, cy, rest,
+                transform=ax.transAxes,
+                ha="center", va="top",
+                color=color, fontsize=fs,
+                fontweight=rest_weight, fontfamily=fontfamily,
+                linespacing=linespacing,
+                zorder=zorder + 1,
+                clip_on=False,
+            )
+        else:
+            txt_rest.set_text(rest)
+            txt_rest.set_fontsize(fs)
 
-        fits = (text_w_px <= box_w_px) and (text_h_px <= box_h_px)
+        # Measure heights in px
+        _, h1_px = measure_artist(txt_bold)
+        w2_px, h2_px = measure_artist(txt_rest) if rest else (0.0, 0.0)
+
+        # A small vertical gap between first line and rest (as a fraction of line height)
+        gap_px = 0.15 * h1_px if rest else 0.0
+
+        total_h_px = h1_px + gap_px + h2_px
+
+        # Position the *combined* block centered at cy
+        top_y_axes = cy + px_to_axes_dy(total_h_px / 2.0)
+
+        txt_bold.set_position((cx, top_y_axes))
+        if rest:
+            y_rest_axes = top_y_axes - px_to_axes_dy(h1_px + gap_px)
+            txt_rest.set_position((cx, y_rest_axes))
+
+        # Now measure combined width/height “as drawn”
+        # (height is total_h_px by construction; width is max of both)
+        w1_px, _ = measure_artist(txt_bold)
+        fits = (max(w1_px, w2_px) <= box_w_px) and (total_h_px <= box_h_px)
+
         if fits or not autoshrink or fs <= min_fontsize:
-            break
-        fs = max(min_fontsize, fs - 1)
+            if clip_to_polygon:
+                txt_bold.set_clip_path(poly_patch)
+                if txt_rest is not None:
+                    txt_rest.set_clip_path(poly_patch)
+            return (txt_bold, txt_rest)
 
-    if clip_to_polygon:
-        # clip text to the same rounded shape
-        txt.set_clip_path(poly_patch)
-
-    return txt
+        fs = max(min_fontsize, fs - 1.0)

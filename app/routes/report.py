@@ -40,7 +40,7 @@ from app.utils.funder_missing_plot import (
 )
 from app.utils.one_bar_one_line import provider_portrait_with_target, use_ppmori
 from app.utils.missing_classes_report import build_missing_classes_pdf
-
+from app.utils.region_report import build_region_report_pdf
 import app.utils.report_three_bar_landscape as r3  # kept for other report types
 
 REPORT_DIR = Path("/tmp/wsfl_reports")
@@ -324,7 +324,8 @@ def _validate_required_entities(
     Returns None if validation passes.
     """
     needs_region  = selected_type in {
-        "region_ly_vs_target","region_ytd",
+        "region_ly_vs_target","region_ytd",    "region_full_report",
+
     }
     if needs_region and not region_id:
         msg = "Please choose a region."
@@ -565,6 +566,41 @@ def _execute_report(
         res = conn.execute(sql, params)
         results = res.mappings().all()
         current_app.logger.info("🔎 rows=%d | type=%s", len(results or []), selected_type)
+    elif selected_type == "region_full_report":
+
+        try:
+            use_ppmori("app/static/fonts")
+        except Exception as font_e:
+            current_app.logger.info("⚠️ font setup skipped: %s", font_e)
+
+        report_id = session.get("report_id") or uuid.uuid4().hex
+        session["report_id"] = report_id
+
+        pdf_path = REPORT_DIR / f"{report_id}.pdf"
+
+        preview_fig, meta = build_region_report_pdf(
+            conn=conn,
+            region_name=region_id,
+            calendar_year=selected_year,
+            term=selected_term,
+            out_pdf_path=pdf_path,
+            draw_key=False,
+            footer_svg=Path(current_app.static_folder) / "footer.svg",
+            dpi=300,
+            page_size="A4",
+            orientation="portrait",
+            fonts_dir="app/static/fonts",
+        )
+
+        current_app.logger.info(
+            "📄 region_report PDF pages=%s region=%s",
+            meta.get("pages"),
+            region_id,
+        )
+
+        results = None
+        fig = preview_fig
+            
     elif selected_type == "region_ly_vs_target":
         sql = text(
             """
@@ -1241,7 +1277,7 @@ def _build_figure_from_results(
 
     # Add footer once here for all normal figures (including funder_targets_counts),
     # BUT only if fig exists.
-    if fig is not None and selected_type not in {"provider_missing_classes", "funder_missing_classes"}:
+    if fig is not None and selected_type not in {"provider_missing_classes", "funder_missing_classes", "region_full_report"}:
 
         c = "#1a427d" if selected_type == "funder_missing_data" else "#1a427d40"
         try:
@@ -1330,6 +1366,10 @@ def _persist_figure_and_session(
         add_term = False
     elif selected_type == "funder_ytd_vs_funder_ly":
         base_label = f"FunderLYvsFunderTY_{selected_funder_name}"
+    elif selected_type == "region_full_report":
+        region_label = (request.form.get("region_name") or "Region").strip()
+        base_label = f"RegionReport_{region_label}"
+        add_term = False
     else:
         base_label = f"Report_{selected_type or 'Unknown'}"
 
@@ -1583,7 +1623,7 @@ def new_reports():
                     if extra_banner:
                         no_data_banner = extra_banner
                 
-                if selected_type in {"funder_student_count", "funder_progress_summary", "funder_teacher_review_summary", "provider_missing_classes","funder_missing_classes",}:
+                if selected_type in {"funder_student_count", "funder_progress_summary", "funder_teacher_review_summary", "provider_missing_classes","funder_missing_classes",    "region_full_report",}:
                     if fig is not None:
                         prefix = (
                             "Funder_Student_Count"

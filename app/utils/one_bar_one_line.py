@@ -292,7 +292,7 @@ def provider_portrait_with_target(
     *,
     mode: str = "provider",
     subject_name: Optional[str] = None,
-    region_name: Optional[str] = None,   # ✅ NEW
+    region_name: Optional[str] = None,
     title: Optional[str] = None,
     bar_color: str = "#2EBDC2",
     target_color: str = "#2E6F8A",
@@ -301,14 +301,25 @@ def provider_portrait_with_target(
     bar_series: str = "ly",
     caption: str = None,
 ) -> plt.Figure:
-    from itertools import groupby, groupby as _gb
+    import textwrap
+    from itertools import groupby
+    from datetime import datetime
+    import numpy as np
+    import pytz
+
     canon_fn, RATE_YTD_KEY, RATE_LY_KEY, PSC_KEY = _canon_factory(mode)
     use_ppmori("app/static/fonts")
+
+    # -------------------------
+    # Title suppression logic
+    # -------------------------
+    # If title is explicitly "", suppress title + caption entirely.
+    suppress_title_block = (title is not None) and (str(title) == "")
+    show_title_block = not suppress_title_block
 
     # pick the bar series key + legend label
     bar_series = (bar_series or "ly").lower()
     if mode in ("provider", "funder", "school", "national") and bar_series == "ly":
-        # treat LY as "use latest YTD" for these modes
         bar_series = "ytd"
     BAR_KEY = RATE_LY_KEY if bar_series == "ly" else RATE_YTD_KEY
     legend_label = f"{mode.title()} Rate ({bar_series.upper()})"
@@ -319,36 +330,49 @@ def provider_portrait_with_target(
 
     # ---------- Figure ----------
     fig = plt.figure(figsize=A4_PORTRAIT)
-    ax = fig.add_subplot(111); ax.set_xlim(0,1); ax.set_ylim(0,1); ax.axis("off")
+    ax = fig.add_subplot(111)
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    ax.axis("off")
     ax.set_position([0.0, 0.0, 1.0, 0.97])
-    # Title
+
+    # ---------- Title + caption (optional) ----------
     base_title_fs = 14
+
     if (mode or "").strip().lower() == "region":
         subject_label = (region_name or subject_name or "Region").strip()
     else:
         subject_label = (subject_name or mode.title()).strip()
 
     default_title = f"{subject_label} vs Target • Term {term}, {year}"
-    ttl = title or default_title
-    TITLE_Y = 0.99
-    ax.text(0.5, TITLE_Y, ttl, ha="center", va="top", fontsize=base_title_fs, weight="bold")
-    import pytz  # at top of file
-    from datetime import datetime
-    nz = pytz.timezone("Pacific/Auckland")
-    generated_str = datetime.now(nz).strftime("%d %b %Y, %I:%M %p")
-    if(caption is None):
-        caption = f"Term {term}, {year} | Generated {generated_str}"
 
-    CAPTION_Y = TITLE_Y - 0.02  # small gap under the title
-    ax.text(
-        0.5,
-        CAPTION_Y,
-        caption,
-        ha="center",
-        va="top",
-        fontsize=9.5,
-        color="#555555",
-    )
+    if show_title_block:
+        ttl = default_title if (title is None) else str(title)
+
+        TITLE_Y = 0.99
+        ax.text(0.5, TITLE_Y, ttl, ha="center", va="top", fontsize=base_title_fs, weight="bold")
+
+        nz = pytz.timezone("Pacific/Auckland")
+        generated_str = datetime.now(nz).strftime("%d %b %Y, %I:%M %p")
+        if caption is None:
+            caption = f"Term {term}, {year} | Generated {generated_str}"
+
+        CAPTION_Y = TITLE_Y - 0.02
+        ax.text(
+            0.5,
+            CAPTION_Y,
+            caption,
+            ha="center",
+            va="top",
+            fontsize=9.5,
+            color="#555555",
+        )
+
+        # how much vertical space the title block consumes (for layout math)
+        title_block_h = 0.045  # approx title+caption height (tuned)
+    else:
+        title_block_h = 0.0
+
     # ---------- Base layout ----------
     BASE = {
         "LEFT_MARGIN": 0.00,
@@ -361,38 +385,48 @@ def provider_portrait_with_target(
         "GROUP_BOT_PAD": 0.00,
         "SUBTITLE_GAP": 0.020,
 
-        "TOP_MARGIN": 0.05 ,"BOTTOM_MARGIN": 0.0,
+        "TOP_MARGIN": 0.05, "BOTTOM_MARGIN": 0.0,
         "LABEL_FS": 7.0, "TARGET_FS": 7.5, "SUBTITLE_FS": 11.5,
     }
 
+    def _wrap(txt: str, width: int = 58) -> str:
+        return "\n".join(textwrap.wrap(str(txt), width=width))
+
+    # Estimate how many rows we need
     rows_by_yg = {}
     for yg, yg_iter in groupby(rows, key=lambda r: str(r.get("YearGroupDesc"))):
         rows_by_yg[yg] = len({str(r.get("CompetencyDesc")) for r in yg_iter})
     total_groups = len(rows_by_yg)
     total_rows = sum(rows_by_yg.values())
 
-    row_spacing_est = max(2*BASE["BAR_H"] + BASE["BAR_GAP"], BASE["ITEM_GAP"])
+    row_spacing_est = max(2 * BASE["BAR_H"] + BASE["BAR_GAP"], BASE["ITEM_GAP"])
     group_block_est = BASE["SUBTITLE_GAP"] + BASE["GROUP_TOP_PAD"] + BASE["GROUP_BOT_PAD"]
     needed_est = total_rows * row_spacing_est + total_groups * group_block_est
-    available_est = 1.0 - BASE["BOTTOM_MARGIN"] - BASE["TOP_MARGIN"] - (1.0 - TITLE_Y)
-    scale = 1.0 if needed_est <= available_est else max(0.55, available_est/needed_est)
+
+    # Available area depends on whether we drew a title block
+    available_est = 1.0 - BASE["BOTTOM_MARGIN"] - BASE["TOP_MARGIN"] - title_block_h
+    scale = 1.0 if needed_est <= available_est else max(0.55, available_est / max(1e-9, needed_est))
 
     BARS_LEFT_X  = BASE["BARS_LEFT_X"]
-    RIGHT_MARGIN = BASE["RIGHT_MARGIN"] * (0.9*scale + 1)
-    LABEL_PAD    = BASE["LABEL_PAD"] * (0.9*scale + 0.1)
+    RIGHT_MARGIN = BASE["RIGHT_MARGIN"] * (0.9 * scale + 1)
+    LABEL_PAD    = BASE["LABEL_PAD"] * (0.9 * scale + 0.1)
     BAR_MAX_W    = 1.0 - RIGHT_MARGIN - BARS_LEFT_X
 
-    BAR_H        = BASE["BAR_H"]*scale
-    BAR_GAP      = BASE["BAR_GAP"]*scale
-    ITEM_GAP     = BASE["ITEM_GAP"]*scale
-    GROUP_TOP_PAD = BASE["GROUP_TOP_PAD"]*scale
-    GROUP_BOT_PAD = BASE["GROUP_BOT_PAD"]*scale
-    SUBTITLE_GAP  = BASE["SUBTITLE_GAP"]*scale
+    BAR_H         = BASE["BAR_H"] * scale
+    BAR_GAP       = BASE["BAR_GAP"] * scale
+    ITEM_GAP      = BASE["ITEM_GAP"] * scale
+    GROUP_TOP_PAD = BASE["GROUP_TOP_PAD"] * scale
+    GROUP_BOT_PAD = BASE["GROUP_BOT_PAD"] * scale
+    SUBTITLE_GAP  = BASE["SUBTITLE_GAP"] * scale
 
-    label_fs   = max(10, BASE["LABEL_FS"]*(0.9*scale+0.1))
-    target_fs  = max(8, BASE["TARGET_FS"]*(0.9*scale+0.1))
-    subtitle_fs= max(8.0, BASE["SUBTITLE_FS"]*(0.9*scale+0.1))
-
+    
+    target_fs   = max(8,  BASE["TARGET_FS"] * (0.9 * scale + 0.1))
+    if title=="":
+        subtitle_fs =  max(10, BASE["LABEL_FS"] * (1.4 * scale + 0.1))
+        label_fs    = max(10, BASE["LABEL_FS"] * (0.9 * scale + 0.1))
+    else:
+        subtitle_fs = max(8.0, BASE["SUBTITLE_FS"] * (0.9 * scale + 0.1))
+        label_fs    = max(10, BASE["LABEL_FS"] * (0.9 * scale + 0.1))
     LEFT_LABEL_X = BARS_LEFT_X - LABEL_PAD
 
     fig.canvas.draw()
@@ -414,6 +448,7 @@ def provider_portrait_with_target(
         for comp, comp_iter in groupby(yg_rows, key=lambda r: str(r.get("CompetencyDesc"))):
             rs = list(comp_iter)
             vals = {r["_CanonResultType"]: float(r["Rate"]) for r in rs}
+
             if target_val is None and TARGET_KEY in vals:
                 target_val = float(vals[TARGET_KEY])
 
@@ -428,26 +463,17 @@ def provider_portrait_with_target(
             if val is not None:
                 comp_rate[comp] = max(0.0, min(1.0, val))
 
-        # ✅ Fallback WSNZ target if missing (85%)
+        # Keep None if missing (your original behaviour)
         if target_val is None and comp_rate:
             target_val = None
 
-        ordered_items = sorted(
-            comp_rate.items(),
-            key=lambda kv: str(kv[0]).lower()  # kv[0] = CompetencyDesc
-        )
+        ordered_items = sorted(comp_rate.items(), key=lambda kv: str(kv[0]).lower())
         if not ordered_items:
             continue
         groups.append({"yg": yg, "items": ordered_items, "target": target_val})
-        all_yeargroups      = set(rows_by_yg.keys())        # all YGs that appeared in raw data
-        present_yeargroups  = {g["yg"] for g in groups}     # YGs we actually plotted
-        missing_yeargroups  = all_yeargroups - present_yeargroups
 
-        if missing_yeargroups:
-            # Slight bump — tweak factor to taste (e.g. 1.2 if you want louder)
-            subtitle_fs = subtitle_fs * 1.15
     # ---------- Row grid ----------
-    baseline_step = max(2*BAR_H + BAR_GAP, ITEM_GAP)
+    baseline_step = max(2 * BAR_H + BAR_GAP, ITEM_GAP)
     gap_rows      = max(0, int(round(GROUP_TOP_PAD / max(1e-6, baseline_step))))
     between_rows  = max(0, int(round(GROUP_BOT_PAD / max(1e-6, baseline_step))))
     subtitle_rows = 1
@@ -462,37 +488,69 @@ def provider_portrait_with_target(
     LEGEND_BG_H  = 0.032
     LEGEND_CLEAR = 0.006
 
-    top_y    = 1.0 - BASE["TOP_MARGIN"] - (1.0 - TITLE_Y)
-    legend_top = LEGEND_CY + LEGEND_BG_H/2
-    bottom_y   = max(legend_top + LEGEND_CLEAR, 0.02)
+    # Top/bottom limits (top depends on title block height)
+    top_y = 1.0 - BASE["TOP_MARGIN"] - title_block_h
+
+    legend_top = LEGEND_CY + LEGEND_BG_H / 2
+    bottom_y   = max(legend_top + LEGEND_CLEAR, 0)
 
     centers = np.array([top_y]) if total_row_slots < 2 else np.linspace(top_y, bottom_y, total_row_slots)
-    row_step = abs(centers[0] - centers[-1]) / max(1, (len(centers)-1))
+    row_step = abs(centers[0] - centers[-1]) / max(1, (len(centers) - 1))
     BAR_H = min(BAR_H, 0.8 * row_step)
 
     # ---------- Render ----------
     idx = 0
     for gi, g in enumerate(groups):
-        if idx >= len(centers): break
+        if idx >= len(centers):
+            break
 
-        ax.text(0.5, centers[idx] - SUBTITLE_GAP/2, f"Years {g['yg']}",
-                ha="center", va="center", fontsize=subtitle_fs, weight="bold")
+        ax.text(
+            0.5,
+            centers[idx] - SUBTITLE_GAP / 2,
+            f"Years {g['yg']}",
+            ha="center",
+            va="center",
+            fontsize=subtitle_fs,
+            weight="bold",
+        )
         idx += subtitle_rows
         idx += gap_rows
 
         first_center = last_center = None
         for comp, val in g["items"]:
-            if idx >= len(centers): break
+            if idx >= len(centers):
+                break
             y = centers[idx]
 
-            ax.text(LEFT_LABEL_X, y, _wrap(comp, width=wrap_width),
-                    ha="right", va="center", multialignment="right", fontsize=label_fs)
+            ax.text(
+                LEFT_LABEL_X,
+                y,
+                _wrap(comp, width=wrap_width),
+                ha="right",
+                va="center",
+                multialignment="right",
+                fontsize=label_fs,
+            )
 
             w = val * BAR_MAX_W
-            ax.add_patch(plt.Rectangle((BARS_LEFT_X, y - BAR_H/2), w, BAR_H,
-                                       facecolor=bar_color, edgecolor="none"))
-            ax.text(BARS_LEFT_X + w + 0.008, y, f"{val*100:.1f}%",
-                    ha="left", va="center", fontsize=label_fs)
+            ax.add_patch(
+                plt.Rectangle(
+                    (BARS_LEFT_X, y - BAR_H / 2),
+                    w,
+                    BAR_H,
+                    facecolor=bar_color,
+                    edgecolor="none",
+                    clip_on=False,
+                )
+            )
+            ax.text(
+                BARS_LEFT_X + w + 0.008,
+                y,
+                f"{val * 100:.1f}%",
+                ha="left",
+                va="center",
+                fontsize=label_fs,
+            )
 
             first_center = y if first_center is None else first_center
             last_center = y
@@ -500,24 +558,28 @@ def provider_portrait_with_target(
 
         if g["target"] is not None and first_center is not None and last_center is not None:
             x_t = BARS_LEFT_X + max(0.0, min(1.0, g["target"])) * BAR_MAX_W
-            ax.plot([x_t, x_t], [first_center + BAR_H/2, last_center - BAR_H/2],
-                    linestyle=(0, (4, 4)))
+            ax.plot(
+                [x_t, x_t],
+                [first_center + BAR_H / 2, last_center - BAR_H / 2],
+                linestyle=(0, (4, 4)),
+            )
             ax.lines[-1].set_color(target_color)
             ax.lines[-1].set_linewidth(1.8)
-            ax.text(x_t, (last_center - BAR_H/2) - 0.004,
-                    f"WSNZ Target {round(g['target']*100)}%",
-                    ha="center", va="top", fontsize=target_fs, color=target_color, fontweight="bold")
+            ax.text(
+                x_t,
+                (last_center - BAR_H / 2) - 0.004,
+                f"WSNZ Target {round(g['target'] * 100)}%",
+                ha="center",
+                va="top",
+                fontsize=target_fs,
+                color=target_color,
+                fontweight="bold",
+            )
 
         if gi < len(groups) - 1:
             idx += between_rows
 
-    # Legend with dynamic label (e.g., "Funder Rate (LY)")
-    legend_fs = max(8, int(8 * (0.9*scale + 0.1)))
-    
-    if(1 == 0):
-        _draw_legend(ax, label_subject=legend_label, cx=0.5, cy=LEGEND_CY, fs=legend_fs,
-                    bar_color=bar_color, target_color=target_color, show_bg=True)
-
+    # (Legend currently disabled in your code; left as-is)
     return fig
 
 # ---------- DB ----------
