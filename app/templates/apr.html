@@ -111,16 +111,28 @@
   <div class="col-12 col-lg-10">
 
     <!-- HEADER + ADD ENTITY BUTTON -->
-    <div class="d-flex justify-content-between align-items-center mb-3">
-      <h2 class="mb-0">Approved Entities</h2>
-      <button
-        class="btn btn-primary"
-        type="button"
-        id="btnAddEntity"
-        data-bs-toggle="modal"
-        data-bs-target="#addEntityModal"
-      >+ Add entity</button>
-    </div>
+<div class="d-flex justify-content-between align-items-center mb-3">
+
+  <h2 class="mb-0">Approved Entities</h2>
+
+  <!-- RIGHT SIDE BUTTONS -->
+  <div class="d-flex align-items-center gap-2">
+
+
+{% if can_edit %}
+    <button
+      class="btn btn-primary"
+      type="button"
+      id="btnAddEntity"
+      data-bs-toggle="modal"
+      data-bs-target="#addEntityModal"
+    >
+      + Add entity
+    </button>
+{% endif %}
+  </div>
+
+</div>
 
     <!-- ADD ENTITY MODAL -->
     <div class="modal fade" id="addEntityModal" tabindex="-1" aria-hidden="true">
@@ -287,6 +299,7 @@
 
             <!-- RIGHT -->
             <div class="d-flex gap-2">
+            {% if can_edit %}
               <button
                 class="btn btn-outline-primary btn-sm details-toggle"
                 type="button"
@@ -305,8 +318,9 @@
                 data-entity-id="{{ row.EntityID }}"
                 data-code="{{ row.Code }}"
               >Edit</button>
-
+{% endif %}
               <button
+              
                 type="button"
                 class="btn btn-primary btn-sm d-none btn-save"
                 data-key="{{ key }}"

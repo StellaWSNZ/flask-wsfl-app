@@ -90,18 +90,70 @@ def normalize_email_list(x):
 # -----------------------------
 # GET: APR page
 # -----------------------------
+# -----------------------------
 @apr_bp.route("/ApprovedProviders", methods=["GET"])
 def apr_page():
-    if session.get("user_role") != "ADM":
-        current_app.logger.warning("🚫 /ApprovedProviders unauthorized | user=%s", session.get("user_email"))
-        return "Unauthorized", 403
+
+    user_role = session.get("user_role")
+    user_id = session.get("user_id")
+    user_admin = session.get("user_admin")
+
     engine = get_db_engine()
 
-    with engine.begin() as conn:
-        # Must return:
-        # ContactJSON, SelectedContactsJSON (preferred) OR ContactSelectedJSON (legacy)
-        df_approved = pd.read_sql("EXEC dbo.APR_GetEntityApprovalSummary", conn)
-        df_dropdowns = pd.read_sql("EXEC dbo.APR_AllDropdowns", conn)
+    try:
+
+        with engine.begin() as conn:
+
+            # --------------------------------
+            # Decide which stored proc to run
+            # --------------------------------
+            if user_role == "ADM":
+
+                df_approved = pd.read_sql(
+                    "EXEC dbo.APR_GetEntityApprovalSummary",
+                    conn
+                )
+
+            elif user_role == "FUN" and user_admin:
+
+                if not user_id:
+                    current_app.logger.warning(
+                        "🚫 /ApprovedProviders missing user_id | user=%s",
+                        session.get("user_email")
+                    )
+                    return "Unauthorized", 403
+
+                df_approved = pd.read_sql(
+                    text("EXEC dbo.APR_GetEntityApprovalSummary_funder @ID = :ID"),
+                    conn,
+                    params={"ID": session.get("user_id")}
+                )
+
+            else:
+
+                current_app.logger.warning(
+                    "🚫 /ApprovedProviders unauthorized | user=%s",
+                    session.get("user_email")
+                )
+                return "Unauthorized", 403
+
+
+            # dropdowns always loaded
+            df_dropdowns = pd.read_sql(
+                "EXEC dbo.APR_AllDropdowns",
+                conn
+            )
+
+    except Exception as e:
+
+        current_app.logger.exception(
+            "❌ APR page failed | user=%s role=%s",
+            session.get("user_email"),
+            user_role
+        )
+
+        return "Server error loading APR page", 500
+
 
     # -----------------------------
     # Dropdown lists
@@ -111,23 +163,25 @@ def apr_page():
         .copy()
         .to_dict("records")
     )
+
     database_statuses = (
         df_dropdowns[df_dropdowns["Type"] == "Database Training Status"][["ID", "Description"]]
         .copy()
         .to_dict("records")
     )
+
     external_statuses = (
         df_dropdowns[df_dropdowns["Type"] == "External Review Status"][["ID", "Description"]]
         .copy()
         .to_dict("records")
     )
+
     lesson_statuses = (
         df_dropdowns[df_dropdowns["Type"] == "Lesson Plan Status"][["ID", "Description"]]
         .copy()
         .to_dict("records")
     )
 
-    # Self review filter options
     self_statuses = [
         {"Value": "complete", "Label": "Complete"},
         {"Value": "not complete", "Label": "Not complete"},
@@ -144,14 +198,14 @@ def apr_page():
     picked_self = request.args.getlist("self[]")
 
     # -----------------------------
-    # Ensure numeric columns are numeric (so isin works)
+    # Ensure numeric columns are numeric
     # -----------------------------
     for col in ["ApprovedStatusID", "LessonPlanStatusID", "ExternalReviewStatusID", "DatabaseTrainingStatusID"]:
         if col in df_approved.columns:
             df_approved[col] = pd.to_numeric(df_approved[col], errors="coerce").fillna(0).astype(int)
 
     # -----------------------------
-    # Apply filters (AND logic)
+    # Apply filters
     # -----------------------------
     if picked_approved:
         ids = as_int_list(picked_approved)
@@ -188,35 +242,26 @@ def apr_page():
         df_approved = df_approved[df_approved["SelfReviewStatus_norm"].isin(picked_self_norm)]
 
     # -----------------------------
-    # Convert to dicts for Jinja + attach Contacts + SelectedEmails
+    # Convert to dicts for Jinja
     # -----------------------------
     df_approved_records = df_approved.to_dict("records")
 
     for row in df_approved_records:
-        # Contacts list for dropdown: [{"email":"...","name":"First Last"}, ...]
         row["Contacts"] = safe_json_load(row.get("ContactJSON"), default=[])
         if not isinstance(row["Contacts"], list):
             row["Contacts"] = []
 
-        # Selected contacts list for auto-select:
-        # Prefer new column name SelectedContactsJSON, but support legacy ContactSelectedJSON
         selected_raw = safe_json_load(
             row.get("SelectedContactsJSON") or row.get("ContactSelectedJSON"),
             default=[]
         )
         row["SelectedContactEmails"] = normalize_email_list(selected_raw)
 
-        # If you want "default" auto-selected when no stored selection exists:
-        #if not row["SelectedContactEmails"]:
-        #    default_email = (row.get("ContactDefaultEmail") or "").strip().lower()
-        #    if default_email:
-        #        row["SelectedContactEmails"] = [default_email]
-
-    # IDs for “set date to today” behaviour
     APPROVED_SET_TODAY_ID = 1
     LESSON_SET_TODAY_ID = 2
     EXTERNAL_SET_TODAY_ID = 3
     DATABASE_SET_TODAY_ID = 2
+
     return render_template(
         "apr.html",
         df_approved=df_approved_records,
@@ -328,8 +373,14 @@ def apr_entity_dropdown():
     try:
         engine = get_db_engine()
         with engine.begin() as conn:
-            df = pd.read_sql("EXEC dbo.APR_EntityDropdown", conn)
-
+            if(session.get("user_role")=="ADM"):
+                df = pd.read_sql("EXEC dbo.APR_EntityDropdown", conn)
+            else:
+                df = pd.read_sql(
+                    text("EXEC dbo.APR_EntityDropdown_funder @ID = :ID"),
+                    conn,
+                    params={"ID": session.get("user_id")}
+                )
         items = []
         for _, r in df.iterrows():
             items.append({
