@@ -324,7 +324,7 @@ def _validate_required_entities(
     Returns None if validation passes.
     """
     needs_region  = selected_type in {
-        "region_ly_vs_target","region_ytd",    "region_full_report",
+        "region_ly_vs_target","region_ytd",    "region_coverage_report",
 
     }
     if needs_region and not region_id:
@@ -566,7 +566,7 @@ def _execute_report(
         res = conn.execute(sql, params)
         results = res.mappings().all()
         current_app.logger.info("🔎 rows=%d | type=%s", len(results or []), selected_type)
-    elif selected_type == "region_full_report":
+    elif selected_type == "region_coverage_report":
 
         try:
             use_ppmori("app/static/fonts")
@@ -1278,7 +1278,7 @@ def _build_figure_from_results(
 
     # Add footer once here for all normal figures (including funder_targets_counts),
     # BUT only if fig exists.
-    if fig is not None and selected_type not in {"provider_missing_classes", "funder_missing_classes", "region_full_report"}:
+    if fig is not None and selected_type not in {"provider_missing_classes", "funder_missing_classes", "region_coverage_report"}:
 
         c = "#1a427d" if selected_type == "funder_missing_data" else "#1a427d40"
         try:
@@ -1336,7 +1336,7 @@ def _persist_figure_and_session(
     if selected_type == "funder_missing_data":
         base_label = f"MissingData_{selected_funder_name or 'Funder'}"
         add_term = False
-    elif selected_type=="region_full_report":
+    elif selected_type=="region_coverage_report":
         region_label = (request.form.get("region_name") or "Region").strip()
         base_label = f"Region_full_summary_{region_label}"
         add_term = False
@@ -1371,7 +1371,7 @@ def _persist_figure_and_session(
         add_term = False
     elif selected_type == "funder_ytd_vs_funder_ly":
         base_label = f"FunderLYvsFunderTY_{selected_funder_name}"
-    elif selected_type == "region_full_report":
+    elif selected_type == "region_coverage_report":
         region_label = (request.form.get("region_name") or "Region").strip()
         base_label = f"RegionReport_{region_label}"
         add_term = False
@@ -1628,26 +1628,27 @@ def new_reports():
                     if extra_banner:
                         no_data_banner = extra_banner
                 
-                if selected_type in {"funder_student_count", "funder_progress_summary", "funder_teacher_review_summary", "provider_missing_classes","funder_missing_classes",    "region_full_report",}:
+                if selected_type in {"funder_student_count", "funder_progress_summary", "funder_teacher_review_summary", "provider_missing_classes","funder_missing_classes",    "region_coverage_report",}:
                     if fig is not None:
-                        prefix = (
-                            "Funder_Student_Count"
-                            if selected_type == "funder_student_count"
-                            else "Funder_Progress_Summary"
-                            if selected_type == "funder_progress_summary"
-                            else "Funder_Teacher_Reviews_Summary"
-                            if selected_type == "funder_teacher_review_summary"
-                            else "provider_missing_classes"
-                            if selected_type == "provider_missing_classes"
-                            else "funder_missing_classes"   # ✅ NEW
-                        )
+                        PREFIX_MAP = {
+                            "funder_student_count": "Funder_Student_Count",
+                            "funder_progress_summary": "Funder_Progress_Summary",
+                            "funder_teacher_review_summary": "Funder_Teacher_Reviews_Summary",
+                            "provider_missing_classes": "provider_missing_classes",
+                            "funder_missing_classes": "funder_missing_classes",
+                            "region_coverage_report": "region_coverage_report",
+                        }
+
+                        prefix = PREFIX_MAP.get(selected_type, "Report")
 
                         provider_label = (request.form.get("provider_name") or "").strip() or f"Provider_{selected_provider_id or ''}"
 
                         name_for_file = (
                             provider_label
                             if selected_type == "provider_missing_classes"
-                            else selected_funder_name   # funder_missing_classes + other funder PDFs
+                            else region_id
+                            if selected_type == "region_coverage_report"
+                            else selected_funder_name
                         )
 
                         plot_png_b64 = _persist_preview_for_existing_report(

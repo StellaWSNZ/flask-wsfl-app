@@ -98,7 +98,7 @@
                   <option value="region_ytd" {{ "selected" if sel_type == "region_ytd" else "" }}>
                     Region YTD (Kaiako vs Funder)
                   </option>
-                  <option value="region_full_report">
+                  <option value="region_coverage_report">
                       Regional Coverage Report
                   </option>
                   <option value="funder_ytd_vs_funder_ly" {{ "selected" if sel_type == "funder_ytd_vs_funder_ly" else "" }}>
@@ -378,7 +378,7 @@
     }
 
     function needsRegion(val) {
-      return ["region_ly_vs_target", "region_ytd","region_full_report"].includes(val);
+      return ["region_ly_vs_target", "region_ytd","region_coverage_report"].includes(val);
     }
 
     function hideAndClear(blockEl, selectEl, hiddenNameEl) {
