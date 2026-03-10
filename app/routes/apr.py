@@ -270,6 +270,7 @@ def apr_page():
         external_statuses=external_statuses,
         database_statuses=database_statuses,
         self_statuses=self_statuses,
+        can_edit = (session.get("user_role")=="ADM"),
         APPROVED_SET_TODAY_ID=APPROVED_SET_TODAY_ID,
         LESSON_SET_TODAY_ID=LESSON_SET_TODAY_ID,
         EXTERNAL_SET_TODAY_ID=EXTERNAL_SET_TODAY_ID,
