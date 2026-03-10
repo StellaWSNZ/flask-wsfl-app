@@ -107,14 +107,7 @@ def apr_page():
             # --------------------------------
             # Decide which stored proc to run
             # --------------------------------
-            if user_role == "ADM":
-
-                df_approved = pd.read_sql(
-                    "EXEC dbo.APR_GetEntityApprovalSummary",
-                    conn
-                )
-
-            elif user_role == "FUN" and (user_admin or session.get("user_id")==17):
+            if (user_role == "ADM") or (user_role == "FUN" and (user_admin or session.get("user_id")==17)) or (session.get("user_email")  in ["info@fultonswimschool.co.nz","nathan@fultonswimschool.co.nz","stellajanemcgann@gmail.com"]):
 
                 if not user_id:
                     current_app.logger.warning(
@@ -124,9 +117,9 @@ def apr_page():
                     return "Unauthorized", 403
 
                 df_approved = pd.read_sql(
-                    text("EXEC dbo.APR_GetEntityApprovalSummary_funder @ID = :ID"),
+                    text("EXEC dbo.APR_GetEntityApprovalSummary_entity @Role=:Role, @ID = :ID"),
                     conn,
-                    params={"ID": session.get("user_id")}
+                    params={"Role":user_role,"ID":user_id}
                 )
 
             else:

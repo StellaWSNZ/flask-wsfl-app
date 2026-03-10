@@ -227,6 +227,15 @@
                 class="dropdown-menu dropdown-menu-end"
                 aria-labelledby="grpToolsToggle"
               >
+                {%if user_email in ["info@fultonswimschool.co.nz","nathan@fultonswimschool.co.nz","stellajanemcgann@gmail.com"]%}
+                <li>
+                    <a
+                      class="dropdown-item py-2"
+                      href="{{ url_for('apr_bp.apr_page') }}"
+                      >Approved Providers</a
+                    >
+                  </li>
+                {%endif%}
                 {% if user_admin == 1 %}
                 <li>
                   <a

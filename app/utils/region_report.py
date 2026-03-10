@@ -49,9 +49,9 @@ MapBBox = Tuple[float, float, float, float]   # (minx, miny, maxx, maxy) in REGI
 # =============================================================================
 C_MASTER = "#1a427d"
 
-EDGE_CURRENT = "#1a427d"  # funded 2025–2026
-EDGE_PREV = "#2EBDC2"     # funded 2023–2025 only
-EDGE_NEVER = "#BBE6E9"    # not funded
+EDGE_CURRENT = "#1a427d"  # current funded (keep as is)
+EDGE_PREV = "#0f766e"     # darker previously funded
+EDGE_NEVER = "#c2410c"    # red/orange-red not funded
 
 COL_REGION = "#6c757d"
 EDGE_REGION = "#6c757d"
