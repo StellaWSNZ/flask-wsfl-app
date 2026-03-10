@@ -109,13 +109,7 @@ def apr_page():
             # --------------------------------
             if (user_role == "ADM") or (user_role == "FUN" and (user_admin or session.get("user_id")==17)) or (session.get("user_email")  in ["info@fultonswimschool.co.nz","nathan@fultonswimschool.co.nz","stellajanemcgann@gmail.com"]):
 
-                if not user_id:
-                    current_app.logger.warning(
-                        "🚫 /ApprovedProviders missing user_id | user=%s",
-                        session.get("user_email")
-                    )
-                    return "Unauthorized", 403
-
+                
                 df_approved = pd.read_sql(
                     text("EXEC dbo.APR_GetEntityApprovalSummary_entity @Role=:Role, @ID = :ID"),
                     conn,

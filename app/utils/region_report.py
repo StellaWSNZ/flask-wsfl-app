@@ -50,8 +50,8 @@ MapBBox = Tuple[float, float, float, float]   # (minx, miny, maxx, maxy) in REGI
 C_MASTER = "#1a427d"
 
 EDGE_CURRENT = "#1a427d"  # current funded (keep as is)
-EDGE_PREV = "#0f766e"     # darker previously funded
-EDGE_NEVER = "#c2410c"    # red/orange-red not funded
+EDGE_PREV =  "#556b2f"        # darker previously funded
+EDGE_NEVER = "#af3809"    # red/orange-red not funded
 
 COL_REGION = "#6c757d"
 EDGE_REGION = "#6c757d"
@@ -984,7 +984,7 @@ if __name__ == "__main__":
     with engine.begin() as conn:
         preview, meta = build_region_report_pdf(
             conn=conn,
-            region_name="Bay of Plenty Region",
+            region_name="Wellington Region",
             calendar_year=2025,
             term=4,
             out_pdf_path=pdf_out,
