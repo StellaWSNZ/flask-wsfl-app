@@ -114,7 +114,7 @@ def apr_page():
                     conn
                 )
 
-            elif user_role == "FUN" and user_admin:
+            elif user_role == "FUN" and (user_admin or session.get("user_id")==17):
 
                 if not user_id:
                     current_app.logger.warning(
@@ -270,7 +270,7 @@ def apr_page():
         external_statuses=external_statuses,
         database_statuses=database_statuses,
         self_statuses=self_statuses,
-        can_edit = (session.get("user_role")=="ADM" or session.get("user_id")==17),
+        can_edit = (session.get("user_role")=="ADM"),
         APPROVED_SET_TODAY_ID=APPROVED_SET_TODAY_ID,
         LESSON_SET_TODAY_ID=LESSON_SET_TODAY_ID,
         EXTERNAL_SET_TODAY_ID=EXTERNAL_SET_TODAY_ID,

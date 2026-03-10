@@ -308,6 +308,15 @@
                     >Class Lookup</a
                   >
                 </li>
+                {% if session['user_admin'] == 1 or session.get('user_id') == 17 %}
+                  <li>
+                    <a
+                      class="dropdown-item py-2"
+                      href="{{ url_for('apr_bp.apr_page') }}"
+                      >Approved Providers</a
+                    >
+                  </li>
+                  {% endif %}
                 {% if session['user_admin'] == 1 %}
                 <li>
                   <a
@@ -316,13 +325,7 @@
                     >Provider Maintenance</a
                   >
                 </li>
-                <li>
-                  <a
-                    class="dropdown-item py-2"
-                    href="{{ url_for('apr_bp.apr_page') }}"
-                    >Approved Providers</a
-                  >
-                </li>
+                
                 <li>
                   <a
                     class="dropdown-item py-2"
