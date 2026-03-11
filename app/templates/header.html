@@ -733,7 +733,7 @@
                     >Complete an External Review</a
                   >
                 </li>
-                {% endif %} {% if user_role in ["FUN", "ADM"] %}
+                {% endif %} {% if user_role in ["FUN", "ADM"] or "clm" in session.get("desc", "").lower() %}
                 <li>
                   <a
                     class="dropdown-item py-2"

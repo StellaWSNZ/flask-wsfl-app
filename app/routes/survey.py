@@ -78,7 +78,7 @@ def survey_by_routename(routename):
                 # Teacher Assessment — funders + WSNZ admins only
                 allowed_roles = {"FUN", "ADM"}
 
-                if user_role not in allowed_roles:
+                if user_role not in allowed_roles and "clm" not in session.get("desc", "").lower():
                     flash(
                         "This assessment is restricted to funders and WSNZ Administrators.",
                         "warning"

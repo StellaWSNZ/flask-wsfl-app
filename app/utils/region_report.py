@@ -54,8 +54,8 @@ EDGE_PREV =  "#556b2f"        # darker previously funded
 EDGE_NEVER = "#af3809"    # red/orange-red not funded
 
 COL_REGION = "#6c757d"
-EDGE_REGION = None
-LW_REGION =  0
+EDGE_REGION = "#6c757d"
+LW_REGION = 1.5
 CONTEXT_EDGE = "#6c757d"
 CONTEXT_FILL = "#D9D9D9"
 CONTEXT_LW = 0.5
