@@ -42,7 +42,7 @@ from app.utils.one_bar_one_line import provider_portrait_with_target, use_ppmori
 from app.utils.missing_classes_report import build_missing_classes_pdf
 from app.utils.region_report import build_region_report_pdf
 import app.utils.report_three_bar_landscape as r3  # kept for other report types
-
+from app.utils.competency_icons import build_icon_reoprt 
 REPORT_DIR = Path("/tmp/wsfl_reports")
 REPORT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -235,6 +235,7 @@ def _get_form_defaults():
         report_type = None
 
     return year, term, report_type
+
 def _persist_preview_for_existing_report(
     *,
     report_id: str,
@@ -242,14 +243,14 @@ def _persist_preview_for_existing_report(
     selected_term: int,
     selected_year: int,
     selected_funder_name: str | None,
-    base_label_prefix: str,  # <-- NEW
+    base_label_prefix: str,
 ):
     png_path = REPORT_DIR / f"{report_id}.png"
     fig.savefig(png_path, format="png", dpi=200)
     plt.close(fig)
 
     funder_chunk = slugify_filename(selected_funder_name or "Funder")
-    base_label = f"{base_label_prefix}_{funder_chunk}"
+    base_label = f"{base_label_prefix}_{funder_chunk}_T{selected_term}_{selected_year}"
 
     session["report_id"] = report_id
     session["report_png_filename"] = f"{base_label}.png"
@@ -551,7 +552,29 @@ def _execute_report(
             results = rows
 
         current_app.logger.info("🔎 rows=%d | type=%s", len(results or []), selected_type)
+    elif selected_type == "national_competency_icons":
+        try:
+            use_ppmori("app/static/fonts")
+        except Exception as font_e:
+            current_app.logger.info("⚠️ font setup skipped: %s", font_e)
 
+        report_id = session.get("report_id") or uuid.uuid4().hex
+        session["report_id"] = report_id
+
+        pdf_path = REPORT_DIR / f"{report_id}.pdf"
+
+        # build the PDF
+        preview_fig  = build_icon_reoprt(
+            out_pdf_path=pdf_path,
+            footer_svg=Path(current_app.static_folder) / "footer.svg",
+            dpi=300,
+            footer_height_frac=0.10,
+            term = selected_term,
+            year = selected_year,
+        )
+
+        results = None
+        fig = preview_fig
     # 2) National LY vs National YTD vs Target
     elif selected_type == "national_ly_vs_national_ytd_vs_target":
         sql = text(
@@ -1278,7 +1301,7 @@ def _build_figure_from_results(
 
     # Add footer once here for all normal figures (including funder_targets_counts),
     # BUT only if fig exists.
-    if fig is not None and selected_type not in {"provider_missing_classes", "funder_missing_classes", "region_coverage_report"}:
+    if fig is not None and selected_type not in {"provider_missing_classes", "funder_missing_classes", "region_coverage_report", "national_competency_icons",}:
 
         c = "#1a427d" if selected_type == "funder_missing_data" else "#1a427d40"
         try:
@@ -1361,6 +1384,8 @@ def _persist_figure_and_session(
     elif selected_type == "funder_targets_counts":
         base_label = f"FunderTargetsCounts"
         add_term = False
+    elif selected_type == "national_competency_icons":
+        base_label = "NationalCompetencyIcons"
     elif selected_type == "region_ly_vs_target":
         region_label = (request.form.get("region_name") or "Region").strip()
         base_label = f"RegionLYvsTarget_{region_label}"
@@ -1379,6 +1404,7 @@ def _persist_figure_and_session(
         base_label = f"Report_{selected_type or 'Unknown'}"
 
     base_label = slugify_filename(base_label, fallback="WSFL_Report")
+    print(add_term)
     if add_term:
         base_label = f"{base_label}_T{selected_term}_{selected_year}"
 
@@ -1577,7 +1603,7 @@ def new_reports():
                     selected_funder_name=selected_funder_name,
                     is_ajax=is_ajax,
                 )
-                if fig is not None and selected_type not in {"provider_missing_classes", "funder_missing_classes"}:
+                if fig is not None and selected_type not in {"provider_missing_classes", "funder_missing_classes", "national_competency_icons",}:
 
                     try:
                         footer_svg = os.path.join(current_app.static_folder, "footer.svg")
@@ -1628,7 +1654,7 @@ def new_reports():
                     if extra_banner:
                         no_data_banner = extra_banner
                 
-                if selected_type in {"funder_student_count", "funder_progress_summary", "funder_teacher_review_summary", "provider_missing_classes","funder_missing_classes",    "region_coverage_report",}:
+                if selected_type in {"funder_student_count", "funder_progress_summary", "funder_teacher_review_summary", "provider_missing_classes","funder_missing_classes",  "national_competency_icons",  "region_coverage_report",}:
                     if fig is not None:
                         PREFIX_MAP = {
                             "funder_student_count": "Funder_Student_Count",
@@ -1637,6 +1663,7 @@ def new_reports():
                             "provider_missing_classes": "provider_missing_classes",
                             "funder_missing_classes": "funder_missing_classes",
                             "region_coverage_report": "region_coverage_report",
+                            "national_competency_icons": "National_Competency_Icons",
                         }
 
                         prefix = PREFIX_MAP.get(selected_type, "Report")
@@ -1648,6 +1675,8 @@ def new_reports():
                             if selected_type == "provider_missing_classes"
                             else region_id
                             if selected_type == "region_coverage_report"
+                            else "National"
+                            if selected_type == "national_competency_icons"
                             else selected_funder_name
                         )
 
