@@ -17,7 +17,7 @@ def get_years():
 @api_bp.route("/get_entities", methods=["GET"])
 @login_required
 def get_entities():
-    debug = True
+    debug = False
 
     try:
         # ----------------------------

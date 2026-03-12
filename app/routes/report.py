@@ -46,6 +46,8 @@ from app.utils.competency_icons import build_icon_reoprt
 REPORT_DIR = Path("/tmp/wsfl_reports")
 REPORT_DIR.mkdir(parents=True, exist_ok=True)
 from openpyxl.styles import PatternFill, Font
+from openpyxl.utils import get_column_letter
+from openpyxl.worksheet.table import Table, TableStyleInfo
 # Blueprint
 report_bp = Blueprint("report_bp", __name__)
 
@@ -1418,7 +1420,42 @@ def _persist_figure_and_session(
 
     plot_png_b64 = base64.b64encode(png_path.read_bytes()).decode("ascii")
     return plot_png_b64
+_table_counter = 1
 
+def _convert_to_table(ws, table_name_prefix="Table"):
+    global _table_counter
+
+    max_row = ws.max_row
+    max_col = ws.max_column
+
+    if max_row < 2:
+        return
+
+    # Excel table names:
+    # - must start with a letter or underscore
+    # - can only contain letters, numbers, underscores
+    safe_prefix = re.sub(r"[^A-Za-z0-9_]", "_", str(table_name_prefix))
+    if not safe_prefix:
+        safe_prefix = "Table"
+    if not re.match(r"^[A-Za-z_]", safe_prefix):
+        safe_prefix = f"T_{safe_prefix}"
+
+    end_col = get_column_letter(max_col)
+    ref = f"A1:{end_col}{max_row}"
+
+    table_name = f"{safe_prefix}_{_table_counter}"
+    _table_counter += 1
+
+    table = Table(displayName=table_name, ref=ref)
+
+    style = TableStyleInfo(
+        name="TableStyleLight8",
+        showRowStripes=True,
+        showColumnStripes=False
+    )
+
+    table.tableStyleInfo = style
+    ws.add_table(table)
 @report_bp.route("/Reports", methods=["GET", "POST"])
 @login_required
 def new_reports():
@@ -1510,7 +1547,7 @@ def new_reports():
                         val = "" if cell.value is None else str(cell.value)
                         max_len = max(max_len, len(val))
                     ws.column_dimensions[col_letter].width = min(max_len + 2, 40)
-
+            
             with engine.connect() as conn:
                 if selected_funder_name:
                     row = conn.execute(
@@ -1534,7 +1571,8 @@ def new_reports():
                         SET NOCOUNT ON;
                         EXEC GetFunderYearGroupSummary_StudentWeighted_TY_LY_WithTrend
                             @CalendarYear = :year,
-                            @Term = :term;
+                            @Term = :term,
+                            @NoChangeEpsilon = :change;
                     """)
 
                     df = pd.read_sql(
@@ -1543,6 +1581,7 @@ def new_reports():
                         params={
                             "year": selected_year,
                             "term": selected_term,
+                            "change":0.05
                         },
                     )
 
@@ -1552,10 +1591,10 @@ def new_reports():
 
                     # Expected proc columns
                     required_cols = [
-                        "PeriodLabel",
                         "Funder",
                         "YearGroupDesc",
-                        "StudentCount",
+                        "StudentCount_TY",
+                        "StudentCount_LY",
                         "TY_YG_Rate",
                         "LY_YG_Rate",
                         "DeltaYG",
@@ -1570,33 +1609,15 @@ def new_reports():
                             + ", ".join(df.columns.astype(str).tolist())
                         )
 
-                    filename = f"AllChanges_T{selected_term}_{selected_year}.xlsx"
+                    filename = f"RatesByFunderYearGroup_T{selected_term}_{selected_year}.xlsx"
 
-                    # -----------------------------------------
-                    # Build cleaned long table with TY and LY
-                    # student counts in separate columns
-                    # -----------------------------------------
-                    ty_counts = (
-                        df[df["PeriodLabel"].astype(str).str.upper() == "TY"][
-                            ["Funder", "YearGroupDesc", "StudentCount"]
-                        ]
-                        .drop_duplicates()
-                        .rename(columns={"StudentCount": "StudentCount_TY"})
-                    )
-
-                    ly_counts = (
-                        df[df["PeriodLabel"].astype(str).str.upper() == "LY"][
-                            ["Funder", "YearGroupDesc", "StudentCount"]
-                        ]
-                        .drop_duplicates()
-                        .rename(columns={"StudentCount": "StudentCount_LY"})
-                    )
-
-                    rate_df = (
+                    export_df = (
                         df[
                             [
                                 "Funder",
                                 "YearGroupDesc",
+                                "StudentCount_TY",
+                                "StudentCount_LY",
                                 "TY_YG_Rate",
                                 "LY_YG_Rate",
                                 "DeltaYG",
@@ -1605,35 +1626,10 @@ def new_reports():
                         ]
                         .drop_duplicates(subset=["Funder", "YearGroupDesc"])
                         .copy()
+                        .sort_values(["Funder", "YearGroupDesc"])
                     )
 
-                    export_df = (
-                        rate_df
-                        .merge(
-                            ty_counts,
-                            on=["Funder", "YearGroupDesc"],
-                            how="left",
-                        )
-                        .merge(
-                            ly_counts,
-                            on=["Funder", "YearGroupDesc"],
-                            how="left",
-                        )
-                    )
-
-                    # Put columns in the order you want
-                    export_df = export_df[
-                        [
-                            "Funder",
-                            "YearGroupDesc",
-                            "StudentCount_TY",
-                            "StudentCount_LY",
-                            "TY_YG_Rate",
-                            "LY_YG_Rate",
-                            "DeltaYG",
-                            "TrendYG",
-                        ]
-                    ].sort_values(["Funder", "YearGroupDesc"])
+                    
 
                 else:
                     flash("Unknown Excel export type.", "danger")
@@ -1652,7 +1648,83 @@ def new_reports():
                 diff_col = "DeltaYG"
                 trend_col = "TrendYG"
 
+               
+                overview_rows = [
+                    ["Report", "Rates by Funder and Year Group"],
+                    ["Calendar Year", selected_year],
+                    ["Term", selected_term],
+                    ["No-change threshold", "5 percentage points"],
+                    ["", ""],
+                    ["Sheet", "Description"],
+                    ["Overview", "This sheet explains the workbook contents and definitions."],
+                    ["Funder Summary", "One row per funder, with year groups as columns."],
+                    ["All Funders", "Long-format table with all funder and year-group combinations."],
+                    ["All Year Groups", "All funders for the combined year-group result."],
+                    ["0-2", "All funders for year group 0-2."],
+                    ["3-4", "All funders for year group 3-4."],
+                    ["5-6", "All funders for year group 5-6."],
+                    ["7-8", "All funders for year group 7-8."],
+                    ["", ""],
+                    ["Column", "Meaning"],
+                    ["StudentCount_TY", "Student count for the selected year/term period."],
+                    ["StudentCount_LY", "Student count for the comparison period."],
+                    ["TY_YG_Rate", "Current period year-group rate."],
+                    ["LY_YG_Rate", "Comparison period year-group rate."],
+                    ["DeltaYG", "TY_YG_Rate minus LY_YG_Rate, shown in percentage points."],
+                    ["TrendYG", "Direction of change: Up, Down, or No change."],
+                ]
+
+                overview_df = pd.DataFrame(overview_rows, columns=["Item", "Value"])
+                overview_df.to_excel(writer, index=False, sheet_name="Overview")
+
+                ws = writer.book["Overview"]
+
+                overview_header_fill = PatternFill(
+                    start_color="1A427D",
+                    end_color="1A427D",
+                    fill_type="solid"
+                )
+                overview_header_font = Font(color="FFFFFF", bold=True)
+                header_rows = [1, 7, 17]
+                for r in header_rows:
+                    for cell in ws[r]:
+                        cell.fill = overview_header_fill
+                        cell.font = overview_header_font
+                _autosize_and_freeze(ws)
+                ws.freeze_panes = "A2"
                 # =========================================
+                # Middle sheets: one per year group
+                # =========================================
+                year_groups = export_df[yeargroup_col].dropna().unique().tolist()
+                order = ["All Year Groups", "0-2", "3-4", "5-6", "7-8"]
+
+                year_groups = sorted(year_groups, key=lambda x: order.index(x) if x in order else 999)
+
+                for yg in year_groups:
+                    yg_df = (
+                        export_df[export_df[yeargroup_col] == yg]
+                        .copy()
+                        .sort_values(by=[funder_col])
+                    )
+                    sheet_name = _safe_sheet_name(str(yg), fallback="Year Group")
+                    yg_df.to_excel(
+                        writer,
+                        index=False,
+                        sheet_name=sheet_name,
+                    )
+
+                    ws = writer.book[sheet_name]
+                    _convert_to_table(ws, f"YG_{sheet_name}")
+
+                # =========================================
+                # Final sheet: all funders (long)
+                # =========================================
+                all_df = export_df.copy().sort_values(by=[funder_col, yeargroup_col])
+                all_df.to_excel(writer, index=False, sheet_name="All Funders")
+
+                ws = writer.book["All Funders"]
+                _convert_to_table(ws, "AllFunders")
+                 # =========================================
                 # Sheet 1: Funder Summary (wide)
                 # =========================================
                 summary_wide = export_df.pivot_table(
@@ -1669,40 +1741,15 @@ def new_reports():
 
                 summary_wide.to_excel(writer, index=False, sheet_name="Funder Summary")
 
-                # =========================================
-                # Middle sheets: one per year group
-                # =========================================
-                year_groups = sorted(
-                    export_df[yeargroup_col].dropna().unique().tolist(),
-                    key=lambda x: str(x)
-                )
-
-                for yg in year_groups:
-                    yg_df = (
-                        export_df[export_df[yeargroup_col] == yg]
-                        .copy()
-                        .sort_values(by=[funder_col])
-                    )
-
-                    yg_df.to_excel(
-                        writer,
-                        index=False,
-                        sheet_name=_safe_sheet_name(str(yg), fallback="Year Group"),
-                    )
-
-                # =========================================
-                # Final sheet: all funders (long)
-                # =========================================
-                all_df = export_df.copy().sort_values(by=[funder_col, yeargroup_col])
-                all_df.to_excel(writer, index=False, sheet_name="All Funders")
-
+                ws = writer.book["Funder Summary"]
+                _convert_to_table(ws, "FunderSummary")
                 # =========================================
                 # Formatting
                 # =========================================
                 wb = writer.book
 
                 # Header style
-                header_fill = PatternFill(start_color="000000", end_color="000000", fill_type="solid")
+                header_fill = PatternFill(start_color="1a427d", end_color="1a427d", fill_type="solid")
                 header_font = Font(color="FFFFFF", bold=True)
 
                 # Trend styles
@@ -1716,6 +1763,7 @@ def new_reports():
                 trend_same_font = Font(color="000000", bold=True)
 
                 for ws in wb.worksheets:
+                  
                     _autosize_and_freeze(ws)
 
                     header_map = {cell.column: cell.value for cell in ws[1]}

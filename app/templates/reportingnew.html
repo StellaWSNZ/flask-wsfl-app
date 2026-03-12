@@ -202,9 +202,10 @@
                   -- Select an Excel export --
                 </option>
                 <option value="all_changes" {{ "selected" if excel_type_posted == "all_changes" else "" }}>
-                  Excel Changes by Funder 
+                  Excel Changes by Funder
                 </option>
-                
+                {# Add more Excel exports here #}
+                {# <option value="provider_summary" {{ "selected" if excel_type_posted == "provider_summary" else "" }}>Provider Summary Export</option> #}
               </select>
             </div>
             {% endif %}
@@ -280,78 +281,128 @@
     <!-- ===== Main content ===== -->
     <div class="col-lg-9">
       <div class="card">
-        <div
-          id="report-header"
-          class="card-header text-white d-flex justify-content-between align-items-start"
-          style="background: #1a427d"
-        >
-          <div id="report-header-left">
-            {% if funder_name %}{{ funder_name }} • {% endif %}
-            {% if selected_term and selected_year %}
-              Term {{ selected_term }}, {{ selected_year }}
-            {% else %}
-              Select options and run report
-            {% endif %}
-            {% if region_name_posted %} • {{ region_name_posted }}{% endif %}
-            {% if provider_name_posted %} • {{ provider_name_posted }}{% endif %}
-            {% if school_name_posted %} • {{ school_name_posted }}{% endif %}
+        <!-- ========================= -->
+        <!-- Visual preview section -->
+        <!-- ========================= -->
+        <div id="visualPreviewCard">
+          <div
+            id="report-header"
+            class="card-header text-white d-flex justify-content-between align-items-start"
+            style="background: #1a427d"
+          >
+            <div id="report-header-left">
+              {% if funder_name %}{{ funder_name }} • {% endif %}
+              {% if selected_term and selected_year %}
+                Term {{ selected_term }}, {{ selected_year }}
+              {% else %}
+                Select options and run report
+              {% endif %}
+              {% if region_name_posted %} • {{ region_name_posted }}{% endif %}
+              {% if provider_name_posted %} • {{ provider_name_posted }}{% endif %}
+              {% if school_name_posted %} • {{ school_name_posted }}{% endif %}
+            </div>
+          </div>
+
+          <div class="card-body">
+            <div
+              id="chart-container"
+              class="position-relative text-center"
+              style="min-height: 220px; overflow: visible"
+            >
+              <div id="chart-message" style="color: #1a427d; font-weight: 600">
+                {% if plot_png_b64 %}
+                  <span style="display: none">Report will appear here once submitted.</span>
+                {% else %}
+                  Report will appear here once submitted.
+                {% endif %}
+              </div>
+
+              <img
+                id="report-img"
+                class="img-fluid mx-auto fade-in {{ 'is-visible d-block' if plot_png_b64 else 'd-none' }}"
+                src="{{ ('data:image/png;base64,' ~ plot_png_b64) if plot_png_b64 else '' }}"
+                alt="Report chart"
+                style="
+                  max-width: 100%;
+                  height: auto;
+                  max-height: 70vh;
+                  object-fit: contain;
+                  border: 1px solid #eee;
+                  border-radius: 0.5rem;
+                "
+              />
+
+              <div
+                id="exportButtons"
+                class="justify-content-center gap-2 mt-3 {{ 'd-flex' if display else 'd-none' }}"
+              >
+                <a class="btn btn-sm btn-outline-primary" href="{{ url_for('report_bp.download_pdf') }}">
+                  Export PDF
+                </a>
+
+                <a
+                  id="exportPngBtn"
+                  class="btn btn-sm btn-outline-primary {{ 'd-none' if disable_png else '' }}"
+                  href="{{ url_for('report_bp.download_png') }}"
+                >
+                  Export PNG
+                </a>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div class="card-body">
-          <div
-            id="chart-container"
-            class="position-relative text-center"
-            style="min-height: 220px; max-height: 85vh; overflow: visible"
-          >
-            <div id="chart-message" style="color: #1a427d; font-weight: 600">
-              {% if plot_png_b64 %}
-                <span style="display: none">Report will appear here once submitted.</span>
-              {% else %}
-                Report will appear here once submitted.
-              {% endif %}
+        <!-- ========================= -->
+        <!-- Excel preview section -->
+        <!-- ========================= -->
+        <div id="excelPreviewCard" class="d-none">
+          <div class="card-header text-white" style="background: #1a427d">
+            Excel Export Preview
+          </div>
+
+          <div class="card-body">
+            <div class="row g-3">
+              <div class="col-12 col-md-6">
+                <div class="border rounded p-3 bg-light h-100">
+                  <div class="text-muted small mb-1">Export</div>
+                  <div id="excel-preview-type" class="fw-bold">Excel export</div>
+                </div>
+              </div>
+
+              <div class="col-12 col-md-6">
+                <div class="border rounded p-3 bg-light h-100">
+                  <div class="text-muted small mb-1">Period</div>
+                  <div id="excel-preview-period" class="fw-bold">Term 1, 2025</div>
+                </div>
+              </div>
             </div>
 
-            <div id="excel-message" class="d-none" style="color: #1a427d; font-weight: 600;">
-              This export downloads as an Excel file and does not display a chart preview.
+            <div class="border rounded p-3 bg-light mt-3">
+              <div class="text-muted small mb-2">Summary</div>
+              <p id="excel-preview-summary" class="mb-0">
+                Choose an Excel export to see what will be included in the workbook.
+              </p>
             </div>
 
-            <img
-              id="report-img"
-              class="img-fluid mx-auto fade-in {{ 'is-visible d-block' if plot_png_b64 else 'd-none' }}"
-              src="{{ ('data:image/png;base64,' ~ plot_png_b64) if plot_png_b64 else '' }}"
-              alt="Report chart"
-              style="
-                max-width: 100%;
-                height: auto;
-                max-height: 70vh;
-                object-fit: contain;
-                border: 1px solid #eee;
-                border-radius: 0.5rem;
-              "
-            />
+            <div class="border rounded p-3 bg-light mt-3">
+              <div class="text-muted small mb-2">Included sheets</div>
+              <ul id="excel-preview-sheets" class="mb-0 ps-3">
+                <li>Workbook sheets will be listed here once an export is selected.</li>
+              </ul>
+            </div>
 
-            <div
-              id="exportButtons"
-              class="justify-content-center gap-2 mt-3 {{ 'd-flex' if display else 'd-none' }}"
-            >
-              <a class="btn btn-sm btn-outline-primary" href="{{ url_for('report_bp.download_pdf') }}">
-                Export PDF
-              </a>
-
-              <a
-                id="exportPngBtn"
-                class="btn btn-sm btn-outline-primary {{ 'd-none' if disable_png else '' }}"
-                href="{{ url_for('report_bp.download_png') }}"
-              >
-                Export PNG
-              </a>
+            <div class="border rounded p-3 bg-light mt-3">
+              <div class="text-muted small mb-2">Definitions</div>
+              <ul id="excel-preview-definitions" class="mb-0 ps-3">
+                <li><strong>No-change threshold:</strong> 5 percentage points</li>
+                <li><strong>DeltaYG:</strong> TY_YG_Rate minus LY_YG_Rate, displayed in percentage points</li>
+                <li><strong>TrendYG:</strong> Up, Down, or No change</li>
+              </ul>
             </div>
           </div>
         </div>
       </div>
     </div>
-
   </div>
 </div>
 
@@ -365,18 +416,63 @@
     const ENTITIES_URL = "{{ entities_url }}";
     const ROLE = "{{ role }}";
 
+    const EXCEL_PREVIEW_CONFIG = {
+      all_changes: {
+        title: "Excel Changes by Funder",
+        summary:
+          "This export includes a workbook overview, a wide summary by funder, separate year-group sheets, and a full long-format table of all funders.",
+        sheets: [
+          "Overview",
+          "Funder Summary",
+          "All Year Groups",
+          "0-2",
+          "3-4",
+          "5-6",
+          "7-8",
+          "All Funders"
+        ],
+        definitions: [
+          "<strong>No-change threshold:</strong> 5 percentage points",
+          "<strong>DeltaYG:</strong> TY_YG_Rate minus LY_YG_Rate, displayed in percentage points",
+          "<strong>TrendYG:</strong> Up, Down, or No change"
+        ]
+      }
+
+      // Add future exports here:
+      // provider_summary: {
+      //   title: "Provider Summary Export",
+      //   summary: "This export includes provider-level summaries and supporting detail sheets.",
+      //   sheets: ["Overview", "Provider Summary", "All Providers"],
+      //   definitions: [
+      //     "<strong>Rates:</strong> Displayed as percentages",
+      //     "<strong>Counts:</strong> Based on the selected year and term",
+      //     "<strong>Comparison columns:</strong> Show the previous equivalent period"
+      //   ]
+      // }
+    };
+
     const form = document.getElementById("report-form");
     const categorySel = document.getElementById("report_category");
     const reportSel = document.getElementById("report_option");
     const excelReportSel = document.getElementById("excel_report_option");
+    const yearSel = document.getElementById("year");
+    const termSel = document.getElementById("term");
 
     const visualReportBlock = document.getElementById("visualReportBlock");
     const excelReportBlock = document.getElementById("excelReportBlock");
     const showReportBtn = document.getElementById("showReportBtn");
     const downloadExcelBtn = document.getElementById("downloadExcelBtn");
 
+    const visualPreviewCard = document.getElementById("visualPreviewCard");
+    const excelPreviewCard = document.getElementById("excelPreviewCard");
+
+    const excelPreviewType = document.getElementById("excel-preview-type");
+    const excelPreviewPeriod = document.getElementById("excel-preview-period");
+    const excelPreviewSummary = document.getElementById("excel-preview-summary");
+    const excelPreviewSheets = document.getElementById("excel-preview-sheets");
+    const excelPreviewDefinitions = document.getElementById("excel-preview-definitions");
+
     const chartMessage = document.getElementById("chart-message");
-    const excelMessage = document.getElementById("excel-message");
     const reportImg = document.getElementById("report-img");
     const exportButtons = document.getElementById("exportButtons");
 
@@ -440,7 +536,6 @@
         "funder_teacher_review_summary",
         "funder_ytd_vs_funder_ly",
         "funder_missing_classes",
-
       ].includes(val);
     }
 
@@ -460,6 +555,46 @@
     function showAndEnable(blockEl, selectEl) {
       if (blockEl) blockEl.style.display = "block";
       if (selectEl) selectEl.disabled = false;
+    }
+
+    function setExcelPreviewContent() {
+      if (
+        !excelPreviewType ||
+        !excelPreviewPeriod ||
+        !excelPreviewSummary ||
+        !excelPreviewSheets ||
+        !excelPreviewDefinitions
+      ) return;
+
+      const excelVal = excelReportSel ? excelReportSel.value : "";
+      const config = EXCEL_PREVIEW_CONFIG[excelVal];
+
+      const excelText = excelReportSel && excelReportSel.selectedIndex >= 0
+        ? excelReportSel.options[excelReportSel.selectedIndex].textContent.trim()
+        : "Excel export";
+
+      excelPreviewType.textContent = config?.title || excelText;
+      excelPreviewPeriod.textContent = `Term ${termSel ? termSel.value : ""}, ${yearSel ? yearSel.value : ""}`;
+
+      if (!config) {
+        excelPreviewSummary.textContent =
+          "Choose an Excel export to see what will be included in the workbook.";
+
+        excelPreviewSheets.innerHTML = `
+          <li>Workbook sheets will be listed here once an export is selected.</li>
+        `;
+
+        excelPreviewDefinitions.innerHTML = `
+          <li><strong>No-change threshold:</strong> 5 percentage points</li>
+          <li><strong>DeltaYG:</strong> TY_YG_Rate minus LY_YG_Rate, displayed in percentage points</li>
+          <li><strong>TrendYG:</strong> Up, Down, or No change</li>
+        `;
+        return;
+      }
+
+      excelPreviewSummary.textContent = config.summary;
+      excelPreviewSheets.innerHTML = config.sheets.map(sheet => `<li>${sheet}</li>`).join("");
+      excelPreviewDefinitions.innerHTML = config.definitions.map(item => `<li>${item}</li>`).join("");
     }
 
     async function loadFunders() {
@@ -686,21 +821,12 @@
       if (downloadExcelBtn) downloadExcelBtn.classList.toggle("d-none", !isExcel);
 
       if (isExcel) {
-        if (excelMessage) excelMessage.classList.remove("d-none");
-        if (chartMessage) chartMessage.style.display = "none";
-        if (reportImg) {
-          reportImg.classList.remove("is-visible");
-          reportImg.classList.add("d-none");
-        }
-        if (exportButtons) {
-          exportButtons.classList.remove("d-flex");
-          exportButtons.classList.add("d-none");
-        }
+        setExcelPreviewContent();
+        if (visualPreviewCard) visualPreviewCard.classList.add("d-none");
+        if (excelPreviewCard) excelPreviewCard.classList.remove("d-none");
       } else {
-        if (excelMessage) excelMessage.classList.add("d-none");
-        if (!reportImg || !reportImg.getAttribute("src")) {
-          if (chartMessage) chartMessage.style.display = "block";
-        }
+        if (visualPreviewCard) visualPreviewCard.classList.remove("d-none");
+        if (excelPreviewCard) excelPreviewCard.classList.add("d-none");
       }
 
       toggleEntityBlocks();
@@ -755,10 +881,20 @@
     if (excelReportSel) {
       excelReportSel.addEventListener("change", () => {
         initialising = false;
+        setExcelPreviewContent();
         toggleEntityBlocks();
       });
     }
 
+    if (yearSel) {
+      yearSel.addEventListener("change", setExcelPreviewContent);
+    }
+
+    if (termSel) {
+      termSel.addEventListener("change", setExcelPreviewContent);
+    }
+
+    setExcelPreviewContent();
     toggleCategoryUI();
   })();
 </script>
