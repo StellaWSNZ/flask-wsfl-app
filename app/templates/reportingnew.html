@@ -1,14 +1,11 @@
-{# templates/reportingnew.html #}
 {% extends "header.html" %}
 {% block title %}Reporting{% endblock %}
 
 {% block content %}
-{# ---------------------------
-   Safe precomputed selections
-   --------------------------- #}
 {% set sel_year = (selected_year|string) if selected_year is not none else "" %}
 {% set sel_term = (selected_term|string) if selected_term is not none else "" %}
 {% set sel_type = selected_type if selected_type is not none else "" %}
+{% set sel_category = request.form.get("report_category", "visual") if role == "ADM" else "visual" %}
 
 {% set year_2025_selected = (sel_year == "2025") or (not sel_year) %}
 {% set year_2026_selected = (sel_year == "2026") %}
@@ -22,6 +19,7 @@
 {% set provider_name_posted = request.form.get("provider_name", "") %}
 {% set school_name_posted = request.form.get("school_name", "") %}
 {% set region_name_posted = request.form.get("region_name", "") %}
+{% set excel_type_posted = request.form.get("excel_report_option", "") %}
 
 <div class="container-fluid mt-4" style="max-width: 98%">
   <div class="row">
@@ -41,6 +39,10 @@
           >
             {% if csrf_token is defined %}
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+            {% endif %}
+
+            {% if role != "ADM" %}
+              <input type="hidden" name="report_category" value="visual" />
             {% endif %}
 
             <!-- Year -->
@@ -63,8 +65,23 @@
               </select>
             </div>
 
-            <!-- Report Type -->
+            <!-- Report Category (ADM only) -->
+            {% if role == "ADM" %}
             <div class="mb-3">
+              <label for="report_category" class="form-label">Report Category</label>
+              <select name="report_category" id="report_category" class="form-select">
+                <option value="visual" {{ "selected" if sel_category == "visual" else "" }}>
+                  Visual Report
+                </option>
+                <option value="excel" {{ "selected" if sel_category == "excel" else "" }}>
+                  Excel Export
+                </option>
+              </select>
+            </div>
+            {% endif %}
+
+            <!-- Visual Report Type -->
+            <div class="mb-3" id="visualReportBlock">
               <label for="report_option" class="form-label">Report Type</label>
               <select name="report_option" id="report_option" class="form-select">
                 <option value="" disabled {{ "selected" if not sel_type else "" }}>
@@ -80,9 +97,8 @@
                     National YTD vs WSNZ Target
                   </option>
 
-                  <option value="national_competency_icons"
-                      {% if selected_type == "national_competency_icons" %}selected{% endif %}>
-                      National Competency Rates by Icon
+                  <option value="national_competency_icons" {{ "selected" if sel_type == "national_competency_icons" else "" }}>
+                    National Competency Rates by Icon
                   </option>
 
                   <option value="funder_progress_summary" {{ "selected" if sel_type == "funder_progress_summary" else "" }}>
@@ -100,12 +116,15 @@
                   <option value="region_ly_vs_target" {{ "selected" if sel_type == "region_ly_vs_target" else "" }}>
                     Region LY vs WSNZ Target
                   </option>
+
                   <option value="region_ytd" {{ "selected" if sel_type == "region_ytd" else "" }}>
                     Region YTD (Kaiako vs Funder)
                   </option>
-                  <option value="region_coverage_report">
-                      Regional Coverage Report
+
+                  <option value="region_coverage_report" {{ "selected" if sel_type == "region_coverage_report" else "" }}>
+                    Regional Coverage Report
                   </option>
+
                   <option value="funder_ytd_vs_funder_ly" {{ "selected" if sel_type == "funder_ytd_vs_funder_ly" else "" }}>
                     Funder LY vs Funder YTD
                   </option>
@@ -141,9 +160,11 @@
                   <option value="funder_student_count" {{ "selected" if sel_type == "funder_student_count" else "" }}>
                     Funder Student Counts
                   </option>
+
                   <option value="funder_missing_classes" {{ "selected" if sel_type == "funder_missing_classes" else "" }}>
                     Funder Missing Classes
                   </option>
+
                   <option value="provider_missing_classes" {{ "selected" if sel_type == "provider_missing_classes" else "" }}>
                     Provider Missing Classes
                   </option>
@@ -164,7 +185,6 @@
                   <option value="school_ytd_vs_target" {{ "selected" if sel_type == "school_ytd_vs_target" else "" }}>
                     School YTD Performance vs WSNZ Target
                   </option>
-
                 {% elif role == "MOE" %}
                   <option value="school_ytd_vs_target" {{ "selected" if sel_type == "school_ytd_vs_target" else "" }}>
                     YTD Performance vs WSNZ Target
@@ -173,15 +193,29 @@
               </select>
             </div>
 
-            <!-- Funder (appears only when report type needs it) -->
+            <!-- Excel Export Type (ADM only) -->
+            {% if role == "ADM" %}
+            <div class="mb-3" id="excelReportBlock" style="display:none;">
+              <label for="excel_report_option" class="form-label">Excel Export Type</label>
+              <select name="excel_report_option" id="excel_report_option" class="form-select">
+                <option value="" disabled {{ "selected" if not excel_type_posted else "" }}>
+                  -- Select an Excel export --
+                </option>
+                <option value="all_changes" {{ "selected" if excel_type_posted == "all_changes" else "" }}>
+                  Excel Changes by Funder 
+                </option>
+                
+              </select>
+            </div>
+            {% endif %}
+
+            <!-- Funder -->
             <div class="mb-3" id="funderBlock" style="display: none">
               {% if role == "ADM" %}
                 <label for="selected_funder" class="form-label">Funder</label>
                 <select name="selected_funder" id="selected_funder" class="form-select" disabled>
                   <option value="" disabled selected>Loading funders…</option>
                 </select>
-
-                <!-- Hidden: funder name for titles -->
                 <input
                   type="hidden"
                   name="funder_name"
@@ -194,14 +228,12 @@
               {% endif %}
             </div>
 
-            <!-- Region (only for region reports) -->
+            <!-- Region -->
             <div class="mb-3" id="regionBlock" style="display: none">
               <label for="region_id" class="form-label">Region</label>
               <select name="region_id" id="region_id" class="form-select" disabled>
                 <option value="" disabled selected>Loading regions…</option>
               </select>
-
-              <!-- Hidden: region name for titles -->
               <input
                 type="hidden"
                 name="region_name"
@@ -210,7 +242,7 @@
               />
             </div>
 
-            <!-- Provider (only for provider reports) -->
+            <!-- Provider -->
             <div class="mb-3" id="providerBlock" style="display: none">
               <label for="provider_id" class="form-label">Provider</label>
               <select name="provider_id" id="provider_id" class="form-select" disabled>
@@ -218,7 +250,7 @@
               </select>
             </div>
 
-            <!-- School (MOE number) -->
+            <!-- School -->
             <div class="mb-3" id="schoolBlock" style="display: none">
               <label for="school_id" class="form-label">School</label>
               <select name="school_id" id="school_id" class="form-select" disabled>
@@ -226,14 +258,19 @@
               </select>
             </div>
 
-            <!-- Hidden: provider/school names for titles -->
             <input type="hidden" name="provider_name" id="provider_name" value="{{ provider_name_posted }}" />
             <input type="hidden" name="school_name" id="school_name" value="{{ school_name_posted }}" />
 
-            <div class="d-grid">
-              <button type="submit" name="action" value="show_report" class="btn btn-primary">
+            <div class="d-grid gap-2">
+              <button type="submit" name="action" value="show_report" class="btn btn-primary" id="showReportBtn">
                 Show report
               </button>
+
+              {% if role == "ADM" %}
+              <button type="submit" name="action" value="download_excel" class="btn btn-success d-none" id="downloadExcelBtn">
+                Download Excel
+              </button>
+              {% endif %}
             </div>
           </form>
         </div>
@@ -267,7 +304,6 @@
             class="position-relative text-center"
             style="min-height: 220px; max-height: 85vh; overflow: visible"
           >
-            <!-- Message placeholder -->
             <div id="chart-message" style="color: #1a427d; font-weight: 600">
               {% if plot_png_b64 %}
                 <span style="display: none">Report will appear here once submitted.</span>
@@ -276,7 +312,10 @@
               {% endif %}
             </div>
 
-            <!-- Chart image -->
+            <div id="excel-message" class="d-none" style="color: #1a427d; font-weight: 600;">
+              This export downloads as an Excel file and does not display a chart preview.
+            </div>
+
             <img
               id="report-img"
               class="img-fluid mx-auto fade-in {{ 'is-visible d-block' if plot_png_b64 else 'd-none' }}"
@@ -292,7 +331,6 @@
               "
             />
 
-            <!-- Export buttons UNDER the image -->
             <div
               id="exportButtons"
               class="justify-content-center gap-2 mt-3 {{ 'd-flex' if display else 'd-none' }}"
@@ -323,16 +361,27 @@
 </style>
 
 <script>
-  /* ===================== Controls & data-loading ===================== */
   (function () {
     const ENTITIES_URL = "{{ entities_url }}";
     const ROLE = "{{ role }}";
 
     const form = document.getElementById("report-form");
+    const categorySel = document.getElementById("report_category");
     const reportSel = document.getElementById("report_option");
+    const excelReportSel = document.getElementById("excel_report_option");
+
+    const visualReportBlock = document.getElementById("visualReportBlock");
+    const excelReportBlock = document.getElementById("excelReportBlock");
+    const showReportBtn = document.getElementById("showReportBtn");
+    const downloadExcelBtn = document.getElementById("downloadExcelBtn");
+
+    const chartMessage = document.getElementById("chart-message");
+    const excelMessage = document.getElementById("excel-message");
+    const reportImg = document.getElementById("report-img");
+    const exportButtons = document.getElementById("exportButtons");
 
     const funderBlock = document.getElementById("funderBlock");
-    const funderSel = document.getElementById("selected_funder"); // ADM only
+    const funderSel = document.getElementById("selected_funder");
     const funderNameInput = document.getElementById("funder_name");
 
     const regionBlock = document.getElementById("regionBlock");
@@ -360,8 +409,20 @@
       });
     }
 
+    function currentSelectedType() {
+      const category = (ROLE === "ADM" && categorySel) ? categorySel.value : "visual";
+      if (category === "excel") {
+        return excelReportSel ? excelReportSel.value : "";
+      }
+      return reportSel ? reportSel.value : "";
+    }
+
     function needsProvider(val) {
-      return ["provider_ytd_vs_target", "provider_ytd_vs_target_vs_funder", "provider_missing_classes"].includes(val);
+      return [
+        "provider_ytd_vs_target",
+        "provider_ytd_vs_target_vs_funder",
+        "provider_missing_classes",
+      ].includes(val);
     }
 
     function needsSchool(val) {
@@ -379,11 +440,12 @@
         "funder_teacher_review_summary",
         "funder_ytd_vs_funder_ly",
         "funder_missing_classes",
+
       ].includes(val);
     }
 
     function needsRegion(val) {
-      return ["region_ly_vs_target", "region_ytd","region_coverage_report"].includes(val);
+      return ["region_ly_vs_target", "region_ytd", "region_coverage_report"].includes(val);
     }
 
     function hideAndClear(blockEl, selectEl, hiddenNameEl) {
@@ -566,9 +628,8 @@
     let regionsLoaded = false;
 
     function toggleEntityBlocks() {
-      const val = reportSel ? reportSel.value : "";
+      const val = currentSelectedType();
 
-      // FUNDER
       const wantFunder = needsFunder(val);
       if (wantFunder) {
         showAndEnable(funderBlock, funderSel);
@@ -580,7 +641,6 @@
         hideAndClear(funderBlock, funderSel, funderNameInput);
       }
 
-      // REGION
       const wantRegion = needsRegion(val);
       if (wantRegion) {
         showAndEnable(regionBlock, regionSel);
@@ -592,7 +652,6 @@
         hideAndClear(regionBlock, regionSel, regionNameInput);
       }
 
-      // PROVIDER
       const wantProvider = needsProvider(val);
       if (wantProvider) {
         showAndEnable(providerBlock, providerSel);
@@ -604,7 +663,6 @@
         hideAndClear(providerBlock, providerSel, providerNameInput);
       }
 
-      // SCHOOL
       const wantSchool = needsSchool(val);
       if (wantSchool) {
         showAndEnable(schoolBlock, schoolSel);
@@ -615,6 +673,37 @@
       } else {
         hideAndClear(schoolBlock, schoolSel, schoolNameInput);
       }
+    }
+
+    function toggleCategoryUI() {
+      const category = (ROLE === "ADM" && categorySel) ? categorySel.value : "visual";
+      const isVisual = category !== "excel";
+      const isExcel = category === "excel";
+
+      if (visualReportBlock) visualReportBlock.style.display = isVisual ? "block" : "none";
+      if (excelReportBlock) excelReportBlock.style.display = isExcel ? "block" : "none";
+      if (showReportBtn) showReportBtn.classList.toggle("d-none", !isVisual);
+      if (downloadExcelBtn) downloadExcelBtn.classList.toggle("d-none", !isExcel);
+
+      if (isExcel) {
+        if (excelMessage) excelMessage.classList.remove("d-none");
+        if (chartMessage) chartMessage.style.display = "none";
+        if (reportImg) {
+          reportImg.classList.remove("is-visible");
+          reportImg.classList.add("d-none");
+        }
+        if (exportButtons) {
+          exportButtons.classList.remove("d-flex");
+          exportButtons.classList.add("d-none");
+        }
+      } else {
+        if (excelMessage) excelMessage.classList.add("d-none");
+        if (!reportImg || !reportImg.getAttribute("src")) {
+          if (chartMessage) chartMessage.style.display = "block";
+        }
+      }
+
+      toggleEntityBlocks();
     }
 
     if (providerSel) {
@@ -649,6 +738,13 @@
       });
     }
 
+    if (categorySel) {
+      categorySel.addEventListener("change", () => {
+        initialising = false;
+        toggleCategoryUI();
+      });
+    }
+
     if (reportSel) {
       reportSel.addEventListener("change", () => {
         initialising = false;
@@ -656,30 +752,43 @@
       });
     }
 
-    // Initial state: show/hide blocks with no network calls
-    toggleEntityBlocks();
+    if (excelReportSel) {
+      excelReportSel.addEventListener("change", () => {
+        initialising = false;
+        toggleEntityBlocks();
+      });
+    }
+
+    toggleCategoryUI();
   })();
 </script>
 
 <script>
-  /* ===================== AJAX submit + export controls ===================== */
   (function () {
     const form = document.getElementById("report-form");
     const reportImg = document.getElementById("report-img");
     const msg = document.getElementById("chart-message");
     const btns = document.getElementById("exportButtons");
     const pngBtn = document.getElementById("exportPngBtn");
+    const categorySel = document.getElementById("report_category");
 
     if (!form) return;
 
     form.addEventListener("submit", async function (e) {
       const submitter = e.submitter;
       const actionVal = submitter?.value || new FormData(form).get("action");
+      const category = categorySel ? categorySel.value : "visual";
+
+      if (actionVal === "download_excel") {
+        return;
+      }
+      if (category === "excel") {
+        return;
+      }
       if (actionVal !== "show_report") return;
 
       e.preventDefault();
 
-      // Sync visible labels → hidden name fields (ONLY if enabled)
       const funderSel = document.getElementById("selected_funder");
       const funderNameInput = document.getElementById("funder_name");
 
@@ -716,7 +825,6 @@
         schoolNameInp.value = "";
       }
 
-      // Loading state
       if (msg) {
         msg.textContent = "Loading report, please wait…";
         msg.style.display = "block";
@@ -746,7 +854,6 @@
         const data = await res.json();
         if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
 
-        // Render image
         if (data.plot_png_b64) {
           reportImg.src = "data:image/png;base64," + data.plot_png_b64;
           reportImg.classList.remove("d-none");
@@ -756,7 +863,6 @@
           msg.textContent = data.error || "No chart to display.";
         }
 
-        // Export buttons
         if (btns) {
           if (data.display) {
             btns.classList.remove("d-none");
@@ -772,7 +878,6 @@
           else pngBtn.classList.add("d-none");
         }
 
-        // Header refresh
         if (data.header_html) {
           const headerLeft = document.getElementById("report-header-left");
           if (headerLeft) headerLeft.innerHTML = data.header_html;

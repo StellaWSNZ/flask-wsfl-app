@@ -45,7 +45,7 @@ import app.utils.report_three_bar_landscape as r3  # kept for other report types
 from app.utils.competency_icons import build_icon_reoprt 
 REPORT_DIR = Path("/tmp/wsfl_reports")
 REPORT_DIR.mkdir(parents=True, exist_ok=True)
-
+from openpyxl.styles import PatternFill, Font
 # Blueprint
 report_bp = Blueprint("report_bp", __name__)
 
@@ -134,7 +134,11 @@ def get_available_terms(nearest_year, nearest_term):
         options.append((nearest_year - 1, 4))
     return options
 
-
+def _get_report_category():
+    category = request.form.get("report_category", "visual")
+    if session.get("user_role") != "ADM":
+        category = "visual"
+    return category
 # ---------- Download endpoints with log_alert ----------
 @report_bp.route("/Reporting/download_pdf")
 @login_required
@@ -1445,7 +1449,6 @@ def new_reports():
     selected_year, selected_term, selected_type = _get_form_defaults()
     selected_provider_id, selected_school_id = _get_sticky_ids()
 
-    # FUN sees their funder in the UI; providers list is loaded via AJAX using that name
     selected_funder_name = _get_funder_name_from_role_or_form(role)
 
     if role == "PRO":
@@ -1471,6 +1474,320 @@ def new_reports():
     display = False
 
     is_ajax, action = _get_request_type()
+    report_category = _get_report_category()
+    excel_report_type = request.form.get("excel_report_option")
+
+    if request.method == "POST" and action == "download_excel":
+        if role != "ADM":
+            flash("You are not authorised to download Excel exports.", "danger")
+            return redirect(url_for("report_bp.new_reports"))
+
+        try:
+            excel_report_type = request.form.get("excel_report_option")
+            selected_year = int(request.form.get("year", session.get("nearest_year")))
+            selected_term = int(request.form.get("term", session.get("nearest_term")))
+            selected_provider_id = request.form.get("provider_id") or None
+            selected_school_id = request.form.get("school_id") or None
+            selected_funder_name = request.form.get("funder_name") or None
+
+            funder_id = None
+            region_id = request.form.get("region_name") or None
+
+            def _safe_sheet_name(name: str, fallback: str = "Sheet") -> str:
+                bad = ['\\', '/', '*', '?', ':', '[', ']']
+                name = str(name or fallback)
+                for ch in bad:
+                    name = name.replace(ch, "-")
+                name = name.strip()
+                return name[:31] or fallback
+
+            def _autosize_and_freeze(ws):
+                ws.freeze_panes = "A2"
+                for col_cells in ws.columns:
+                    max_len = 0
+                    col_letter = col_cells[0].column_letter
+                    for cell in col_cells:
+                        val = "" if cell.value is None else str(cell.value)
+                        max_len = max(max_len, len(val))
+                    ws.column_dimensions[col_letter].width = min(max_len + 2, 40)
+
+            with engine.connect() as conn:
+                if selected_funder_name:
+                    row = conn.execute(
+                        text("EXEC FlaskHelperFunctions @Request='FunderIDDescription', @Text=:t"),
+                        {"t": selected_funder_name},
+                    ).fetchone()
+
+                    if row:
+                        funder_id = (
+                            row[0]
+                            if not hasattr(row, "_mapping")
+                            else int(row._mapping.get("FunderID") or row[0])
+                        )
+
+                if not excel_report_type:
+                    flash("Please choose an Excel export.", "warning")
+                    return redirect(url_for("report_bp.new_reports"))
+
+                if excel_report_type == "all_changes":
+                    sql = text("""
+                        SET NOCOUNT ON;
+                        EXEC GetFunderYearGroupSummary_StudentWeighted_TY_LY_WithTrend
+                            @CalendarYear = :year,
+                            @Term = :term;
+                    """)
+
+                    df = pd.read_sql(
+                        sql,
+                        conn,
+                        params={
+                            "year": selected_year,
+                            "term": selected_term,
+                        },
+                    )
+
+                    if df.empty:
+                        flash("No data found for that export.", "warning")
+                        return redirect(url_for("report_bp.new_reports"))
+
+                    # Expected proc columns
+                    required_cols = [
+                        "PeriodLabel",
+                        "Funder",
+                        "YearGroupDesc",
+                        "StudentCount",
+                        "TY_YG_Rate",
+                        "LY_YG_Rate",
+                        "DeltaYG",
+                        "TrendYG",
+                    ]
+                    missing_cols = [c for c in required_cols if c not in df.columns]
+                    if missing_cols:
+                        raise ValueError(
+                            "The Excel export expected these columns but could not find them: "
+                            + ", ".join(missing_cols)
+                            + ". Actual columns were: "
+                            + ", ".join(df.columns.astype(str).tolist())
+                        )
+
+                    filename = f"AllChanges_T{selected_term}_{selected_year}.xlsx"
+
+                    # -----------------------------------------
+                    # Build cleaned long table with TY and LY
+                    # student counts in separate columns
+                    # -----------------------------------------
+                    ty_counts = (
+                        df[df["PeriodLabel"].astype(str).str.upper() == "TY"][
+                            ["Funder", "YearGroupDesc", "StudentCount"]
+                        ]
+                        .drop_duplicates()
+                        .rename(columns={"StudentCount": "StudentCount_TY"})
+                    )
+
+                    ly_counts = (
+                        df[df["PeriodLabel"].astype(str).str.upper() == "LY"][
+                            ["Funder", "YearGroupDesc", "StudentCount"]
+                        ]
+                        .drop_duplicates()
+                        .rename(columns={"StudentCount": "StudentCount_LY"})
+                    )
+
+                    rate_df = (
+                        df[
+                            [
+                                "Funder",
+                                "YearGroupDesc",
+                                "TY_YG_Rate",
+                                "LY_YG_Rate",
+                                "DeltaYG",
+                                "TrendYG",
+                            ]
+                        ]
+                        .drop_duplicates(subset=["Funder", "YearGroupDesc"])
+                        .copy()
+                    )
+
+                    export_df = (
+                        rate_df
+                        .merge(
+                            ty_counts,
+                            on=["Funder", "YearGroupDesc"],
+                            how="left",
+                        )
+                        .merge(
+                            ly_counts,
+                            on=["Funder", "YearGroupDesc"],
+                            how="left",
+                        )
+                    )
+
+                    # Put columns in the order you want
+                    export_df = export_df[
+                        [
+                            "Funder",
+                            "YearGroupDesc",
+                            "StudentCount_TY",
+                            "StudentCount_LY",
+                            "TY_YG_Rate",
+                            "LY_YG_Rate",
+                            "DeltaYG",
+                            "TrendYG",
+                        ]
+                    ].sort_values(["Funder", "YearGroupDesc"])
+
+                else:
+                    flash("Unknown Excel export type.", "danger")
+                    return redirect(url_for("report_bp.new_reports"))
+
+            xlsx_id = uuid.uuid4().hex
+            xlsx_path = REPORT_DIR / f"{xlsx_id}.xlsx"
+
+            with pd.ExcelWriter(xlsx_path, engine="openpyxl") as writer:
+                funder_col = "Funder"
+                yeargroup_col = "YearGroupDesc"
+                ty_count_col = "StudentCount_TY"
+                ly_count_col = "StudentCount_LY"
+                ty_col = "TY_YG_Rate"
+                ly_col = "LY_YG_Rate"
+                diff_col = "DeltaYG"
+                trend_col = "TrendYG"
+
+                # =========================================
+                # Sheet 1: Funder Summary (wide)
+                # =========================================
+                summary_wide = export_df.pivot_table(
+                    index=funder_col,
+                    columns=yeargroup_col,
+                    values=[ty_count_col, ly_count_col, ty_col, ly_col, diff_col],
+                    aggfunc="first",
+                )
+
+                summary_wide.columns = [
+                    f"{metric}_{group}" for metric, group in summary_wide.columns
+                ]
+                summary_wide = summary_wide.reset_index().sort_values(by=funder_col)
+
+                summary_wide.to_excel(writer, index=False, sheet_name="Funder Summary")
+
+                # =========================================
+                # Middle sheets: one per year group
+                # =========================================
+                year_groups = sorted(
+                    export_df[yeargroup_col].dropna().unique().tolist(),
+                    key=lambda x: str(x)
+                )
+
+                for yg in year_groups:
+                    yg_df = (
+                        export_df[export_df[yeargroup_col] == yg]
+                        .copy()
+                        .sort_values(by=[funder_col])
+                    )
+
+                    yg_df.to_excel(
+                        writer,
+                        index=False,
+                        sheet_name=_safe_sheet_name(str(yg), fallback="Year Group"),
+                    )
+
+                # =========================================
+                # Final sheet: all funders (long)
+                # =========================================
+                all_df = export_df.copy().sort_values(by=[funder_col, yeargroup_col])
+                all_df.to_excel(writer, index=False, sheet_name="All Funders")
+
+                # =========================================
+                # Formatting
+                # =========================================
+                wb = writer.book
+
+                # Header style
+                header_fill = PatternFill(start_color="000000", end_color="000000", fill_type="solid")
+                header_font = Font(color="FFFFFF", bold=True)
+
+                # Trend styles
+                trend_up_fill = PatternFill(start_color="2E7D32", end_color="2E7D32", fill_type="solid")
+                trend_up_font = Font(color="FFFFFF", bold=True)
+
+                trend_down_fill = PatternFill(start_color="C62828", end_color="C62828", fill_type="solid")
+                trend_down_font = Font(color="FFFFFF", bold=True)
+
+                trend_same_fill = PatternFill(start_color="FFFFFF", end_color="FFFFFF", fill_type="solid")
+                trend_same_font = Font(color="000000", bold=True)
+
+                for ws in wb.worksheets:
+                    _autosize_and_freeze(ws)
+
+                    header_map = {cell.column: cell.value for cell in ws[1]}
+
+                    # Header row styling
+                    for cell in ws[1]:
+                        cell.fill = header_fill
+                        cell.font = header_font
+
+                    for row in ws.iter_rows(min_row=2):
+                        for cell in row:
+                            header = header_map.get(cell.column)
+                            if header is None:
+                                continue
+
+                            header_str = str(header)
+
+                            # TY / LY rates as %
+                            if (
+                                header_str.startswith(ty_col)
+                                or header_str.startswith(ly_col)
+                                or header_str == ty_col
+                                or header_str == ly_col
+                            ):
+                                if isinstance(cell.value, (int, float)) and cell.value is not None:
+                                    cell.number_format = "0%"
+
+                            # DeltaYG shown as percentage points
+                            if header_str.startswith(diff_col) or header_str == diff_col:
+                                if isinstance(cell.value, (int, float)) and cell.value is not None:
+                                    cell.value = cell.value * 100
+                                    cell.number_format = '+0.0;-0.0;0.0'
+
+                            # Trend formatting
+                            if header_str.startswith(trend_col) or header_str == trend_col:
+                                val = str(cell.value).strip().lower()
+
+                                if "up" in val:
+                                    cell.fill = trend_up_fill
+                                    cell.font = trend_up_font
+                                elif "down" in val:
+                                    cell.fill = trend_down_fill
+                                    cell.font = trend_down_font
+                                else:
+                                    cell.fill = trend_same_fill
+                                    cell.font = trend_same_font
+
+
+
+            return send_file(
+                xlsx_path,
+                as_attachment=True,
+                download_name=filename,
+                mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+
+        except Exception as e:
+            current_app.logger.exception("❌ Excel export failed")
+            try:
+                log_alert(
+                    email=session.get("user_email"),
+                    role=session.get("user_role"),
+                    entity_id=None,
+                    link=request.url,
+                    message=f"/Reports Excel export error: {str(e)}\n{traceback.format_exc()}"[:4000],
+                )
+            except Exception:
+                pass
+
+            flash("An error occurred while generating the Excel export.", "danger")
+            return redirect(url_for("report_bp.new_reports"))
+
 
     if request.method == "POST" and action == "show_report":
         current_app.logger.info(

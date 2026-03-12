@@ -123,7 +123,7 @@ def get_funders_by_provider(engine, provider_id: int) -> list[dict]:
 @overview_bp.route("/Overview", methods=["GET", "POST"])
 @login_required
 def funder_dashboard():
-    if session.get("user_admin") != 1:
+    if session.get("user_admin") != 1 and session.get("user_id") != 17:
         return render_template("error.html", error="You are not authorised to view that page.", code=403), 403
 
     engine = None

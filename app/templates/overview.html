@@ -6,7 +6,7 @@
 
   <h2 class="text-center text-primary mb-4">{{ title }}</h2>
 
-  {% if user_role == "ADM" or (user_role in ["FUN","PRO","GRP"] and user_admin == 1) %}
+  {% if user_role == "ADM" or (user_role in ["FUN","PRO","GRP"]) %}
   <form method="POST" class="mb-4" id="entityForm">
     <div class="row g-2 align-items-end justify-content-center">
 
