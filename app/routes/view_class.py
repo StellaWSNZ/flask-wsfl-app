@@ -1032,7 +1032,8 @@ def update_competency():
     term = data.get("term")
     year = data.get("year")
     debug = 0
-
+    #print(term)
+    #print(year)
     current_app.logger.info("📥 Incoming update_competency call")
     current_app.logger.info(f"➡️ NSN: {nsn}, Header: {header_name}, Status: {status}, Class ID: {class_id}, Term: {term}, Year: {year}")
 
@@ -1045,12 +1046,23 @@ def update_competency():
         with engine.begin() as conn:
             current_app.logger.info("🔄 Running stored procedure FlaskUpdateAchievement...")
             conn.execute(
-                text("EXEC FlaskUpdateAchievement @NSN = :nsn, @Header = :header, @Value = :value, @Email = :email, @Debug = :debug"),
+                text("""
+                    EXEC FlaskUpdateAchievement
+                        @NSN = :nsn,
+                        @Header = :header,
+                        @Value = :value,
+                        @Email = :email,
+                        @Term = :term,
+                        @CalendarYear = :year,
+                        @Debug = :debug
+                """),
                 {
                     "nsn": nsn,
                     "header": header_name,
                     "value": status,
                     "email": session.get("user_email"),
+                    "term": term,
+                    "year": year,
                     "debug": debug
                 }
             )
