@@ -642,11 +642,17 @@ document.addEventListener("DOMContentLoaded", function () {
     const db_badge = db_ok ? "badge-brand-green" : (db_id === 1 ? "badge-brand-orange" : "badge-brand-red");
     const db_text = "Database training" + (row.DatabaseTrainingStatus ? (": " + row.DatabaseTrainingStatus) : "");
 
-    const ext_id = parseInt(row.ExternalReviewStatusID || 0, 10);
-    const ext_found = parseInt(row.ExternalReviewFoundInText || 0, 10);
-    const ext_ok = (ext_id === 3) || (ext_found >= 1);
-    const ext_badge = ext_ok ? "badge-brand-green" : ([1,2].includes(ext_id) ? "badge-brand-orange" : "badge-brand-red");
-    const ext_label = (ext_found >= 1) ? (ext_found + " completed") : (row.ExternalReviewStatus || "Not started");
+    const ext_status = (row.ExternalReviewStatus || "").trim().toLowerCase();
+    const ext_ok = (ext_status === "completed");
+
+    let ext_badge = "badge-brand-red";
+    if (ext_ok) {
+      ext_badge = "badge-brand-green";
+    } else if (ext_status) {
+      ext_badge = "badge-brand-orange";
+    }
+
+    const ext_label = row.ExternalReviewStatus || "Not started";
     const ext_text = "External review: " + ext_label;
 
     const self_total = parseInt(row.SelfReviewTotal || 0, 10);
