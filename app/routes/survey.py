@@ -1179,14 +1179,36 @@ def send_survey_invite():
         return "Unauthorized", 403
 
     recipient_email = request.form.get("email")
-    first_name      = request.form.get("firstname")
-    role            = request.form.get("role")
-    user_id         = request.form.get("userid")  # optional
-    survey_id       = request.form.get("survey_id", 1)  # default = 1
+    first_name = request.form.get("firstname")
+    role = request.form.get("role")
+    user_id = request.form.get("userid")  # optional
+
+    try:
+        survey_id = int(request.form.get("survey_id", 1))
+    except (TypeError, ValueError):
+        survey_id = 1
 
     if not recipient_email or not first_name:
         flash("Missing email or name", "danger")
         return redirect(request.referrer or "/")
+
+    invited_by_name = (
+        (session.get("user_firstname", "") + " " + session.get("user_surname", "")).strip()
+        or session.get("user_email")
+        or "WSFL team"
+    )
+
+    requester_email = session.get("user_email") or current_app.config["MAIL_DEFAULT_SENDER"]
+
+    raw_desc = session.get("desc")
+    if raw_desc is None:
+        invited_by_org = "Water Safety New Zealand"
+    else:
+        s = str(raw_desc).strip()
+        if s.lower() in ("none", "null", ""):
+            invited_by_org = "Water Safety New Zealand"
+        else:
+            invited_by_org = s
 
     try:
         send_survey_invite_email(
@@ -1196,14 +1218,15 @@ def send_survey_invite():
             role=role,
             user_id=user_id,
             survey_id=survey_id,
-            invited_by_name=(session.get("user_firstname","") + " " + session.get("user_surname","")).strip()
+            invited_by_name=invited_by_name,
+            requester_email=requester_email,
+            invited_by_org=invited_by_org,
         )
         flash(f"📧 Invitation sent to {recipient_email}", "success")
 
     except Exception as e:
         traceback.print_exc()
         flash("❌ Failed to send survey invitation.", "danger")
-        # best-effort alert log
         try:
             log_alert(
                 email=session.get("user_email"),
@@ -1253,37 +1276,60 @@ def email_survey_link():
             pass
 
     return redirect(url_for("staff_bp.staff_maintenance"))
+
+
 @survey_bp.route("/send_survey_reminder", methods=["POST"])
 @login_required
 def send_survey_reminder():
     try:
         email = request.form["email"]
         firstname = request.form["firstname"]
-        requested_by = request.form["requested_by"]
-        from_org = request.form["from_org"] or "WSNZ"
-        entity_id = request.form["entity_id"]
-        entity_type = request.form["entity_type"]
+        from_org = request.form.get("from_org") or "WSNZ"
 
-        send_survey_reminder_email(mail, email, firstname, requested_by, from_org)
+        # Build from session (not form)
+        requested_by = (
+            (session.get("user_firstname", "") + " " + session.get("user_surname", ""))
+            .strip()
+            or session.get("user_email")
+            or "WSFL team"
+        )
+
+        requester_email = (
+            session.get("user_email")
+            or current_app.config["MAIL_DEFAULT_SENDER"]
+        )
+
+        send_survey_reminder_email(
+            mail=mail,
+            email=email,
+            firstname=firstname,
+            requested_by=requested_by,
+            requester_email=requester_email,
+            from_org=from_org,
+        )
+
         flash(f"📧 Reminder sent to {firstname}.", "info")
 
     except Exception as e:
         current_app.logger.exception("❌ Exception occurred in send_survey_reminder()")
         flash("❌ Failed to send reminder.", "danger")
 
-        # Log to AUD_Alerts
         try:
             log_alert(
                 email=session.get("user_email"),
                 role=session.get("user_role"),
                 entity_id=session.get("user_id"),
                 link=url_for("survey_bp.send_survey_reminder", _external=True),
-                message=f"/send_survey_reminder failed for {email}: {e}\n{traceback.format_exc()}"[:4000],
+                message=(
+                    f"/send_survey_reminder failed for {request.form.to_dict(flat=True)}: {e}\n"
+                    f"{traceback.format_exc()}"
+                )[:4000],
             )
         except Exception:
             pass
 
     return redirect(url_for("staff_bp.staff_maintenance"))
+
 
 
 @survey_bp.route("/thankyou")
@@ -1928,7 +1974,7 @@ def bulk_emails_send():
         or session.get("user_email")
         or "WSFL team"
     )
-
+    requester_email = session.get("user_email") or current_app.config["MAIL_DEFAULT_SENDER"]
     raw_desc = session.get("desc")
     if raw_desc is None:
         from_org = "Water Safety New Zealand"  # or "WSNZ" or None if you’d prefer to hide it
@@ -1980,7 +2026,7 @@ def bulk_emails_send():
         )
 
     # ----------------- ELEARNING / SELF-REVIEW -----------------
-    engine = get_db_engine()
+   
     sent   = []
     failed = []
 
@@ -2017,12 +2063,13 @@ def bulk_emails_send():
                         (row.ELearningCourseName, row.ELearningStatus)
                         for row in result
                     ]
-
+                
                 send_elearning_reminder_email(
                     mail=mail,
                     email=email,
                     firstname=firstname,
                     requested_by=requested_by,
+                    requester_email=requester_email,
                     from_org=from_org,
                     course_statuses=course_statuses,
                 )
@@ -2035,6 +2082,7 @@ def bulk_emails_send():
                         email=email,
                         firstname=firstname,
                         requested_by=requested_by,
+                        requester_email=requester_email,
                         from_org=from_org,
                     )
                 else:
@@ -2046,6 +2094,8 @@ def bulk_emails_send():
                         user_id=user_id,
                         survey_id=1,
                         invited_by_name=requested_by,
+                        requester_email=requester_email,
+                        invited_by_org=from_org,
                     )
 
             sent.append(email)

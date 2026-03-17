@@ -1138,19 +1138,48 @@ def unhide_user():
 @login_required
 def send_elearning_reminder():
     selected_entity_type = request.form.get("entity_type") or request.args.get("entity_type")
-    selected_entity_id   = request.form.get("entity_id")   or request.args.get("entity_id")
+    selected_entity_id   = request.form.get("entity_id") or request.args.get("entity_id")
 
     try:
-        email        = request.form["email"]
-        firstname    = request.form["firstname"]
-        requested_by = request.form["requested_by"]
-        from_org     = request.form.get("from_org") or "WSNZ"
+        email = request.form["email"]
+        firstname = request.form["firstname"]
+        from_org = request.form.get("from_org") or "Water Safety New Zealand"
+        if from_org == "None":
+            from_org = "Water Safety New Zealand"
+        # Better to get these from session rather than trusting the form
+        requested_by = (
+            session.get("user_firstname")
+            or session.get("user_email")
+            or request.form.get("requested_by")
+            or "WSFL staff"
+        )
+
+        requester_email = (
+            session.get("user_email")
+            or current_app.config["MAIL_DEFAULT_SENDER"]
+        )
 
         with get_db_engine().begin() as conn:
-            result = conn.execute(text("EXEC FlaskGetUserELearningStatus :email"), {"email": email})
-            course_statuses = [(row.ELearningCourseName, row.ELearningStatus) for row in result]
+            result = conn.execute(
+                text("EXEC FlaskGetUserELearningStatus :email"),
+                {"email": email}
+            )
+            course_statuses = [
+                (row.ELearningCourseName, row.ELearningStatus)
+                for row in result
+            ]
+        if from_org == "None":
+            from_org = "Water Safety New Zealand"
+        send_elearning_reminder_email(
+            mail=mail,
+            email=email,
+            firstname=firstname,
+            requested_by=requested_by,
+            requester_email=requester_email,
+            from_org=from_org ,
+            course_statuses=course_statuses,
+        )
 
-        send_elearning_reminder_email(mail, email, firstname, requested_by, from_org, course_statuses)
         flash(f"📧 eLearning reminder sent to {firstname}.", "info")
 
     except Exception as e:
@@ -1163,5 +1192,10 @@ def send_elearning_reminder():
         )
         flash("❌ Failed to send eLearning reminder.", "danger")
 
-    return redirect(url_for('staff_bp.staff_maintenance',
-                            entity_type=selected_entity_type, entity_id=selected_entity_id))
+    return redirect(
+        url_for(
+            "staff_bp.staff_maintenance",
+            entity_type=selected_entity_type,
+            entity_id=selected_entity_id
+        )
+    )
