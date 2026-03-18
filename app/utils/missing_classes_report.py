@@ -354,7 +354,7 @@ def build_missing_classes_pdf(
 
         
         pct = int(round(threshold * 100))
-        fs = 4 # <- one font size for both pills
+        fs = 12 # <- one font size for both pills
 
         # ---- left pill (message) ----
         poly_left = rounded_rect_polygon(
