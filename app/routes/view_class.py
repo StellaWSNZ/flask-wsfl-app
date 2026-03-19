@@ -1355,12 +1355,12 @@ def apply_upload():
         "ok": true/false,
         "status": {"ok": true/false, "message": "...", "count": N},
         "dry_run": 1,
-        "term_context": {...},              # from TERM_CONTEXT
-        "unexpected_students": [...],       # Info = UNEXPECTED_STUDENT
-        "valid_students": [...],            # Info = VALID_STUDENT
-        "competency_rows": [...],           # Info = COMPETENCY_ROWS
-        "scenario_rows": [...],             # Info = SCENARIO_ROWS
-        "merge_preview": []                 # kept for backward UI compatibility
+        "term_context": {...},
+        "unexpected_students": [...],
+        "valid_students": [...],
+        "competency_rows": [...],
+        "scenario_rows": [...],
+        "merge_preview": []
       }
     """
 
@@ -1369,7 +1369,6 @@ def apply_upload():
     def _row_to_dict(cols, row):
         d = {}
         for k, v in zip(cols, row):
-            # Make dates/datetimes JSON serializable
             if hasattr(v, "isoformat"):
                 v = v.isoformat()
             d[k] = v
@@ -1378,34 +1377,40 @@ def apply_upload():
     try:
         payload  = request.get_json(silent=True) or {}
         class_id = int(payload.get("class_id") or 0)
-        dry_run  = 0 
+        dry_run  = 1 if int(payload.get("dry_run", 0)) == 1 else 0
         rows     = payload.get("json_data")
+
         if not class_id:
             return jsonify({"ok": False, "error": "Missing class_id"}), 400
+
         if not isinstance(rows, list) or not rows:
             return jsonify({"ok": False, "error": "json_data must be a non-empty array"}), 400
 
         json_str = json.dumps(rows, ensure_ascii=False)
 
-        # Buckets for proc outputs
-        term_context         = {}
-        unexpected_students  = []
-        valid_students       = []
-        competency_rows      = []
-        scenario_rows        = []
-        merge_preview        = []   # keep for UI compatibility
-        status_rows_raw      = []   # if proc ever returns Ok/Message/Count again
+        term_context        = {}
+        unexpected_students = []
+        valid_students      = []
+        competency_rows     = []
+        scenario_rows       = []
+        merge_preview       = []
+        status_rows_raw     = []
 
         conn = engine.raw_connection()
         try:
+            conn.autocommit = True
             cursor = conn.cursor()
+
             cursor.execute(
                 """
                 DECLARE @j NVARCHAR(MAX) = ?,
                         @cid INT         = ?,
                         @dry BIT         = ?;
-                EXEC  FlaskAchievementUpload
-                     @ClassID=@cid, @JsonData=@j, @DryRun=@dry;
+
+                EXEC dbo.FlaskAchievementUpload
+                     @ClassID = @cid,
+                     @JsonData = @j,
+                     @DryRun = @dry;
                 """,
                 (json_str, class_id, dry_run)
             )
@@ -1415,12 +1420,10 @@ def apply_upload():
                     cols = [c[0] for c in cursor.description]
                     rows_rs = cursor.fetchall()
 
-                    # Route by "Info" label when present
                     if "Info" in cols and rows_rs:
                         info_idx = cols.index("Info")
                         info_val = str(rows_rs[0][info_idx] or "")
 
-                        # helper: strip Info key from dicts
                         def _rows_without_info():
                             out = []
                             for r in rows_rs:
@@ -1430,7 +1433,6 @@ def apply_upload():
                             return out
 
                         if info_val == "TERM_CONTEXT":
-                            # single row expected
                             d = _row_to_dict(cols, rows_rs[0])
                             d.pop("Info", None)
                             term_context = d
@@ -1447,17 +1449,15 @@ def apply_upload():
                         elif info_val == "SCENARIO_ROWS":
                             scenario_rows.extend(_rows_without_info())
 
-                        else:
-                            # Unknown Info label; ignore or log
+                        elif info_val == "SUMMARY":
+                            # optional if you want to capture proc summary too
                             pass
 
-                    # Legacy status rows (Ok/Message/Count) if they ever show up
                     elif {"Ok", "Message"}.issubset(set(cols)):
                         for r in rows_rs:
                             d = _row_to_dict(cols, r)
                             status_rows_raw.append(d)
 
-                    # Old "merge preview" (not emitted by current proc) – keep for safety
                     elif {"Action", "NSN", "CompetencyID", "YearGroupID"}.issubset(set(cols)):
                         for r in rows_rs:
                             d = _row_to_dict(cols, r)
@@ -1468,12 +1468,10 @@ def apply_upload():
                     break
 
             cursor.close()
-            conn.commit()
+
         finally:
             conn.close()
 
-        # Compute status:
-        # Not OK if there are unexpected students; otherwise OK.
         if unexpected_students:
             status_obj = {
                 "ok": False,
@@ -1484,12 +1482,11 @@ def apply_upload():
         else:
             status_obj = {
                 "ok": True,
-                "message": "Ready to apply.",
+                "message": "Ready to apply." if dry_run == 1 else "Upload applied successfully.",
                 "count": len(valid_students)
             }
             overall_ok = True
 
-        # If the proc DID return Ok/Message/Count, you could override with the last row:
         if status_rows_raw:
             last = status_rows_raw[-1]
             status_obj = {
@@ -1504,7 +1501,7 @@ def apply_upload():
         total_count      = valid_count + unexpected_count
 
         summary = {
-            "success": unexpected_count == 0,  # True when all rows are valid
+            "success": unexpected_count == 0,
             "dry_run": bool(dry_run),
             "total_rows": total_count,
             "valid_rows": valid_count,
@@ -1512,7 +1509,7 @@ def apply_upload():
         }
 
         return jsonify({
-            "ok": overall_ok,                 # keep for compatibility; UI shouldn't throw on False
+            "ok": overall_ok,
             "status": status_obj,
             "dry_run": dry_run,
             "term_context": term_context,
@@ -1521,12 +1518,13 @@ def apply_upload():
             "competency_rows": competency_rows,
             "scenario_rows": scenario_rows,
             "merge_preview": merge_preview,
-            "summary": summary,              # <-- new, drives the simple banner
+            "summary": summary,
         })
 
     except pyodbc.ProgrammingError as e:
         traceback.print_exc()
         return jsonify({"ok": False, "error": str(e)}), 500
+
     except Exception as e:
         traceback.print_exc()
         return jsonify({"ok": False, "error": str(e)}), 500

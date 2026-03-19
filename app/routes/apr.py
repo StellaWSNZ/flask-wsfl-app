@@ -271,18 +271,29 @@ def apr_page():
 # app/routes/apr.py
 @apr_bp.route("/apr/update_entity", methods=["POST"])
 def apr_update_entity():
+    current_app.logger.info("🔥 /apr/update_entity called")
+
     data = request.get_json(silent=True) or {}
+    current_app.logger.info(f"📥 Raw data received: {data}")
+
     if not data:
+        current_app.logger.error("❌ No data received")
         return jsonify(ok=False, error="No data received"), 400
 
     entity_id = to_int(data.get("EntityID"))
     entity_type = (data.get("Code") or "").upper().strip()
 
-    if entity_id <= 0 or entity_type not in ("PRO", "GRP","FUN"):
+    current_app.logger.info(f"➡️ EntityID: {entity_id}, EntityType: {entity_type}")
+
+    if entity_id <= 0 or entity_type not in ("PRO", "GRP", "FUN"):
+        current_app.logger.error("❌ Invalid entity")
         return jsonify(ok=False, error="Invalid Entity"), 400
 
     contact_emails = data.get("ContactEmails") or []
+    current_app.logger.info(f"📧 Raw contact emails: {contact_emails}")
+
     if not isinstance(contact_emails, list):
+        current_app.logger.warning("⚠️ ContactEmails not a list, resetting")
         contact_emails = []
 
     cleaned_emails = []
@@ -294,6 +305,8 @@ def apr_update_entity():
             continue
         if s not in cleaned_emails:
             cleaned_emails.append(s)
+
+    current_app.logger.info(f"✅ Cleaned emails: {cleaned_emails}")
 
     params = {
         "EntityType": entity_type,
@@ -310,10 +323,15 @@ def apr_update_entity():
         "ContactEmailsJSON": json.dumps(cleaned_emails),
     }
 
+    current_app.logger.info(f"🧾 Params being sent to SQL: {params}")
+
     try:
         engine = get_db_engine()
+        current_app.logger.info("🔌 DB engine acquired")
+
         with engine.begin() as conn:
-            # 1) write changes
+            current_app.logger.info("🚀 Executing APR_UpsertEntityApprovalEdits")
+
             conn.execute(
                 text(
                     """
@@ -335,25 +353,41 @@ def apr_update_entity():
                 params,
             )
 
-            # 2) re-read single updated row from the summary proc
+            current_app.logger.info("✅ Upsert executed successfully")
+
+            # Re-fetch
+            current_app.logger.info("🔄 Re-fetching updated entity")
+
             df_one = pd.read_sql(
-                """
-                EXEC dbo.APR_GetEntityApprovalSummary
-                """,
+                text("EXEC dbo.APR_GetEntityApprovalSummary_entity @Role=:Role, @ID = :ID"),
                 conn,
+                params={
+                    "Role": session.get("user_role"),
+                    "ID": session.get("user_id"),
+                },
             )
-            # filter to just this entity
-            df_one = df_one[(df_one["Code"] == entity_type) & (df_one["EntityID"] == entity_id)]
+
+            current_app.logger.info(f"📊 Rows returned from summary proc: {len(df_one)}")
+
+            # Filter
+            df_one = df_one[
+                (df_one["Code"] == entity_type)
+                & (df_one["EntityID"] == entity_id)
+            ]
+
+            current_app.logger.info(f"🔎 Rows after filtering: {len(df_one)}")
+
             if df_one.empty:
-                # saved but couldn't re-fetch; still return ok
+                current_app.logger.warning("⚠️ No matching row found after update")
                 return jsonify(ok=True, entity=None)
 
             row = df_one.iloc[0].to_dict()
+            current_app.logger.info(f"✅ Final row returned: {row}")
 
-        # return the refreshed row so JS can repaint badges
         return jsonify(ok=True, entity=row)
 
     except Exception as e:
+        current_app.logger.exception("💥 Error in apr_update_entity")
         return jsonify(ok=False, error=str(e)), 500
     
 @apr_bp.route("/apr/entity_dropdown", methods=["GET"])
