@@ -1346,24 +1346,6 @@ def create_student_and_add():
 @class_bp.route("/apply_upload", methods=["POST"])
 @login_required
 def apply_upload():
-    """
-    Body:
-      { "class_id": 123, "dry_run": 1, "json_data": [ {...}, ... ] }
-
-    Returns JSON the UI can show:
-      {
-        "ok": true/false,
-        "status": {"ok": true/false, "message": "...", "count": N},
-        "dry_run": 1,
-        "term_context": {...},
-        "unexpected_students": [...],
-        "valid_students": [...],
-        "competency_rows": [...],
-        "scenario_rows": [...],
-        "merge_preview": []
-      }
-    """
-
     engine = get_db_engine()
 
     def _row_to_dict(cols, row):
@@ -1375,10 +1357,13 @@ def apply_upload():
         return d
 
     try:
-        payload  = request.get_json(silent=True) or {}
+        payload = request.get_json(silent=True) or {}
         class_id = int(payload.get("class_id") or 0)
-        dry_run  = 1 if int(payload.get("dry_run", 0)) == 1 else 0
-        rows     = payload.get("json_data")
+        dry_run = 1 if int(payload.get("dry_run", 0)) == 1 else 0
+        rows = payload.get("json_data")
+
+        print("dry_run:", dry_run)
+        print("class_id:", class_id)
 
         if not class_id:
             return jsonify({"ok": False, "error": "Missing class_id"}), 400
@@ -1387,32 +1372,36 @@ def apply_upload():
             return jsonify({"ok": False, "error": "json_data must be a non-empty array"}), 400
 
         json_str = json.dumps(rows, ensure_ascii=False)
+        print("JSON being sent:")
+        print(json_str)
 
-        term_context        = {}
+        term_context = {}
         unexpected_students = []
-        valid_students      = []
-        competency_rows     = []
-        scenario_rows       = []
-        merge_preview       = []
-        status_rows_raw     = []
+        valid_students = []
+        competency_rows = []
+        scenario_rows = []
+        merge_preview = []
+        status_rows_raw = []
+        summary_rs = {}
+        write_counts = {}
 
         conn = engine.raw_connection()
         try:
-            conn.autocommit = True
             cursor = conn.cursor()
+
+            # confirm database
+            cursor.execute("SELECT DB_NAME() AS DbName")
+            print("Connected DB:", cursor.fetchone()[0])
 
             cursor.execute(
                 """
-                DECLARE @j NVARCHAR(MAX) = ?,
-                        @cid INT         = ?,
-                        @dry BIT         = ?;
-
                 EXEC dbo.FlaskAchievementUpload
-                     @ClassID = @cid,
-                     @JsonData = @j,
-                     @DryRun = @dry;
+                     @ClassID = ?,
+                     @JsonData = ?,
+                     @DryRun = ?,
+                     @Debug = ?;
                 """,
-                (json_str, class_id, dry_run)
+                (class_id, json_str, dry_run, 1)
             )
 
             while True:
@@ -1450,8 +1439,14 @@ def apply_upload():
                             scenario_rows.extend(_rows_without_info())
 
                         elif info_val == "SUMMARY":
-                            # optional if you want to capture proc summary too
-                            pass
+                            d = _row_to_dict(cols, rows_rs[0])
+                            d.pop("Info", None)
+                            summary_rs = d
+
+                        elif info_val == "WRITE_COUNTS":
+                            d = _row_to_dict(cols, rows_rs[0])
+                            d.pop("Info", None)
+                            write_counts = d
 
                     elif {"Ok", "Message"}.issubset(set(cols)):
                         for r in rows_rs:
@@ -1468,6 +1463,7 @@ def apply_upload():
                     break
 
             cursor.close()
+            conn.commit()  # harmless even if proc already committed
 
         finally:
             conn.close()
@@ -1496,9 +1492,9 @@ def apply_upload():
             }
             overall_ok = status_obj["ok"]
 
-        valid_count      = len(valid_students)
+        valid_count = len(valid_students)
         unexpected_count = len(unexpected_students)
-        total_count      = valid_count + unexpected_count
+        total_count = valid_count + unexpected_count
 
         summary = {
             "success": unexpected_count == 0,
@@ -1519,11 +1515,9 @@ def apply_upload():
             "scenario_rows": scenario_rows,
             "merge_preview": merge_preview,
             "summary": summary,
+            "proc_summary": summary_rs,
+            "write_counts": write_counts,
         })
-
-    except pyodbc.ProgrammingError as e:
-        traceback.print_exc()
-        return jsonify({"ok": False, "error": str(e)}), 500
 
     except Exception as e:
         traceback.print_exc()
