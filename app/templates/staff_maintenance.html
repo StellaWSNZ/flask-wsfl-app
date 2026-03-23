@@ -163,7 +163,12 @@
                   <p class="mb-1"><strong>Email:</strong> {{ row.Email }}</p>
                   <p class="mb-1"><strong>First Name:</strong> {{ row.FirstName }}</p>
                   <p class="mb-1"><strong>Surname:</strong> {{ row.Surname }}</p>
+                  {% if row.AlternateEmail %}
+                  <p class="mb-1"><strong>Alternate Email:</strong> {{ row.AlternateEmail }}</p>
+                  {%else %}
+                  
                   <p></p>
+                  {%endif%}
                 </div>
 
                 <div class="col-md-3">
@@ -171,6 +176,7 @@
                   {% if row.Active == 1 %}
                     <p class="mb-1"><strong>Administrator Privileges:</strong> {% if row.Admin == 1 %}Enabled{% else %}Disabled{% endif %}</p>
                   {% endif %}
+                  {% if row.Delivering  == 1 %}
                   <p class="mb-1">
                     <strong>Last Self Review:</strong>
                     {% if row.LastSelfReview and row.LastSelfReviewID %}
@@ -182,6 +188,7 @@
                       N/A
                     {% endif %}
                   </p>
+                  
                  <p class="mb-1">
                     <strong>Last External Review:</strong>
                     {% if row.LastExternalReview and row.LastExternalReviewID %}
@@ -193,30 +200,49 @@
                       N/A
                     {% endif %}
                   </p>
+                  {% endif %}
                   </div>
 
                 <div class="col-md-6">
-                  <div class="row row-cols-2 g-2">
-                    {% for col in columns if col.startswith("ELearningName_") %}
-                      {% set course_id = col.split('_')[1] %}
-                      <div class="col">
-                        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center border rounded p-2 bg-light gap-2">
-                          <div class="flex-grow-1 pe-0 pe-md-3">
-                            <small>{{ row[col] }}</small>
-                          </div>
-                          <span class="course-badge badge
-                            {% if row['ELearningStatus_' + course_id] == 'Passed' %}bg-success
-                            {% elif row['ELearningStatus_' + course_id] == 'In Progress' %}bg-warning text-dark
-                            {% elif row['ELearningStatus_' + course_id] == 'Cancelled' %}bg-danger
-                            {% elif row['ELearningStatus_' + course_id] == 'Not Started' %}bg-secondary
-                            {% else %}bg-secondary{% endif %}">
-                            {{ row['ELearningStatus_' + course_id] }}
-                          </span>
-                        </div>
-                      </div>
-                    {% endfor %}
-                  </div>
-                </div>
+
+  {% if not row.Delivering or row.Delivering == 0 %}
+
+    <!-- Not applicable card -->
+    <div class="border rounded p-3 bg-light text-center h-100 d-flex align-items-center justify-content-center">
+      <div>
+        <i class="bi bi-info-circle text-primary mb-2" style="font-size: 1.5rem;"></i>
+        <p class="mb-0"><strong>eLearning not applicable</strong></p>
+        <small class="text-muted">This staff member is not delivering lessons</small>
+      </div>
+    </div>
+
+  {% else %}
+
+    <!-- Existing eLearning grid -->
+    <div class="row row-cols-2 g-2">
+      {% for col in columns if col.startswith("ELearningName_") %}
+        {% set course_id = col.split('_')[1] %}
+        <div class="col">
+          <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center border rounded p-2 bg-light gap-2">
+            <div class="flex-grow-1 pe-0 pe-md-3">
+              <small>{{ row[col] }}</small>
+            </div>
+            <span class="course-badge badge
+              {% if row['ELearningStatus_' + course_id] == 'Passed' %}bg-success
+              {% elif row['ELearningStatus_' + course_id] == 'In Progress' %}bg-warning text-dark
+              {% elif row['ELearningStatus_' + course_id] == 'Cancelled' %}bg-danger
+              {% elif row['ELearningStatus_' + course_id] == 'Not Started' %}bg-secondary
+              {% else %}bg-secondary{% endif %}">
+              {{ row['ELearningStatus_' + course_id] }}
+            </span>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+
+  {% endif %}
+
+</div>
               </div>
 
               <div class="row mt-4">
@@ -234,7 +260,9 @@
                         <input type="hidden" name="from_org" value="{{ session['desc'] }}" />
                         <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
                         <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
-                        <button type="submit" class="btn btn-sm btn-outline-primary w-100">
+                        <button type="submit"
+                            class="btn btn-sm btn-outline-primary w-100"
+                            {% if not row.Delivering or row.Delivering == 0 %}disabled{% endif %}>
                           {% if row.Active == 1 %}Email Self Review Reminder{% else %}Email Self Review Link{% endif %}
                         </button>
                       </form>
@@ -242,20 +270,26 @@
 
                     <div class="col">
                       {% if not row.LastSelfReview or row.LastSelfReview|string == "NaT" %}
-                        <button type="button" class="btn btn-sm btn-outline-primary w-100"
-                          data-bs-toggle="popover" data-bs-trigger="focus" data-bs-placement="top"
-                          title="No Self Reviews"
-                          data-bs-content="{{ row.FirstName }} {{ row.Surname }} has not completed a self review yet.">
-                          View Past Self Reviews
-                        </button>
-                      {% else %}
-                        <form method="POST" action="{{ url_for('survey_bp.set_survey_target') }}">
-                          <input type="hidden" name="email" value="{{ row.Email }}">
-                          <input type="hidden" name="firstname" value="{{ row.FirstName }}">
-                          <input type="hidden" name="lastname" value="{{ row.Surname }}">
-                          <button type="submit" class="btn btn-sm btn-outline-primary w-100">View Past Self Reviews</button>
-                        </form>
-                      {% endif %}
+  <button type="button"
+    class="btn btn-sm btn-outline-primary w-100"
+    {% if not row.Delivering or row.Delivering == 0 %}disabled{% endif %}
+    data-bs-toggle="popover" data-bs-trigger="focus" data-bs-placement="top"
+    title="No Self Reviews"
+    data-bs-content="{{ row.FirstName }} {{ row.Surname }} has not completed a self review yet.">
+    View Past Self Reviews
+  </button>
+{% else %}
+  <form method="POST" action="{{ url_for('survey_bp.set_survey_target') }}">
+    <input type="hidden" name="email" value="{{ row.Email }}">
+    <input type="hidden" name="firstname" value="{{ row.FirstName }}">
+    <input type="hidden" name="lastname" value="{{ row.Surname }}">
+    <button type="submit"
+      class="btn btn-sm btn-outline-primary w-100"
+      {% if not row.Delivering or row.Delivering == 0 %}disabled{% endif %}>
+      View Past Self Reviews
+    </button>
+  </form>
+{% endif %}
                     </div>
 
                     <div class="col">
@@ -266,7 +300,11 @@
                         <input type="hidden" name="from_org" value="{{ session['desc'] }}" />
                         <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
                         <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
-                        <button type="submit" class="btn btn-sm btn-outline-primary w-100">Email eLearning Reminder</button>
+                        <button type="submit"
+                                class="btn btn-sm btn-outline-primary w-100"
+                                {% if not row.Delivering or row.Delivering == 0 %}disabled{% endif %}>
+                          Email eLearning Reminder
+                        </button>
                       </form>
                     </div>
 
@@ -355,16 +393,17 @@
                 <h5 class="modal-title" id="editLabel_{{ safe_id }}">Edit Staff Member</h5>
                 <button type="button" class="btn btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
               </div>
-              <form method="POST" action="{{ url_for('staff_bp.update_staff') }}">
+                            <form method="POST" action="{{ url_for('staff_bp.update_staff') }}">
                 <div class="modal-body">
                   <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
                   <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
                   <input type="hidden" name="user_id" value="{{ row.ID }}" />
-
+                  
                   <div class="mb-3">
                     <label for="firstName_{{ safe_id }}" class="form-label">First Name</label>
                     <input type="text" class="form-control" id="firstName_{{ safe_id }}" name="firstname" value="{{ row.FirstName }}" required />
                   </div>
+
                   <div class="mb-3">
                     <label for="lastName_{{ safe_id }}" class="form-label">Last Name</label>
                     <input type="text" class="form-control" id="lastName_{{ safe_id }}" name="lastname" value="{{ row.Surname }}" required />
@@ -388,6 +427,29 @@
                       <input class="form-check-input" type="checkbox" id="admin_{{ safe_id }}" name="admin" value="1"
                              {% if row.Admin == 1 %}checked{% endif %}>
                       <label class="form-check-label" for="admin_{{ safe_id }}">Administrator Privileges</label>
+                    </div>
+                  {% endif %}
+
+                  {% if user_role == 'ADM' %}
+                    <div class="mb-3">
+                      <label for="delivering_{{ safe_id }}" class="form-label">Delivering Lessons</label>
+                      <select
+                        class="form-select delivery-status-select"
+                        id="delivering_{{ safe_id }}"
+                        name="delivering"
+                        data-note-id="delivering_note_{{ safe_id }}"
+                      >
+                        <option value="1" {% if row.Delivering == 1 %}selected{% endif %}>Yes</option>
+                        <option value="0" {% if row.Delivering == 0 or row.Delivering is none %}selected{% endif %}>No</option>
+                      </select>
+
+                      <div
+                        id="delivering_note_{{ safe_id }}"
+                        class="form-text text-danger mt-2"
+                        {% if row.Delivering == 1 %}style="display:none;"{% endif %}
+                      >
+                        Only select <strong>No</strong> if this staff member is purely administration and does not deliver lessons.
+                      </div>
                     </div>
                   {% endif %}
                 </div>
@@ -807,7 +869,22 @@
     const role = "{{ user_role or '' }}";
     const funderPopupAllowed = {{ funder_popup_allowed | default(0) | int }};
     const wrapper = document.getElementById("missingSchoolWrapper");
+      document.querySelectorAll('.delivery-status-select').forEach(function(select) {
+  function toggleDeliveryNote() {
+    const noteId = select.id.replace('delivering_', 'delivering_note_');
+    const note = document.getElementById(noteId);
+    if (!note) return;
 
+    if (select.value === "0") {
+      note.style.display = "block";
+    } else {
+      note.style.display = "none";
+    }
+  }
+
+  toggleDeliveryNote();
+  select.addEventListener("change", toggleDeliveryNote);
+});
     function toggleMissingSchoolLink() {
       if (!wrapper) return;
 
@@ -831,7 +908,7 @@
       const shouldShow = (role === "PRO" && providerAllowed === 1 && selectedType === "School");
       providerWrapper.style.display = shouldShow ? "block" : "none";
     }
-
+    
     function updateLabelAndDropdown() {
       if (!entityTypeSelector || !entityDropdown || !entityLabel) return;
 
@@ -1047,6 +1124,8 @@
     toggleMissingSchoolLink();
     toggleProviderMissingSchoolLink();
   });
+
+
 </script>
 
 {% endblock %}

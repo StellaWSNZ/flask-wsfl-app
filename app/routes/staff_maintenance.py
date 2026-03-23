@@ -533,7 +533,8 @@ def update_staff():
     # Defaults for redirect
     entity_type = request.form.get("entity_type")
     entity_id   = request.form.get("entity_id")
-
+    delivering = request.form.get("delivering")
+    delivering = 1 if str(delivering) == "1" else 0
     try:
         user_id    = request.form.get("user_id")
         firstname  = request.form.get("firstname")
@@ -542,7 +543,7 @@ def update_staff():
         old_email  = request.form.get("old_email")
         admin      = 1 if request.form.get("admin") == "1" else 0
         alternate_email = (request.form.get("alternate_email") or "").strip() or None
-
+        
         # call proc
         with get_db_engine().begin() as conn:
             conn.execute(
@@ -554,7 +555,8 @@ def update_staff():
                          @LastName         = :lastname,
                          @Admin            = :admin,
                          @AlternateEmail = :alt,
-                         @PerformedByEmail = :performed_by
+                         @PerformedByEmail = :performed_by,
+                         @Delivering  = :delivering
                 """),
                 {
                     "old_email":   old_email,
@@ -564,6 +566,7 @@ def update_staff():
                     "admin":       admin,
                     "alt": alternate_email,
                     "performed_by": session.get("user_email"),
+                    "delivering": delivering,
                 }
             )
 
