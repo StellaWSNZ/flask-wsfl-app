@@ -53,7 +53,7 @@ content %}
 
 <!-- Welcome Banner -->
 <div class="row justify-content-center">
-  <div class="col-md-9">
+  <div class="col-md-8">
     <div
       class="p-3 mb-3 rounded-3"
       style="background-color: #eeeeee; border: 2px solid #4d5441"
@@ -64,8 +64,40 @@ content %}
       </div>
     </div>
   </div>
-</div>
 
+</div>
+<div class="row justify-content-center">
+  <div class="col-md-4">
+
+    {% if review_summary %}
+    <div class="card mb-3 shadow-sm border-primary">
+        <div class="card-body">
+            <h5 class="card-title text-primary">External Review Summary</h5>
+
+            <p class="mb-1">{{ review_summary.SummaryLine1 }}</p>
+            <p class="mb-1">{{ review_summary.SummaryLine2 }}</p>
+            <p class="mb-1">{{ review_summary.SummaryLine3 }}</p>
+        </div>
+    </div>
+    {% endif %}
+
+  </div>
+  <div class="col-md-4">
+
+    {% if review_summary %}
+    <div class="card mb-3 shadow-sm border-primary">
+        <div class="card-body">
+            <h5 class="card-title text-primary">Another summary!</h5>
+
+            <p class="mb-1">Esther can pick somenotes to go here!</p>
+            <p class="mb-1"> - </p>
+            <p class="mb-1"> - </p>
+        </div>
+    </div>
+    {% endif %}
+
+  </div>
+</div>
 <!-- Cards -->
 <div class="row justify-content-center">
   <div class="col-md-9">

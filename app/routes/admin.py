@@ -41,7 +41,7 @@ def is_mobile_request(req) -> bool:
 
 @admin_bp.route('/CreateUser', methods=['GET', 'POST'])
 @login_required
-def create_user():
+def create_user ():
     try:
         # ---- perms --------------------------------------------------------
         user_role  = session.get("user_role")

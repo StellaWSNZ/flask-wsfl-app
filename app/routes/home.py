@@ -176,7 +176,21 @@ def home():
                     "href": a.get("Link") or url_for("home_bp.home"),
                     "created_at": created_str
                 })
+        if email in ["stella@watersafety.org.nz", "esther@watersafety.org.nz"]:
+            try:
+                engine = get_db_engine()
 
+                with engine.connect() as conn:
+                    result = conn.execute(
+                        text("EXEC dbo.GetExternalReviewSummary @SurveyID = :sid"),
+                        {"sid": 4}
+                    )
+
+                    review_summary = result.mappings().first()  # dictionary-like row
+
+            except Exception as e:
+                current_app.logger.error(f"Error loading review summary: {e}")
+                review_summary = None
         # put error cards first
         cards = (error_cards or []) + (cards or [])
 
@@ -185,7 +199,8 @@ def home():
             display_name=display_name,
             subtitle=subtitle,
             cards=cards,
-            user_email=email
+            user_email=email,
+            review_summary=review_summary,
         )
 
     except Exception as e:
