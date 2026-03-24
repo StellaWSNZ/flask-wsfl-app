@@ -57,7 +57,7 @@ def home():
 
         subtitle = ""
         cards = []
-
+        review_summary = None
         # ---- role-specific content
         if role == "ADM":
             if last_login_nzt:
