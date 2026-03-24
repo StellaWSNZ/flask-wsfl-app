@@ -1362,8 +1362,7 @@ def apply_upload():
         dry_run = 1 if int(payload.get("dry_run", 0)) == 1 else 0
         rows = payload.get("json_data")
 
-        print("dry_run:", dry_run)
-        print("class_id:", class_id)
+
 
         if not class_id:
             return jsonify({"ok": False, "error": "Missing class_id"}), 400
@@ -1372,8 +1371,7 @@ def apply_upload():
             return jsonify({"ok": False, "error": "json_data must be a non-empty array"}), 400
 
         json_str = json.dumps(rows, ensure_ascii=False)
-        print("JSON being sent:")
-        print(json_str)
+
 
         term_context = {}
         unexpected_students = []
@@ -1391,7 +1389,6 @@ def apply_upload():
 
             # confirm database
             cursor.execute("SELECT DB_NAME() AS DbName")
-            print("Connected DB:", cursor.fetchone()[0])
 
             cursor.execute(
                 """
