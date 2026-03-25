@@ -1,5 +1,6 @@
-{% extends "header.html" %} {% block title %}Dashboard{% endblock %} {% block
-content %}
+{% extends "header.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
 
 <style>
   body {
@@ -10,10 +11,138 @@ content %}
     background-position: bottom center;
   }
 
-  /* ---- Themed cards for Stella ---- */
+  :root {
+    --brand-blue: #004080;
+    --light-bg: #f5f7fa;
+    --card-border: #e6e9ee;
+  }
+
+  .dashboard-shell {
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  .welcome-bubble {
+    background-color: var(--light-bg);
+    border: 2px solid var(--brand-blue);
+    border-radius: 0.75rem;
+    padding: 0.55rem 0.75rem;
+    text-align: center;
+  }
+
+  .welcome-title {
+    margin: 0;
+    font-size: 0.95rem;
+    line-height: 1.1;
+  }
+
+  .welcome-subtitle {
+    margin: 0;
+    font-size: 0.78rem;
+    line-height: 1.1;
+    color: #495057;
+  }
+
+  .main-flex {
+    display: flex;
+    gap: 0.85rem;
+    align-items: stretch;
+  }
+
+  .video-box,
+  .cards-box {
+    flex: 1;
+    display: flex;
+  }
+
+  .video-box iframe {
+    width: 100%;
+    height: 100%;
+    min-height: 420px;
+    border-radius: 0.75rem;
+    border: 0;
+    background: white;
+    box-shadow: 0 0 10px rgba(0, 64, 128, 0.12);
+  }
+
+  .cards-grid {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.85rem;
+  }
+
+  .dashboard-card {
+    background: white;
+    border-radius: 0.75rem;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--card-border);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  }
+
+  .card-icon {
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+    background: var(--light-bg);
+    display: block;
+  }
+
+  .dashboard-card-body {
+    padding: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.22rem;
+  }
+
+  .dashboard-card-title {
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-align: center;
+    color: var(--brand-blue);
+    line-height: 1.1;
+    margin: 0;
+  }
+
+  .dashboard-card-subtitle {
+    font-size: 0.66rem;
+    text-align: center;
+    color: #6c757d;
+    line-height: 1.15;
+    margin: 0;
+  }
+
+  .dashboard-card-actions {
+    display: flex;
+    justify-content: center;
+    margin-top: auto;
+    padding-top: 0.15rem;
+  }
+
+  .dashboard-card-actions .btn {
+    font-size: 0.66rem;
+    padding: 0.22rem 0.5rem;
+    line-height: 1.1;
+  }
+
+  .summary-card {
+    border-radius: 0.75rem;
+    border: 1px solid var(--card-border);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    height: 100%;
+  }
+
+  .summary-card .card-body {
+    padding: 1rem;
+  }
+
   .card-error {
     border: 2px solid #004080 !important;
-    background-color: #f4f7fb; /* light blue-grey background */
+    background-color: #f4f7fb;
+    border-radius: 0.75rem;
+    height: 100%;
   }
 
   .card-error .card-header {
@@ -22,7 +151,7 @@ content %}
     font-weight: 600;
   }
 
-  .card pre {
+  .card-error pre {
     background: #f8f9fa;
     border: 1px solid #e9ecef;
     border-radius: 0.5rem;
@@ -32,132 +161,189 @@ content %}
     margin: 0;
   }
 
-  /* Optional hover effect */
-  .card-error:hover {
-    box-shadow: 0 0 10px rgba(0, 64, 128, 0.3);
+  .card-error:hover,
+  .dashboard-card:hover,
+  .summary-card:hover {
+    box-shadow: 0 0 10px rgba(0, 64, 128, 0.18);
     transform: translateY(-2px);
     transition: all 0.2s ease-in-out;
   }
 
-  /* Buttons in Stella cards */
-  .btn-error {
-    border-color: #004080;
-    color: #004080;
+  @media (max-width: 900px) {
+    .main-flex {
+      flex-direction: column;
+    }
+
+    .video-box iframe {
+      aspect-ratio: 16 / 9;
+      min-height: 0;
+      height: auto;
+    }
+
+    .cards-grid {
+      grid-template-columns: 1fr;
+    }
   }
 
-  .btn-error:hover {
-    background-color: #004080;
-    color: white;
+  @media (max-height: 820px), (max-width: 1100px) {
+    .dashboard-card-subtitle {
+      display: none;
+    }
+
+    .dashboard-card-body {
+      padding: 0.45rem;
+    }
+
+    .dashboard-card-title {
+      font-size: 0.74rem;
+    }
   }
 </style>
 
-<!-- Welcome Banner -->
-<div class="row justify-content-center">
-  <div class="col-md-8">
-    <div
-      class="p-3 mb-3 rounded-3"
-      style="background-color: #eeeeee; border: 2px solid #4d5441"
-    >
-      <div class="container-fluid py-3">
-        <h1 class="h4 fw-bold mb-2">Welcome, {{ display_name }}!</h1>
-        <h6 class="fs-6 mb-0">{{ subtitle }}</h6>
+<div class="container-fluid px-3">
+  <div class="dashboard-shell">
+
+    <!-- Welcome -->
+    <div class="mb-2">
+      <div class="welcome-bubble">
+        <h5 class="welcome-title">Welcome, {{ display_name }}!</h5>
+        <p class="welcome-subtitle">{{ subtitle }}</p>
       </div>
     </div>
-  </div>
 
-</div>
-<div class="row justify-content-center">
-  <div class="col-md-4">
+    {% if user_email == 'stella@watersafety.org.nz' %}
 
-    {% if review_summary %}
-    <div class="card mb-3 shadow-sm border-primary">
-        <div class="card-body">
-            <h5 class="card-title text-primary">External Review Summary</h5>
+      <!-- Stella: error cards only -->
+      <div class="row g-3">
+        {% for card in cards %}
+          {% if card.type|default('') == 'error' %}
+          <div class="col-md-6 col-xl-4">
+            <div class="card card-error">
+              <div class="card-header">{{ card.title }}</div>
+              <div class="card-body d-flex flex-column">
+                <div class="mb-2 small">
+                  <div>
+                    <span class="fw-semibold">Entity:</span> {{ card.entity }}
+                  </div>
+                  <div>
+                    <span class="fw-semibold">User:</span>
+                    {% if card.user_full_name %}
+                      {{ card.user_full_name }}
+                    {% else %}
+                      <span class="text-muted">(unknown)</span>
+                    {% endif %}
+                  </div>
+                  <div>
+                    <span class="fw-semibold">Email:</span>
+                    <span class="text-muted">{{ card.email }}</span>
+                  </div>
+                  {% if card.created_at %}
+                  <div>
+                    <span class="fw-semibold">Logged:</span>
+                    <div class="text-muted">{{ card.created_at }}</div>
+                  </div>
+                  {% endif %}
+                </div>
 
-            <p class="mb-1">{{ review_summary.SummaryLine1 }}</p>
-            <p class="mb-1">{{ review_summary.SummaryLine2 }}</p>
-            <p class="mb-1">{{ review_summary.SummaryLine3 }}</p>
-        </div>
-    </div>
-    {% endif %}
+                <pre class="mb-3 small">{{ card.text }}</pre>
 
-  </div>
-  <div class="col-md-4">
-
-    {% if review_summary %}
-    <div class="card mb-3 shadow-sm border-primary">
-        <div class="card-body">
-            <h5 class="card-title text-primary">Another summary!</h5>
-
-            <p class="mb-1">Esther can pick some summary notes to go here!</p>
-            <p class="mb-1"> - </p>
-            <p class="mb-1"> - </p>
-        </div>
-    </div>
-    {% endif %}
-
-  </div>
-</div>
-<!-- Cards -->
-<div class="row justify-content-center">
-  <div class="col-md-9">
-    <div class="row g-4">
-      {% for card in cards %}
-      <div class="col-md-3 col-sm-6">
-        {% if user_email == 'stella@watersafety.org.nz' and card.type == 'error'
-        %}
-        <!-- Stella-only: New Error card -->
-        <div class="card card-error h-100">
-          <div class="card-header">{{ card.title }}</div>
-          <div class="card-body d-flex flex-column">
-            <div class="mb-2 small">
-              <div>
-                <span class="fw-semibold">Entity:</span> {{ card.entity }}
-              </div>
-              <div>
-                <span class="fw-semibold">User:</span>
-                {% if card.user_full_name %} {{ card.user_full_name }} {% else
-                %}
-                <span class="text-muted">(unknown)</span>
+                {% if card.href %}
+                <a href="{{ card.href }}" class="btn btn-outline-primary mt-auto">
+                  Open
+                </a>
                 {% endif %}
               </div>
-              <div>
-                <span class="fw-semibold">Email: </span
-                ><span class="text-muted">{{ card.email }}</span>
-              </div>
-              {% if card.created_at %}
-              <span class="fw-semibold">Logged:</span>
-              <div class="text-muted">{{ card.created_at }}</div>
-              {% endif %}
             </div>
-
-            <pre class="mb-3 small">{{ card.text }}</pre>
           </div>
-        </div>
-        {% else %}
-        <!-- Generic card -->
-        <div class="card h-100">
-          {% if user_email != 'stella@watersafety.org.nz' and card.image %}
-          <img
-            src="{{ url_for('static', filename='cardicons/' ~ card.image) }}"
-            class="card-img-top"
-            alt="{{ card.title }} icon"
-          />
           {% endif %}
-          <div class="card-header">{{ card.title }}</div>
-          <div class="card-body d-flex flex-column">
-            <p class="card-text mb-4">{{ card.text }}</p>
-            {% if card.href %}
-            <a href="{{ card.href }}" class="btn btn-outline-secondary mt-auto"
-              >Click here</a
-            >
-            {% endif %}
+        {% endfor %}
+      </div>
+
+    {% elif user_email == 'esther@watersafety.org.nz' and review_summary %}
+
+      <!-- Esther: summary stats only -->
+      <div class="row justify-content-center g-3">
+        <div class="col-md-4">
+          <div class="card summary-card">
+            <div class="card-body">
+              <h5 class="card-title text-primary">External Review Summary</h5>
+              <p class="mb-1">{{ review_summary.SummaryLine1 }}</p>
+              <p class="mb-1">{{ review_summary.SummaryLine2 }}</p>
+              <p class="mb-1">{{ review_summary.SummaryLine3 }}</p>
+            </div>
           </div>
         </div>
-        {% endif %}
+
+        <div class="col-md-4">
+          <div class="card summary-card">
+            <div class="card-body">
+              <h5 class="card-title text-primary">Another summary</h5>
+              <p class="mb-1">Esther can pick some summary notes to go here!</p>
+              <p class="mb-1">-</p>
+              <p class="mb-1">-</p>
+            </div>
+          </div>
+        </div>
       </div>
-      {% endfor %}
-    </div>
+
+    {% else %}
+
+      <!-- Everyone else: video + normal cards -->
+      <div class="main-flex">
+
+        <div class="video-box">
+          <iframe
+            src="https://www.youtube.com/embed/59CXUrI328Y"
+            title="Instructions video"
+            allowfullscreen
+          ></iframe>
+        </div>
+
+        <div class="cards-box">
+          <div class="cards-grid">
+            {% for card in cards[:4] %}
+              {% if card.type|default('') != 'error' %}
+              <div class="dashboard-card">
+
+                {% if card.image %}
+                <img
+                  src="{{ url_for('static', filename='cardicons/' ~ card.image) }}"
+                  class="card-icon"
+                  alt="{{ card.title }}"
+                />
+                {% endif %}
+
+                <div class="dashboard-card-body">
+
+                  <div class="dashboard-card-title">
+                    {{ card.title }}
+                  </div>
+
+                  {% if card.text %}
+                  <div class="dashboard-card-subtitle">
+                    {{ card.text }}
+                  </div>
+                  {% endif %}
+
+                  <div class="dashboard-card-actions">
+                    {% if card.href %}
+                    <a href="{{ card.href }}" class="btn btn-outline-primary btn-sm">
+                      Open
+                    </a>
+                    {% endif %}
+                  </div>
+
+                </div>
+              </div>
+              {% endif %}
+            {% endfor %}
+          </div>
+        </div>
+
+      </div>
+
+    {% endif %}
+
   </div>
 </div>
 
