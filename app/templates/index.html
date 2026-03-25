@@ -169,6 +169,11 @@
     transition: all 0.2s ease-in-out;
   }
 
+  .highlight-col {
+    background-color: #a2cdff !important;  /* soft blue */
+    font-weight: 600;
+  }
+
   @media (max-width: 900px) {
     .main-flex {
       flex-direction: column;
@@ -274,17 +279,59 @@
           </div>
         </div>
 
-        <div class="col-md-4">
-          <div class="card summary-card">
-            <div class="card-body">
-              <h5 class="card-title text-primary">Another summary</h5>
-              <p class="mb-1">Esther can pick some summary notes to go here!</p>
-              <p class="mb-1">-</p>
-              <p class="mb-1">-</p>
-            </div>
-          </div>
-        </div>
+        <div class="col-md-7">
+  {% if sportnz_table %}
+  <div class="card summary-card">
+    <div class="card-body">
+      <h5 class="card-title text-primary mb-3">Sport NZ YTD by Term</h5>
+
+      <div class="table-responsive">
+        <table class="table table-sm table-bordered align-middle text-center mb-0">
+          <thead>
+            <tr>
+              <th rowspan="2" class="text-start">Competency</th>
+              {% for g in sportnz_table.term_groups %}
+              <th colspan="2"
+                  class="{% if loop.index == sportnz_table.term_groups|length - 1 %}highlight-col{% endif %}">
+                {{ g.label }}
+              </th>
+              {% endfor %}
+            </tr>
+            <tr>
+              {% for g in sportnz_table.term_groups %}
+              <th class="{% if loop.index == sportnz_table.term_groups|length - 1 %}highlight-col{% endif %}">
+                Students
+              </th>
+              <th class="{% if loop.index == sportnz_table.term_groups|length - 1 %}highlight-col{% endif %}">
+                Rate
+              </th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in sportnz_table.rows %}
+<tr>
+  <td class="text-start">{{ row.label }}</td>
+
+  {% for cell in row.cells %}
+    <td class="{% if loop.index == sportnz_table.term_groups|length - 1 %}highlight-col{% endif %}">
+      {{ cell.student_count }}
+    </td>
+    <td class="{% if loop.index == sportnz_table.term_groups|length - 1 %}highlight-col{% endif %}">
+      {{ cell.rate }}
+    </td>
+  {% endfor %}
+
+</tr>
+{% endfor %}
+          </tbody>
+        </table>
       </div>
+
+    </div>
+  </div>
+  {% endif %}
+</div>
 
     {% else %}
 

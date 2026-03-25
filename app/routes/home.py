@@ -39,12 +39,10 @@ def fetch_new_alerts_for_user(email: str, limit: int = 12, mark_shown: bool = Tr
         return []
 
 
-
 @home_bp.route('/')
 @login_required
 def home():
     try:
-        # guard guest / no role
         if session.get("guest_user") or not session.get("user_role"):
             session.clear()
             return redirect(url_for("auth_bp.login"))
@@ -58,7 +56,8 @@ def home():
         subtitle = ""
         cards = []
         review_summary = None
-        # ---- role-specific content
+        sportnz_table = None
+
         if role == "ADM":
             if last_login_nzt:
                 subtitle = "You are logged in as Admin. Last Logged in: " + datetime.fromisoformat(last_login_nzt).strftime('%A, %d %B %Y, %I:%M %p')
@@ -80,7 +79,7 @@ def home():
                 cards = [
                     {"title": "Class Lookup", "text": "Search all relevant classes", "href": url_for("class_bp.filter_classes"), "image": "ViewClass.png"},
                     {"title": "Self Review", "text": "Complete your staff review", "href": url_for('survey_bp.survey_by_routename', routename='SelfReview'), "image": "SelfReview.png"},
-                    {"title": "Past Forms", "text": "View past forms", "href":  url_for('survey_bp.list_my_surveys') , "image": "PastForms.png"},
+                    {"title": "Past Forms", "text": "View past forms", "href": url_for('survey_bp.list_my_surveys'), "image": "PastForms.png"},
                     {"title": "Profile", "text": "View and update your details", "href": url_for("admin_bp.profile"), "image": "Profile.png"},
                 ]
             if last_login_nzt:
@@ -119,7 +118,7 @@ def home():
             else:
                 cards = [
                     {"title": "Class Lookup", "text": "See your assigned classes", "href": url_for("class_bp.filter_classes"), "image": "ViewClass.png"},
-                    {"title": "Past Forms", "text": "View past forms", "href":  url_for('survey_bp.list_my_surveys') , "image": "PastForms.png"},
+                    {"title": "Past Forms", "text": "View past forms", "href": url_for('survey_bp.list_my_surveys'), "image": "PastForms.png"},
                     {"title": "Self Review", "text": "Complete self review", "href": url_for('survey_bp.survey_by_routename', routename='SelfReview'), "image": "SelfReview.png"},
                     {"title": "Profile", "text": "View and update your details", "href": url_for("admin_bp.profile"), "image": "Profile.png"},
                 ]
@@ -130,7 +129,7 @@ def home():
             subtitle = f"You are logged in as a Provider Administrator ({desc})"
             if last_login_nzt:
                 subtitle += " Last Logged in: " + datetime.fromisoformat(last_login_nzt).strftime('%A, %d %B %Y, %I:%M %p')
-            if ad==1:
+            if ad == 1:
                 cards = [
                     {"title": "Overview", "text": "See provider performance and progress", "href": url_for("overview_bp.funder_dashboard"), "image": "Overview.png"},
                     {"title": "Class Lookup", "text": "Search all relevant classes", "href": url_for("class_bp.filter_classes"), "image": "ViewClass.png"},
@@ -139,26 +138,25 @@ def home():
                 ]
             else:
                 cards = [
-                        {"title": "Overview", "text": "See provider performance and progress", "href": url_for("overview_bp.funder_dashboard"), "image": "Overview.png"},
-                        {"title": "Class Lookup", "text": "Search all relevant classes", "href": url_for("class_bp.filter_classes"), "image": "ViewClass.png"},
-                        {"title": "Staff Maintenance", "text": "Manage your school’s staff", "href": url_for("staff_bp.staff_maintenance"), "image": "StaffMaintenance.png"},
-                        {"title": "Past Forms", "text": "View past forms", "href":  url_for('survey_bp.list_my_surveys') , "image": "PastForms.png"},
-                    ]
+                    {"title": "Overview", "text": "See provider performance and progress", "href": url_for("overview_bp.funder_dashboard"), "image": "Overview.png"},
+                    {"title": "Class Lookup", "text": "Search all relevant classes", "href": url_for("class_bp.filter_classes"), "image": "ViewClass.png"},
+                    {"title": "Staff Maintenance", "text": "Manage your school’s staff", "href": url_for("staff_bp.staff_maintenance"), "image": "StaffMaintenance.png"},
+                    {"title": "Past Forms", "text": "View past forms", "href": url_for('survey_bp.list_my_surveys'), "image": "PastForms.png"},
+                ]
 
-        # ---- SPECIAL: only add error cards for Stella
         email = (session.get("user_email") or "").strip().lower()
+
         error_cards = []
         if email == "stella@watersafety.org.nz":
             alerts = fetch_new_alerts_for_user(email=email, limit=8, mark_shown=True)
             for a in alerts:
                 created_utc = a.get("CreatedAtUtc")
-
-                # If it's a string, parse to datetime
                 if isinstance(created_utc, str):
                     try:
                         created_utc = datetime.fromisoformat(created_utc.replace("Z", "+00:00"))
                     except Exception:
                         created_utc = None
+
                 local_tz = pytz.timezone(session.get("user_timezone", "Pacific/Auckland"))
                 if created_utc:
                     created_local = created_utc.astimezone(local_tz)
@@ -176,6 +174,7 @@ def home():
                     "href": a.get("Link") or url_for("home_bp.home"),
                     "created_at": created_str
                 })
+
         if email in ["stella@watersafety.org.nz", "esther@watersafety.org.nz"]:
             try:
                 engine = get_db_engine()
@@ -185,13 +184,81 @@ def home():
                         text("EXEC dbo.GetExternalReviewSummary @SurveyID = :sid"),
                         {"sid": 4}
                     )
+                    review_summary = result.mappings().first()
 
-                    review_summary = result.mappings().first()  # dictionary-like row
+                    # nearest/current term and year from session if present
+                    nearest_term = session.get("nearest_term") or session.get("term") or 2
+                    nearest_year = session.get("nearest_year") or session.get("calendar_year") or 2026
+
+                    sport_rows = conn.execute(
+                        text("EXEC dbo.GetSportNZStatsByTerm @CalendarYear = :year, @Term = :term"),
+                        {"year": nearest_year, "term": nearest_term}
+                    ).mappings().all()
+
+                    if sport_rows:
+                        # distinct term/year groups in returned order
+                        term_groups = []
+                        seen_groups = set()
+                        for r in sport_rows:
+                            key = (r["CalendarYear"], r["Term"])
+                            if key not in seen_groups:
+                                seen_groups.add(key)
+                                term_groups.append({
+                                    "calendar_year": r["CalendarYear"],
+                                    "term": r["Term"],
+                                    "label": f'T{r["Term"]} {r["CalendarYear"]}'
+                                })
+
+                        # distinct competency/yearlevel rows
+                        table_rows = []
+                        seen_rows = set()
+                        lookup = {
+                            (r["CompetencyID"], r["YearLevelID"], r["CalendarYear"], r["Term"]): r
+                            for r in sport_rows
+                        }
+
+                        for r in sport_rows:
+                            row_key = (r["CompetencyID"], r["YearLevelID"])
+                            if row_key in seen_rows:
+                                continue
+                            seen_rows.add(row_key)
+
+                            row = {
+                                "label": f'{r["CompetencyName"]} ({r["YearLevel"]})',
+                                "cells": []
+                            }
+
+                            for g in term_groups:
+                                item = lookup.get((
+                                    r["CompetencyID"],
+                                    r["YearLevelID"],
+                                    g["calendar_year"],
+                                    g["term"]
+                                ))
+
+                                if item:
+                                    row["cells"].append({
+                                        "student_count": item["StudentCount"],
+                                        "rate": f'{item["Rate"]:.2f}%'
+                                    })
+                                else:
+                                    row["cells"].append({
+                                        "student_count": "-",
+                                        "rate": "-"
+                                    })
+
+                            table_rows.append(row)
+
+                        sportnz_table = {
+                            "term_groups": term_groups,
+                            "rows": table_rows
+                        }
 
             except Exception as e:
-                current_app.logger.error(f"Error loading review summary: {e}")
+                current_app.logger.error(f"Error loading review summary / sport NZ stats: {e}")
                 review_summary = None
-        # put error cards first
+                sportnz_table = None
+
         cards = (error_cards or []) + (cards or [])
 
         return render_template(
@@ -201,10 +268,10 @@ def home():
             cards=cards,
             user_email=email,
             review_summary=review_summary,
+            sportnz_table=sportnz_table,
         )
 
     except Exception as e:
-        # best-effort DB alert + server log
         try:
             log_alert(
                 email=session.get("user_email"),
