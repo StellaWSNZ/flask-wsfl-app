@@ -175,13 +175,15 @@ def instructions_for_label(label):
         if display_label == "ProviderGroup":
             display_label = "Provider Group"
             role_code = "PRO"
-
+      
+                
         return render_template(
             "instructions.html",   # your template should extend header.html
             role_code=role_code,   # e.g. "PRO"
             role_label=display_label,  # e.g. "Provider"
             items=items,
             user_role=user_role,
+            user_admin=session.get("user_admin"),
         )
 
     except Exception as e:
