@@ -15,6 +15,8 @@ from pathlib import Path
 import matplotlib
 import pytz
 
+from app.utils.funder_weighted_achievement import make_landscape_header_figure
+
 matplotlib.use("Agg")  # Safe backend for servers
 import matplotlib.pyplot as plt
 from flask import (
@@ -252,7 +254,13 @@ def _persist_preview_for_existing_report(
     base_label_prefix: str,
 ):
     png_path = REPORT_DIR / f"{report_id}.png"
-    fig.savefig(png_path, format="png", dpi=200)
+    print(base_label_prefix)
+    if(base_label_prefix==f"FunderWeightedAverageLYvsYTD"):
+        fig.savefig(png_path, format="png", dpi=200, bbox_inches="tight", pad_inches=0)
+        
+    else: 
+        fig.savefig(png_path, format="png", dpi=200)
+        
     plt.close(fig)
 
     funder_chunk = slugify_filename(selected_funder_name or "Funder")
@@ -595,6 +603,31 @@ def _execute_report(
         res = conn.execute(sql, params)
         results = res.mappings().all()
         current_app.logger.info("🔎 rows=%d | type=%s", len(results or []), selected_type)
+    elif selected_type == "funder_weighted_average":
+        engine = get_db_engine()
+        with engine.connect() as connection:
+            result = connection.execute(
+                text(
+                    "EXEC GetFunderYearGroupSummary_StudentWeighted_TY_LY_WithTrend "
+                    ":CalendarYear, :Term"
+                ),
+                {
+                    "CalendarYear": selected_year,
+                    "Term": selected_term,
+                },
+            )
+            df = pd.DataFrame(result.fetchall(), columns=result.keys()) 
+            df = df.loc[
+            df["YearGroupDesc"] == "All Year Groups",
+                ["Funder", "TY_AllYGsRate", "LY_AllYGsRate"],
+            ].copy()
+            fig =make_landscape_header_figure(df=df,
+                                         title = "Funder Weighted Achievement Summary",
+                                        subtitle = f"YTD (Term {selected_term}, {selected_year}) vs LY (Full Year)",
+                                        term = selected_term, calendaryear=selected_year
+                                        
+                                        )
+            
     elif selected_type == "region_coverage_report":
 
         try:
@@ -1307,7 +1340,7 @@ def _build_figure_from_results(
 
     # Add footer once here for all normal figures (including funder_targets_counts),
     # BUT only if fig exists.
-    if fig is not None and selected_type not in {"provider_missing_classes", "funder_missing_classes", "region_coverage_report", "national_competency_icons",}:
+    if fig is not None and selected_type not in {"funder_weighted_average","provider_missing_classes", "funder_missing_classes", "region_coverage_report", "national_competency_icons",}:
 
         c = "#1a427d" if selected_type == "funder_missing_data" else "#1a427d40"
         try:
@@ -1338,9 +1371,12 @@ def _persist_figure_and_session(
 
     png_path = REPORT_DIR / f"{report_id}.png"
     pdf_path = REPORT_DIR / f"{report_id}.pdf"
-
-    fig.savefig(png_path, format="png", dpi=200)
-    fig.savefig(pdf_path, format="pdf")
+    if(selected_type != "funder_weighted_average"):
+        fig.savefig(png_path, format="png", dpi=200)
+        fig.savefig(pdf_path, format="pdf")
+    else:
+        fig.savefig(png_path, format="png", dpi=200, bbox_inches="tight", pad_inches=0)
+        fig.savefig(pdf_path, format="pdf", bbox_inches="tight", pad_inches=0)
     plt.close(fig)
 
     provider_name = (request.form.get("provider_name") or "").strip()
@@ -1387,6 +1423,8 @@ def _persist_figure_and_session(
         base_label = "NationalLYvsNationalYTDvsTarget"
     elif selected_type == "national_ytd_vs_target":
         base_label = "NationalYTDvsTarget"
+    elif selected_type == "funder_weighted_average":
+        base_label = "FunderWeightedAverageLYvsYTD"
     elif selected_type == "funder_targets_counts":
         base_label = f"FunderTargetsCounts"
         add_term = False
@@ -1968,7 +2006,7 @@ def new_reports():
                     selected_funder_name=selected_funder_name,
                     is_ajax=is_ajax,
                 )
-                if fig is not None and selected_type not in {"provider_missing_classes", "funder_missing_classes", "national_competency_icons",}:
+                if fig is not None and selected_type not in {"funder_weighted_average","provider_missing_classes", "funder_missing_classes", "national_competency_icons",}:
 
                     try:
                         footer_svg = os.path.join(current_app.static_folder, "footer.svg")
