@@ -138,6 +138,39 @@
     padding: 1rem;
   }
 
+  .summary-card.compact .card-body {
+    padding: 0.75rem 0.9rem;
+  }
+
+  .summary-card.compact .card-title {
+    margin-bottom: 0.45rem;
+    font-size: 1rem;
+  }
+
+  .summary-lines p {
+    margin-bottom: 0.2rem;
+    line-height: 1.2;
+    font-size: 0.92rem;
+  }
+
+  .kaiako-mini-table th,
+  .kaiako-mini-table td {
+    padding: 0.35rem 0.5rem;
+    font-size: 0.9rem;
+  }
+  .kaiako-mini-table {
+    border: 1px solid #1a427d20;
+  }
+  .kaiako-regions {
+    margin-bottom: 0;
+    padding-left: 1.1rem;
+  }
+
+  .kaiako-regions li {
+    margin-bottom: 0.15rem;
+    line-height: 1.2;
+  }
+
   .card-error {
     border: 2px solid #004080 !important;
     background-color: #f4f7fb;
@@ -170,9 +203,42 @@
   }
 
   .highlight-col {
-    background-color: #a2cdff !important;  /* soft blue */
+    background-color: #78BFEA !important;
+    font-weight: 600;
+    color: white !important;
+  }
+  .kaiako-mini-table thead th {
+    background-color: #1a427d;
+    color: white;
+    font-weight: 600;
+    text-align: left;
+  }
+  .sportnz-table thead th {
+    background-color: #1a427d;
+    color: white;
     font-weight: 600;
   }
+  .sportnz-table th,
+  .sportnz-table td {
+    font-size: 0.92rem;
+  }
+
+  .student-ytd-number {
+  font-size: 2.8rem;
+  font-weight: 700;
+  line-height: 1;
+  color: #1a427d;
+}
+
+.student-ytd-label {
+  font-size: 0.95rem;
+  color: #6c757d;
+}
+
+.student-summary-text p {
+  font-size: 0.9rem;
+  line-height: 1.3;
+}
 
   @media (max-width: 900px) {
     .main-flex {
@@ -264,74 +330,199 @@
         {% endfor %}
       </div>
 
-    {% elif user_email == 'esther@watersafety.org.nz' and review_summary %}
+    {% elif user_email == 'esther@watersafety.org.nz' %}
 
-      <!-- Esther: summary stats only -->
-      <div class="row justify-content-center g-3">
-        <div class="col-md-4">
-          <div class="card summary-card">
-            <div class="card-body">
+      <!-- Esther: summary dashboard -->
+      <div class="row justify-content-center g-3 align-items-start">
+
+        <div class="col-md-5">
+          {% if review_summary %}
+          <div class="card summary-card compact mb-3">
+            <div class="card-body summary-lines">
               <h5 class="card-title text-primary">External Review Summary</h5>
-              <p class="mb-1">{{ review_summary.SummaryLine1 }}</p>
-              <p class="mb-1">{{ review_summary.SummaryLine2 }}</p>
-              <p class="mb-1">{{ review_summary.SummaryLine3 }}</p>
+              <p>
+                <strong>{{ review_summary.TotalExternalReviews }}</strong> external reviews completed YTD
+                across <strong>{{ review_summary.SeenEntities }}</strong> entities.
+              </p>
+
+              <p>
+                <strong>{{ review_summary.SeenInstructors }}</strong> of
+                <strong>{{ review_summary.TotalInstructors }}</strong> instructors seen
+                (<strong>{{ review_summary.PctAllInstructorsSeen }}%</strong>).
+              </p>
+
+              <p>
+                <strong>{{ review_summary.SeenInstructors }}</strong> of
+                <strong>{{ review_summary.InstructorsInSeenEntities }}</strong> instructors in reviewed entities
+                (<strong>{{ review_summary.PctSeenWithinSeenEntities }}%</strong>).
+              </p>
+
+              <p>
+                <strong>{{ review_summary.SeenEntities }}</strong> of
+                <strong>{{ review_summary.TotalInstructorEntities }}</strong> entities reviewed
+                (<strong>{{ review_summary.PctSeenEntitiesOfInstructorEntities }}%</strong>).
+              </p>
             </div>
           </div>
+          {% endif %}
+
+          {% if kaiako_summary %}
+          <div class="card summary-card compact summary-lines">
+            <div class="card-body">
+              <h5 class="card-title text-primary">Kaiako Summary</h5>
+
+              <p class="mb-1">
+                <strong>Number of Kaiako-led schools:</strong>
+                {{ kaiako_summary.NumberOfKaiakoSchools }}
+              </p>
+
+              <p class="mb-1">
+                <strong>Number of delivering Kaiako across these schools:</strong>
+                {{ kaiako_summary.NumberOfKaiako }}
+              </p>
+
+              <p class="mb-3">
+                <strong>Total Kaiako assessments:</strong>
+                {{ kaiako_summary.TotalTeacherAssessments }}
+                <span class="text-muted">
+                  ({{ kaiako_summary.TotalTeacherAssessmentsReliever }} with relievers)
+                </span>
+              </p>
+
+              <div class="table-responsive mb-3">
+                <table class="table table-sm table-bordered kaiako-mini-table mb-0">
+                  <thead>
+                    <tr>
+                      <th>Level</th>
+                      <th class="text-end">Count</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>Foundational</td>
+                      <td class="text-end">{{ kaiako_summary.FoundationalLevel }}</td>
+                    </tr>
+                    <tr>
+                      <td>Intermediate</td>
+                      <td class="text-end">{{ kaiako_summary.IntermediateLevel }}</td>
+                    </tr>
+                    <tr>
+                      <td>Expert</td>
+                      <td class="text-end">{{ kaiako_summary.ExpertLevel }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <p class="mb-1"><strong>Regions with Kaiako-led delivery:</strong></p>
+              <ul class="kaiako-regions">
+                {% for region in (kaiako_summary.KaiakoRegions or '').split(',') %}
+                  {% if region.strip() %}
+                  <li>{{ region.strip() }}</li>
+                  {% endif %}
+                {% endfor %}
+              </ul>
+            </div>
+          </div>
+          {% endif %}
         </div>
 
         <div class="col-md-7">
-  {% if sportnz_table %}
-  <div class="card summary-card">
-    <div class="card-body">
-      <h5 class="card-title text-primary mb-3">Sport NZ YTD by Term</h5>
+          {% if student_summary %}
+<div class="card summary-card compact mb-3 student-summary-card">
+  <div class="card-body">
 
-      <div class="table-responsive">
-        <table class="table table-sm table-bordered align-middle text-center mb-0">
-          <thead>
-            <tr>
-              <th rowspan="2" class="text-start">Competency</th>
-              {% for g in sportnz_table.term_groups %}
-              <th colspan="2"
-                  class="{% if loop.index == sportnz_table.term_groups|length - 1 %}highlight-col{% endif %}">
-                {{ g.label }}
-              </th>
-              {% endfor %}
-            </tr>
-            <tr>
-              {% for g in sportnz_table.term_groups %}
-              <th class="{% if loop.index == sportnz_table.term_groups|length - 1 %}highlight-col{% endif %}">
-                Students
-              </th>
-              <th class="{% if loop.index == sportnz_table.term_groups|length - 1 %}highlight-col{% endif %}">
-                Rate
-              </th>
-              {% endfor %}
-            </tr>
-          </thead>
-          <tbody>
-            {% for row in sportnz_table.rows %}
-<tr>
-  <td class="text-start">{{ row.label }}</td>
+    <h5 class="card-title text-primary mb-3">Student Summary</h5>
 
-  {% for cell in row.cells %}
-    <td class="{% if loop.index == sportnz_table.term_groups|length - 1 %}highlight-col{% endif %}">
-      {{ cell.student_count }}
-    </td>
-    <td class="{% if loop.index == sportnz_table.term_groups|length - 1 %}highlight-col{% endif %}">
-      {{ cell.rate }}
-    </td>
-  {% endfor %}
+    <div class="row align-items-center">
 
-</tr>
-{% endfor %}
-          </tbody>
-        </table>
+      <!-- LEFT: BIG YTD -->
+      <div class="col-6">
+        <div class="student-ytd-number">
+          {{ "{:,}".format(student_summary.StudentYTD or 0) }}
+        </div>
+        <div class="student-ytd-label">
+          students YTD
+        </div>
+      </div>
+
+      <!-- RIGHT: SUPPORTING TEXT -->
+      <div class="col-6 student-summary-text text-muted">
+
+        <p class="mb-2">
+          Last full funding year:
+          <strong class="text-dark">
+            {{ "{:,}".format(student_summary.StudentLastFullFundingYear or 0) }}
+          </strong>
+        </p>
+
+        <p class="mb-0">
+          All-time unique students:
+          <strong class="text-dark">
+            {{ "{:,}".format(student_summary.StudentUnique or 0) }}
+          </strong>
+        </p>
+
       </div>
 
     </div>
+
   </div>
-  {% endif %}
 </div>
+{% endif %}
+
+          {% if sportnz_table %}
+          <div class="card summary-card">
+            <div class="card-body">
+              <h5 class="card-title text-primary mb-3 ">Sport NZ YTD by Term</h5>
+
+              <div class="table-responsive">
+                <table class="table table-sm table-bordered align-middle text-center mb-0 sportnz-table">
+                  <thead>
+                    <tr>
+                      <th rowspan="2" class="text-start">Competency</th>
+                      {% for g in sportnz_table.term_groups %}
+                      <th colspan="2">
+                        {{ g.label }}
+                      </th>
+                      {% endfor %}
+                    </tr>
+                    <tr>
+                      {% for g in sportnz_table.term_groups %}
+                      <th>
+                        Students
+                      </th>
+                      <th >
+                        Rate
+                      </th>
+                      {% endfor %}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for row in sportnz_table.rows %}
+                    <tr>
+                      <td class="text-start">{{ row.label }}</td>
+
+                      {% for cell in row.cells %}
+                      <td class="{% if loop.index == sportnz_table.term_groups|length - 1 %}highlight-col{% endif %}">
+                        {{ cell.student_count }}
+                      </td>
+                      <td class="{% if loop.index == sportnz_table.term_groups|length - 1 %}highlight-col{% endif %}">
+                        {{ cell.rate }}
+                      </td>
+                      {% endfor %}
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+
+            </div>
+          </div>
+          {% endif %}
+        </div>
+
+      </div>
 
     {% else %}
 

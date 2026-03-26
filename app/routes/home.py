@@ -57,7 +57,8 @@ def home():
         cards = []
         review_summary = None
         sportnz_table = None
-
+        kaiako_summary = None
+        student_summary = None
         if role == "ADM":
             if last_login_nzt:
                 subtitle = "You are logged in as Admin. Last Logged in: " + datetime.fromisoformat(last_login_nzt).strftime('%A, %d %B %Y, %I:%M %p')
@@ -189,7 +190,20 @@ def home():
                     # nearest/current term and year from session if present
                     nearest_term = session.get("nearest_term") or session.get("term") or 2
                     nearest_year = session.get("nearest_year") or session.get("calendar_year") or 2026
+                    kaiako_rows = conn.execute(
+                        text("EXEC dbo.GetKaiakoSurveySummary @CalendarYear = :year, @Term = :term"),
+                        {"year": nearest_year, "term": nearest_term}
+                    ).mappings().all()
 
+                    kaiako_summary = dict(kaiako_rows[0]) if kaiako_rows else None
+                    
+                    student_rows = conn.execute(
+                        text("EXEC dbo.GetStudentCounts @CalendarYear = :year, @Term = :term"),
+                        {"year": nearest_year, "term": nearest_term}
+                    ).mappings().all()
+
+                    student_summary = dict(student_rows[0]) if student_rows else None
+                    
                     sport_rows = conn.execute(
                         text("EXEC dbo.GetSportNZStatsByTerm @CalendarYear = :year, @Term = :term"),
                         {"year": nearest_year, "term": nearest_term}
@@ -260,7 +274,6 @@ def home():
                 sportnz_table = None
 
         cards = (error_cards or []) + (cards or [])
-
         return render_template(
             "index.html",
             display_name=display_name,
@@ -269,6 +282,8 @@ def home():
             user_email=email,
             review_summary=review_summary,
             sportnz_table=sportnz_table,
+            kaiako_summary = kaiako_summary,
+            student_summary = student_summary,
         )
 
     except Exception as e:
