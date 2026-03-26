@@ -8,7 +8,7 @@ import re
 import traceback
 import uuid
 import pandas as pd
-
+import json
 from pathlib import Path
 
 # Third-party
@@ -143,6 +143,54 @@ def _get_report_category():
     if session.get("user_role") != "ADM":
         category = "visual"
     return category
+
+def log_report_run(
+    engine,
+    report_name,
+    year,
+    term,
+    region_name,
+    funder_id,
+    provider_id,
+    school_id,
+    params_json,
+    success=True,
+    error_message=None,
+):
+    try:
+        with engine.begin() as conn:
+            conn.execute(
+                text("""
+                    EXEC dbo.LogReportGeneration
+                        @ReportName = :report_name,
+                        @GeneratedByEmail = :email,
+                        @CalendarYear = :year,
+                        @Term = :term,
+                        @RegionName = :region,
+                        @FunderID = :funder_id,
+                        @ProviderID = :provider_id,
+                        @MOENumber = :school_id,
+                        @ParametersJson = :params_json,
+                        @Success = :success,
+                        @ErrorMessage = :error
+                """),
+                {
+                    "report_name": report_name,
+                    "email": session.get("user_email"),
+                    "year": year,
+                    "term": term,
+                    "region": region_name,
+                    "funder_id": funder_id,
+                    "provider_id": provider_id,
+                    "school_id": school_id,
+                    "params_json": params_json,
+                    "success": 1 if success else 0,
+                    "error": error_message,
+                }
+            )
+    except Exception as e:
+        current_app.logger.warning(f"⚠ Failed to log report: {e}")
+        
 # ---------- Download endpoints with log_alert ----------
 @report_bp.route("/Reporting/download_pdf")
 @login_required
@@ -1531,7 +1579,7 @@ def new_reports():
         current_app.logger.debug("PRO effective provider_id=%s", selected_provider_id)
     elif role == "FUN":
         current_app.logger.debug("FUN default funder_name(session.desc)=%s", selected_funder_name)
-
+    
     current_app.logger.debug(
         "📥 initial ids | provider_id=%s school_id=%s | year=%s term=%s type=%s | form_keys=%s",
         selected_provider_id,
@@ -2092,6 +2140,27 @@ def new_reports():
                             base_label_prefix=prefix,
                         )
                         display = True
+                        params_json = json.dumps({
+                            "report_type": selected_type,
+                            "calendar_year": selected_year,
+                            "term": selected_term,
+                            "region": region_id,
+                            "funder_id": funder_id,
+                            "provider_id": selected_provider_id,
+                            "school_id": selected_school_id,
+                            "excel_report_option": excel_report_type,
+                        }, default=str)
+                        log_report_run(
+                            engine=engine,
+                            report_name=selected_type,
+                            year=selected_year,
+                            term=selected_term,
+                            region_name=region_id,
+                            funder_id=funder_id,
+                            provider_id=selected_provider_id,
+                            school_id=selected_school_id,
+                            params_json=params_json,
+                        )
                 
                 else:
                     # Existing behaviour for all other report types
@@ -2107,6 +2176,27 @@ def new_reports():
                             results,
                         )
                         display = True
+                        params_json = json.dumps({
+                            "report_type": selected_type,
+                            "calendar_year": selected_year,
+                            "term": selected_term,
+                            "region": region_id,
+                            "funder_id": funder_id,
+                            "provider_id": selected_provider_id,
+                            "school_id": selected_school_id,
+                            "excel_report_option": excel_report_type,
+                        }, default=str)
+                        log_report_run(
+                            engine=engine,
+                            report_name=selected_type,
+                            year=selected_year,
+                            term=selected_term,
+                            region_name=region_id,
+                            funder_id=funder_id,
+                            provider_id=selected_provider_id,
+                            school_id=selected_school_id,
+                            params_json=params_json,
+                        )
 
                 # ===== AJAX response (no full reload) =====
                 if is_ajax:
@@ -2164,7 +2254,29 @@ def new_reports():
                 session.get("user_email"),
                 is_ajax,
             )
-
+            params_json = json.dumps({
+                "report_type": selected_type,
+                "calendar_year": selected_year,
+                "term": selected_term,
+                "region": region_id,
+                "funder_id": funder_id,
+                "provider_id": selected_provider_id,
+                "school_id": selected_school_id,
+                "excel_report_option": excel_report_type,
+            }, default=str)
+            log_report_run(
+                engine=engine,
+                report_name=selected_type,
+                year=selected_year,
+                term=selected_term,
+                region_name=region_id,
+                funder_id=funder_id,
+                provider_id=selected_provider_id,
+                school_id=selected_school_id,
+                params_json=params_json,
+                success=False,
+                error_message=str(e),
+            )
             err_text = str(getattr(e, "orig", e))
             tb = traceback.format_exc()
 
