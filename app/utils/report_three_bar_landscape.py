@@ -341,6 +341,8 @@ def create_competency_report(term, year, funder_id, vars_to_plot, colors_dict,
         title = f"Competency Report for {funder_name}"
     elif region_name is not None:
         title = f"{region_name} Competency Report"
+    elif any(vars_to_plot) == "National Instructor Rate (YTD)":
+        title = f"National Kaiako Led vs Istructor Led Competency Report"
     else:
         title = "Competency Report"
 

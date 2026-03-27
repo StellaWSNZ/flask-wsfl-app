@@ -1,76 +1,87 @@
 {% extends "header.html" %}
 {% block title %}Dashboard{% endblock %}
+
 {% block content %}
-
 <style>
-  body {
-    background-image: url("{{ url_for('static', filename='background.svg') }}");
-    background-size: cover;
-    background-repeat: no-repeat;
-    background-attachment: fixed;
-    background-position: bottom center;
-  }
-
   :root {
-    --brand-blue: #004080;
-    --light-bg: #f5f7fa;
-    --card-border: #e6e9ee;
+    --brand-blue: #1a427d;
+    --brand-blue-dark: #004080;
+    --light-bg: #f7f9fc;
+    --card-border: #d9e2ef;
+    --muted: #6c757d;
   }
 
-  .dashboard-shell {
-    max-width: 1400px;
-    margin: 0 auto;
-  }
+ .dashboard-shell {
+  max-width: 1500px;
+  margin: 0 auto;
+  height: calc(100vh - 200px);   /* 👈 controls total height */
+}
 
   .welcome-bubble {
-    background-color: var(--light-bg);
-    border: 2px solid var(--brand-blue);
-    border-radius: 0.75rem;
-    padding: 0.55rem 0.75rem;
-    text-align: center;
+    background: linear-gradient(135deg, #f8fbff 0%, #eef5fc 100%);
+    border: 1px solid var(--card-border);
+    border-radius: 1rem;
+    padding: 1rem 1.25rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   }
 
   .welcome-title {
     margin: 0;
-    font-size: 0.95rem;
-    line-height: 1.1;
+    color: var(--brand-blue);
+    font-weight: 700;
   }
 
   .welcome-subtitle {
-    margin: 0;
-    font-size: 0.78rem;
-    line-height: 1.1;
-    color: #495057;
+    margin: 0.2rem 0 0;
+    color: var(--muted);
+    font-size: 0.95rem;
+  }
+
+  .dashboard-toggle-wrap {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 1rem;
+  }
+
+  .dashboard-toggle-wrap .btn-group .btn {
+    min-width: 145px;
   }
 
   .main-flex {
-    display: flex;
-    gap: 0.85rem;
-    align-items: stretch;
-  }
+  display: flex;
+  gap: 1rem;
+  align-items: stretch;
+  height: 100%;   /* 👈 THIS is key */
+}
 
-  .video-box,
-  .cards-box {
-    flex: 1;
-    display: flex;
-  }
+  .video-box {
+  flex: 3 1 80%;
+  height: 100%;
+}
+
+.video-box iframe {
+  width: 100%;
+  height: 100%;
+  border-radius: 0.75rem;
+}
 
   .video-box iframe {
     width: 100%;
     height: 100%;
-    min-height: 420px;
-    border-radius: 0.75rem;
+    min-height: 50px;
     border: 0;
-    background: white;
-    box-shadow: 0 0 10px rgba(0, 64, 128, 0.12);
+    border-radius: 0.75rem;
+    background: #fff;
   }
 
   .cards-grid {
-    width: 100%;
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 0.85rem;
-  }
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 0.85rem;
+  height: 100%;
+}
 
   .dashboard-card {
     background: white;
@@ -132,6 +143,7 @@
     border: 1px solid var(--card-border);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
     height: 100%;
+    background: #fff;
   }
 
   .summary-card .card-body {
@@ -153,14 +165,23 @@
     font-size: 0.92rem;
   }
 
+  .kaiako-mini-table {
+    border: 1px solid #1a427d20;
+  }
+
   .kaiako-mini-table th,
   .kaiako-mini-table td {
     padding: 0.35rem 0.5rem;
     font-size: 0.9rem;
   }
-  .kaiako-mini-table {
-    border: 1px solid #1a427d20;
+
+  .kaiako-mini-table thead th {
+    background-color: var(--brand-blue);
+    color: white;
+    font-weight: 600;
+    text-align: left;
   }
+
   .kaiako-regions {
     margin-bottom: 0;
     padding-left: 1.1rem;
@@ -175,7 +196,6 @@
     border: 2px solid #004080 !important;
     background-color: #f4f7fb;
     border-radius: 0.75rem;
-    height: 100%;
   }
 
   .card-error .card-header {
@@ -207,38 +227,50 @@
     font-weight: 600;
     color: white !important;
   }
-  .kaiako-mini-table thead th {
-    background-color: #1a427d;
+  mark {
+    background-color: #78BFEA;
     color: white;
-    font-weight: 600;
-    text-align: left;
   }
   .sportnz-table thead th {
-    background-color: #1a427d;
+    background-color: var(--brand-blue);
     color: white;
     font-weight: 600;
   }
+
   .sportnz-table th,
   .sportnz-table td {
     font-size: 0.92rem;
   }
 
+  .student-summary-card {
+    border: 1px solid var(--card-border);
+  }
+.highlight-col {
+    background-color: #78BFEA !important;
+    font-weight: 600;
+    color: white !important;
+  }
   .student-ytd-number {
-  font-size: 2.8rem;
-  font-weight: 700;
-  line-height: 1;
-  color: #1a427d;
-}
+    font-size: 2.8rem;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--brand-blue);
+  }
 
-.student-ytd-label {
-  font-size: 0.95rem;
-  color: #6c757d;
-}
+  .student-ytd-label {
+    font-size: 0.95rem;
+    color: #6c757d;
+  }
 
-.student-summary-text p {
-  font-size: 0.9rem;
-  line-height: 1.3;
-}
+  .student-summary-text {
+    border-left: 1px solid #e9ecef;
+    padding-left: 1rem;
+  }
+
+  .student-summary-text p {
+    font-size: 0.9rem;
+    line-height: 1.3;
+  }
 
   @media (max-width: 900px) {
     .main-flex {
@@ -274,17 +306,38 @@
 <div class="container-fluid px-3">
   <div class="dashboard-shell">
 
-    <!-- Welcome -->
-    <div class="mb-2">
-      <div class="welcome-bubble">
-        <h5 class="welcome-title">Welcome, {{ display_name }}!</h5>
-        <p class="welcome-subtitle">{{ subtitle }}</p>
-      </div>
+<div class="mb-2">
+  <div class="welcome-bubble d-flex justify-content-between align-items-center">
+
+    <!-- LEFT: welcome text -->
+    <div>
+      <h5 class="welcome-title mb-0">Welcome, {{ display_name }}!</h5>
+      <p class="welcome-subtitle mb-0">{{ subtitle }}</p>
     </div>
 
+    <!-- RIGHT: toggle -->
     {% if user_email == 'stella@watersafety.org.nz' %}
+    <div class="btn-group" role="group" aria-label="Dashboard toggle">
+      <a
+        href="{{ url_for('home_bp.home', view='errors') }}"
+        class="btn btn-sm {% if dashboard_mode == 'errors' %}btn-primary{% else %}btn-outline-primary{% endif %}"
+      >
+        Error Cards
+      </a>
+      <a
+        href="{{ url_for('home_bp.home', view='esther') }}"
+        class="btn btn-sm {% if dashboard_mode == 'esther' %}btn-primary{% else %}btn-outline-primary{% endif %}"
+      >
+        Esther Dashboard
+      </a>
+    </div>
+    {% endif %}
 
-      <!-- Stella: error cards only -->
+  </div>
+</div>
+
+    {% if dashboard_mode == 'errors' %}
+
       <div class="row g-3">
         {% for card in cards %}
           {% if card.type|default('') == 'error' %}
@@ -330,12 +383,12 @@
         {% endfor %}
       </div>
 
-    {% elif user_email == 'esther@watersafety.org.nz' %}
+    {% elif dashboard_mode == 'esther' %}
 
-      <!-- Esther: summary dashboard -->
       <div class="row justify-content-center g-3 align-items-start">
 
         <div class="col-md-5">
+
           {% if review_summary %}
           <div class="card summary-card compact mb-3">
             <div class="card-body summary-lines">
@@ -344,19 +397,16 @@
                 <strong>{{ review_summary.TotalExternalReviews }}</strong> external reviews completed YTD
                 across <strong>{{ review_summary.SeenEntities }}</strong> entities.
               </p>
-
               <p>
                 <strong>{{ review_summary.SeenInstructors }}</strong> of
                 <strong>{{ review_summary.TotalInstructors }}</strong> instructors seen
                 (<strong>{{ review_summary.PctAllInstructorsSeen }}%</strong>).
               </p>
-
               <p>
                 <strong>{{ review_summary.SeenInstructors }}</strong> of
                 <strong>{{ review_summary.InstructorsInSeenEntities }}</strong> instructors in reviewed entities
                 (<strong>{{ review_summary.PctSeenWithinSeenEntities }}%</strong>).
               </p>
-
               <p>
                 <strong>{{ review_summary.SeenEntities }}</strong> of
                 <strong>{{ review_summary.TotalInstructorEntities }}</strong> entities reviewed
@@ -367,8 +417,8 @@
           {% endif %}
 
           {% if kaiako_summary %}
-          <div class="card summary-card compact summary-lines">
-            <div class="card-body">
+          <div class="card summary-card compact mb-3">
+            <div class="card-body summary-lines">
               <h5 class="card-title text-primary">Kaiako Summary</h5>
 
               <p class="mb-1">
@@ -425,56 +475,50 @@
             </div>
           </div>
           {% endif %}
+
         </div>
 
         <div class="col-md-7">
+
           {% if student_summary %}
-<div class="card summary-card compact mb-3 student-summary-card">
-  <div class="card-body">
+          <div class="card summary-card compact mb-3 student-summary-card">
+            <div class="card-body">
+              <h5 class="card-title text-primary mb-3">Student Summary</h5>
 
-    <h5 class="card-title text-primary mb-3">Student Summary</h5>
+              <div class="row align-items-center">
+                <div class="col-6">
+                  <div class="student-ytd-number">
+                    {{ "{:,}".format(student_summary.StudentYTD or 0) }}
+                  </div>
+                  <div class="student-ytd-label">
+                    students this funding year to date
+                  </div>
+                </div>
 
-    <div class="row align-items-center">
+                <div class="col-6 student-summary-text text-muted">
+                  <p class="mb-2">
+                    Last full funding year:
+                    <strong class="text-dark">
+                      {{ "{:,}".format(student_summary.StudentLastFullFundingYear or 0) }}
+                    </strong>
+                  </p>
 
-      <!-- LEFT: BIG YTD -->
-      <div class="col-6">
-        <div class="student-ytd-number">
-          {{ "{:,}".format(student_summary.StudentYTD or 0) }}
-        </div>
-        <div class="student-ytd-label">
-          students YTD
-        </div>
-      </div>
-
-      <!-- RIGHT: SUPPORTING TEXT -->
-      <div class="col-6 student-summary-text text-muted">
-
-        <p class="mb-2">
-          Last full funding year:
-          <strong class="text-dark">
-            {{ "{:,}".format(student_summary.StudentLastFullFundingYear or 0) }}
-          </strong>
-        </p>
-
-        <p class="mb-0">
-          All-time unique students:
-          <strong class="text-dark">
-            {{ "{:,}".format(student_summary.StudentUnique or 0) }}
-          </strong>
-        </p>
-
-      </div>
-
-    </div>
-
-  </div>
-</div>
-{% endif %}
+                  <p class="mb-0">
+                    All-time unique students:
+                    <strong class="text-dark">
+                      {{ "{:,}".format(student_summary.StudentUnique or 0) }}
+                    </strong>
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+          {% endif %}
 
           {% if sportnz_table %}
           <div class="card summary-card">
             <div class="card-body">
-              <h5 class="card-title text-primary mb-3 ">Sport NZ YTD by Term</h5>
+              <h5 class="card-title text-primary mb-3">Sport NZ YTD by Term</h5>
 
               <div class="table-responsive">
                 <table class="table table-sm table-bordered align-middle text-center mb-0 sportnz-table">
@@ -482,19 +526,13 @@
                     <tr>
                       <th rowspan="2" class="text-start">Competency</th>
                       {% for g in sportnz_table.term_groups %}
-                      <th colspan="2">
-                        {{ g.label }}
-                      </th>
+                      <th colspan="2">{{ g.label }}</th>
                       {% endfor %}
                     </tr>
                     <tr>
                       {% for g in sportnz_table.term_groups %}
-                      <th>
-                        Students
-                      </th>
-                      <th >
-                        Rate
-                      </th>
+                      <th>Students</th>
+                      <th>Rate</th>
                       {% endfor %}
                     </tr>
                   </thead>
@@ -515,74 +553,59 @@
                     {% endfor %}
                   </tbody>
                 </table>
+                <p></p>
+                <p class="text-muted small mb-3">
+  Results are cumulative across the funding year. For example, Term 4 includes Terms 3 and 4, and Term 1 includes Terms 3 and 4 of the previous year plus Term 1 of the current year.<strong> Student counts and rates are both cumulative. </strong>The most recent term should be interpreted with caution, as newly uploaded students may appear before competencies have been entered. For that reason it is reccomended to use the <strong><mark>second to last column</mark></strong>.
+</p>
               </div>
 
             </div>
           </div>
           {% endif %}
-        </div>
 
+        </div>
       </div>
 
     {% else %}
 
-      <!-- Everyone else: video + normal cards -->
       <div class="main-flex">
-
         <div class="video-box">
+          {% if video_url %}
           <iframe
-            src="https://www.youtube.com/embed/59CXUrI328Y"
-            title="Instructions video"
-            allowfullscreen
-          ></iframe>
+            src="{{ video_url }}"
+            title="Dashboard video"
+            allowfullscreen>
+          </iframe>
+          {% endif %}
         </div>
 
-        <div class="cards-box">
-          <div class="cards-grid">
-            {% for card in cards[:4] %}
-              {% if card.type|default('') != 'error' %}
-              <div class="dashboard-card">
+        <div class="cards-grid">
+          {% for card in cards %}
+            {% if card.type|default('') != 'error' %}
+            <div class="dashboard-card">
+              {% if card.icon %}
+              <img src="{{ card.icon }}" alt="{{ card.title }}" class="card-icon">
+              {% endif %}
 
-                {% if card.image %}
-                <img
-                  src="{{ url_for('static', filename='cardicons/' ~ card.image) }}"
-                  class="card-icon"
-                  alt="{{ card.title }}"
-                />
+              <div class="dashboard-card-body">
+                <p class="dashboard-card-title">{{ card.title }}</p>
+                {% if card.subtitle %}
+                <p class="dashboard-card-subtitle">{{ card.subtitle }}</p>
                 {% endif %}
 
-                <div class="dashboard-card-body">
-
-                  <div class="dashboard-card-title">
-                    {{ card.title }}
-                  </div>
-
-                  {% if card.text %}
-                  <div class="dashboard-card-subtitle">
-                    {{ card.text }}
-                  </div>
+                <div class="dashboard-card-actions">
+                  {% if card.href %}
+                  <a href="{{ card.href }}" class="btn btn-outline-primary btn-sm">Open</a>
                   {% endif %}
-
-                  <div class="dashboard-card-actions">
-                    {% if card.href %}
-                    <a href="{{ card.href }}" class="btn btn-outline-primary btn-sm">
-                      Open
-                    </a>
-                    {% endif %}
-                  </div>
-
                 </div>
               </div>
-              {% endif %}
-            {% endfor %}
-          </div>
+            </div>
+            {% endif %}
+          {% endfor %}
         </div>
-
       </div>
 
     {% endif %}
-
   </div>
 </div>
-
 {% endblock %}

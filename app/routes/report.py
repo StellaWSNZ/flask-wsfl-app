@@ -651,6 +651,19 @@ def _execute_report(
         res = conn.execute(sql, params)
         results = res.mappings().all()
         current_app.logger.info("🔎 rows=%d | type=%s", len(results or []), selected_type)
+    elif selected_type == "national_ytd_kaiako":
+        sql = text(
+            """
+            SET NOCOUNT ON;
+            EXEC GetNationalRates_Kaiako
+                @CalendarYear = :CalendarYear,
+                @Term         = :Term;
+            """
+        )
+        params = {"CalendarYear": selected_year, "Term": selected_term}
+        res = conn.execute(sql, params)
+        results = res.mappings().all()
+        current_app.logger.info("🔎 rows=%d | type=%s", len(results or []), selected_type)
     elif selected_type == "funder_weighted_average":
         engine = get_db_engine()
         with engine.connect() as connection:
@@ -1226,7 +1239,21 @@ def _build_figure_from_results(
             colors_dict=colors_dict,
             funder_id=None,
         )
-
+    elif selected_type == "national_ytd_kaiako":
+        vars_to_plot = ["National Instructor Rate (YTD)", "National Rate (YTD)", "National Kaiako Rate (YTD)"]
+        colors_dict = {
+            "National Instructor Rate (YTD)": "#2EBDC2",
+            "National Rate (YTD)": "#356FB6",
+            "National Kaiako Rate (YTD)": "#BBE6E9",
+        }
+        fig = r3.create_competency_report(
+            term=selected_term,
+            year=selected_year,
+            rows=rows,
+            vars_to_plot=vars_to_plot,
+            colors_dict=colors_dict,
+            funder_id=None,
+        )
     elif selected_type == "national_ytd_vs_target":
         fig = provider_portrait_with_target(
             rows,
@@ -1469,6 +1496,8 @@ def _persist_figure_and_session(
         base_label = f"SchoolYTDvsTarget_{school_name or f'MOE_{selected_school_id}'}"
     elif selected_type == "national_ly_vs_national_ytd_vs_target":
         base_label = "NationalLYvsNationalYTDvsTarget"
+    elif selected_type == "national_ytd_kaiako":
+        base_label = "NationalYTD_KaiakoVsInstructor"
     elif selected_type == "national_ytd_vs_target":
         base_label = "NationalYTDvsTarget"
     elif selected_type == "funder_weighted_average":
