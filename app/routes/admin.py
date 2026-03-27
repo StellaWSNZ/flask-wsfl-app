@@ -1764,9 +1764,15 @@ def student_counts_variance():
 @admin_bp.route("/EditUser")
 @login_required
 def admin_user_entities():
-    if session.get("user_role") != "ADM":
-        flash("You don’t have permission to access this page", "danger")
-        return redirect(url_for("home_bp.home"))
+    if not (
+        session.get("user_role") == "ADM"
+        or (session.get("user_role") == "FUN" and session.get("user_admin") == 1)
+    ):
+        return render_template(
+            "error.html",
+            error="You are not authorised to view that page.",
+            code=403
+        ), 403
 
     try:
         return render_template("admin_user_entities.html")
@@ -1787,19 +1793,27 @@ def admin_user_entities():
 @login_required
 def get_users():
     # Only admins can hit this
-    if session.get("user_role") != "ADM":
+    if not (
+        session.get("user_role") == "ADM"
+        or (session.get("user_role") == "FUN" and session.get("user_admin") == 1)
+    ):
         return render_template(
-    "error.html",
-    error="You are not authorised to view that page.",
-    code=403
-), 403
-
+            "error.html",
+            error="You are not authorised to view that page.",
+            code=403
+        ), 403
     try:
         engine = get_db_engine()
 
         with engine.begin() as conn:
-            # Pull from your stored proc / query
-            df = pd.read_sql("EXEC FlaskGetAllUsers", conn)
+            df = pd.read_sql(
+                text("EXEC FlaskGetAllUsers @Role=:role, @ID=:id"),
+                conn,
+                params={
+                    "role": session.get("user_role"),
+                    "id": session.get("user_id")
+                }
+            )
 
         # 🔹 Replace NaN/NaT with None so JSON is valid
         df = df.where(pd.notna(df), None)
@@ -1837,12 +1851,15 @@ def get_users():
 @admin_bp.route("/update_user_role_entity", methods=["POST"])
 @login_required
 def update_user_role_entity():
-    if session.get("user_role") != "ADM":
+    if not (
+        session.get("user_role") == "ADM"
+        or (session.get("user_role") == "FUN" and session.get("user_admin") == 1)
+    ):
         return render_template(
-    "error.html",
-    error="You are not authorised to view that page.",
-    code=403
-), 403
+            "error.html",
+            error="You are not authorised to view that page.",
+            code=403
+        ), 403
 
     data = request.get_json(silent=True) or {}
     email        = (data.get("email") or "").strip()
