@@ -193,7 +193,7 @@ def circle_plot(
     buckets = stats["buckets"]
     total = int(stats.get("total", 0) or 0)
 
-    order: List[str] = [BUCKET_CURRENT, BUCKET_PREV, BUCKET_NEVER]
+    order: List[str] = list(stats["buckets"].keys())
 
     # ---- vertical layout ----
     y_bottom = top_y - height
@@ -269,7 +269,17 @@ def circle_plot(
                     fontsize=fs, color="white",
                     zorder=3000, fontweight="bold",
                 )
-
+        else:
+            diameter = 2.0 * r
+            pct = (100.0 * n / total) if total else 0.0
+            if (diameter >= pct_min_circle_diam) and (pct >= pct_min_value):
+                fs = max(min(diameter * 120.0, 16.0), 8.0)
+                ax.text(
+                    x, cy, n,
+                    ha="center", va="center",
+                    fontsize=fs, color="white",
+                    zorder=3000, fontweight="bold",
+                )
         # Label polygon
         poly = rounded_rect_polygon(
             cx=x,

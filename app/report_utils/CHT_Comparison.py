@@ -146,7 +146,7 @@ def draw_comparison(
     chart_x = x + text_w
     chart_w = width - text_w
     zero_x = chart_x + chart_w / 2
-    half_chart_w = chart_w / 2
+    half_chart_w = (chart_w / 2) * 0.8
 
     display_rows = []
     if group_col is not None:

@@ -23,7 +23,7 @@ from app.utils.funder_missing_plot import add_full_width_footer_svg
 from app.report_utils.CHT_Comparison import make_difference_df, draw_comparison
 from app.utils.one_bar_one_line import provider_portrait_with_target
 from app.utils.geo import load_lakes_and_rivers, load_regional_councils, DEFAULT_NAME_FIELD
-
+from app.utils.database import get_db_engine
 # ✅ Use the shared chart component + bucket labels
 from app.report_utils.CHT_CircleProportions import (
     circle_plot,
@@ -32,6 +32,15 @@ from app.report_utils.CHT_CircleProportions import (
     BUCKET_PREV,
     BUCKET_NEVER,
 )
+
+DEFAULT_PALETTE = [
+    "#1a427d",
+    "#2EBDC2",
+    "#BBE6E9",
+    "#7A9E9F",
+    "#5C6F91",
+    "#A5D8DA",
+]
 
 from app.report_utils.FNT_PolygonText import draw_text_in_polygon
 from app.report_utils.SHP_RoundRect import rounded_rect_polygon
@@ -238,6 +247,54 @@ def _load_school_points_by_region(conn, *, region: str, eqi_filter: int = 1) -> 
     return df
 
 
+def _load_region_school_gap(conn, region, funding_year_start=2025, funding_year_end=2026) -> pd.DataFrame:
+    sql = text(
+        """
+        EXEC dbo.MOE_GetRegionSchoolList
+            @Region = :r,
+            @FundingYearStart = :fs,
+            @FundingYearEnd = :fe
+        """
+    )
+    df = pd.read_sql(
+        sql,
+        conn,
+        params={
+            "r": region,
+            "fs": int(funding_year_start),
+            "fe": int(funding_year_end),
+        },
+    )
+
+    # rename if your proc returns SchoolName instead of School
+    rename_map = {}
+    if "SchoolName" in df.columns and "School" not in df.columns:
+        rename_map["SchoolName"] = "School"
+    if "Description" in df.columns and "TerritorialAuthority" not in df.columns:
+        rename_map["Description"] = "TerritorialAuthority"
+
+    if rename_map:
+        df = df.rename(columns=rename_map)
+
+    needed = {"School", "TerritorialAuthority", "PoolStatus"}
+    missing = needed - set(df.columns)
+    if missing:
+        raise RuntimeError(
+            f"MOE_GetRegionSchoolList missing columns: {sorted(missing)}. Got: {list(df.columns)}"
+        )
+
+    df["School"] = df["School"].astype(str).str.strip()
+    df["TerritorialAuthority"] = df["TerritorialAuthority"].astype(str).str.strip()
+    df["PoolStatus"] = df["PoolStatus"].astype(str).str.strip()
+    df = df.fillna('')
+    df = df.sort_values(
+        ["TerritorialAuthority", "School"],
+        ascending=[True, True]
+    ).reset_index(drop=True)
+
+    return df
+
+
 def _load_region_rates(conn, *, year: int, term: int, region_name: str) -> pd.DataFrame:
     sql = text(
         """
@@ -334,21 +391,38 @@ def _draw_header(ax, *, family: str, title: str):
         zorder=1100,
     )
 
+
 def _load_region_kaiako_rates(conn, *, year: int, term: int, region_name: str) -> pd.DataFrame:
     sql = text("""
-        EXEC dbo.GetRegionalCouncilRates_kaiako
-            @calendaryear = :year,
-            @term = :term,
-            @region = :region
+        EXEC dbo.FlaskHelperFunctions
+            @Request = :r,
+            @text = :t
     """)
 
     df = pd.read_sql(sql, conn, params={
-        "year": year,
-        "term": term,
-        "region": region_name
+        "r": "IsKaiako",
+        "t": region_name
+        
     })
+    
+    if df.shape[0] > 0:
+        sql = text("""
+            EXEC dbo.GetRegionalCouncilRates_kaiako
+                @calendaryear = :year,
+                @term = :term,
+                @region = :region
+        """)
 
-    return df
+        df = pd.read_sql(sql, conn, params={
+            "year": year,
+            "term": term,
+            "region": region_name
+        })
+        return df
+
+    return None
+
+
 # =============================================================================
 # Key helpers
 # =============================================================================
@@ -517,6 +591,8 @@ def _draw_key_stack(
                 fs=fontsize_item - 0.2,
             )
             y -= (h2 + gap)
+
+
 def ensure_bucket_column(df: pd.DataFrame) -> pd.DataFrame:
     if "Bucket" in df.columns:
         return df
@@ -534,6 +610,285 @@ def ensure_bucket_column(df: pd.DataFrame) -> pd.DataFrame:
 
     df["Bucket"] = df.apply(_bucket_row, axis=1)
     return df
+
+
+def _draw_region_school_gap_table(
+    ax,
+    *,
+    family: str,
+    df: pd.DataFrame,
+    x0: float = 0.06,
+    x1: float = 0.56,
+    x2: float = 0.84,
+    y_top: float = 0.84,
+    y_bottom: float = 0.08,
+    row_h: float = 0.022,
+    fontsize: float = 8.4,
+    title: str = "Schools not currently supported",
+    show_title: bool = True,
+    highlight_col: str = "#D7E8F8",
+) -> int:
+    """
+    Draw one page of the school-gap table.
+
+    Returns the number of data rows drawn on this page.
+    """
+    ax.set_axis_off()
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+
+    if df is None:
+        df = pd.DataFrame(columns=["School", "TerritorialAuthority", "PoolStatus"])
+
+    cols = ["School", "TerritorialAuthority", "PoolStatus"]
+    for c in cols:
+        if c not in df.columns:
+            df[c] = ""
+    
+    title_gap = 0.03 if show_title else 0.0
+    header_gap = 0.028
+    line_gap = 0.014
+
+    y = y_top
+
+    if show_title:
+        ax.text(
+            x0,
+            y,
+            title,
+            transform=ax.transAxes,
+            ha="left",
+            va="top",
+            fontfamily=family,
+            fontsize=12,
+            fontweight="semibold",
+            color=C_MASTER,
+            zorder=5000,
+        )
+        y -= title_gap
+
+    # header row
+    ax.text(
+        x0, y,
+        "School",
+        transform=ax.transAxes,
+        ha="left",
+        va="top",
+        fontfamily=family,
+        fontsize=fontsize,
+        fontweight="semibold",
+        color=C_MASTER,
+        zorder=5000,
+    )
+    ax.text(
+        x1, y,
+        "Territorial authority",
+        transform=ax.transAxes,
+        ha="left",
+        va="top",
+        fontfamily=family,
+        fontsize=fontsize,
+        fontweight="semibold",
+        color=C_MASTER,
+        zorder=5000,
+    )
+    ax.text(
+        x2, y,
+        "Pool",
+        transform=ax.transAxes,
+        ha="left",
+        va="top",
+        fontfamily=family,
+        fontsize=fontsize,
+        fontweight="semibold",
+        color=C_MASTER,
+        zorder=5000,
+    )
+
+    y -= header_gap
+
+    ax.plot(
+        [x0, 0.94],
+        [y + 0.007, y + 0.007],
+        transform=ax.transAxes,
+        color="#c7d3e3",
+        linewidth=1,
+        zorder=4500,
+    )
+
+    available_height = y - y_bottom - line_gap
+    rows_fit = max(0, int(available_height // row_h))
+
+    if df.empty:
+        ax.text(
+            x0,
+            y - 0.01,
+            "No schools found.",
+            transform=ax.transAxes,
+            ha="left",
+            va="top",
+            fontfamily=family,
+            fontsize=fontsize,
+            color="#444444",
+            zorder=5000,
+        )
+        return 0
+
+    show = df.iloc[:rows_fit].copy()
+
+    y -= 0.004
+    for _, row in show.iterrows():
+        
+        school = str(row.get("School", "") or "")[:42]
+        ta = str(row.get("TerritorialAuthority", "") or "")[:24]
+        pool = str(row.get("PoolStatus", "") or "")[:12]
+        if pool == "None":
+            pool = "" 
+        else:
+            ax.add_patch(
+                mpatches.Rectangle(
+                    (x0, y - row_h  + (line_gap/2)),
+                    0.94 - x0,
+                    row_h ,
+                    transform=ax.transAxes,
+                    facecolor=highlight_col,
+                    edgecolor="none",
+                    alpha=0.35,
+                    zorder=4400,
+                )
+            )
+        ax.text(
+            x0, y,
+            school,
+            transform=ax.transAxes,
+            ha="left",
+            va="top",
+            fontfamily=family,
+            fontsize=fontsize,
+            color="#222222",
+            zorder=5000,
+        )
+        ax.text(
+            x1, y,
+            ta,
+            transform=ax.transAxes,
+            ha="left",
+            va="top",
+            fontfamily=family,
+            fontsize=fontsize,
+            color="#222222",
+            zorder=5000,
+        )
+        ax.text(
+            x2, y,
+            pool,
+            transform=ax.transAxes,
+            ha="left",
+            va="top",
+            fontfamily=family,
+            fontsize=fontsize,
+            color="#222222",
+            zorder=5000,
+        )
+
+        y -= row_h
+
+    return len(show)
+
+def _add_region_school_gap_pages(
+    pdf,
+    *,
+    df: pd.DataFrame,
+    family: str,
+    region_name: str,
+    footer_svg_path: Path,
+    w: float,
+    h: float,
+    dpi: int,
+) -> int:
+    """
+    Add as many school-gap pages as needed.
+    Returns number of pages added.
+    """
+    pages_added = 0
+    start = 0
+
+    if df is None:
+        df = pd.DataFrame(columns=["School", "TerritorialAuthority", "PoolStatus"])
+
+    while True:
+        fig, ax = new_page(w, h, dpi)
+        ax.set_axis_off()
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, 1)
+
+        add_footer_behind(
+            fig,
+            footer_svg_path,
+            bottom_margin_frac=0.0,
+            max_footer_height_frac=0.15,
+            col_master=f"{C_MASTER}80",
+        )
+
+        ax_master = fig.add_axes([0, 0, 1, 1], zorder=10_000)
+        ax_master.set_axis_off()
+        ax_master.patch.set_alpha(0.0)
+
+        title = f"{region_name} School List"
+        _draw_header(ax_master, family=family, title=title)
+
+        remaining = df.iloc[start:].reset_index(drop=True)
+
+        drawn = _draw_region_school_gap_table(
+            ax,
+            family=family,
+            df=remaining,
+            x0=0.06,
+            x1=0.56,
+            x2=0.84,
+            y_top=0.90,
+            y_bottom=0.08,
+            row_h=0.022,
+            fontsize=8.4,
+            title=f"{region_name} – Schools not currently supported",
+            show_title=False,
+        )
+
+        fig.canvas.draw()
+
+        buf = io.BytesIO()
+        fig.savefig(buf, format="png", dpi=dpi, bbox_inches=None, pad_inches=0, transparent=False)
+        png = buf.getvalue()
+
+        fig_r, ax_r = new_page(w, h, dpi)
+        ax_r.set_axis_off()
+        ax_r.set_position([0, 0, 1, 1])
+
+        try:
+            fig_r.subplots_adjust(left=0, right=1, bottom=0, top=1)
+        except Exception:
+            pass
+
+        img = mpimg.imread(io.BytesIO(png))
+        ax_r.imshow(img, extent=(0, 1, 0, 1), transform=ax_r.transAxes, aspect="auto")
+
+        fig_r.canvas.draw()
+        save_page(pdf, fig_r, full_bleed=True)
+
+        plt.close(fig_r)
+        plt.close(fig)
+
+        pages_added += 1
+
+        if drawn <= 0:
+            break
+
+        start += drawn
+        if start >= len(df):
+            break
+
+    return pages_added
+
 
 # =============================================================================
 # Page 1: map drawing
@@ -682,6 +1037,57 @@ def _draw_region_map_page(
     ax_map.set_ylim(bbox_region[1], bbox_region[3])
 
 
+def stats_from_summary_row(
+    df: pd.DataFrame,
+    bucket_map: Dict[str, str],
+    colours: Dict[str, str] | None = None,
+    total_col: str | None = None,
+) -> Dict[str, Any]:
+    if df.empty:
+        raise ValueError("stats_from_summary_row() received an empty dataframe.")
+
+    row = df.iloc[0]
+    labels = list(bucket_map.keys())
+
+    if colours is None:
+        colours = {
+            label: DEFAULT_PALETTE[i % len(DEFAULT_PALETTE)]
+            for i, label in enumerate(labels)
+        }
+
+    buckets = {}
+    for label, col in bucket_map.items():
+        value = row[col]
+        buckets[label] = {
+            "count": 0 if pd.isna(value) else int(value),
+            "colour": colours.get(label, DEFAULT_PALETTE[len(buckets) % len(DEFAULT_PALETTE)]),
+        }
+
+    if total_col is not None:
+        total = 0 if pd.isna(row[total_col]) else int(row[total_col])
+    else:
+        total = max((b["count"] for b in buckets.values()), default=0)
+
+    return {
+        "total": total,
+        "buckets": buckets,
+    }
+
+
+def get_region_school_summary(conn, region, funding_year_start=2025, funding_year_end=2026):
+    query = """
+    EXEC MOE_GetRegionSchoolSummary
+        @Region = ?,
+        @FundingYearStart = ?,
+        @FundingYearEnd = ?
+    """
+    return pd.read_sql(
+        query,
+        conn,
+        params=(region, funding_year_start, funding_year_end),
+    )
+
+
 # =============================================================================
 # Public builder: 2-page region PDF
 # =============================================================================
@@ -726,10 +1132,10 @@ def build_region_report_pdf(
         "region": region_name,
         "calendar_year": int(calendar_year),
         "term": int(term),
-        "pages":  4,
+        "pages": 4,
         "schools": 0,
     }
-
+    """
     schools = _load_school_points_by_region(conn, region=region_name, eqi_filter=eqi_filter)
     schools = ensure_bucket_column(schools)
     meta["schools"] = int(len(schools))
@@ -745,6 +1151,7 @@ def build_region_report_pdf(
         datafinder_layer_id=councils_datafinder_layer_id,
         bbox_4326=councils_bbox_4326,
     )
+    """
 
     rates_df = _load_region_rates(conn, year=calendar_year, term=term, region_name=region_name)
     comparison_df = make_difference_df(
@@ -765,50 +1172,182 @@ def build_region_report_pdf(
 
     preview_fig = None
 
-    # ========================================================= 
-    # # PAGE 1 (map) 
-    # # ========================================================= 
-    fig1, ax_master = new_page(w, h, dpi) 
-    ax_master.set_axis_off() 
-    ax_master.set_zorder(10_000) 
-    ax_master.patch.set_alpha(0.0) 
-    add_footer_behind( fig1, footer_svg_path, bottom_margin_frac=0.0, max_footer_height_frac=0.13, col_master=f"{C_MASTER}80", ) 
-    ax_map = fig1.add_axes(list(map_axes_rect), zorder=100) 
-    ax_map.patch.set_alpha(1.0) 
-    ax_map.set_facecolor("white") 
-    if debug_axes_boxes: 
-        ax_map.patch.set_alpha(0.12) 
-        ax_map.patch.set_edgecolor("red") 
-        ax_map.patch.set_linewidth(2) 
-    _draw_region_map_page( ax_map=ax_map, region_poly=region_poly, schools_df=schools, map_bbox=map_bbox, pad_frac=map_pad_frac, draw_water=draw_water, water_local_folder=water_local_folder, prefer_local_water=prefer_local_water, show_region_outline=show_region_outline, debug_water=True, draw_context_councils=draw_context_councils, context_debug_boundaries=bool(debug_boundaries), context_debug_folder=councils_folder, fill_axes_box=bool(fill_map_axes_box), councils_use_internet=councils_use_internet, councils_datafinder_layer_id=councils_datafinder_layer_id, councils_bbox_4326=councils_bbox_4326, ) 
-    title1 = f"{region_name} – School Coverage Map" 
-    _draw_header(ax_master, family=family, title=title1) # ✅ NEW: compute bucket stats + draw proportional circles with shared fitted label fontsize 
-    stats = compute_bucket_stats( schools, colours={ BUCKET_CURRENT: EDGE_CURRENT, BUCKET_PREV: EDGE_PREV, BUCKET_NEVER: EDGE_NEVER, }, ) 
-    circle_plot( ax_master, stats=stats, fontfamily=family, top_y=0.92, height=0.15, gap_between_polygons=0.05, polygon_text_size=None, # auto-fit ONE fontsize using longest label 
-                polygon_text_max=18.0, polygon_text_min=8.0, ) 
-    if draw_key: 
-        _draw_key_stack( ax_master, family=family, schools_df=schools, x=0.06, y_top=0.84, w=0.32, h_item=0.042, gap=0.010, fontsize_title=11, fontsize_item=9.2, show_pool_breakdown=True, ) 
-    fig1.canvas.draw() 
-    preview_fig = fig1 
-    if rasterize_page1: 
-        buf1 = io.BytesIO() 
-        fig1.savefig(buf1, format="png", dpi=dpi, bbox_inches=None, pad_inches=0, transparent=False) 
-        png1 = buf1.getvalue() 
-        fig1b, ax1b = new_page(w, h, dpi) 
-        ax1b.set_axis_off() 
-        ax1b.set_position([0, 0, 1, 1]) 
-        try: 
-            fig1b.subplots_adjust(left=0, right=1, bottom=0, top=1) 
-        except Exception: pass 
-        img1 = mpimg.imread(io.BytesIO(png1)) 
-        ax1b.imshow(img1, extent=(0, 1, 0, 1), transform=ax1b.transAxes, aspect="auto") 
-        fig1b.canvas.draw() 
-        save_page(pdf, fig1b, full_bleed=True) 
-        plt.close(fig1b) 
-    else: 
-        save_page(pdf, fig1, full_bleed=True) 
+    # =========================================================
+    # PAGE 1 (map)
+    # =========================================================
+    fig1, ax_master = new_page(w, h, dpi)
+    ax_master.set_axis_off()
+
+    bucket_map = {
+        "Eligible schools": "TotalSchools",
+        "Equity Index 446+": "TotalSchools446+",
+        "Supported LY": "TotalSchoolsSupportedLY",
+        "Supported TY": "TotalSchoolsSupportedTY",
+    }
+
+    colours = {
+        "Eligible schools": "#1a427d",
+        "Equity Index 446+": "#3C7EBD",
+        "Supported 24/25": "#24ABE2",
+        "Supported 25/26": "#b1d6ed",
+    }
+
+    df_summary = get_region_school_summary(conn, region_name)
+    stats = stats_from_summary_row(
+        df_summary,
+        bucket_map={
+            "Eligible schools": "TotalSchools",
+            "Equity Index 446+": "TotalSchools446+",
+            "Supported 24/25": "TotalSchoolsSupportedLY",
+            "Supported 25/26": "TotalSchoolsSupportedTY",
+        },
+        total_col="TotalSchools",
+    )
+
+    circle_plot(
+        ax_master,
+        stats=stats,
+        fontfamily=family,
+        show_circle_pct=False,
+        height=0.15,
+    )
+
+    title1 = f"{region_name} – School Coverage"
+    _draw_header(ax_master, family=family, title=title1)
+    add_footer_behind(
+        fig1,
+        footer_svg_path,
+        bottom_margin_frac=0.0,
+        max_footer_height_frac=0.13,
+        col_master=f"{C_MASTER}80",
+    )
+
+    school_gap_df = _load_region_school_gap(
+        conn,
+        region=region_name,
+        funding_year_start=2025,
+        funding_year_end=2026,
+    )
+
+    rows_drawn_on_page1 = _draw_region_school_gap_table(
+        ax_master,
+        family=family,
+        df=school_gap_df,
+        x0=0.06,
+        x1=0.56,
+        x2=0.84,
+        y_top=0.72,
+        y_bottom=0.08,
+        row_h=0.022,
+        fontsize=8.2,
+        title=f"{region_name} – Schools not currently supported",
+        show_title=True,
+    )
+
+    """
+    ax_master.set_zorder(10_000)
+    ax_master.patch.set_alpha(0.0)
+    ax_map = fig1.add_axes(list(map_axes_rect), zorder=100)
+    ax_map.patch.set_alpha(1.0)
+    ax_map.set_facecolor("white")
+    if debug_axes_boxes:
+        ax_map.patch.set_alpha(0.12)
+        ax_map.patch.set_edgecolor("red")
+        ax_map.patch.set_linewidth(2)
+
+    _draw_region_map_page(
+        ax_map=ax_map,
+        region_poly=region_poly,
+        schools_df=schools,
+        map_bbox=map_bbox,
+        pad_frac=map_pad_frac,
+        draw_water=draw_water,
+        water_local_folder=water_local_folder,
+        prefer_local_water=prefer_local_water,
+        show_region_outline=show_region_outline,
+        debug_water=True,
+        draw_context_councils=draw_context_councils,
+        context_debug_boundaries=bool(debug_boundaries),
+        context_debug_folder=councils_folder,
+        fill_axes_box=bool(fill_map_axes_box),
+        councils_use_internet=councils_use_internet,
+        councils_datafinder_layer_id=councils_datafinder_layer_id,
+        councils_bbox_4326=councils_bbox_4326,
+    )
+    title1 = f"{region_name} – School Coverage Map"
+    _draw_header(ax_master, family=family, title=title1)
+    # ✅ NEW: compute bucket stats + draw proportional circles with shared fitted label fontsize
+    stats = compute_bucket_stats(
+        schools,
+        colours={
+            BUCKET_CURRENT: EDGE_CURRENT,
+            BUCKET_PREV: EDGE_PREV,
+            BUCKET_NEVER: EDGE_NEVER,
+        },
+    )
+    circle_plot(
+        ax_master,
+        stats=stats,
+        fontfamily=family,
+        top_y=0.92,
+        height=0.15,
+        gap_between_polygons=0.05,
+        polygon_text_size=None,  # auto-fit ONE fontsize using longest label
+        polygon_text_max=18.0,
+        polygon_text_min=8.0,
+    )
+    if draw_key:
+        _draw_key_stack(
+            ax_master,
+            family=family,
+            schools_df=schools,
+            x=0.06,
+            y_top=0.84,
+            w=0.32,
+            h_item=0.042,
+            gap=0.010,
+            fontsize_title=11,
+            fontsize_item=9.2,
+            show_pool_breakdown=True,
+        )
+    """
+
+    fig1.canvas.draw()
+    preview_fig = fig1
+    if rasterize_page1:
+        buf1 = io.BytesIO()
+        fig1.savefig(buf1, format="png", dpi=dpi, bbox_inches=None, pad_inches=0, transparent=False)
+        png1 = buf1.getvalue()
+        fig1b, ax1b = new_page(w, h, dpi)
+        ax1b.set_axis_off()
+        ax1b.set_position([0, 0, 1, 1])
+        try:
+            fig1b.subplots_adjust(left=0, right=1, bottom=0, top=1)
+        except Exception:
+            pass
+        img1 = mpimg.imread(io.BytesIO(png1))
+        ax1b.imshow(img1, extent=(0, 1, 0, 1), transform=ax1b.transAxes, aspect="auto")
+        fig1b.canvas.draw()
+        save_page(pdf, fig1b, full_bleed=True)
+        plt.close(fig1b)
+    else:
+        save_page(pdf, fig1, full_bleed=True)
     plt.close(fig1)
 
+    remaining_school_gap_df = school_gap_df.iloc[rows_drawn_on_page1:].reset_index(drop=True)
+
+    gap_pages = 0
+    if not remaining_school_gap_df.empty:
+        gap_pages = _add_region_school_gap_pages(
+            pdf,
+            df=remaining_school_gap_df,
+            family=family,
+            region_name=region_name,
+            footer_svg_path=footer_svg_path,
+            w=w,
+            h=h,
+            dpi=dpi,
+        )
 
     # =========================================================
     # PAGE 2 (chart)
@@ -842,7 +1381,7 @@ def build_region_report_pdf(
     fig2.canvas.draw()
     save_page(pdf, fig2, full_bleed=True)
     plt.close(fig2)
-    
+
     # =========================================================
     # PAGE 3 (region vs national difference)
     # =========================================================
@@ -870,9 +1409,9 @@ def build_region_report_pdf(
         label_col="Label",
         diff_col="Difference",
         group_col="YearGroupDesc",
-        left_color  = "#C97A6B",   # worse than national
-        right_color = "#2EBDC2",   # better than national
-        line_color  = "#6c757d",   # 0 line
+        left_color="#C97A6B",   # worse than national
+        right_color="#2EBDC2",  # better than national
+        line_color="#6c757d",   # 0 line
         fontsize=8,
         sort_by_abs=False,
         debug=False,
@@ -884,10 +1423,11 @@ def build_region_report_pdf(
 
     title3 = f"{region_name} National Difference"
     _draw_header(ax_master3, family=family, title=title3)
-    
+
     fig3.canvas.draw()
     save_page(pdf, fig3, full_bleed=True)
     plt.close(fig3)
+
     # =========================================================
     # PAGE 4 (chart)
     # =========================================================
@@ -898,64 +1438,67 @@ def build_region_report_pdf(
         term=term,
         region_name=region_name
     )
-
+    if kaiako_rates_df is not None:
     # Which series to draw
-    vars_to_plot = [
-        "Region Instructor-Led Rate (YTD)",
-        "Region Kaiako-Led Rate (YTD)"
-    ]
+        vars_to_plot = [
+            "Region Instructor-Led Rate (YTD)",
+            "Region Kaiako-Led Rate (YTD)"
+        ]
 
-    colors_dict = {
-        "Region Instructor-Led Rate (YTD)": "#2EBDC2",
-        "Region Kaiako-Led Rate (YTD)": "#BBE6E9"
-    }
+        colors_dict = {
+            "Region Instructor-Led Rate (YTD)": "#2EBDC2",
+            "Region Kaiako-Led Rate (YTD)": "#BBE6E9"
+        }
 
-    # Compute row heights per year group (required by make_figure)
-    df2 = kaiako_rates_df[['CompetencyDesc', 'YearGroupDesc']].drop_duplicates()
+        # Compute row heights per year group (required by make_figure)
+        df2 = kaiako_rates_df[['CompetencyDesc', 'YearGroupDesc']].drop_duplicates()
 
-    row_heights = (
-        df2['YearGroupDesc'].value_counts().sort_index()
-        / (df2['YearGroupDesc'].value_counts().sum() )
-    )
+        row_heights = (
+            df2['YearGroupDesc'].value_counts().sort_index()
+            / (df2['YearGroupDesc'].value_counts().sum())
+        )
 
-    # Create the chart figure
-    fig4 = make_figure_region(
-    kaiako_rates_df,
-        DEBUG=False,
-        PAGE_SIZE=(8.27, 11.69),
-        HEADER_SPACE=0.08,
-        FOOTER_SPACE=0.13,
-        subtitle_space=0.05,
-        row_heights=row_heights,
-        BUFFER=0.0,
-        vars_to_plot=vars_to_plot,
-        colors_dict=colors_dict
-    )
+        # Create the chart figure
+        fig4 = make_figure_region(
+            kaiako_rates_df,
+            DEBUG=False,
+            PAGE_SIZE=(8.27, 11.69),
+            HEADER_SPACE=0.08,
+            FOOTER_SPACE=0.13,
+            subtitle_space=0.05,
+            row_heights=row_heights,
+            BUFFER=0.0,
+            vars_to_plot=vars_to_plot,
+            colors_dict=colors_dict
+        )
 
-    # Add header overlay
-    ax_master4 = fig4.add_axes([0, 0, 1, 1], zorder=10_000)
-    ax_master4.set_axis_off()
-    ax_master4.patch.set_alpha(0)
+        # Add header overlay
+        ax_master4 = fig4.add_axes([0, 0, 1, 1], zorder=10_000)
+        ax_master4.set_axis_off()
+        ax_master4.patch.set_alpha(0)
 
-    title4 = f"{region_name} – Instructor vs Kaiako Delivery"
-    _draw_header(ax_master4, family=family, title=title4)
+        title4 = f"{region_name} – Instructor vs Kaiako Delivery"
+        _draw_header(ax_master4, family=family, title=title4)
 
-    # Add footer
-    add_footer_behind(
-        fig4,
-        footer_svg_path,
-        bottom_margin_frac=0.0,
-        max_footer_height_frac=0.15,
-        col_master=f"{C_MASTER}80",
-    )
+        # Add footer
+        add_footer_behind(
+            fig4,
+            footer_svg_path,
+            bottom_margin_frac=0.0,
+            max_footer_height_frac=0.15,
+            col_master=f"{C_MASTER}80",
+        )
 
-    fig4.canvas.draw()
+        fig4.canvas.draw()
 
-    # Save page to PDF
-    save_page(pdf, fig4, full_bleed=True)
-    plt.close(fig4)
+        # Save page to PDF
+        save_page(pdf, fig4, full_bleed=True)
+        plt.close(fig4)
 
-    close_pdf(pdf)
+        close_pdf(pdf)
+        meta["pages"] = 4 + gap_pages
+    else:
+        meta["pages"] = 3 + gap_pages
     return preview_fig, meta
 
 
@@ -984,7 +1527,7 @@ if __name__ == "__main__":
     with engine.begin() as conn:
         preview, meta = build_region_report_pdf(
             conn=conn,
-            region_name="Wellington Region",
+            region_name="Otago Region",
             calendar_year=2025,
             term=4,
             out_pdf_path=pdf_out,

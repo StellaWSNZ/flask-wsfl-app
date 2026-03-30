@@ -434,6 +434,11 @@ def build_email_folder_lines(email_summary: dict, top_n: int = TOP_EMAIL_FOLDERS
         f"{folder}: {count}"
         for folder, count in email_summary["folder_counts_week"].most_common(top_n)
     ]
+    
+    lines = [
+        item.replace("Inbox:", "Inbox (Outstanding Emails):") if "Inbox:" in item else item
+        for item in lines
+    ]
     return lines or ["No emails found in the last week"]
 
 
@@ -1049,7 +1054,7 @@ def get_commit_rows(
     search_limit=50,
     week_ending_date=None,
 ):
-    rows = []
+    raw_rows = []
 
     if week_ending_date:
         week_start = week_ending_date - timedelta(days=6)
@@ -1058,6 +1063,9 @@ def get_commit_rows(
         week_start = None
         week_end_exclusive = None
 
+    # -----------------------------
+    # STEP 1: collect raw commits
+    # -----------------------------
     for commit in repo.iter_commits(max_count=search_limit):
         committed_dt = commit.committed_datetime
         if committed_dt.tzinfo is not None:
@@ -1079,23 +1087,60 @@ def get_commit_rows(
             continue
 
         message = commit.message.split("\n")[0].strip()
+
         if len(message) > max_message_len:
             message = message[: max_message_len - 1] + "…"
 
-        rows.append(
-            {
-                "date": committed_dt.strftime("%d %b"),
-                "insertions": insertions,
-                "deletions": deletions,
-                "message": message,
-                "in_week": True,
+        raw_rows.append({
+            "date": committed_dt,
+            "insertions": insertions,
+            "deletions": deletions,
+            "message": message,
+        })
+
+    # -----------------------------
+    # STEP 2: group by message
+    # -----------------------------
+    grouped = {}
+
+    for r in raw_rows:
+        key = r["message"]
+
+        if key not in grouped:
+            grouped[key] = {
+                "date": r["date"],  # keep most recent
+                "insertions": 0,
+                "deletions": 0,
+                "count": 0,
             }
-        )
 
-        if len(rows) >= max_count:
-            break
+        grouped[key]["insertions"] += r["insertions"]
+        grouped[key]["deletions"] += r["deletions"]
+        grouped[key]["count"] += 1
 
-    return rows
+        # keep most recent date
+        if r["date"] > grouped[key]["date"]:
+            grouped[key]["date"] = r["date"]
+
+    # -----------------------------
+    # STEP 3: convert back to list
+    # -----------------------------
+    rows = []
+    for msg, data in grouped.items():
+        rows.append({
+            "date": data["date"].strftime("%d %b"),
+            "insertions": data["insertions"],
+            "deletions": data["deletions"],
+            "message": msg,
+            "in_week": True,
+        })
+
+    # -----------------------------
+    # STEP 4: sort + limit
+    # -----------------------------
+    rows.sort(key=lambda x: x["date"], reverse=True)
+
+    return rows[:max_count]
 def get_commit_panel_layout(row_h: float = 0.020) -> dict:
     return {
         "top_pad": 0.0,
@@ -1161,8 +1206,8 @@ def draw_commit_panel(
     inner_w = inner_x1 - inner_x0
 
     date_x = inner_x0
-    delta_x = inner_x0 + inner_w * 0.15
-    msg_x = inner_x0 + inner_w * 0.32
+    delta_x = inner_x0 + inner_w * 0.12
+    msg_x = inner_x0 + inner_w * 0.29
 
     layout = get_commit_panel_layout(row_h=row_h)
 
@@ -1678,7 +1723,8 @@ def build_weekly_stats_pdf(
     email_subject_lines = build_email_subject_lines(email_summary, top_n=TOP_EMAIL_SUBJECTS)
 
     repo = git.Repo(os.getcwd())
-    print()
+  
+    
     commit_rows = get_commit_rows(
         repo,
         max_count=10,
@@ -1911,7 +1957,7 @@ if __name__ == "__main__":
 
     summary_df, users_by_role_df, respondents_by_survey_df = build_weekly_stats_pdf(
         out_pdf_path=out_dir / "weekly_stats.pdf",
-        as_of_date="2026-03-30", 
+        as_of_date=None, 
         footer_svg="app/static/footer.svg",
         fonts_dir="app/static/fonts",
         dpi=300,

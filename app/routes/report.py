@@ -1110,6 +1110,7 @@ def _execute_report(
 
     elif selected_type == "funder_teacher_review_summary":
         from app.utils.teacher_assessment import build_funder_teacher_assessment_summary_pdf
+        import time
 
         try:
             use_ppmori("app/static/fonts")
@@ -1121,6 +1122,13 @@ def _execute_report(
 
         pdf_path = REPORT_DIR / f"{report_id}.pdf"
 
+        current_app.logger.info(
+            "🟦 calling build_funder_teacher_assessment_summary_pdf | funder_id=%s pdf_path=%s",
+            funder_id,
+            pdf_path,
+        )
+        t0 = time.time()
+
         preview_fig, meta = build_funder_teacher_assessment_summary_pdf(
             conn=conn,
             funder_id=funder_id,
@@ -1131,6 +1139,12 @@ def _execute_report(
             page_size="A3",
             orientation="portrait",
             fonts_dir="app/static/fonts",
+        )
+
+        current_app.logger.info(
+            "🟩 teacher assessment builder returned in %.2fs | meta=%s",
+            time.time() - t0,
+            meta,
         )
 
         results = None
@@ -2249,11 +2263,8 @@ def new_reports():
                     header_html = " • ".join(left_bits)
                     allow_png = bool(display) and (
                         selected_type not in {
-                            "funder_student_count",
-                            "funder_progress_summary",
-                            "funder_teacher_review_summary",
                             "provider_missing_classes",
-                               "funder_missing_classes", 
+                            "funder_missing_classes",
                         }
                     )
                     return jsonify(
