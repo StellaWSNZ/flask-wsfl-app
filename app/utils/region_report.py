@@ -1178,19 +1178,7 @@ def build_region_report_pdf(
     fig1, ax_master = new_page(w, h, dpi)
     ax_master.set_axis_off()
 
-    bucket_map = {
-        "Eligible schools": "TotalSchools",
-        "Equity Index 446+": "TotalSchools446+",
-        "Supported LY": "TotalSchoolsSupportedLY",
-        "Supported TY": "TotalSchoolsSupportedTY",
-    }
-
-    colours = {
-        "Eligible schools": "#1a427d",
-        "Equity Index 446+": "#3C7EBD",
-        "Supported 24/25": "#24ABE2",
-        "Supported 25/26": "#b1d6ed",
-    }
+    
 
     df_summary = get_region_school_summary(conn, region_name)
     stats = stats_from_summary_row(
@@ -1200,6 +1188,12 @@ def build_region_report_pdf(
             "Equity Index 446+": "TotalSchools446+",
             "Supported 24/25": "TotalSchoolsSupportedLY",
             "Supported 25/26": "TotalSchoolsSupportedTY",
+        },
+        colours = {
+            "Eligible schools": "#1a427d",
+            "Equity Index 446+": "#3C7EBD",
+            "Supported 24/25": "#24ABE2",
+            "Supported 25/26": "#b1d6ed",
         },
         total_col="TotalSchools",
     )
