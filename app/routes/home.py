@@ -222,7 +222,7 @@ def home():
 
         error_cards = []
         if email == "stella@watersafety.org.nz":
-            alerts = fetch_new_alerts_for_user(email=email, limit=8, mark_shown=True)
+            alerts = fetch_new_alerts_for_user(email=email, limit=6, mark_shown=True)
             for a in alerts:
                 created_utc = a.get("CreatedAtUtc")
                 if isinstance(created_utc, str):

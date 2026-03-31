@@ -578,7 +578,7 @@
 
             <div class="mb-3">
               <label class="form-label">Provider</label>
-              <select class="form-select" id="ms_provider" required>
+              <select class="form-select" id="ms_provider" {% if user_role != "ADM" %}required{% endif %}>
                 <option value="" selected disabled>Choose a funder first…</option>
               </select>
               <div class="form-text">Choose which facility or pick Kaiako Led.</div>
@@ -719,26 +719,36 @@
 
   // Providers for funder
   function loadProvidersForFunder(funderId) {
-    const selProv = document.getElementById('ms_provider');
-    if (!selProv) return;
+  const selProv = document.getElementById('ms_provider');
+  if (!selProv) return;
 
-    selProv.innerHTML = '<option value="" selected disabled>Loading providers…</option>';
+  const isAdmin = "{{ user_role }}" === "ADM";
 
-    fetch(`/helper?request=ProvidersByFunderID&number=${encodeURIComponent(funderId)}`, { credentials: "same-origin" })
-      .then(r => r.ok ? r.json() : Promise.reject(r))
-      .then(list => {
-        selProv.innerHTML = '<option value="" disabled selected>Choose a provider…</option>';
-        (list || []).forEach(item => {
-          const opt = document.createElement('option');
-          opt.value = item.id;
-          opt.textContent = item.name;
-          selProv.appendChild(opt);
-        });
-      })
-      .catch(() => {
-        selProv.innerHTML = '<option value="" disabled selected>Failed to load providers</option>';
+  selProv.innerHTML = '<option value="" selected disabled>Loading providers…</option>';
+
+  fetch(`/helper?request=ProvidersByFunderID&number=${encodeURIComponent(funderId)}`, { credentials: "same-origin" })
+    .then(r => r.ok ? r.json() : Promise.reject(r))
+    .then(list => {
+      selProv.innerHTML = '<option value="" disabled selected>Choose a provider…</option>';
+
+      (list || []).forEach(item => {
+        const opt = document.createElement('option');
+        opt.value = item.id;
+        opt.textContent = item.name;
+        selProv.appendChild(opt);
       });
-  }
+
+      if (isAdmin) {
+        const unknownOpt = document.createElement('option');
+        unknownOpt.value = "NULL";
+        unknownOpt.textContent = "Unknown / Not Assigned";
+        selProv.appendChild(unknownOpt);
+      }
+    })
+    .catch(() => {
+      selProv.innerHTML = '<option value="" disabled selected>Failed to load providers</option>';
+    });
+}
 
   // Schools for funder (Regional Council reverse)
   function loadSchoolsForFunderRegion(funderId) {
@@ -1033,7 +1043,15 @@
       const Term       = document.getElementById('ms_term').value;
       const Year       = document.getElementById('ms_year').value;
       const FunderID   = document.getElementById('ms_funderid').value;
-      const ProviderID = document.getElementById('ms_provider') ? document.getElementById('ms_provider').value : null;
+      let ProviderID = document.getElementById('ms_provider')
+        ? document.getElementById('ms_provider').value
+        : null;
+
+      if (ProviderID === "NULL") {
+        ProviderID = null;
+      } else {
+        ProviderID = ProviderID ? Number(ProviderID) : null;
+      }
 
       fetch('/add_school_to_funder', {
         method: 'POST',
@@ -1043,26 +1061,26 @@
           Term: Number(Term),
           CalendarYear: Number(Year),
           FunderID: Number(FunderID),
-          ProviderID: ProviderID ? Number(ProviderID) : null
+          ProviderID: ProviderID
         }),
         credentials: "same-origin"
       })
-      .then(r => r.json())
-      .then(resp => {
-        if (resp.ok) {
-          showModalAlert('success', 'School added to funder successfully.');
-          setTimeout(() => {
-            const modalEl = document.getElementById('missingSchoolModal');
-            const bsModal = bootstrap.Modal.getInstance(modalEl);
-            bsModal?.hide();
-            setTimeout(() => window.location.reload(), 0);
-          }, 1200);
-        } else {
-          showModalAlert('danger', resp.error || 'Insert failed.');
-        }
-      })
-      .catch(() => showModalAlert('danger', 'Insert failed.'));
-    });
+       .then(r => r.json())
+  .then(resp => {
+    if (resp.ok) {
+      showModalAlert('success', 'School added to funder successfully.');
+      setTimeout(() => {
+        const modalEl = document.getElementById('missingSchoolModal');
+        const bsModal = bootstrap.Modal.getInstance(modalEl);
+        bsModal?.hide();
+        setTimeout(() => window.location.reload(), 0);
+      }, 1200);
+    } else {
+      showModalAlert('danger', resp.error || 'Insert failed.');
+    }
+  })
+  .catch(() => showModalAlert('danger', 'Insert failed.'));
+});
 
     // Provider Missing School Modal load + submit
     const pmsModalEl = document.getElementById('providerMissingSchoolModal');

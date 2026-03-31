@@ -430,6 +430,7 @@ def helper():
             message=f"/helper failed (request={req}, number={number}): {e}\n{traceback.format_exc()}"[:4000],
         )
         return jsonify([]), 500
+
 @staff_bp.post("/add_school_to_funder")
 @login_required
 def add_school_to_funder():
@@ -440,15 +441,17 @@ def add_school_to_funder():
     data = request.get_json(silent=True) or {}
     print("📦 Raw payload:", data)
 
-    moe       = data.get("MoeNumber")
-    term      = data.get("Term")
-    year      = data.get("CalendarYear")
-    funder    = data.get("FunderID")
-    provider  = data.get("ProviderID")   # optional
+    moe = data.get("MoeNumber")
+    term = data.get("Term")
+    year = data.get("CalendarYear")
+    funder = data.get("FunderID")
+    provider = data.get("ProviderID")   # optional
+
+    if provider in [None, "", "NULL"]:
+        provider = None
 
     print(f"➡ Parsed values | MOE={moe} | Term={term} | Year={year} | Funder={funder} | Provider={provider}")
 
-    # Validate
     if not all([moe, term, year, funder]):
         print("❌ Missing required fields")
         return jsonify(ok=False, error="Missing required fields."), 400
@@ -456,9 +459,9 @@ def add_school_to_funder():
     try:
         term_i = int(term)
         year_i = int(year)
-        moe_i  = int(moe)
-        fid_i  = int(funder)
-        pid_i  = int(provider) if provider is not None else None
+        moe_i = int(moe)
+        fid_i = int(funder)
+        pid_i = int(provider) if provider is not None else None
 
         print(f"🔢 Converted to ints | MOE={moe_i} | Term={term_i} | Year={year_i} | Funder={fid_i} | Provider={pid_i}")
 
@@ -477,23 +480,22 @@ def add_school_to_funder():
                 """),
                 {
                     "term": term_i,
-                    "yr":   year_i,
-                    "moe":  moe_i,
-                    "fid":  fid_i,
-                    "pid":  pid_i,
-                    "req":  "AddSchoolFunder",
+                    "yr": year_i,
+                    "moe": moe_i,
+                    "fid": fid_i,
+                    "pid": pid_i,
+                    "req": "AddSchoolFunder",
                 }
             )
 
             print("✅ Stored procedure executed")
 
-            # Read returned row if exists
             try:
                 row = result.fetchone()
                 print("📄 Stored procedure returned:", row)
 
                 if row is not None:
-                    ok  = row[0] if len(row) > 0 else True
+                    ok = row[0] if len(row) > 0 else True
                     msg = row[1] if len(row) > 1 else None
 
                     print(f"🔎 SP Result | ok={ok} | message={msg}")

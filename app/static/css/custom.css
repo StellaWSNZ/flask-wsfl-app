@@ -14,8 +14,8 @@
 :root {
   --bs-primary: #1a427d;
   --bs-primary-rgb: 26, 66, 125;
-    --bs-secondary: #4d5441;
-      --bs-info-custom: #2bb4d4; /* NEW third colour */
+  --bs-secondary: #4d5441;
+  --bs-info-custom: #2bb4d4; /* NEW third colour */
   --bs-danger-custom: #d64545; 
 
 }
