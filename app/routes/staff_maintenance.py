@@ -636,7 +636,8 @@ def invite_user():
         user_role    = session.get("user_role") or "UNKNOWN"
         invited_by   = f"{session.get('user_firstname','')} {session.get('user_surname','')}".strip()
         inviter_desc = session.get("desc", "")  # e.g. "Aquatic Survival Skills" / school name
-
+        if inviter_desc == "None":
+            inviter_desc = "Water Safety New Zealand"
         # 1) DB insert
         with get_db_engine().begin() as conn:
             conn.execute(
