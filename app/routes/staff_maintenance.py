@@ -618,15 +618,35 @@ def invite_user():
         firstname  = (request.form.get("firstname") or "").strip() or "Staff"
         admin_raw  = request.form.get("admin", "0")
         admin      = 1 if admin_raw in ("1", "true", "True", True) else 0
-
+        
         if not entity_type:
-            entity_type = {
-                "FUN": "Funder",
-                "PRO": "Provider",
-                "MOE": "School",
-                "GRP": "Group",
-            }.get(session.get("user_role"), None)
+            role_map = {
+                "School": "MOE",
+                "Provider": "PRO",
+                "Funder": "FUN",
+                "Group": "GRP",
+                "MOE": "MOE",
+                "PRO": "PRO",
+                "FUN": "FUN",
+                "GRP": "GRP",
+            }
 
+            invited_role = role_map.get(entity_type, session.get("user_role") or "UNKNOWN")
+            
+        if entity_type:
+            role_map = {
+                "School": "MOE",
+                "Provider": "PRO",
+                "Funder": "FUN",
+                "Group": "GRP",
+                "MOE": "MOE",
+                "PRO": "PRO",
+                "FUN": "FUN",
+                "GRP": "GRP",
+            }
+
+            invited_role = role_map.get(entity_type or "UNKNOWN")
+        current_app.logger.info("Recieved entity type {entity_type} and mappped to {invited_role}")    
         if not entity_id:
             entity_id = session.get("user_id")
 
@@ -659,10 +679,10 @@ def invite_user():
             {
                 "email": email,
                 "firstname": firstname,
-                "role": user_role,
+                "role": invited_role,
             }
         ]
-
+        current_app.logger.error("Recipients: {recipients}")
         send_account_invites(
             mail,
             recipients=recipients,

@@ -1178,8 +1178,6 @@ def build_region_report_pdf(
     fig1, ax_master = new_page(w, h, dpi)
     ax_master.set_axis_off()
 
-    
-
     df_summary = get_region_school_summary(conn, region_name)
     stats = stats_from_summary_row(
         df_summary,
