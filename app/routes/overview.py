@@ -393,8 +393,6 @@ def funder_dashboard():
             selected_year = int(request.form.get("year") or session.get("nearest_year") or None)
             selected_term = int(request.form.get("term") or session.get("nearest_term") or None)
 
-            session["nearest_year"] = selected_year
-            session["nearest_term"] = selected_term
             if (entity_type in ["Provider"] or user_role == "PRO"):
                 school_df_all = pd.read_sql(
                     text(
