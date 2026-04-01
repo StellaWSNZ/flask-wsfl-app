@@ -292,7 +292,16 @@ def send_account_invites(mail, recipients, make_admin: bool, invited_by_name: st
                         disposition="inline",
                         headers={"Content-ID": "<wsfl_logo>"},
                     )
-
+                if role == "MOE":
+                    try:
+                        with current_app.open_resource("static/templates/template.csv") as fp:
+                            msg.attach(
+                                "WSFL_Class_List_Template.csv",
+                                "text/csv",
+                                fp.read(),
+                            )
+                    except Exception:
+                        current_app.logger.exception("Failed to attach template for %s", email)
                 mail.send(msg)
                 sent += 1
 

@@ -33,6 +33,9 @@
   <li>
     If classes are not present, follow the instructions to upload the current class lists.
   </li>
+  <li>
+  If you're unsure about the file layout, please refer to the attached template to help guide your upload.
+</li>
   {% if make_admin %}
   <li>
     In <em>Staff &gt; Manage My Staff</em>, check that staff access is correct.
@@ -83,6 +86,7 @@
     You’ve been granted <strong>administration privileges</strong>, which allows
     you to manage staff and entities in addition to your usual tools.
   </li>
+  
   {% endif %} {# ---------------- UNIVERSAL TASKS ---------------- #}
 
   <li>
@@ -102,7 +106,13 @@
     completions are missing, please submit an issue through the in-app feedback
     form so we can fix it.
   </li>
+  {% if make_admin %}
+ <li>
+  For a comprehensive walkthrough of the system, you can watch the full webinar on the instructions page.
+</li>
   {% endif %}
+  {% endif %}
+  
 </ul>
 
 <p>

@@ -16,11 +16,13 @@ NEXT STEPS
 {% if role == "MOE" %}
 • In "School Tools > Class Lookup", check that all classes are present and correct.
 • If classes are not present, follow the instructions to upload the current class lists.
+• If you're unsure about the file layout, please refer to the attached template to help guide your upload.
 {% if make_admin %}
 • In "Staff > Manage My Staff", make sure staff access is up to date.
 {% endif %}
 • View and record class achievements for the current term.
 • Optional: explore the performance reports to see how your school is tracking.
+
 {% elif role == "PRO" %}
 • In "Provider Tools > Class Lookup", confirm the classes and schools linked to your provider.
 {% if make_admin %}
@@ -28,12 +30,14 @@ NEXT STEPS
 {% endif %}
 • Upload or review student achievements for the classes you support.
 • Optional: explore provider/funder reporting dashboards.
+
 {% elif role == "FUN" %}
 • Open the Overview dashboards to see which schools and providers are currently active.
 {% if make_admin %}
 • In "Staff > Manage My Staff", make sure staff access is up to date.
 {% endif %}
 • Explore participation and performance reports for your funded schools and providers.
+
 {% elif role == "GRP" %}
 • Use "Provider Tools > Class Lookup" to review classes linked to your group.
 {% if make_admin %}
@@ -52,10 +56,13 @@ NEXT STEPS
 
 {% if role in ["PRO", "FUN"] %}
 • Check that your eLearning modules are correctly marked as complete. If anything is missing, please submit an issue through the in-app feedback form.
+{% if make_admin %}
+• For a comprehensive walkthrough of the system, you can watch the full webinar on the instructions page.
+{% endif %}
 {% endif %}
 
 
-Full instructions and videos are available any time at:
+Full instructions and videos are available at:
 {{ instructions_url }}
 
 If you have trouble logging in, reply to this email.
