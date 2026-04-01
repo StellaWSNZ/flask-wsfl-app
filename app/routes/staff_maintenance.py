@@ -682,7 +682,7 @@ def invite_user():
                 "role": invited_role,
             }
         ]
-        current_app.logger.error("Recipients: {recipients}")
+        current_app.logger.debug("Recipients: {recipients}")
         send_account_invites(
             mail,
             recipients=recipients,

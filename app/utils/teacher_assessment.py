@@ -18,13 +18,14 @@ from app.report_utils.pdf_builder import close_pdf, new_page, open_pdf, save_pag
 # Config: stored proc + expected column names
 # ============================================================
 PROC_NAME = "dbo.SVY_FunderTeacherAssessmentSummary"
+TOTALS_PROC_NAME = "dbo.SVY_FunderTeacherAssessmentSummaryTotals"
 
 COL_FUNDER = "Funder"
 COL_SCHOOL = "SchoolName"
 COL_TERM = "Term"
 COL_CALYEAR = "CalendarYear"
 
-COL_TOTAL_CLASSES = "NumberOfClassesTotal"
+COL_TOTAL_CLASSES = "TotalClasses"
 COL_CLASSES_WITH_ANY_REVIEW = "ClassesWithAnyReview"
 COL_TOTAL_REVIEWS = "TotalReviews"
 COL_LEAD_REVIEWS = "LeadReviews"
@@ -33,6 +34,10 @@ COL_MISSING_CLASSES = "MissingClasses"
 
 COL_FUNDERSTAFF = "FunderStaffMember"
 DEFAULT_FUNDERSTAFF = "Not assigned"
+
+COL_SUMMARY_LEVEL = "SummaryLevel"
+COL_SCHOOLS = "Schools"
+COL_PCT_CLASSES_REVIEWED = "PctClassesReviewed"
 
 # Behavior:
 # - "auto": show staff column only if it exists in the data
@@ -54,7 +59,7 @@ def paginate_rows(df: pd.DataFrame, rows_per_page: int = 28) -> List[pd.DataFram
     pages: List[pd.DataFrame] = []
     for start in range(0, len(df), rows_per_page):
         print("   ➡️ paginate_rows slice:", start, "to", start + rows_per_page)
-        pages.append(df.iloc[start : start + rows_per_page].reset_index(drop=True))
+        pages.append(df.iloc[start:start + rows_per_page].reset_index(drop=True))
 
     print("🟢 paginate_rows DONE pages:", len(pages))
     return pages
@@ -133,10 +138,8 @@ def _fetch_teacher_df(conn, funder_id: int) -> Tuple[pd.DataFrame, str]:
         funder_name = str(vals[0]) if vals else ""
     print("   ℹ️ resolved funder_name:", funder_name)
 
-    # staff handling
     df = _ensure_staff_column(df)
 
-    # normalize term/year
     if COL_CALYEAR in df.columns:
         print("   ℹ️ normalizing CalendarYear")
         df[COL_CALYEAR] = pd.to_numeric(df[COL_CALYEAR], errors="coerce").astype("Int64")
@@ -144,7 +147,6 @@ def _fetch_teacher_df(conn, funder_id: int) -> Tuple[pd.DataFrame, str]:
         print("   ℹ️ normalizing Term")
         df[COL_TERM] = pd.to_numeric(df[COL_TERM], errors="coerce").astype("Int64")
 
-    # normalize numeric columns
     for c in [
         COL_TOTAL_CLASSES,
         COL_CLASSES_WITH_ANY_REVIEW,
@@ -156,7 +158,6 @@ def _fetch_teacher_df(conn, funder_id: int) -> Tuple[pd.DataFrame, str]:
             print("   ℹ️ normalizing numeric column:", c)
             df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0).astype(int)
 
-    # normalize missing classes (keep line breaks)
     if COL_MISSING_CLASSES in df.columns:
         print("   ℹ️ normalizing missing classes column")
         s = df[COL_MISSING_CLASSES].fillna("").astype(str).str.strip()
@@ -164,6 +165,47 @@ def _fetch_teacher_df(conn, funder_id: int) -> Tuple[pd.DataFrame, str]:
 
     print("🟢 _fetch_teacher_df DONE")
     return df, funder_name
+
+
+def _fetch_teacher_totals_df(conn, funder_id: int) -> pd.DataFrame:
+    print("🔵 _fetch_teacher_totals_df START | funder_id =", funder_id)
+
+    sql = text(f"EXEC {TOTALS_PROC_NAME} @FunderID = :funder_id")
+    print("   🟦 running SQL:", sql)
+
+    df = pd.read_sql(sql, conn, params={"funder_id": funder_id})
+    print("   🟩 totals SQL returned rows:", 0 if df is None else len(df))
+    if df is not None:
+        print("   🟩 totals SQL returned columns:", list(df.columns))
+
+    if df is None or df.empty:
+        print("🟡 _fetch_teacher_totals_df early return: empty df")
+        return pd.DataFrame()
+
+    if COL_CALYEAR in df.columns:
+        df[COL_CALYEAR] = pd.to_numeric(df[COL_CALYEAR], errors="coerce").astype("Int64")
+    if COL_TERM in df.columns:
+        df[COL_TERM] = pd.to_numeric(df[COL_TERM], errors="coerce").astype("Int64")
+
+    for c in [
+        COL_SCHOOLS,
+        COL_TOTAL_CLASSES,
+        COL_CLASSES_WITH_ANY_REVIEW,
+        COL_TOTAL_REVIEWS,
+        COL_LEAD_REVIEWS,
+        COL_RELIEF_REVIEWS,
+    ]:
+        if c in df.columns:
+            df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0).astype(int)
+
+    if COL_PCT_CLASSES_REVIEWED in df.columns:
+        df[COL_PCT_CLASSES_REVIEWED] = pd.to_numeric(df[COL_PCT_CLASSES_REVIEWED], errors="coerce").fillna(0)
+
+    if COL_SUMMARY_LEVEL in df.columns:
+        df[COL_SUMMARY_LEVEL] = df[COL_SUMMARY_LEVEL].fillna("").astype(str).str.strip()
+
+    print("🟢 _fetch_teacher_totals_df DONE")
+    return df
 
 
 def _split_by_term(df: pd.DataFrame) -> List[Tuple[int, int, pd.DataFrame]]:
@@ -189,12 +231,10 @@ def _split_by_term(df: pd.DataFrame) -> List[Tuple[int, int, pd.DataFrame]]:
         d = df[(df[COL_CALYEAR] == y) & (df[COL_TERM] == t)].copy()
         print(f"      rows in block: {len(d)}")
 
-        # drop meta columns
         for col in [COL_CALYEAR, COL_TERM, COL_FUNDER]:
             if col in d.columns:
                 d = d.drop(columns=[col])
 
-        # sort by school, then staff (if present)
         sort_cols: List[str] = []
         if COL_SCHOOL in d.columns:
             d[COL_SCHOOL] = d[COL_SCHOOL].fillna("").astype(str)
@@ -236,14 +276,215 @@ def _term_summary(df_term: pd.DataFrame) -> Dict[str, Any]:
             df_term[COL_SCHOOL].fillna("").astype(str).str.strip().replace("", pd.NA).dropna().nunique()
         )
 
-    out["total_classes"] = int(df_term.get(COL_TOTAL_CLASSES, 0).sum())
-    out["classes_with_any_review"] = int(df_term.get(COL_CLASSES_WITH_ANY_REVIEW, 0).sum())
-    out["total_reviews"] = int(df_term.get(COL_TOTAL_REVIEWS, 0).sum())
-    out["lead_reviews"] = int(df_term.get(COL_LEAD_REVIEWS, 0).sum())
-    out["relief_reviews"] = int(df_term.get(COL_RELIEF_REVIEWS, 0).sum())
+    out["total_classes"] = int(df_term[COL_TOTAL_CLASSES].sum()) if COL_TOTAL_CLASSES in df_term.columns else 0
+    out["classes_with_any_review"] = int(df_term[COL_CLASSES_WITH_ANY_REVIEW].sum()) if COL_CLASSES_WITH_ANY_REVIEW in df_term.columns else 0
+    out["total_reviews"] = int(df_term[COL_TOTAL_REVIEWS].sum()) if COL_TOTAL_REVIEWS in df_term.columns else 0
+    out["lead_reviews"] = int(df_term[COL_LEAD_REVIEWS].sum()) if COL_LEAD_REVIEWS in df_term.columns else 0
+    out["relief_reviews"] = int(df_term[COL_RELIEF_REVIEWS].sum()) if COL_RELIEF_REVIEWS in df_term.columns else 0
 
     print("🟢 _term_summary DONE |", out)
     return out
+
+
+def _draw_totals_table_page(
+    *,
+    fig,
+    ax,
+    family: str,
+    funder_name: str,
+    df_totals: pd.DataFrame,
+):
+    print("🔵 _draw_totals_table_page START")
+
+    if df_totals is None or df_totals.empty:
+        print("🟡 _draw_totals_table_page early return: empty df_totals")
+        return
+
+    term_rows = df_totals[df_totals[COL_SUMMARY_LEVEL].str.lower() == "term"].copy()
+    overall_rows = df_totals[df_totals[COL_SUMMARY_LEVEL].str.lower() == "overall"].copy()
+
+    header_poly = rounded_rect_polygon(
+        cx=0.5,
+        cy=0.955,
+        width=0.96,
+        height=0.055,
+        ratio=0.45,
+        corners_round=[1, 3],
+        n_arc=64,
+    )
+    ax.add_patch(
+        mpatches.Polygon(
+            list(header_poly.exterior.coords),
+            closed=True,
+            facecolor="#1a427d",
+            edgecolor="#1a427d",
+            linewidth=1.5,
+            transform=ax.transAxes,
+        )
+    )
+
+    draw_text_in_polygon(
+        ax,
+        poly=header_poly,
+        text=f"{funder_name} - Teacher Assessments Totals",
+        fontfamily=family,
+        fontsize=20,
+        fontweight="semibold",
+        color="#ffffff",
+        pad_frac=0.05,
+        wrap=True,
+        autoshrink=True,
+        clip_to_polygon=True,
+        max_lines=None,
+    )
+    """
+    label_poly = rounded_rect_polygon(
+        cx=0.5,
+        cy=0.885,
+        width=0.96,
+        height=0.03,
+        ratio=0.45,
+        corners_round=[1, 2],
+        n_arc=64,
+    )
+    ax.add_patch(
+        mpatches.Polygon(
+            list(label_poly.exterior.coords),
+            closed=True,
+            facecolor="#eef2ff",
+            edgecolor="#1a427d",
+            linewidth=1.2,
+            transform=ax.transAxes,
+        )
+    )
+    draw_text_in_polygon(
+        ax,
+        poly=label_poly,
+        text="Term breakdown",
+        fontfamily=family,
+        fontsize=11,
+        fontweight="semibold",
+        color="#1a427d",
+        pad_frac=0.04,
+        wrap=False,
+        autoshrink=True,
+        clip_to_polygon=True,
+        max_lines=1,
+    )
+    """
+    if term_rows.empty:
+        print("🟡 _draw_totals_table_page no term rows")
+        return
+
+    term_rows = term_rows.copy()
+    term_rows["TermLabel"] = (
+        "Term "
+        + term_rows[COL_TERM].astype("Int64").astype(str)
+        + ", "
+        + term_rows[COL_CALYEAR].astype("Int64").astype(str)
+    )
+
+    term_display = term_rows[[
+        "TermLabel",
+        COL_SCHOOLS,
+        COL_TOTAL_CLASSES,
+        COL_CLASSES_WITH_ANY_REVIEW,
+        COL_PCT_CLASSES_REVIEWED,
+        COL_TOTAL_REVIEWS,
+        COL_LEAD_REVIEWS,
+        COL_RELIEF_REVIEWS,
+    ]].copy()
+
+    term_display[COL_PCT_CLASSES_REVIEWED] = term_display[COL_PCT_CLASSES_REVIEWED].map(lambda x: f"{x:.1f}%")
+
+    if not overall_rows.empty:
+        ov = overall_rows.iloc[0]
+        overall_row = {
+            "TermLabel": "Overall",
+            COL_SCHOOLS: int(ov.get(COL_SCHOOLS, 0)),
+            COL_TOTAL_CLASSES: int(ov.get(COL_TOTAL_CLASSES, 0)),
+            COL_CLASSES_WITH_ANY_REVIEW: int(ov.get(COL_CLASSES_WITH_ANY_REVIEW, 0)),
+            COL_PCT_CLASSES_REVIEWED: f"{float(ov.get(COL_PCT_CLASSES_REVIEWED, 0)):.1f}%",
+            COL_TOTAL_REVIEWS: int(ov.get(COL_TOTAL_REVIEWS, 0)),
+            COL_LEAD_REVIEWS: int(ov.get(COL_LEAD_REVIEWS, 0)),
+            COL_RELIEF_REVIEWS: int(ov.get(COL_RELIEF_REVIEWS, 0)),
+        }
+        term_display = pd.concat(
+            [term_display, pd.DataFrame([overall_row])],
+            ignore_index=True,
+        )
+
+    def summary_row_highlight(row: pd.Series, r: int) -> Optional[Tuple[str, str]]:
+        if str(row.get("TermLabel", "")).strip().lower() == "overall":
+            return "#1a427d", "#ffffff"
+        return None
+
+    term_columns = [
+        {"key": "TermLabel", "label": "Term", "width_frac": 0.16, "align": "left", "wrap": True},
+        {"key": COL_SCHOOLS, "label": "Schools", "width_frac": 0.08, "align": "center"},
+        {"key": COL_TOTAL_CLASSES, "label": "Total\nClasses", "width_frac": 0.12, "align": "center"},
+        {"key": COL_CLASSES_WITH_ANY_REVIEW, "label": "Classes\nReviewed", "width_frac": 0.14, "align": "center"},
+        {"key": COL_PCT_CLASSES_REVIEWED, "label": "% Classes\nReviewed", "width_frac": 0.12, "align": "center"},
+        {"key": COL_TOTAL_REVIEWS, "label": "Total\nReviews", "width_frac": 0.12, "align": "center"},
+        {"key": COL_LEAD_REVIEWS, "label": "Lead\nReviews", "width_frac": 0.13, "align": "center"},
+        {"key": COL_RELIEF_REVIEWS, "label": "Relief\nReviews", "width_frac": 0.13, "align": "center"},
+    ]
+
+    draw_dataframe_table_v2(
+        ax,
+        df=term_display.reset_index(drop=True),
+        x=0.02,
+        y=0.55,
+        width=0.96,
+        height=0.35,
+        header_height_frac=0.09,
+        columns=term_columns,
+        base_row_facecolor="#ffffff",
+        row_color_fn=summary_row_highlight,
+        wrap=True,
+        max_wrap_lines=4,
+        shift=True,
+    )
+
+    note_poly = rounded_rect_polygon(
+        cx=0.5,
+        cy=0.06,
+        width=0.96,
+        height=0.03,
+        ratio=0.45,
+        corners_round=[4, 3],
+        n_arc=64,
+    )
+    ax.add_patch(
+        mpatches.Polygon(
+            list(note_poly.exterior.coords),
+            closed=True,
+            facecolor="#1a427d",
+            edgecolor="#1a427d",
+            linewidth=1.0,
+            transform=ax.transAxes,
+        )
+    )
+    note_text = (
+        "This totals table reflects Kaiako Led classes only. "
+        "The Overall row appears only on this final page."
+    )
+    draw_text_in_polygon(
+        ax,
+        poly=note_poly,
+        text=note_text,
+        fontfamily=family,
+        fontsize=10,
+        fontweight="semibold",
+        color="#ffffff",
+        pad_frac=0.04,
+        wrap=True,
+        autoshrink=True,
+        clip_to_polygon=True,
+        max_lines=3,
+    )
+
+    print("🟢 _draw_totals_table_page DONE")
 
 
 # ------------------------------------------------------------
@@ -277,11 +518,15 @@ def build_funder_teacher_assessment_summary_pdf(
     print("📊 fetched df_all rows:", 0 if df_all is None else len(df_all))
     print("📊 funder_name:", funder_name)
 
+    df_totals = _fetch_teacher_totals_df(conn, funder_id=funder_id)
+    print("📊 fetched df_totals rows:", 0 if df_totals is None else len(df_totals))
+
     meta: Dict[str, Any] = {
         "funder_name": funder_name,
         "rows": int(0 if df_all is None else len(df_all)),
         "pages": 0,
         "terms": [],
+        "has_totals_page": bool(df_totals is not None and not df_totals.empty),
     }
 
     if df_all is None or df_all.empty:
@@ -293,7 +538,6 @@ def build_funder_teacher_assessment_summary_pdf(
     meta["terms"] = [f"{y}T{t}" for (y, t, _d) in term_blocks]
     print("📊 meta terms:", meta["terms"])
 
-    # Precompute last rendered page
     render_plan: List[Tuple[int, int, int]] = []
     term_pages_cache: Dict[Tuple[int, int], List[pd.DataFrame]] = {}
 
@@ -322,8 +566,6 @@ def build_funder_teacher_assessment_summary_pdf(
     preview_fig = None
     page_count = 0
 
-    # Columns shown in table
-    # Note: widths assume A3 portrait. Adjust if you switch to A4.
     staff_col = {
         "key": COL_FUNDERSTAFF,
         "label": "Assigned Funder\nStaff Member",
@@ -366,7 +608,6 @@ def build_funder_teacher_assessment_summary_pdf(
         return final_cols
 
     def row_highlight(row: pd.Series, r: int) -> Optional[Tuple[str, str]]:
-        # highlight if not all classes have a review
         try:
             tot = int(row.get(COL_TOTAL_CLASSES, 0) or 0)
             reviewed = int(row.get(COL_CLASSES_WITH_ANY_REVIEW, 0) or 0)
@@ -376,7 +617,6 @@ def build_funder_teacher_assessment_summary_pdf(
             pass
         return None
 
-    # ---- Layout constants (axes fractions 0..1)
     TABLE_X = 0.02
     TABLE_W = 0.96
     TABLE_Y = 0.12
@@ -387,7 +627,6 @@ def build_funder_teacher_assessment_summary_pdf(
 
     BAR_H_TERM = 0.022
     BAR_H_NOTE = 0.06
-    BAR_H_OVER = 0.022
 
     for (year, term, df_term) in term_blocks:
         print(f"➡️ Processing term {year} T{term}, rows={0 if df_term is None else len(df_term)}")
@@ -399,24 +638,25 @@ def build_funder_teacher_assessment_summary_pdf(
         pages = term_pages_cache.get((year, term)) or paginate_rows(df_term, rows_per_page=rows_per_page)
         print(f"📄 Pages for term {year} T{term}: {len(pages)}")
 
-        ts = _term_summary(df_term)
-        pct_reviewed = (
-            round(100 * ts["classes_with_any_review"] / ts["total_classes"])
-            if ts["total_classes"] > 0
-            else 0
-        )
-
-        term_text = (
-            f"Term Summary: schools: {ts['schools']}   |   "
-            f"total classes: {ts['total_classes']}   |   "
-            f"classes reviewed: {ts['classes_with_any_review']} ({pct_reviewed}%)   |   "
-            f"total reviews: {ts['total_reviews']}   |   "
-            f"lead reviews: {ts['lead_reviews']}   |   "
-            f"relief reviews: {ts['relief_reviews']}"
-        )
-
         for term_page_idx, df_page in enumerate(pages, start=1):
             print(f"   📄 Page {term_page_idx}/{len(pages)} rows={len(df_page)}")
+
+            ts = _term_summary(df_page)
+
+            pct_reviewed = (
+                round(100 * ts["classes_with_any_review"] / ts["total_classes"])
+                if ts["total_classes"] > 0
+                else 0
+            )
+
+            term_text = (
+                f"Page Summary: schools: {ts['schools']}   |   "
+                f"total classes: {ts['total_classes']}   |   "
+                f"classes reviewed: {ts['classes_with_any_review']} ({pct_reviewed}%)   |   "
+                f"total reviews: {ts['total_reviews']}   |   "
+                f"lead reviews: {ts['lead_reviews']}   |   "
+                f"relief reviews: {ts['relief_reviews']}"
+            )
 
             page_count += 1
             is_last_rendered_page = (last_key == (year, term, term_page_idx))
@@ -425,7 +665,6 @@ def build_funder_teacher_assessment_summary_pdf(
             fig, ax = new_page(w, h, dpi)
             print("   🟦 new page created")
 
-            # ---- Header bar
             header_poly = rounded_rect_polygon(
                 cx=0.5,
                 cy=0.955,
@@ -467,7 +706,6 @@ def build_funder_teacher_assessment_summary_pdf(
             )
             print("   🟩 header text drawn")
 
-            # ---- Table
             cols = _make_table_columns(df_page)
             print("   🟦 drawing table")
             draw_dataframe_table_v2(
@@ -487,7 +725,6 @@ def build_funder_teacher_assessment_summary_pdf(
             )
             print("   🟩 table drawn")
 
-            # ---- Bottom section with consistent gaps
             table_bottom_y = TABLE_Y
 
             term_top = table_bottom_y - GAP
@@ -496,10 +733,6 @@ def build_funder_teacher_assessment_summary_pdf(
             note_top = (term_cy - BAR_H_TERM / 2) - GAP
             note_cy = note_top - (BAR_H_NOTE / 2)
 
-            over_top = (note_cy - BAR_H_NOTE / 2) - GAP
-            over_cy = over_top - (BAR_H_OVER / 2)
-
-            # Term summary bar
             term_sum_poly = rounded_rect_polygon(
                 cx=0.5,
                 cy=term_cy,
@@ -519,13 +752,13 @@ def build_funder_teacher_assessment_summary_pdf(
                     transform=ax.transAxes,
                 )
             )
-            print("   🟦 drawing term summary")
+            print("   🟦 drawing page summary")
             draw_text_in_polygon(
                 ax,
                 poly=term_sum_poly,
                 text=term_text,
                 fontfamily=family,
-                fontsize=11,
+                fontsize=12,
                 fontweight="semibold",
                 color="#1a427d",
                 pad_frac=0.06,
@@ -534,9 +767,8 @@ def build_funder_teacher_assessment_summary_pdf(
                 clip_to_polygon=True,
                 max_lines=1,
             )
-            print("   🟩 term summary drawn")
+            print("   🟩 page summary drawn")
 
-            # Note bar
             note_poly = rounded_rect_polygon(
                 cx=0.5,
                 cy=note_cy,
@@ -570,7 +802,7 @@ def build_funder_teacher_assessment_summary_pdf(
                 poly=note_poly,
                 text=note_text,
                 fontfamily=family,
-                fontsize=8,
+                fontsize=12,
                 fontweight="semibold",
                 color="#ffffff",
                 pad_frac=0.04,
@@ -580,8 +812,6 @@ def build_funder_teacher_assessment_summary_pdf(
                 max_lines=6,
             )
             print("   🟩 note text drawn")
-
-            # Optional overall summary only on the last rendered page
 
             print("   💾 saving page")
             save_page(
@@ -602,6 +832,36 @@ def build_funder_teacher_assessment_summary_pdf(
                 print("   ♻️ closing non-preview fig")
                 import matplotlib.pyplot as plt
                 plt.close(fig)
+
+    if df_totals is not None and not df_totals.empty:
+        print("➡️ Rendering totals page with overall row only on this last page")
+
+        fig, ax = new_page(w, h, dpi)
+        _draw_totals_table_page(
+            fig=fig,
+            ax=ax,
+            family=family,
+            funder_name=funder_name,
+            df_totals=df_totals,
+        )
+
+        save_page(
+            pdf,
+            fig,
+            footer_png=str(footer_png) if footer_png else None,
+            width_in=w,
+            height_in=h,
+            footer_bottom_margin_frac=0.0,
+            footer_max_height_frac=0.20,
+        )
+
+        page_count += 1
+
+        if preview_fig is None:
+            preview_fig = fig
+        else:
+            import matplotlib.pyplot as plt
+            plt.close(fig)
 
     print("🔵 closing PDF")
     close_pdf(pdf)
