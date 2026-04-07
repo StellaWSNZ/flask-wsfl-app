@@ -60,100 +60,201 @@ def height_scaled_points(ax: plt.Axes, height_axes: float, frac: float) -> float
     height_pt = height_axes * bbox.height * fig_h_in * 72
     return height_pt * frac
 
+def points_to_axes_y(ax, points):
+    bbox = ax.get_position()
+    fig = ax.figure
+    fig_h_in = fig.get_size_inches()[1]
+    ax_h_in = bbox.height * fig_h_in
+    return points / (72 * ax_h_in)
+
+def points_to_axes_x(ax, points):
+    bbox = ax.get_position()
+    fig = ax.figure
+    fig_w_in = fig.get_size_inches()[0]
+    ax_w_in = bbox.width * fig_w_in
+    return points / (72 * ax_w_in)
+
 
 def draw_graph(
+    df: pd.DataFrame,
     ax: plt.Axes,
     x: float,
     y: float,
     width: float,
     height: float,
     linewidth: float = 1.5,
+    line_col="#000000",
+    axis_col="#000000",
+    box_bg="none",
+    box_outline="red",
+    box_outline_w: float = 1.5,
+    start_filter_col="START DATE",
+    end_filter_col="END DATE",
+    key_date_col="KeyDates",
+    key_date_col_desc="KeyDatesDescription",
+    key_date_fill="#D7E8F8",
 ):
-    buffer_x = 0.05
+    # high z-order so graph sits above dashboard card backgrounds
+    base_z = 12000
 
-    bbox = ax.get_position()
-    fig = ax.figure
-    fig_w, fig_h = fig.get_size_inches()
-    ax_w = bbox.width * fig_w
-    ax_h = bbox.height * fig_h
-    aspect = ax_h / ax_w
+    # buffers
+    half_line = box_outline_w / 2
 
-    buffer_y = buffer_x * (width / height) / aspect
+    buffer_x_left = points_to_axes_x(ax, half_line)
+    buffer_x_right = points_to_axes_x(ax, half_line * 1.5)   # slightly more on right for point/label
+    buffer_y_top = points_to_axes_y(ax, half_line)
+    buffer_y_bottom = 0.08   # manual room for term labels
 
-    rect = Rectangle(
+    outer_rect = Rectangle(
         (x, y),
         width,
         height,
         transform=ax.transAxes,
-        edgecolor="red",
-        facecolor="white",
-        linewidth=linewidth,
+        edgecolor=box_outline,
+        facecolor=box_bg,
+        linewidth=box_outline_w,
+        zorder=base_z,
     )
-    ax.add_patch(rect)
+    ax.add_patch(outer_rect)
 
-    x_left = x + width * buffer_x
-    x_right = x + width * (1 - buffer_x)
-    y_bottom = y + height * buffer_y
-    y_top = y + height * (1 - buffer_y)
+    x_left = x + width * buffer_x_left
+    x_right = x + width * (1 - buffer_x_right)
+    y_bottom = y + height * buffer_y_bottom
+    y_top = y + height * (1 - buffer_y_top)
 
     plot_width = x_right - x_left
     plot_height = y_top - y_bottom
 
-    # 🔥 scaled styling
-    axis_linewidth = height_scaled_points(ax, height, 0.008)
-    series_linewidth = height_scaled_points(ax, height, 0.006)
-    marker_size = height_scaled_points(ax, height, 0.05)
+    axis_linewidth = height_scaled_points(ax, height, 0.0015)
+    series_linewidth = height_scaled_points(ax, height, 0.0045)
+    marker_size = height_scaled_points(ax, height, 0.030)
 
-    df = pd.read_csv("student_audit.csv")
+    value_fontsize = max(8, marker_size * 0.42)
+    term_fontsize = max(5, marker_size * 0.30)
+
+    df = df.copy()
     df.columns = df.columns.str.strip()
 
-    print(df.head())
-    print(df.columns.tolist())
+    required_cols = ["CumulativeTotal", "AuditDay", key_date_col, key_date_col_desc]
+    missing = [c for c in required_cols if c not in df.columns]
+    if missing:
+        raise ValueError(f"Missing columns: {missing}. Columns are: {df.columns.tolist()}")
 
-    if "CumulativeTotal" not in df.columns:
-        raise ValueError(f"Missing CumulativeTotal. Columns are: {df.columns.tolist()}")
+    df["AuditDay"] = pd.to_datetime(df["AuditDay"], dayfirst=True, errors="coerce")
+    if df["AuditDay"].isna().any():
+        bad_vals = df.loc[df["AuditDay"].isna(), "AuditDay"]
+        raise ValueError(f"Some AuditDay values could not be parsed: {bad_vals.tolist()}")
 
-    y_min = 0 # df["CumulativeTotal"].min()
-    y_max = df["CumulativeTotal"].max()
+    df = df.sort_values("AuditDay").reset_index(drop=True)
+
+    y_min = 0
+    y_max_raw = df["CumulativeTotal"].max()
+    y_range = max(1, y_max_raw - y_min)
+    y_max = y_max_raw + y_range * 0.12
 
     if y_max == y_min:
-        y_coords = pd.Series([y_bottom + plot_height / 2] * len(df))
+        y_coords = pd.Series([y_bottom + plot_height / 2] * len(df), index=df.index)
     else:
         y_coords = y_bottom + (
             (df["CumulativeTotal"] - y_min) / (y_max - y_min)
         ) * plot_height
 
     if len(df) == 1:
-        x_coords = pd.Series([x_left + plot_width / 2])
+        x_coords = pd.Series([x_left + plot_width / 2], index=df.index)
     else:
-        x_coords = x_left + (
-            pd.Series(range(len(df))) / (len(df) - 1)
-        ) * plot_width
+        point_pad = plot_width * 0.01
+        x_coords = pd.Series(
+            (x_left + point_pad) +
+            (pd.Series(range(len(df)), index=df.index) / (len(df) - 1)) * (plot_width - 2 * point_pad),
+            index=df.index
+        )
+
+    # shaded term boxes + term labels
+    for desc in df[key_date_col_desc].dropna().unique():
+        s_idx = df[
+            (df[key_date_col] == start_filter_col) &
+            (df[key_date_col_desc] == desc)
+        ].index.tolist()
+
+        e_idx = df[
+            (df[key_date_col] == end_filter_col) &
+            (df[key_date_col_desc] == desc)
+        ].index.tolist()
+
+        full_term = (len(s_idx) > 0 and len(e_idx) > 0)
+
+        # if no end, skip entirely
+        if len(e_idx) == 0:
+            continue
+
+        # if no start, allow shading from left edge, but no label
+        if len(s_idx) == 0:
+            s_pos = x_left
+        else:
+            s_pos = x_coords.iloc[s_idx[0]]
+
+        e_pos = x_coords.iloc[e_idx[0]]
+
+        if e_pos <= s_pos:
+            continue
+
+        shade_rect = Rectangle(
+            (s_pos, y_bottom),
+            e_pos - s_pos,
+            y_top - y_bottom,
+            transform=ax.transAxes,
+            edgecolor="none",
+            facecolor=key_date_fill,
+            linewidth=0,
+            zorder=base_z + 1,
+        )
+        ax.add_patch(shade_rect)
+
+        # only label full terms
+        if full_term:
+            x_mid = (s_pos + e_pos) / 2
+            term_y = y_bottom - height * 0.035
+            term_label = str(desc).split(",")[0].strip()
+
+            ax.text(
+                x_mid,
+                term_y,
+                term_label,
+                transform=ax.transAxes,
+                ha="center",
+                va="top",
+                fontsize=term_fontsize,
+                color=axis_col,
+                zorder=base_z + 5,
+            )
 
     # axes
     ax.plot(
         [x_left, x_left],
         [y_bottom, y_top],
         transform=ax.transAxes,
-        color="black",
+        color=axis_col,
         linewidth=axis_linewidth,
+        zorder=base_z + 2,
     )
 
     ax.plot(
         [x_left, x_right],
         [y_bottom, y_bottom],
         transform=ax.transAxes,
-        color="black",
+        color=axis_col,
         linewidth=axis_linewidth,
+        zorder=base_z + 2,
     )
 
-    # line
+    # main line
     ax.plot(
-        x_coords,
-        y_coords,
+        x_coords.values,
+        y_coords.values,
         transform=ax.transAxes,
-        color="red",
+        color=line_col,
         linewidth=series_linewidth,
+        zorder=base_z + 3,
     )
 
     # end dot
@@ -161,14 +262,28 @@ def draw_graph(
         x_coords.iloc[-1],
         y_coords.iloc[-1],
         transform=ax.transAxes,
-        color="red",
+        color=line_col,
         marker="o",
         markersize=marker_size,
-        zorder=20000
+        linestyle="None",
+        zorder=base_z + 4,
     )
 
-    return rect
+    # end value
+    ax.annotate(
+        str(df["CumulativeTotal"].iloc[-1]),
+        xy=(x_coords.iloc[-1], y_coords.iloc[-1]),
+        xycoords=ax.transAxes,
+        xytext=(-2, marker_size / 2 + 1),
+        textcoords="offset points",
+        ha="right",
+        va="bottom",
+        fontsize=value_fontsize,
+        color=line_col,
+        zorder=base_z + 5,
+    )
 
+    return outer_rect
 
 def run_sql(sql: str, params: dict | None = None) -> pd.DataFrame:
     engine = get_db_engine()
@@ -194,15 +309,16 @@ def make_example_pdf(output_path: str | Path = "example_box.pdf") -> None:
     fig, ax = create_pdf_figure(page_size="A4", orientation="portrait")
 
     draw_graph(
+        df = pd.read_csv("student_audit.csv"),
         ax=ax,
         x=0.10,
         y=0.65,
-        width=0.50,
-        height=0.30,
+        width=0.25,
+        height=0.1,
     )
 
     save_pdf(fig, output_path)
 
 
 if __name__ == "__main__":
-    make_example_pdf("blank.pdf")
+    make_example_pdf("out/blank.pdf")

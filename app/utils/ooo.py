@@ -16,7 +16,7 @@ from matplotlib.path import Path as MplPath
 from matplotlib.patches import PathPatch
 import pandas as pd
 from dotenv import load_dotenv
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 
 import pythoncom
 import win32com.client
@@ -25,7 +25,7 @@ from app.report_utils.FNT_PolygonText import draw_text_in_polygon
 from app.report_utils.SHP_RoundRect import rounded_rect_polygon
 from app.report_utils.helpers import load_ppmori_fonts
 from app.utils.funder_missing_plot import add_full_width_footer_svg
-
+from app.utils.linegraph import draw_graph
 
 # =========================================================
 # Settings
@@ -103,6 +103,20 @@ def get_db_engine():
         raise ValueError("DB_URL not found in environment variables.")
     return create_engine(db_conn, future=True)
 
+def load_linegraph_df(refresh: bool = False) -> pd.DataFrame:
+    engine = get_db_engine()
+
+    with engine.begin() as conn:
+        if refresh:
+            conn.execute(text("EXEC dbo.RefreshDashboardDailyChange"))
+
+        df = pd.read_sql(
+            text("EXEC dbo.GetDashboardLineGraphData"),
+            conn
+        )
+
+    return df
+
 def load_weekly_stats(as_of_date: str | None = None):
     engine = get_db_engine()
 
@@ -147,7 +161,16 @@ def load_weekly_stats(as_of_date: str | None = None):
 
     return summary_df, users_by_role_df, respondents_by_survey_df
 
+def trim_graph_df(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy().sort_values("AuditDay").reset_index(drop=True)
 
+    # find first non-zero cumulative
+    idx = df.index[df["CumulativeTotal"] != 0].tolist()
+
+    if len(idx) > 0:
+        df = df.iloc[idx[0]:].reset_index(drop=True)
+
+    return df
 # =========================================================
 # Outlook email helpers
 # =========================================================
@@ -595,7 +618,7 @@ def draw_card_background(
         edgecolor=edge,
         linewidth=linewidth,
         transform=ax.transAxes,
-        zorder=11000,
+        zorder=110,
     )
     ax.add_patch(patch)
     return poly, patch
@@ -700,7 +723,7 @@ def draw_title_band(
         poly=poly,
         text=title,
         fontfamily=fontfamily,
-        fontsize=45,
+        fontsize=30,
         fontweight="semibold",
         color=TITLE_TEXT,
         pad_frac=0.05,
@@ -877,6 +900,126 @@ def draw_panel(
 # =========================================================
 # Metric cards
 # =========================================================
+def draw_top_graph_cards(
+    ax,
+    *,
+    page_left: float,
+    page_right: float,
+    top_y: float,
+    total_h: float,
+    gap_x: float,
+    gap_y: float,
+    fontfamily: str,
+    student_df: pd.DataFrame,
+    class_df: pd.DataFrame,
+    user_df: pd.DataFrame,
+    form_df: pd.DataFrame,
+):
+    total_w = page_right - page_left
+    card_w = (total_w - gap_x) / 2
+    card_h = (total_h - gap_y) / 2
+
+    positions = [
+        ("Students", page_left, top_y - card_h),
+        ("Classes",  page_left + card_w + gap_x, top_y - card_h),
+        ("Users",    page_left, top_y - (2 * card_h) - gap_y),
+        ("Forms",    page_left + card_w + gap_x, top_y - (2 * card_h) - gap_y),
+    ]
+
+    line_cols = {
+        "Students": BRAND_BLUE,
+        "Classes": MID_BLUE,
+        "Users": "#4f6f96",
+        "Forms": "#6c86aa",
+    }
+
+    df_map = {
+        "Students": student_df,
+        "Classes": class_df,
+        "Users": user_df,
+        "Forms": form_df,
+    }
+
+    for title, cx, cy in positions:
+        card_poly, _ = draw_card_background(
+            ax,
+            x=cx,
+            y=cy,
+            width=card_w,
+            height=card_h,
+            fill=PANEL_BODY_FILL,
+            edge=PANEL_BODY_EDGE,
+            linewidth=1.2,
+            ratio=0.10,
+        )
+
+        title_band_h = card_h * 0.18
+        title_band_y = cy + card_h - title_band_h
+
+        draw_panel_title_band(
+            ax,
+            x=cx,
+            y=title_band_y,
+            width=card_w,
+            height=title_band_h,
+            fill=PANEL_TITLE_FILL,
+            card_poly=card_poly,
+        )
+
+        ax.text(
+            cx + card_w / 2,
+            title_band_y + title_band_h / 2,
+            title,
+            ha="center",
+            va="center",
+            fontsize=12,
+            fontweight="bold",
+            color=PANEL_TITLE_TEXT,
+            transform=ax.transAxes,
+            zorder=12050,
+            family=fontfamily,
+        )
+
+        body_x = cx + card_w * 0.035
+        body_y = cy + card_h * 0.06
+        body_w = card_w * 0.93
+        body_h = card_h * 0.70
+
+        graph_df = df_map[title]
+
+        if graph_df is not None and not graph_df.empty:
+            # start each graph from its own first real record
+            graph_df = graph_df.copy().sort_values("AuditDay").reset_index(drop=True)
+
+            draw_graph(
+                df=graph_df,
+                ax=ax,
+                x=body_x,
+                y=body_y,
+                width=body_w,
+                height=body_h,
+                box_bg="none",
+                box_outline="none",
+                axis_col=BRAND_BLUE,
+                line_col=line_cols[title],
+                key_date_fill="#c7d9f2",
+            )
+        else:
+            ax.text(
+                cx + card_w / 2,
+                cy + card_h * 0.42,
+                f"{title} graph\ncoming soon",
+                ha="center",
+                va="center",
+                fontsize=11,
+                color=CARD_LABEL,
+                transform=ax.transAxes,
+                zorder=12000,
+                family=fontfamily,
+            )
+
+    return top_y - (2 * card_h) - gap_y
+
 def draw_metric_card(
     ax,
     *,
@@ -1639,7 +1782,11 @@ def build_weekly_stats_pdf(
     ax.set_aspect("auto")
 
     family = load_ppmori_fonts(str(fonts_dir))
-
+    all_df = load_linegraph_df()
+    student_df = trim_graph_df(all_df[all_df["Category"] == "Students"])
+    class_df   = trim_graph_df(all_df[all_df["Category"] == "Classes"])
+    user_df    = trim_graph_df(all_df[all_df["Category"] == "Users"])
+    form_df    = trim_graph_df(all_df[all_df["Category"] == "Forms"])
     fig_w, fig_h = fig.get_size_inches()
     aspect = fig_w / fig_h
 
@@ -1649,10 +1796,10 @@ def build_weekly_stats_pdf(
     page_top = 1 - (margin * aspect)
     page_w = page_right - page_left
 
-    title_h = 0.065
-    subtitle_h = 0.03225
-    band_gap = 0.010
-    content_gap = 0.010
+    title_h = 0.055
+    subtitle_h = 0.027
+    band_gap = 0.008
+    content_gap = 0.008
 
     title_y = page_top - title_h
     subtitle_y = title_y - band_gap - subtitle_h
@@ -1676,30 +1823,6 @@ def build_weekly_stats_pdf(
         subtitle=subtitle,
         fontfamily=family,
     )
-
-    cols = [
-        "StudentTotal",
-        "ClassTotal",
-        "CurrentActiveUsersWithPassword",
-        "RespondentTotal",
-    ]
-    cols2 = [
-        "StudentNewThisWeek",
-        "ClassNewThisWeek",
-        "NewUsersThisWeek",
-        "RespondentSubmittedThisWeek",
-    ]
-
-    labels = {
-        "StudentTotal": "Students",
-        "ClassTotal": "Classes",
-        "CurrentActiveUsersWithPassword": "Active Users",
-        "RespondentTotal": "Submitted Forms",
-        "StudentNewThisWeek": "New Students",
-        "ClassNewThisWeek": "New Classes",
-        "NewUsersThisWeek": "New Users",
-        "RespondentSubmittedThisWeek": "New Form Submissions",
-    }
 
     user_lines = [
         f"{num} {role} logins activated"
@@ -1736,61 +1859,34 @@ def build_weekly_stats_pdf(
         repo.working_tree_dir,
          weekly_commit_stats=weekly_commit_stats,
     )
-    gap = 0.012
-    n = 4
-    box_w = (page_w - ((n - 1) * gap)) / n
-    box_h = 0.09
-    row_gap = 0.010
+    top_cards_top = subtitle_y - content_gap
+    top_cards_h = 0.34
+    top_cards_gap_x = 0.012
+    top_cards_gap_y = 0.012
 
-    y1 = subtitle_y - content_gap - box_h
-    y2 = y1 - row_gap - box_h
+    top_cards_bottom = draw_top_graph_cards(
+        ax,
+        page_left=page_left,
+        page_right=page_right,
+        top_y=top_cards_top,
+        total_h=top_cards_h,
+        gap_x=top_cards_gap_x,
+        gap_y=top_cards_gap_y,
+        fontfamily=family,
+        student_df=student_df,
+        class_df=class_df,
+        user_df=user_df,
+        form_df=form_df,
+    )
 
-    # Row 1 - main totals
-    for i, item in enumerate(cols):
-        value = summary_df.iloc[0][item]
-        x = page_left + (box_w + gap) * i
+    section_gap = 0.010
+    error_h = 0.024
+    email_h = 0.024
+    summary_h = 0.12
+    codebase_h = 0.024
 
-        draw_metric_card(
-            ax,
-            x=x,
-            y=y1,
-            width=box_w,
-            height=box_h,
-            fontfamily=family,
-            label=labels[item],
-            value=value,
-            fill=CARD_FILL,
-            edge=CARD_EDGE,
-            label_color=CARD_LABEL,
-            value_color=CARD_VALUE,
-            linewidth=1.2,
-        )
-
-    # Row 2 - weekly totals with dark outline
-    for i, item in enumerate(cols2):
-        value = summary_df.iloc[0][item]
-
-        x = page_left + (box_w + gap) * i
-
-        draw_metric_card(
-            ax,
-            x=x,
-            y=y2,
-            width=box_w,
-            height=box_h,
-            fontfamily=family,
-            label=labels[item],
-            value=value,
-            fill=HIGHLIGHT_CARD_FILL,
-            edge=HIGHLIGHT_CARD_EDGE,
-            label_color=HIGHLIGHT_CARD_LABEL,
-            value_color=HIGHLIGHT_CARD_VALUE,
-            linewidth=1.8,
-        )
-
-    # Error summary bar - no title
-    error_h = box_h * 0.3
-    error_top = y2 - row_gap
+    # Error summary bar
+    error_top = top_cards_bottom - section_gap
     error_y = error_top - error_h
 
     draw_panel(
@@ -1813,8 +1909,7 @@ def build_weekly_stats_pdf(
         single_line=True,
     )
 
-    email_h = box_h * 0.3
-    email_top = error_y - gap
+    email_top = error_y - section_gap
     email_y = email_top - email_h
 
     draw_panel(
@@ -1838,12 +1933,12 @@ def build_weekly_stats_pdf(
     )
 
     # Summary panels
-    summary_h = box_h * 1.3
-    summary_top = email_y - gap
-    summary_y = summary_top - summary_h
 
-    left_panel_w = (page_w / 2) - gap
-    right_panel_x = page_left + left_panel_w + gap
+    summary_top = email_y - section_gap
+    summary_y = summary_top - summary_h
+    
+    left_panel_w = (page_w - section_gap) / 2
+    right_panel_x = page_left + left_panel_w + section_gap
     right_panel_w = page_right - right_panel_x
 
     draw_panel(
@@ -1890,7 +1985,7 @@ def build_weekly_stats_pdf(
     # Commit panel
     commit_row_h = 0.017
     commit_h = get_commit_panel_height(len(commit_rows), row_h=commit_row_h)
-    commit_top = summary_y - gap
+    commit_top = summary_y - section_gap
     commit_y = commit_top - commit_h
 
     draw_commit_panel(
@@ -1907,8 +2002,7 @@ def build_weekly_stats_pdf(
         title_fontsize=12,
         row_fontsize=12,
     )
-    codebase_h = box_h * 0.30
-    codebase_top = commit_y - gap
+    codebase_top = commit_y - section_gap
     codebase_y = codebase_top - codebase_h
 
     draw_panel(
