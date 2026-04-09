@@ -2051,7 +2051,7 @@ if __name__ == "__main__":
 
     summary_df, users_by_role_df, respondents_by_survey_df = build_weekly_stats_pdf(
         out_pdf_path=out_dir / "weekly_stats.pdf",
-        as_of_date=None, 
+        as_of_date='2026-04-13', 
         footer_svg="app/static/footer.svg",
         fonts_dir="app/static/fonts",
         dpi=300,
