@@ -1487,10 +1487,11 @@ def build_region_report_pdf(
         save_page(pdf, fig4, full_bleed=True)
         plt.close(fig4)
 
-        close_pdf(pdf)
+        
         meta["pages"] = 4 + gap_pages
     else:
         meta["pages"] = 3 + gap_pages
+    close_pdf(pdf)
     return preview_fig, meta
 
 
