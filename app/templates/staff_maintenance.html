@@ -123,7 +123,7 @@
                       <i class="bi bi-check-lg me-1"></i>Invite with Admin Access
                     </button>
                   </form>
-
+   
                   <!-- NO ADMIN -->
                   <form method="POST" action="{{ url_for('staff_bp.invite_user') }}" class="flex-grow-1 ms-2">
                     <input type="hidden" name="email" value="{{ row.Email }}">
@@ -421,7 +421,7 @@
                     <input type="email" class="form-control" id="alt_email_{{ safe_id }}" name="alternate_email"
                            value="{{ row.AlternateEmail or '' }}" placeholder="e.g. personal Gmail">
                   </div>
-
+                  <!-- {{row}}-->
                   {% if row.Active == 1 %}
                     <div class="form-check mb-3">
                       <input class="form-check-input" type="checkbox" id="admin_{{ safe_id }}" name="admin" value="1"
@@ -451,7 +451,9 @@
                         Only select <strong>No</strong> if this staff member is purely administration and does not deliver lessons.
                       </div>
                     </div>
-                  {% endif %}
+                  {% else %}
+  <input type="hidden" name="delivering" value="{{ 1 if row.Delivering == 1 else 0 }}">
+{% endif %}
                 </div>
 
                 <div class="modal-footer">
