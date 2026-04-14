@@ -19,53 +19,24 @@ def send_reset_email(mail, email, token):
         sender=current_app.config.get("MAIL_DEFAULT_SENDER"),
     )
 
-    # Plain text fallback
-    msg.body = f"""
-Kia ora,
+    msg.body = render_template(
+        "emails/reset_password.txt",
+        reset_url=reset_url,
+    )
 
-We received a request to reset your Water Skills for Life password.
+    msg.html = render_template(
+        "emails/reset_password.html",
+        reset_url=reset_url,
+    )
 
-You can reset your password using the link below:
-{reset_url}
-
-If you didn’t request this, you can safely ignore this email.
-
-Ngā mihi,
-Water Safety New Zealand
-""".strip()
-
-    # HTML version
-    msg.html = f"""
-<p>Kia ora,</p>
-
-<p>
-We received a request to reset your Water Skills for Life password.
-</p>
-
-<p>
-<a href="{reset_url}"
-   style="
-     display:inline-block;
-     padding:10px 16px;
-     background:#005ea5;
-     color:#ffffff;
-     text-decoration:none;
-     border-radius:4px;
-     font-weight:600;
-   ">
-   Click here to reset your password
-</a>
-</p>
-
-<p>
-If you didn’t request this, you can safely ignore this email.
-</p>
-
-<p>
-Ngā mihi,<br>
-Water Safety New Zealand
-</p>
-"""
+    with current_app.open_resource("static/WSFLLogo.png") as fp:
+        msg.attach(
+            "WSFLLogo.png",
+            "image/png",
+            fp.read(),
+            disposition="inline",
+            headers={"Content-ID": "<wsfl_logo>"},
+        )
 
     mail.send(msg)
     
@@ -149,7 +120,7 @@ def send_survey_invite_email(
         link=link,
     )
 
-    with current_app.open_resource("static/WSFLLogo.png") as fp:
+    with current_app.open_resource("static/LightLogo.png") as fp:        
         msg.attach(
             "WSFLLogo.png",
             "image/png",
@@ -179,7 +150,8 @@ def send_survey_reminder_email(
 
     # reply-to = person who triggered it
     msg.reply_to = requester_email
-
+    if(from_org=="None"):
+        from_org="Water Safety New Zealand"
     msg.body = render_template(
         "emails/survey_reminder.txt",
         firstname=firstname,
@@ -196,7 +168,7 @@ def send_survey_reminder_email(
         login_link=login_link,
     )
 
-    with current_app.open_resource("static/WSFLLogo.png") as fp:
+    with current_app.open_resource("static/WSFLLogo.png") as fp:        
         msg.attach(
             "WSFLLogo.png",
             "image/png",
@@ -207,7 +179,6 @@ def send_survey_reminder_email(
 
     mail.send(msg)
 
-
 def send_survey_invitation_email(mail, email, firstname, lastname, role, user_id, survey_id, requested_by, from_org):
     # Generate tokenized one-time link
     survey_url = generate_survey_link(email, firstname, lastname, role, user_id, survey_id)
@@ -217,16 +188,34 @@ def send_survey_invitation_email(mail, email, firstname, lastname, role, user_id
         recipients=[email],
         sender=(f"{requested_by} via WSFL", current_app.config["MAIL_DEFAULT_SENDER"])
     )
-    
-    msg.html = f"""
-    <p>Kia ora {firstname},</p>
-    <p>Please complete your self review by clicking the secure link below:</p>
-    <p><a href="{survey_url}">Start Self Review</a></p>
-    <p>This invitation was sent at the request of <strong>{requested_by}</strong> from <strong>{from_org}</strong>.</p>
-    <p>Ngā mihi,<br>WSFL Team</p>
-    """
-    mail.send(msg)
+    if from_org == "None":
+        from_org = "Water Safety New Zealand"
+    msg.body = render_template(
+        "emails/survey_invite_selfreview.txt",
+        first_name=firstname,
+        invited_by_name=requested_by,
+        invited_by_org=from_org,
+        link=survey_url,
+    )
 
+    msg.html = render_template(
+        "emails/survey_invite_selfreview.html",
+        first_name=firstname,
+        invited_by_name=requested_by,
+        invited_by_org=from_org,
+        link=survey_url,
+    )
+
+    with current_app.open_resource("static/WSFLLogo.png") as fp:
+        msg.attach(
+            "WSFLLogo.png",
+            "image/png",
+            fp.read(),
+            disposition="inline",
+            headers={"Content-ID": "<wsfl_logo>"},
+        )
+
+    mail.send(msg)
 
 
 def send_feedback_email(mail, user_email, issue_text, display_name, role, is_admin, desc, screenshot_file=None):
@@ -272,7 +261,7 @@ def send_feedback_email(mail, user_email, issue_text, display_name, role, is_adm
             content_type="image/png",
             data=screenshot_file.read()
         )
-    with current_app.open_resource("static/WSFLLogo.png") as fp:
+    with current_app.open_resource("static/LightLogo.png") as fp:        
         msg.attach("WSFLLogo.png", "image/png", fp.read(), disposition='inline',
                    headers={"Content-ID": "<wsfl_logo>"})
     
@@ -325,7 +314,7 @@ def send_elearning_reminder_email(
         sporttutor_url="https://sporttutor.nz/ilp/pages/catalogsearch.jsf?catalogId=3712496&menuId=3712463&locale=en-GB&showbundlekeys=false&client=watersafetynz&sidebarExpanded=true&q=*:*&rows=9",
     )
 
-    with current_app.open_resource("static/WSFLLogo.png") as fp:
+    with current_app.open_resource("static/WSFLLogo.png") as fp:        
         msg.attach(
             "WSFLLogo.png",
             "image/png",
@@ -338,3 +327,90 @@ def send_elearning_reminder_email(
         msg.attach("eLearningGuide.pdf", "application/pdf", pdf_fp.read())
 
     mail.send(msg)
+
+
+
+def send_class_list_reminder_email(
+    mail,
+    recipient_email,
+    first_name,
+    school_name,
+    term,
+    calendar_year,
+    requested_by,
+    requester_email,
+    from_entity,
+    attach_example_template=True,
+):
+    """
+    Send a school class list upload reminder email with:
+      - HTML + text templates
+      - Upload Class List PDF attached
+      - Optional CSV template attached
+      - WSFL logo inline
+      - Reply-To set to the triggering user
+    """
+    instructions_link = url_for(
+        "instructions_bp.instructions_for_label",
+        label="School",
+        _external=True
+    )
+
+    msg = Message(
+        subject=f"Reminder: Upload your class lists for Term {term}, {calendar_year}",
+        sender=("WSFL Administration Team", current_app.config["MAIL_DEFAULT_SENDER"]),
+        recipients=[recipient_email],
+    )
+
+    msg.reply_to = requester_email
+
+    msg.body = render_template(
+        "emails/class_list_reminder.txt",
+        first_name=first_name,
+        term=term,
+        calendar_year=calendar_year,
+        requested_by=requested_by,
+        from_entity=from_entity,
+        instructions_link=instructions_link,
+    )
+
+    msg.html = render_template(
+        "emails/class_list_reminder.html",
+        school_name = school_name, 
+        first_name=first_name,
+        term=term,
+        calendar_year=calendar_year,
+        requested_by=requested_by,
+        from_entity=from_entity,
+        instructions_link=instructions_link,
+    )
+
+    # Inline logo
+    with current_app.open_resource("static/LightLogo.png") as fp:
+        msg.attach(
+            "WSFLLogo.png",
+            "image/png",
+            fp.read(),
+            disposition="inline",
+            headers={"Content-ID": "<wsfl_logo>"},
+        )
+
+    # Attach PDF instructions
+    with current_app.open_resource("static/instructions/MOE/Upload Class List.pdf") as fp:
+        msg.attach(
+            "Upload Class List Instructions.pdf",
+            "application/pdf",
+            fp.read(),
+        )
+
+    # Optional example CSV template
+    if attach_example_template:
+        with current_app.open_resource("static/templates/template.csv") as fp:
+            msg.attach(
+                "WSFL_Class_List_Template.csv",
+                "text/csv",
+                fp.read(),
+            )
+
+    mail.send(msg)
+    

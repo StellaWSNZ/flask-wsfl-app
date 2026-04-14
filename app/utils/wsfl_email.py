@@ -212,7 +212,7 @@ def create_user_and_send(mail, first_name, surname, email, moe_number, is_admin=
     msg.html = html_body
 
     # Optional inline logo (same pattern as your reset email)
-    with current_app.open_resource("static/WSFLLogo.png") as fp:
+    with current_app.open_resource("static/LightLogo.png") as fp:        
         msg.attach(
             "WSFLLogo.png",
             "image/png",
@@ -232,11 +232,14 @@ def send_account_invites(mail, recipients, make_admin: bool, invited_by_name: st
     sent = 0
     failed = 0
 
-    with current_app.app_context():
-        login_url = url_for("auth_bp.login", _external=True)
-        forgot_url = url_for("auth_bp.forgot_password", _external=True)
-        instructions_url = url_for("instructions_bp.instructions_me", _external=True)
-
+    label_map = {
+        "MOE": "school",
+        "PRO": "provider",
+        "FUN": "funder",
+        "GRP": "providergroup",
+    }
+    if invited_by_org == "None":
+        invited_by_org = "Water Safety New Zealand"
     with engine.begin() as conn:
         for rec in recipients:
             email = (rec.get("email") or "").strip()
@@ -245,9 +248,8 @@ def send_account_invites(mail, recipients, make_admin: bool, invited_by_name: st
                 continue
 
             firstname = rec.get("firstname") or ""
-            role = rec.get("role") or ""
+            role = (rec.get("role") or "").strip().upper()
 
-            # activate user
             try:
                 conn.execute(
                     text("EXEC FlaskActivateUserByEmail @Email = :email, @MakeAdmin = :make_admin"),
@@ -259,6 +261,15 @@ def send_account_invites(mail, recipients, make_admin: bool, invited_by_name: st
                 continue
 
             try:
+                with current_app.app_context():
+                    login_url = url_for("auth_bp.login", _external=True)
+                    forgot_url = url_for("auth_bp.forgot_password", _external=True)
+                    instructions_url = url_for(
+                        "instructions_bp.instructions_for_label",
+                        label=label_map.get(role, "school"),
+                        _external=True,
+                    )
+
                 context = {
                     "firstname": firstname,
                     "role": role,
@@ -268,6 +279,7 @@ def send_account_invites(mail, recipients, make_admin: bool, invited_by_name: st
                     "make_admin": make_admin,
                     "invited_by_name": invited_by_name,
                     "invited_by_org": invited_by_org,
+                    "logo_cid": "wsfl_logo",
                 }
 
                 subject = "Water Skills for Life – account invitation" + (" (admin access)" if make_admin else "")
@@ -283,7 +295,6 @@ def send_account_invites(mail, recipients, make_admin: bool, invited_by_name: st
                 msg.body = text_body
                 msg.html = html_body
 
-                # inline logo (CID)
                 with current_app.open_resource("static/WSFLLogo.png") as fp:
                     msg.attach(
                         "WSFLLogo.png",
@@ -292,6 +303,7 @@ def send_account_invites(mail, recipients, make_admin: bool, invited_by_name: st
                         disposition="inline",
                         headers={"Content-ID": "<wsfl_logo>"},
                     )
+
                 if role == "MOE":
                     try:
                         with current_app.open_resource("static/templates/template.csv") as fp:
@@ -302,6 +314,7 @@ def send_account_invites(mail, recipients, make_admin: bool, invited_by_name: st
                             )
                     except Exception:
                         current_app.logger.exception("Failed to attach template for %s", email)
+
                 mail.send(msg)
                 sent += 1
 

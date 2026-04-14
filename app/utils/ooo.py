@@ -90,6 +90,7 @@ EXCLUDED_EMAIL_FOLDERS = {
     "rss feeds",
     "conversation history",
     "sync issues",
+"bounce backs",
 }
 
 
@@ -161,12 +162,15 @@ def load_weekly_stats(as_of_date: str | None = None):
 
     return summary_df, users_by_role_df, respondents_by_survey_df
 
-def trim_graph_df(df: pd.DataFrame) -> pd.DataFrame:
+def trim_graph_df(df: pd.DataFrame, week_ending_date) -> pd.DataFrame:
     df = df.copy().sort_values("AuditDay").reset_index(drop=True)
 
-    # find first non-zero cumulative
-    idx = df.index[df["CumulativeTotal"] != 0].tolist()
+    df["AuditDay"] = pd.to_datetime(df["AuditDay"])
+    week_ending_date = pd.to_datetime(week_ending_date)
 
+    df = df[df["AuditDay"] <= week_ending_date]
+
+    idx = df.index[df["CumulativeTotal"] != 0].tolist()
     if len(idx) > 0:
         df = df.iloc[idx[0]:].reset_index(drop=True)
 
@@ -914,7 +918,11 @@ def draw_top_graph_cards(
     class_df: pd.DataFrame,
     user_df: pd.DataFrame,
     form_df: pd.DataFrame,
+    week_ending_date,
 ):
+    week_ending_date = pd.to_datetime(week_ending_date).normalize()
+    week_starting_date = (week_ending_date - timedelta(days=6)).normalize()
+
     total_w = page_right - page_left
     card_w = (total_w - gap_x) / 2
     card_h = (total_h - gap_y) / 2
@@ -927,10 +935,10 @@ def draw_top_graph_cards(
     ]
 
     line_cols = {
-        "Students": BRAND_BLUE,
+        "Students": MID_BLUE,
         "Classes": MID_BLUE,
-        "Users": "#4f6f96",
-        "Forms": "#6c86aa",
+        "Users": MID_BLUE,
+        "Forms": MID_BLUE,
     }
 
     df_map = {
@@ -940,7 +948,27 @@ def draw_top_graph_cards(
         "Forms": form_df,
     }
 
-    for title, cx, cy in positions:
+    for base_title, cx, cy in positions:
+        src_df = df_map[base_title]
+
+        if src_df is not None and not src_df.empty:
+            df = src_df.copy()
+            df["AuditDay"] = pd.to_datetime(df["AuditDay"]).dt.normalize()
+            df_week = df[
+                (df["AuditDay"] >= week_starting_date) &
+                (df["AuditDay"] <= week_ending_date)
+            ]
+            change_val = int(df_week["NetChange"].sum())
+        else:
+            change_val = 0
+
+        if change_val > 0:
+            badge_text = f"↑ {change_val}"
+        elif change_val < 0:
+            badge_text = f"↓ {abs(change_val)}"
+        else:
+            badge_text = None
+
         card_poly, _ = draw_card_background(
             ax,
             x=cx,
@@ -966,11 +994,15 @@ def draw_top_graph_cards(
             card_poly=card_poly,
         )
 
+        # Left-aligned title
+        title_x = cx + card_w * 0.035
+        title_y = title_band_y + title_band_h / 2
+
         ax.text(
-            cx + card_w / 2,
-            title_band_y + title_band_h / 2,
-            title,
-            ha="center",
+            title_x,
+            title_y,
+            base_title,
+            ha="left",
             va="center",
             fontsize=12,
             fontweight="bold",
@@ -980,16 +1012,65 @@ def draw_top_graph_cards(
             family=fontfamily,
         )
 
+        # Right-aligned white badge
+        if badge_text:
+            badge_h = title_band_h * 0.62
+            badge_w = max(
+                card_w * 0.10,
+                min(card_w * 0.16, 0.010 * len(badge_text) + card_w * 0.06)
+            )
+            badge_x = cx + card_w - badge_w - (card_w * 0.035)
+            badge_y = title_band_y + (title_band_h - badge_h) / 2
+
+            badge_poly = rounded_rect_polygon(
+                cx=badge_x + badge_w / 2,
+                cy=badge_y + badge_h / 2,
+                width=badge_w,
+                height=badge_h,
+                ratio=0.5,
+                corners_round=[1, 2, 3, 4],
+                n_arc=32,
+            )
+
+            ax.add_patch(
+                Polygon(
+                    list(badge_poly.exterior.coords),
+                    closed=True,
+                    facecolor="#ffffff",
+                    edgecolor="none",
+                    linewidth=0,
+                    transform=ax.transAxes,
+                    zorder=12100,
+                )
+            )
+
+            ax.text(
+                badge_x + badge_w / 2,
+                badge_y + badge_h / 2,
+                badge_text,
+                ha="center",
+                va="center",
+                fontsize=10,
+                fontweight="bold",
+                color=BRAND_BLUE,
+                transform=ax.transAxes,
+                zorder=12150,
+                family=fontfamily,
+            )
+
         body_x = cx + card_w * 0.035
         body_y = cy + card_h * 0.06
         body_w = card_w * 0.93
         body_h = card_h * 0.70
 
-        graph_df = df_map[title]
+        graph_df = df_map[base_title]
 
         if graph_df is not None and not graph_df.empty:
-            # start each graph from its own first real record
-            graph_df = graph_df.copy().sort_values("AuditDay").reset_index(drop=True)
+            graph_df = graph_df.copy()
+            graph_df["AuditDay"] = pd.to_datetime(graph_df["AuditDay"]).dt.normalize()
+            graph_df = graph_df[
+                graph_df["AuditDay"] <= week_ending_date
+            ].sort_values("AuditDay").reset_index(drop=True)
 
             draw_graph(
                 df=graph_df,
@@ -1001,14 +1082,14 @@ def draw_top_graph_cards(
                 box_bg="none",
                 box_outline="none",
                 axis_col=BRAND_BLUE,
-                line_col=line_cols[title],
-                key_date_fill="#c7d9f2",
+                line_col=line_cols[base_title],
+                key_date_fill="#bfd1eb",
             )
         else:
             ax.text(
                 cx + card_w / 2,
                 cy + card_h * 0.42,
-                f"{title} graph\ncoming soon",
+                f"{base_title} graph\ncoming soon",
                 ha="center",
                 va="center",
                 fontsize=11,
@@ -1193,7 +1274,7 @@ def get_commit_totals_for_report_week(
 def get_commit_rows(
     repo,
     max_count=10,
-    max_message_len=80,
+    max_message_len=63,
     search_limit=50,
     week_ending_date=None,
 ):
@@ -1230,7 +1311,7 @@ def get_commit_rows(
             continue
 
         message = commit.message.split("\n")[0].strip()
-
+         
         if len(message) > max_message_len:
             message = message[: max_message_len - 1] + "…"
 
@@ -1735,7 +1816,7 @@ def build_weekly_stats_pdf(
         }
 
         ooo_day_num = weekday_map.get(ooo_day.strip().lower())
-
+        week_ending_text = week_ending_date.strftime("%d %B %Y").lstrip("0")
         if ooo_day_num is None:
             subtitle = f"Week ending Sunday {week_ending_text}"
         else:
@@ -1744,8 +1825,7 @@ def build_weekly_stats_pdf(
                 days_ahead = 7
 
             ooo_date = week_ending_date + timedelta(days=days_ahead)
-            ooo_text = ooo_date.strftime("%d %B %Y")
-
+            ooo_text = ooo_date.strftime("%d %B %Y").lstrip("0")
             subtitle = (
                 f"Week ending Sunday {week_ending_text}. "
                 f"Supporting document for one-on-one {ooo_text}"
@@ -1783,10 +1863,10 @@ def build_weekly_stats_pdf(
 
     family = load_ppmori_fonts(str(fonts_dir))
     all_df = load_linegraph_df()
-    student_df = trim_graph_df(all_df[all_df["Category"] == "Students"])
-    class_df   = trim_graph_df(all_df[all_df["Category"] == "Classes"])
-    user_df    = trim_graph_df(all_df[all_df["Category"] == "Users"])
-    form_df    = trim_graph_df(all_df[all_df["Category"] == "Forms"])
+    student_df = trim_graph_df(all_df[all_df["Category"] == "Students"], week_ending_date)
+    class_df   = trim_graph_df(all_df[all_df["Category"] == "Classes"], week_ending_date)
+    user_df    = trim_graph_df(all_df[all_df["Category"] == "Users"], week_ending_date)
+    form_df    = trim_graph_df(all_df[all_df["Category"] == "Forms"], week_ending_date)
     fig_w, fig_h = fig.get_size_inches()
     aspect = fig_w / fig_h
 
@@ -1816,7 +1896,7 @@ def build_weekly_stats_pdf(
 
     draw_subtitle_band(
         ax,
-        x=page_left,
+        x=page_left, 
         y=subtitle_y,
         width=page_w,
         height=subtitle_h,
@@ -1877,6 +1957,7 @@ def build_weekly_stats_pdf(
         class_df=class_df,
         user_df=user_df,
         form_df=form_df,
+        week_ending_date=week_ending_date
     )
 
     section_gap = 0.010
@@ -1968,7 +2049,7 @@ def build_weekly_stats_pdf(
         width=right_panel_w,
         height=summary_h,
         fontfamily=family,
-        title="Email Folder Summary",
+        title="Emails Received Summary",
         lines=email_folder_lines,
         fill=PANEL_BODY_FILL,
         edge=PANEL_BODY_EDGE,
@@ -2045,13 +2126,13 @@ def build_weekly_stats_pdf(
 
 if __name__ == "__main__":
     load_dotenv()
-
+    as_of = '2026-04-13' 
     out_dir = Path("out")
     out_dir.mkdir(exist_ok=True)
 
     summary_df, users_by_role_df, respondents_by_survey_df = build_weekly_stats_pdf(
-        out_pdf_path=out_dir / "weekly_stats.pdf",
-        as_of_date='2026-04-13', 
+        out_pdf_path=out_dir / f"weekly_stats_{as_of}.pdf",
+        as_of_date=as_of, 
         footer_svg="app/static/footer.svg",
         fonts_dir="app/static/fonts",
         dpi=300,

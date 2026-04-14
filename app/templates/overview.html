@@ -71,7 +71,7 @@
   {% if selected_entity_id %}
   <div class="row g-4">
     <!-- Column 1: Staff eLearning -->
-    <div class="col-md-8">
+    <div class="col-md-7">
       <div class="card shadow-sm h-100">
         <div class="card-header bg-primary text-white">
           <h5 class="mb-0">Your Staff eLearning Progress</h5>
@@ -216,13 +216,18 @@
                               <span class="visually-hidden">Open self review for {{ row['Name'] }}</span>
                             </a>
                           {% else %}
-                            {% set s = status|lower %}
-                            <span class="badge badge-tap
-                              {% if s in ['passed','completed'] %} bg-success
-                              {% elif s == 'cancelled' %} bg-danger
-                              {% elif s == 'in progress' %} bg-warning text-dark
-                              {% elif s in ['not started','enrolled','not enrolled'] %} bg-secondary
-                              {% else %} bg-light text-dark {% endif %}">
+                            {% set s = (status or '').lower() %}
+                            {% set color = {
+                              'passed': 'bg-success',
+                              'completed': 'bg-success',
+                              'cancelled': 'bg-danger',
+                              'in progress': 'bg-warning text-dark',
+                              'not started': 'bg-secondary',
+                              'enrolled': 'bg-secondary',
+                              'not enrolled': 'bg-secondary'
+                            }.get(s, 'bg-light text-dark') %}
+
+                            <span class="badge badge-sm badge-tap {{ color }}">
                               {{ status }}
                             </span>
                           {% endif %}
@@ -243,7 +248,7 @@
     </div>
 
     <!-- Column 2: School Summary -->
-    <div class="col-md-4">
+    <div class="col-md-5">
       <div class="card shadow-sm h-100">
         <div class="card-header bg-primary text-white">
           <h5 class="mb-0">School Summary</h5>
@@ -278,7 +283,9 @@
             </div>
 
             <div class="col-12">
-              <button type="submit" class="btn btn-outline-primary w-100">Apply term/year</button>
+              <button type="submit" class="btn btn-outline-primary w-100">
+                Apply term/year
+              </button>
             </div>
           </form>
 
@@ -290,35 +297,64 @@
               <div class="table-responsive">
                 <table class="table table-bordered text-center align-middle">
                   <thead class="table-light">
-  <tr>
-    {% for col in cols %}
-      {% set col_clean = col.replace('_',' ') %}
-      <th>
-        {% if col_clean|lower in ['classes edited','class edited','classes_edited','class_edited'] %}
-          Classes Edited
-          <span
-            class="info-dot ms-1"
-            data-bs-toggle="tooltip"
-            data-bs-placement="top"
-            title="This is calculated by counting classes where 25% of students were edited."
-            aria-label="About Classes Edited"
-            role="button"
-            tabindex="0"
-          >i</span>
-        {% else %}
-          {{ col_clean }}
-        {% endif %}
-      </th>
-    {% endfor %}
-  </tr>
-</thead>
+                    <tr>
+                      {% for col in cols %}
+                      {% if col !='MOENumber' %}
+                        {% set col_clean = col.replace('_',' ') %}
+                        <th>
+                          {% if col_clean|lower in ['classes edited','class edited','classes_edited','class_edited'] %}
+                            Classes Edited
+                            <span
+                              class="info-dot ms-1"
+                              data-bs-toggle="tooltip"
+                              data-bs-placement="top"
+                              title="This is calculated by counting classes where 25% of students were edited."
+                              aria-label="About Classes Edited"
+                              role="button"
+                              tabindex="0"
+                            >i</span>
+                          {% else %}
+                            {{ col_clean }}
+                          {% endif %}
+                        </th>
+                        {% endif %}
+                      {% endfor %}
+                    </tr>
+                  </thead>
                   <tbody>
                     {% for row in schools %}
-                      <tr>
-                        {% for col in cols %}
+                    <tr>
+                      <!-- {} -->
+                      <!-- Always show first two columns -->
+                      <td>{{ row['School'] }}</td>
+                      <td>{{ row['Provider'] or row['Funder'] }}</td>
+
+                      {% if row['Number of Classes'] == 0 %}
+                        <!-- Merge remaining columns -->
+                        <td>{{ row['Number of Classes'] }}</td>
+                        <td colspan="{{ cols|length - 3 }}" class="text-center text-muted">
+                          <button
+                            type="button"
+                            class="btn btn-sm btn-outline-primary open-school-reminder-modal"
+                            data-bs-toggle="modal"
+                            data-bs-target="#schoolReminderModal"
+                            data-school="{{ row['School'] }}"
+                            data-entity="{{ session.get('user_desc') or 'Water Safety New Zealand'}}"
+                            data-moenumber="{{ row['MOENumber'] if 'MOENumber' in row else '' }}"
+                            data-term="{{ selected_term }}"
+                            data-year="{{ selected_year }}"
+                          >
+                            Send reminder email to school
+                          </button>
+                        </td>
+                      {% else %}
+                        <!-- Show remaining columns normally -->
+                        {% for col in cols[3:] %}
                           <td>{{ row[col] }}</td>
                         {% endfor %}
-                      </tr>
+                      {% endif %}
+
+                    </tr>
                     {% endfor %}
                   </tbody>
                 </table>
@@ -404,6 +440,58 @@
     </div>
   </div>
   {% endif %}
+<!-- School reminder modal -->
+<div class="modal fade" id="schoolReminderModal" tabindex="-1" aria-labelledby="schoolReminderModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title" id="schoolReminderModalLabel">Send reminder email to school</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <form method="POST" action="{{ url_for('staff_bp.send_school_reminder_email') }}" id="schoolReminderForm">
+        <div class="modal-body">
+          <input type="hidden" name="moenumber" id="schoolReminder_moenumber">
+          <input type="hidden" name="term" id="schoolReminder_term">
+          <input type="hidden" name="year" id="schoolReminder_year">
+          <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
+          <input type="hidden" name="entity_type" value="{{ entity_type }}">
+          <input type="hidden" name="school_name" id="schoolReminder_schoolNameInput">
+
+          {% if user_role == "ADM" and entity_type == "Provider" %}
+            <input type="hidden" name="scope_funder_id"
+                   value="{{ selected_scope_funder_id if selected_scope_funder_id is not none else '' }}">
+          {% endif %}
+
+          <div class="mb-3">
+            <strong>School:</strong> <span id="schoolReminder_schoolName">Loading...</span><br>
+          </div>
+
+          <div class="alert alert-info">
+            This will send a reminder email, along with a PDF of instructions and a link to the school instructions page. It will be sent to the school's registered staff with administration privledges.
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-bold">This email will be sent to:</label>
+            <div id="schoolReminder_recipients" class="border rounded p-3 bg-light text-muted">
+              Loading recipients...
+            </div>
+          </div>
+
+          <div id="schoolReminder_error" class="alert alert-danger d-none"></div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary" id="schoolReminder_sendBtn">
+            Send reminder
+          </button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 </div>
 
 <style>
@@ -417,25 +505,26 @@
   }
   .badge.bg-warning.text-dark { border: 1px solid rgba(0,0,0,.15); }
   .info-dot{
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  width:18px;
-  height:18px;
-  border-radius:50%;
-  background:#1a427d;
-  color:#fff;
-  font-size:12px;
-  font-weight:700;
-  line-height:1;
-  cursor:help;
-  user-select:none;
-}
-.info-dot:focus{
-  outline:2px solid rgba(26,66,125,.35);
-  outline-offset:2px;
-}
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:18px;
+    height:18px;
+    border-radius:50%;
+    background:#1a427d;
+    color:#fff;
+    font-size:12px;
+    font-weight:700;
+    line-height:1;
+    cursor:help;
+    user-select:none;
+  }
+  .info-dot:focus{
+    outline:2px solid rgba(26,66,125,.35);
+    outline-offset:2px;
+  }
 </style>
+
 <script>
 document.addEventListener("DOMContentLoaded", () => {
   if (typeof bootstrap === "undefined") return;
@@ -444,7 +533,12 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 </script>
+
 <script>
+document.querySelector("form").addEventListener("submit", function() {
+  document.getElementById("schoolReminder_sendBtn").disabled = true;
+});
+
 document.addEventListener("DOMContentLoaded", function () {
   const entityTypeSel = document.getElementById("entity_type");
   const entityIdSel   = document.getElementById("entity_id");
@@ -502,16 +596,13 @@ document.addEventListener("DOMContentLoaded", function () {
       entityIdSel.disabled = false;
       if (submitBtn) submitBtn.disabled = false;
 
-      // If Admin viewing Provider and we already have a selected provider, refresh scope list
       if (isAdmin && type === "Provider" && selectedEntityId) {
         await refreshScopeFundersForProvider(selectedEntityId);
         if (scopeSelect && selectedScopeFunderId !== "") {
-          // only restore if valid option exists; otherwise default All
           const opt = Array.from(scopeSelect.options).find(o => String(o.value) === String(selectedScopeFunderId));
           scopeSelect.value = opt ? String(selectedScopeFunderId) : "";
         }
       } else {
-        // not Provider: keep scope hidden and default to All
         if (scopeSelect) {
           scopeSelect.value = "";
           scopeSelect.disabled = true;
@@ -546,7 +637,6 @@ document.addEventListener("DOMContentLoaded", function () {
         scopeSelect.appendChild(makeOpt(f.Description, f.id));
       }
 
-      // Default back to All funders whenever provider changes
       scopeSelect.value = "";
 
     } catch (err) {
@@ -558,7 +648,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
-  // Initial state
   if (entityIdSel) {
     entityIdSel.disabled = true;
     entityIdSel.innerHTML = '<option value="">-- Choose an Entity Type first --</option>';
@@ -575,7 +664,6 @@ document.addEventListener("DOMContentLoaded", function () {
     loadEntities(this.value);
   });
 
-  // When Admin changes provider selection, refresh scope funder options (NO submit)
   entityIdSel?.addEventListener("change", async function () {
     if (!isAdmin) return;
     if (entityTypeSel?.value !== "Provider") return;
@@ -592,8 +680,133 @@ document.addEventListener("DOMContentLoaded", function () {
     await refreshScopeFundersForProvider(providerId);
   });
 
-  // Load entities on page load
   if (entityTypeSel?.value) loadEntities(entityTypeSel.value);
+});
+</script>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const reminderForm = document.getElementById("schoolReminderForm");
+
+  if (reminderForm) {
+    reminderForm.addEventListener("submit", function () {
+      const btn = document.getElementById("schoolReminder_sendBtn");
+      if (btn) btn.disabled = true;
+    });
+  }
+});
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const modal = document.getElementById("schoolReminderModal");
+  if (!modal) return;
+
+  const schoolNameEl = document.getElementById("schoolReminder_schoolName");
+  const schoolNameInput = document.getElementById("schoolReminder_schoolNameInput");
+  const moenumberInput = document.getElementById("schoolReminder_moenumber");
+  const termInput = document.getElementById("schoolReminder_term");
+  const yearInput = document.getElementById("schoolReminder_year");
+  const recipientsBox = document.getElementById("schoolReminder_recipients");
+  const errorBox = document.getElementById("schoolReminder_error");
+  const sendBtn = document.getElementById("schoolReminder_sendBtn");
+
+  function resetSchoolReminderModal() {
+    schoolNameEl.textContent = "Loading...";
+    schoolNameInput.value = "";
+    moenumberInput.value = "";
+    termInput.value = "";
+    yearInput.value = "";
+
+    recipientsBox.innerHTML = "Loading recipients...";
+    recipientsBox.classList.remove("text-danger");
+    recipientsBox.classList.add("text-muted");
+
+    errorBox.textContent = "";
+    errorBox.classList.add("d-none");
+
+    sendBtn.disabled = true;
+  }
+
+  modal.addEventListener("show.bs.modal", async function (event) {
+    resetSchoolReminderModal();
+
+    const button = event.relatedTarget;
+    if (!button) return;
+
+    const school = button.getAttribute("data-school") || "";
+    const moenumber = button.getAttribute("data-moenumber") || "";
+    const term = button.getAttribute("data-term") || "";
+    const year = button.getAttribute("data-year") || "";
+
+    // Set UI + hidden inputs
+    schoolNameEl.textContent = school || "Unknown school";
+    schoolNameInput.value = school;
+    moenumberInput.value = moenumber;
+    termInput.value = term;
+    yearInput.value = year;
+
+    if (!moenumber) {
+      recipientsBox.innerHTML = "No MOENumber was supplied.";
+      recipientsBox.classList.remove("text-muted");
+      recipientsBox.classList.add("text-danger");
+
+      errorBox.textContent = "Cannot load recipients.";
+      errorBox.classList.remove("d-none");
+
+      sendBtn.disabled = true;
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `/api/school_reminder_recipients?moenumber=${encodeURIComponent(moenumber)}`,
+        {
+          method: "GET",
+          headers: { "Accept": "application/json" },
+          credentials: "same-origin"
+        }
+      );
+
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+      const data = await response.json();
+
+      if (!data.ok) throw new Error(data.error || "Failed");
+
+      const recipients = data.recipients || [];
+
+      if (recipients.length === 0) {
+        recipientsBox.innerHTML = "No school admin staff found.";
+        recipientsBox.classList.remove("text-muted");
+        recipientsBox.classList.add("text-danger");
+        sendBtn.disabled = true;
+        return;
+      }
+
+      recipientsBox.classList.remove("text-muted", "text-danger");
+
+      recipientsBox.innerHTML = recipients.map(function (r) {
+        const name = r.name || "Unknown";
+        const email = r.email || "";
+        return `<div class="mb-1"><strong>${name}</strong>${email ? ` &lt;${email}&gt;` : ""}</div>`;
+      }).join("");
+
+      sendBtn.disabled = false;
+
+    } catch (err) {
+      console.error("Recipient load failed:", err);
+
+      recipientsBox.innerHTML = "";
+      errorBox.textContent = "Could not load recipients.";
+      errorBox.classList.remove("d-none");
+
+      sendBtn.disabled = true;
+    }
+  });
+
+  modal.addEventListener("hidden.bs.modal", function () {
+    resetSchoolReminderModal();
+  });
 });
 </script>
 

@@ -176,3 +176,37 @@ def provider_funders_api():
 
     # Always return list of dicts with id/Description
     return jsonify({"funders": funders})
+
+
+@api_bp.route("/school_reminder_recipients")
+@login_required
+def school_reminder_recipients():
+    moenumber = request.args.get("moenumber", type=int)
+
+    if not moenumber:
+        return jsonify({"ok": False, "error": "Missing MOENumber"}), 400
+
+    try:
+        with get_db_engine().begin() as conn:
+            rows = conn.execute(
+                text("""
+                    FlaskHelperFunctions
+                    @Request  = 'GetSchoolStaff',
+                    @Number = :n
+                """),
+                {"n": moenumber}
+            ).mappings().all()
+
+        recipients = [
+            {
+                "name": f"{(r.get('FirstName') or '').strip()} {(r.get('Surname') or '').strip()}".strip(),
+                "email": r.get("Email")
+            }
+            for r in rows
+        ]
+
+        return jsonify({"ok": True, "recipients": recipients})
+
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+    

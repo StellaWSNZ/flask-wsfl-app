@@ -24,7 +24,7 @@ from sqlalchemy import text
 # Local
 from app.extensions import mail
 from app.routes.auth import login_required
-from app.utils.custom_email import  send_elearning_reminder_email
+from app.utils.custom_email import  send_class_list_reminder_email, send_elearning_reminder_email
 
 from app.utils.database import get_db_engine, log_alert, get_years, get_terms
 from app.utils.wsfl_email import send_account_invites
@@ -1225,3 +1225,77 @@ def send_elearning_reminder():
             entity_id=selected_entity_id
         )
     )
+    
+@staff_bp.route("/send_school_reminder_email", methods=["POST"])
+@login_required
+def send_school_reminder_email():
+    moenumber = request.form.get("moenumber", type=int)
+    term = request.form.get("term")
+    year = request.form.get("year")
+    school_name = request.form.get("school_name")
+
+    entity_id = request.form.get("entity_id")
+    entity_type = request.form.get("entity_type")
+    scope_funder_id = request.form.get("scope_funder_id")
+
+    try:
+        with get_db_engine().begin() as conn:
+            rows = conn.execute(
+                text("""
+                    EXEC FlaskHelperFunctions
+                        @Request = 'GetSchoolStaff',
+                        @Number = :n
+                """),
+                {"n": moenumber}
+            ).mappings().all()
+
+        if not rows:
+            flash("No school admin staff found.", "warning")
+        else:
+            from_entity = session.get("user_desc") or "Water Safety New Zealand"
+            requested_by = f"{session.get('user_firstname') or ''} {session.get('user_surname') or ''}".strip()
+
+            sent_count = 0
+            for r in rows:
+                recipient_email = (r.get("Email") or "").strip()
+                if not recipient_email:
+                    continue
+
+                send_class_list_reminder_email(
+                    mail=mail,
+                    school_name=school_name,
+                    recipient_email=recipient_email,
+                    first_name=r.get("FirstName") or "",
+                    term=term,
+                    calendar_year=year,
+                    requested_by=requested_by,
+                    requester_email=session.get("user_email"),
+                    from_entity=from_entity,
+                )
+                sent_count += 1
+
+            if sent_count == 0:
+                flash("No valid recipient email addresses were found.", "warning")
+            else:
+                flash(f"Reminder email sent to {sent_count} staff members.", "success")
+
+    except Exception as e:
+        flash("Error sending reminder email.", "danger")
+        log_alert(
+            email=session.get("user_email"),
+            role=session.get("user_role"),
+            entity_id=session.get("user_id"),
+            link=url_for("staff_bp.send_school_reminder_email", _external=True),
+            message=f"send_school_reminder_email failed for school={school_name}, moenumber={moenumber}: {e}",
+        )
+
+    redirect_kwargs = {
+        "entity_id": entity_id,
+        "entity_type": entity_type,
+        "term": term,
+        "year": year,
+    }
+    if scope_funder_id:
+        redirect_kwargs["scope_funder_id"] = scope_funder_id
+
+    return redirect(url_for("overview_bp.funder_dashboard", **redirect_kwargs))

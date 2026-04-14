@@ -141,9 +141,18 @@ def funder_dashboard():
         user_role = (session.get("user_role") or "").strip().upper()
         user_id = session.get("user_id")
 
-        entity_type = request.form.get("entity_type") or session.get("entity_type") or "Funder"
+        entity_type = (
+            request.form.get("entity_type")
+            or request.args.get("entity_type")
+            or session.get("entity_type")
+            or "Funder"
+        )
         session["entity_type"] = entity_type
-        entity_id_val = request.form.get("entity_id")
+
+        entity_id_val = (
+            request.form.get("entity_id")
+            or request.args.get("entity_id")
+        )
 
         # ----------------------------------------------------------
         # (keep your MOE block untouched)
@@ -339,8 +348,13 @@ def funder_dashboard():
                 provider_funders = get_funders_by_provider(engine, int(selected_entity_id))
                 scope_funder_id = None
 
-                if "scope_funder_id" in request.form:
-                    posted_scope = (request.form.get("scope_funder_id") or "").strip()
+                posted_scope = (
+                    request.form.get("scope_funder_id")
+                    or request.args.get("scope_funder_id")
+                    or ""
+                ).strip()
+
+                if posted_scope:
                     if posted_scope.isdigit():
                         scope_funder_id = int(posted_scope)
                         session["scope_funder_id"] = scope_funder_id
@@ -390,8 +404,11 @@ def funder_dashboard():
             # -----------------------
             # Get ALL years/terms (for dropdowns)
             # -----------------------
-            selected_year = int(request.form.get("year") or session.get("nearest_year") or None)
-            selected_term = int(request.form.get("term") or session.get("nearest_term") or None)
+            selected_year_raw = request.form.get("year") or request.args.get("year") or session.get("nearest_year")
+            selected_term_raw = request.form.get("term") or request.args.get("term") or session.get("nearest_term")
+
+            selected_year = int(selected_year_raw) if selected_year_raw is not None else None
+            selected_term = int(selected_term_raw) if selected_term_raw is not None else None
 
             if (entity_type in ["Provider"] or user_role == "PRO"):
                 school_df_all = pd.read_sql(
@@ -454,10 +471,17 @@ def funder_dashboard():
         default_year = available_years[0] if available_years else session.get("nearest_year", 2025)
         default_term = available_terms[0] if available_terms else session.get("nearest_term", 1)
 
-        selected_year = int(request.form.get("year", session.get("nearest_year", default_year)))
-        selected_term = int(request.form.get("term", session.get("nearest_term", default_term)))
+        selected_year = int(
+            request.form.get("year")
+            or request.args.get("year")
+            or session.get("nearest_year", default_year)
+        )
 
-
+        selected_term = int(
+            request.form.get("term")
+            or request.args.get("term")
+            or session.get("nearest_term", default_term)
+        )
         # ----------------------------------------------------------
         # Filter to selected year/term
         # ----------------------------------------------------------

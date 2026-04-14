@@ -130,7 +130,7 @@ def draw_graph(
     marker_size = height_scaled_points(ax, height, 0.030)
 
     value_fontsize = max(8, marker_size * 0.42)
-    term_fontsize = max(5, marker_size * 0.30)
+    term_fontsize = max(6, marker_size * 0.30)
 
     df = df.copy()
     df.columns = df.columns.str.strip()
