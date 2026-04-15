@@ -1758,18 +1758,23 @@ def build_codebase_summary_line(
         py_new_lines = int(weekly_commit_stats.get("py_insertions", 0) or 0)
         html_new_lines = int(weekly_commit_stats.get("html_insertions", 0) or 0)
         new_files_this_week = int(weekly_commit_stats.get("new_files", 0) or 0)
-
+    def fmt(base, delta):
+        if delta and delta != 0:
+            return f"{format_value(base)} (+{format_value(delta)})"
+        return f"{format_value(base)}"
     parts = [
-        f"Python: {format_value(py_lines)} (+{format_value(py_new_lines)})",
-        f"HTML: {format_value(html_lines)} (+{format_value(html_new_lines)})",
-        f"Total lines: {format_value(total_lines)} (+{format_value(total_new_lines)})",
-        f"Files: {format_value(total_files)} (+{format_value(new_files_this_week)})",
+        f"Python: {fmt(py_lines, py_new_lines)}",
+        f"HTML: {fmt(html_lines, html_new_lines)}",
+        f"Total lines: {fmt(total_lines, total_new_lines)}",
+        f"Files: {fmt(total_files, new_files_this_week)}",
     ]
+
 
     if table_count is not None:
         parts.append(
-            f"Tables: {format_value(table_count)} (+{format_value(new_tables_this_week)})"
+            f"Tables: {fmt(table_count, new_tables_this_week)}"
         )
+
 
     return "  |  ".join(parts)
 
@@ -2126,7 +2131,7 @@ def build_weekly_stats_pdf(
 
 if __name__ == "__main__":
     load_dotenv()
-    as_of = '2026-04-13' 
+    as_of = '2026-04-20' 
     out_dir = Path("out")
     out_dir.mkdir(exist_ok=True)
 

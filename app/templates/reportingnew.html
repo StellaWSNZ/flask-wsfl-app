@@ -138,7 +138,9 @@
                   <option value="funder_ytd_vs_target" {{ "selected" if sel_type == "funder_ytd_vs_target" else "" }}>
                     YTD Funder Performance vs WSNZ Target
                   </option>
-
+                  <option value="funder_competency_icons" {{ "selected" if sel_type == "funder_competency_icons" else "" }}>
+                    Funder Competency Rates by Icon
+                  </option>
                   {% if role in ["FUN"] %}
                     <option value="ly_funder_vs_ly_national_vs_target" {{ "selected" if sel_type == "ly_funder_vs_ly_national_vs_target" else "" }}>
                       LY Funder Performance vs LY National vs WSNZ Target
@@ -540,6 +542,7 @@
         "funder_teacher_review_summary",
         "funder_ytd_vs_funder_ly",
         "funder_missing_classes",
+        "funder_competency_icons",
       ].includes(val);
     }
 

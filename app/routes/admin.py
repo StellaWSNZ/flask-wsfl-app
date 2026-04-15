@@ -1934,3 +1934,46 @@ def update_user_role_entity():
             current_app.logger.exception(f"⚠️ Failed to log alert (update_user_role_entity)")
         flash("🔥 Error during update.", "danger")
         return jsonify(success=False, message="Internal server error"), 500
+    
+    
+@admin_bp.route("/move_school_funder", methods=["POST"])
+@login_required
+def move_school_funder():
+    if session.get("user_role") != "ADM":
+        return jsonify({"success": False, "message": "Unauthorised"}), 403
+
+    data = request.get_json() or {}
+
+    moe_number = data.get("MOENumber")
+    term = data.get("Term")
+    year = data.get("Year")
+    new_funder_id = data.get("NewFunderID")
+    old_funder_id = data.get("OldFunderID")
+    if not all([moe_number, term, year, new_funder_id]):
+        return jsonify({"success": False, "message": "Missing required fields"}), 400
+
+    try:
+        with get_db_engine().begin() as conn:
+            conn.execute(
+                text("""
+                    EXEC FlaskHelperFunctionsSpecific 
+                     @Request = 'MoveFunder',
+                     @FunderID = :new_funder_id,
+                     @CalendarYear = :year,
+                     @Term = :term,
+                     @MOENumber = :MOENumber,
+                     @OldFunderID = :old_funder_id
+                """),
+                {
+                    "MOENumber": moe_number,
+                    "term": term,
+                    "year": year,
+                    "new_funder_id": new_funder_id,
+                    "old_funder_id":old_funder_id,
+                }
+            )
+
+        return jsonify({"success": True})
+
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500

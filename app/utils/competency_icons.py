@@ -496,7 +496,9 @@ def build_icon_reoprt(
     dpi: int = 300,
     footer_height_frac: float = 0.10,
     term = FILTER_TERM,
-    year = FILTER_YEAR
+    year = FILTER_YEAR,
+    entity = None,
+    id = None,
 ):
     out_pdf_path = Path(out_pdf_path)
     out_pdf_path.parent.mkdir(parents=True, exist_ok=True)
@@ -508,6 +510,8 @@ def build_icon_reoprt(
             filter_period="YTD",
             filter_year=year,
             filter_term=term,
+            filter_entity=entity,
+            filter_id = id
         )
 
     fig = plt.figure(figsize=(8.27, 11.69), dpi=dpi)
@@ -560,14 +564,13 @@ def build_icon_reoprt(
 
     title_y = page_top - title_h
     subtitle_y = title_y - band_gap - subtitle_h
-
     draw_title_band(
         ax,
         x=page_left,
         y=title_y,
         width=page_w,
         height=title_h,
-        title="National Competency Rates",
+        title=f"{df['Label'].dropna().iloc[0]} Competency Rates",
         fontfamily=family,
     )
     subtitle_text = (
@@ -614,7 +617,7 @@ def build_icon_reoprt(
 
     fig.savefig(out_pdf_path, format="pdf", dpi=dpi, bbox_inches=None, pad_inches=0)
     plt.close(fig)
-    print(f"[OK] Wrote PDF: {out_pdf_path.resolve()}")
+    #print(f"[OK] Wrote PDF: {out_pdf_path.resolve()}")
     return fig
 
 

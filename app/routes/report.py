@@ -454,6 +454,7 @@ def _validate_required_entities(
         "funder_teacher_review_summary",
         "funder_ytd_vs_funder_ly",
         "funder_missing_classes", 
+        "funder_competency_icons",
     }
 
     if needs_funder and not funder_id:
@@ -633,6 +634,31 @@ def _execute_report(
             footer_height_frac=0.10,
             term = selected_term,
             year = selected_year,
+        )
+
+        results = None
+        fig = preview_fig
+    elif selected_type == "funder_competency_icons":
+        try:
+            use_ppmori("app/static/fonts")
+        except Exception as font_e:
+            current_app.logger.info("⚠️ font setup skipped: %s", font_e)
+
+        report_id = session.get("report_id") or uuid.uuid4().hex
+        session["report_id"] = report_id
+
+        pdf_path = REPORT_DIR / f"{report_id}.pdf"
+        print(funder_id)
+        # build the PDF
+        preview_fig  = build_icon_reoprt(
+            out_pdf_path=pdf_path,
+            footer_svg=Path(current_app.static_folder) / "footer.svg",
+            dpi=300,
+            footer_height_frac=0.10,
+            term = selected_term,
+            year = selected_year,
+            entity="FUNDER",
+            id=funder_id
         )
 
         results = None
@@ -1429,7 +1455,7 @@ def _build_figure_from_results(
 
     # Add footer once here for all normal figures (including funder_targets_counts),
     # BUT only if fig exists.
-    if fig is not None and selected_type not in {"funder_weighted_average","provider_missing_classes", "funder_missing_classes", "region_coverage_report", "national_competency_icons",}:
+    if fig is not None and selected_type not in {"funder_weighted_average","provider_missing_classes", "funder_missing_classes", "region_coverage_report", "national_competency_icons","funder_competency_icons",}:
 
         c = "#1a427d" if selected_type == "funder_missing_data" else "#1a427d40"
         try:
@@ -1519,6 +1545,9 @@ def _persist_figure_and_session(
     elif selected_type == "funder_targets_counts":
         base_label = f"FunderTargetsCounts"
         add_term = False
+    elif selected_type=="funder_competency_icons":
+        base_label = f"{selected_funder_name}CompetencyIcons"
+
     elif selected_type == "national_competency_icons":
         base_label = "NationalCompetencyIcons"
     elif selected_type == "region_ly_vs_target":
@@ -2097,7 +2126,7 @@ def new_reports():
                     selected_funder_name=selected_funder_name,
                     is_ajax=is_ajax,
                 )
-                if fig is not None and selected_type not in {"funder_weighted_average","provider_missing_classes", "funder_missing_classes", "national_competency_icons",}:
+                if fig is not None and selected_type not in {"funder_weighted_average","provider_missing_classes", "funder_missing_classes", "national_competency_icons","funder_competency_icons"}:
 
                     try:
                         footer_svg = os.path.join(current_app.static_folder, "footer.svg")
@@ -2148,7 +2177,7 @@ def new_reports():
                     if extra_banner:
                         no_data_banner = extra_banner
                 
-                if selected_type in {"funder_student_count", "funder_progress_summary", "funder_teacher_review_summary", "provider_missing_classes","funder_missing_classes",  "national_competency_icons",  "region_coverage_report",}:
+                if selected_type in {"funder_student_count", "funder_progress_summary", "funder_teacher_review_summary", "provider_missing_classes","funder_missing_classes",  "national_competency_icons",  "region_coverage_report","funder_competency_icons"}:
                     if fig is not None:
                         PREFIX_MAP = {
                             "funder_student_count": "Funder_Student_Count",
@@ -2158,6 +2187,7 @@ def new_reports():
                             "funder_missing_classes": "funder_missing_classes",
                             "region_coverage_report": "region_coverage_report",
                             "national_competency_icons": "National_Competency_Icons",
+                            "funder_competency_icons":"Funder_Competency_Icons",
                         }
 
                         prefix = PREFIX_MAP.get(selected_type, "Report")
