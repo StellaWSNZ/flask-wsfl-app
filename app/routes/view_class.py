@@ -1615,7 +1615,7 @@ def move_class():
     current_app.logger.exception("Move class failed")
     return jsonify({"ok": False, "error": str(e)}), 500
 
-
+    
 @class_bp.route("/delete-class", methods=["POST"])
 @login_required
 def delete_class():

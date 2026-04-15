@@ -1977,3 +1977,46 @@ def move_school_funder():
 
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
+    
+    
+
+@admin_bp.route("/move_school_term", methods=["POST"])
+@login_required
+def move_school_term():
+    if session.get("user_role") != "ADM":
+        return jsonify({"success": False, "message": "Unauthorised"}), 403
+
+    data = request.get_json() or {}
+
+    moe_number = data.get("MOENumber")
+    current_term = data.get("CurrentTerm")
+    current_year = data.get("CurrentYear")
+    new_term = data.get("NewTerm")
+    new_year = data.get("NewYear")
+
+    if not all([moe_number, current_term, current_year, new_term, new_year]):
+        return jsonify({"success": False, "message": "Missing required fields"}), 400
+
+    try:
+        with get_db_engine().begin() as conn:
+            conn.execute(
+                text("""
+                    EXEC dbo.ChangeSchoolTerm
+                        @MOENumber = :moe_number,
+                        @CurrentTerm = :current_term,
+                        @CurrentCalendarYear = :current_year,
+                        @NewTerm = :new_term,
+                        @NewCalendarYear = :new_year
+                """),
+                {
+                    "moe_number": moe_number,
+                    "current_term": current_term,
+                    "current_year": current_year,
+                    "new_term": new_term,
+                    "new_year": new_year,
+                }
+            )
+
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500

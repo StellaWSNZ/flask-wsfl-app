@@ -123,24 +123,38 @@
                   </select>
 
                   <button type="button"
-                          class="btn btn-outline-secondary add-provider-btn"
+                          class="btn btn-outline-primary add-provider-btn"
                           data-bs-toggle="modal"
                           data-bs-target="#newProviderModal"
                           aria-label="Add new provider">
                     <i class="bi bi-plus-lg" aria-hidden="true"></i>
                   </button>
+                  {% if user_role == 'ADM' and school.MovableFlag == 1 %}
+                    <button type="button"
+                            class="btn btn-outline-secondary move-term-btn"
+                            data-bs-toggle="modal"
+                            data-bs-target="#moveTermModal"
+                            data-moe="{{ school.MOENumber }}"
+                            data-school="{{ school.School }}"
+                            data-current-funder-id="{{ selected_funder }}"
+                            data-current-funder-name="{{ selected_funder_name }}"
+                            data-current-term="{{ selected_term }}"
+                            data-current-year="{{ selected_year }}">
+                      <i class="bi bi-calendar" aria-hidden="true"></i>
+                    </button>
+                  {% endif %}
                   {% if user_role == 'ADM' %}
-  <button type="button"
-          class="btn btn-outline-info move-school-btn"
-          data-bs-toggle="modal"
-          data-bs-target="#moveSchoolModal"
-          data-moe="{{ school.MOENumber }}"
-          data-school="{{ school.School }}"
-          data-current-funder-id="{{ selected_funder }}"
-          data-current-funder-name="{{ selected_funder_name }}">
-    <i class="bi bi-arrow-left-right" aria-hidden="true"></i>
-  </button>
-{% endif %}
+                    <button type="button"
+                            class="btn btn-outline-info move-school-btn"
+                            data-bs-toggle="modal"
+                            data-bs-target="#moveSchoolModal"
+                            data-moe="{{ school.MOENumber }}"
+                            data-school="{{ school.School }}"
+                            data-current-funder-id="{{ selected_funder }}"
+                            data-current-funder-name="{{ selected_funder_name }}">
+                      <i class="bi bi-arrow-left-right" aria-hidden="true"></i>
+                    </button>
+                  {% endif %}
                 </div>
 
                 <!-- CLM MODE: Provider 2 (Facility) + Facility staff -->
@@ -333,7 +347,74 @@
   </div>
 </div>
 {% endif %}
+<!-- ========================= -->
+<!-- Move Term/Year Modal      -->
+<!-- ========================= -->
+<div class="modal fade" id="moveTermModal" tabindex="-1" aria-labelledby="moveTermModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="moveTermForm">
+        <div class="modal-header">
+          <h5 class="modal-title" id="moveTermModalLabel">Move School to Another Term</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
 
+        <div class="modal-body">
+          <input type="hidden" id="moveTermMOE" name="moe_number">
+          <input type="hidden" id="moveTermCurrentTerm" name="current_term">
+          <input type="hidden" id="moveTermCurrentYear" name="current_year">
+
+          <div class="mb-3">
+            <label class="form-label">School</label>
+            <input type="text" class="form-control" id="moveTermSchoolName" readonly>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Current funder</label>
+            <input type="text" class="form-control" id="moveTermCurrentFunder" readonly>
+          </div>
+
+          <div class="alert alert-info">
+            The current funder and provider for this school will stay the same. Only the term and year will be changed.
+          </div>
+
+          <div class="alert alert-warning">
+            This option is only available because no students at this school have been marked as achieved in the current term. Once a student has a competency marked as achieved, this option will no longer be available.
+          </div>
+
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label for="moveTermNewTerm" class="form-label">New term</label>
+              <select class="form-select" id="moveTermNewTerm" name="new_term" required>
+                <option value="" disabled selected>Select term…</option>
+                {% for t in terms %}
+                  <option value="{{ t }}">Term {{ t }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-md-6 mb-3">
+              <label for="moveTermNewYear" class="form-label">New year</label>
+              <select class="form-select" id="moveTermNewYear" name="new_year" required>
+                <option value="" disabled selected>Select year…</option>
+                {% for y in years %}
+                  <option value="{{ y }}">{{ y }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div id="moveTermSuccess" class="alert alert-success d-none mt-3"></div>
+          <div id="moveTermError" class="alert alert-danger d-none mt-3"></div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-secondary">Confirm Move</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 <!-- ========================= -->
 <!-- Add Provider Modal         -->
 <!-- ========================= -->
@@ -429,6 +510,32 @@ document.addEventListener("DOMContentLoaded", () => {
   const moveSchoolSuccess = document.getElementById("moveSchoolSuccess");
   const moveSchoolError = document.getElementById("moveSchoolError");
 
+  const moveTermForm = document.getElementById("moveTermForm");
+
+const moveTermMOE = document.getElementById("moveTermMOE");
+const moveTermSchoolName = document.getElementById("moveTermSchoolName");
+const moveTermCurrentFunder = document.getElementById("moveTermCurrentFunder");
+const moveTermCurrentTerm = document.getElementById("moveTermCurrentTerm");
+const moveTermCurrentYear = document.getElementById("moveTermCurrentYear");
+const moveTermNewTerm = document.getElementById("moveTermNewTerm");
+const moveTermNewYear = document.getElementById("moveTermNewYear");
+const moveTermSuccess = document.getElementById("moveTermSuccess");
+const moveTermError = document.getElementById("moveTermError");
+  document.querySelectorAll(".move-term-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    if (moveTermSuccess) moveTermSuccess.classList.add("d-none");
+    if (moveTermError) moveTermError.classList.add("d-none");
+
+    moveTermMOE.value = btn.dataset.moe || "";
+    moveTermSchoolName.value = btn.dataset.school || "";
+    moveTermCurrentFunder.value = btn.dataset.currentFunderName || "";
+    moveTermCurrentTerm.value = btn.dataset.currentTerm || "";
+    moveTermCurrentYear.value = btn.dataset.currentYear || "";
+
+    moveTermNewTerm.value = "";
+    moveTermNewYear.value = "";
+  });
+});
   document.querySelectorAll(".move-school-btn").forEach(btn => {
     btn.addEventListener("click", () => {
       if (moveSchoolSuccess) moveSchoolSuccess.classList.add("d-none");
@@ -442,7 +549,43 @@ document.addEventListener("DOMContentLoaded", () => {
         btn.dataset.currentFunderId || "";
       });
   });
+  if (moveTermForm) {
+  moveTermForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
 
+    moveTermSuccess.classList.add("d-none");
+    moveTermError.classList.add("d-none");
+
+    try {
+      const response = await fetch("/move_school_term", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          MOENumber: moveTermMOE.value,
+          CurrentTerm: moveTermCurrentTerm.value,
+          CurrentYear: moveTermCurrentYear.value,
+          NewTerm: moveTermNewTerm.value,
+          NewYear: moveTermNewYear.value
+        })
+      });
+
+      const result = await response.json().catch(() => ({}));
+
+      if (response.ok && result.success) {
+        moveTermSuccess.textContent = "School term/year moved successfully.";
+        moveTermSuccess.classList.remove("d-none");
+        setTimeout(() => location.reload(), 800);
+      } else {
+        moveTermError.textContent = result.message || "Failed to move school term/year.";
+        moveTermError.classList.remove("d-none");
+      }
+    } catch (err) {
+      console.error("❌ Error moving school term/year:", err);
+      moveTermError.textContent = "Something went wrong.";
+      moveTermError.classList.remove("d-none");
+    }
+  });
+}
   if (moveSchoolForm) {
     moveSchoolForm.addEventListener("submit", async (e) => {
       e.preventDefault();
