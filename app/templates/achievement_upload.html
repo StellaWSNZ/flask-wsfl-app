@@ -393,8 +393,10 @@
   // ---------- Apply (execute proc) ----------
   applyBtn.addEventListener('click', async () => {
     if (applying) return;
+
     const classId = classSelect.value;
     if (!classId) return;
+
     if (!lastPayloadJson || !lastPayloadJson.length) {
       alert('Please preview a file first.');
       return;
@@ -413,17 +415,27 @@
     try {
       const res = await fetch(APPLY_URL, {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: { 'Content-Type': 'application/json' },
         credentials: 'same-origin',
         body: JSON.stringify(payload)
       });
 
-      const { ok, data } = await readJsonOrText(res);
-      if (!ok) throw new Error(data.error || 'Upload failed');
+      const { ok: httpOk, data } = await readJsonOrText(res);
 
-      const validCount      = (data.valid_students || []).length;
+      if (!httpOk) {
+        throw new Error(data.error || 'Upload failed');
+      }
+
+      const appOk = Boolean(data && data.ok);
+      const statusOk = data && data.status ? Boolean(data.status.ok) : appOk;
+      const statusMessage =
+        (data && data.status && data.status.message) ||
+        data.error ||
+        'Upload failed';
+
+      const validCount = (data.valid_students || []).length;
       const unexpectedCount = (data.unexpected_students || []).length;
-      const totalCount      = validCount + unexpectedCount;
+      const totalCount = validCount + unexpectedCount;
 
       const term = termSelect.value;
       const year = yearSelect.value;
@@ -431,17 +443,37 @@
         `/Class/${encodeURIComponent(classId)}/${encodeURIComponent(term)}/${encodeURIComponent(year)}`;
 
       let type, html;
-      if (unexpectedCount === 0) {
-        type = 'success';
-        html = `${totalCount} ${word(totalCount, 'row', 'rows')} ${wasWere(totalCount)} processed successfully.`;
-      } else {
+
+      if (!appOk || !statusOk) {
         type = 'danger';
-        html =
-          `Unable to process file — ${unexpectedCount} ${word(unexpectedCount, 'row', 'rows')} ` +
-          `${wasWere(unexpectedCount)} unsuccessful. ` +
-          `Some uploaded students are not linked to this class, which is usually because an extra student ` +
-          `was included who isn’t on the current class list. ` +
-          `<a href="${classUrl}" class="alert-link">View the class list</a>.`;
+
+        html = statusMessage;
+
+        if (unexpectedCount > 0) {
+          html +=
+            ` ${unexpectedCount} ${word(unexpectedCount, 'row was', 'rows were')} unsuccessful. ` +
+            `Some uploaded students are not linked to this class, which is usually because an extra student ` +
+            `was included who isn’t on the current class list. ` +
+            `<a href="${classUrl}" class="alert-link">View the class list</a>.`;
+        }
+      } else {
+        type = 'success';
+
+        if (statusMessage && statusMessage !== 'Upload applied successfully.') {
+          html = statusMessage;
+        } else {
+          html = `${totalCount} ${word(totalCount, 'row', 'rows')} ${wasWere(totalCount)} processed successfully.`;
+        }
+
+        if (unexpectedCount > 0) {
+          type = 'danger';
+          html =
+            `Unable to process file — ${unexpectedCount} ${word(unexpectedCount, 'row', 'rows')} ` +
+            `${wasWere(unexpectedCount)} unsuccessful. ` +
+            `Some uploaded students are not linked to this class, which is usually because an extra student ` +
+            `was included who isn’t on the current class list. ` +
+            `<a href="${classUrl}" class="alert-link">View the class list</a>.`;
+        }
       }
 
       sessionStorage.setItem('achvUploadBanner', JSON.stringify({ type, html }));

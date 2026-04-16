@@ -107,17 +107,17 @@ def get_db_engine():
 def load_linegraph_df(refresh: bool = False) -> pd.DataFrame:
     engine = get_db_engine()
 
-    with engine.begin() as conn:
-        if refresh:
+    if refresh:
+        with engine.begin() as conn:
             conn.execute(text("EXEC dbo.RefreshDashboardDailyChange"))
 
+    with engine.connect() as conn:
         df = pd.read_sql(
             text("EXEC dbo.GetDashboardLineGraphData"),
             conn
         )
 
     return df
-
 def load_weekly_stats(as_of_date: str | None = None):
     engine = get_db_engine()
 
@@ -1867,7 +1867,7 @@ def build_weekly_stats_pdf(
     ax.set_aspect("auto")
 
     family = load_ppmori_fonts(str(fonts_dir))
-    all_df = load_linegraph_df()
+    all_df = load_linegraph_df(refresh = True)
     student_df = trim_graph_df(all_df[all_df["Category"] == "Students"], week_ending_date)
     class_df   = trim_graph_df(all_df[all_df["Category"] == "Classes"], week_ending_date)
     user_df    = trim_graph_df(all_df[all_df["Category"] == "Users"], week_ending_date)

@@ -1,4 +1,4 @@
-# app/report_utils/proportional_circles.py
+# app/report_utils/CHT_CircleProportions.py
 from __future__ import annotations
 
 import math

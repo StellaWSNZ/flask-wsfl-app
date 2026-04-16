@@ -10,13 +10,68 @@ from docx.shared import Pt, RGBColor
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from num2words import num2words
+from pathlib import Path
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+from docx.shared import Inches
 
+from app.report_utils.CHT_CircleProportions import circle_plot
 from app.utils.database import get_db_engine
 
 
 WSFL_BLUE = "1A427D"
 WSFL_LIGHT_BLUE = "EDF3FB"
 
+def render_assessment_circle_chart(
+    out_path="assessment_circle_chart.png",
+    fontfamily="PP Mori"
+):
+    stats = {
+        "total": 60,
+        "buckets": {
+            "Self Review": {"count": 28, "colour": "#1a427d"},
+            "Teacher Assessment": {"count": 20, "colour": "#2EBDC2"},
+            "External Review": {"count": 12, "colour": "#BBE6E9"},
+        },
+    }
+
+    fig, ax = plt.subplots(figsize=(8.27, 11.69), dpi=300)  # A4
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    ax.set_axis_off()
+
+    circle_plot(
+        ax,
+        stats=stats,
+        fontfamily=fontfamily,
+        top_y=0.6,
+        height=0.3,
+    )
+
+    fig.savefig(out_path, bbox_inches="tight", pad_inches=0.02)
+    plt.close(fig)
+
+    return out_path
+
+def add_assessment_circle_chart(document, DEBUG=False):
+    add_heading(document, "Assessment Types", level=1)
+    add_body_paragraph(
+        document,
+        "This chart shows a placeholder example of assessment counts by type."
+    )
+
+    img_path = render_assessment_circle_chart()
+
+    p = document.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run = p.add_run()
+    run.add_picture(img_path, width=Inches(6.5))
+
+    if DEBUG:
+        print(f"Inserted chart image: {img_path}")
+
+    return document
 
 def close_word(DEBUG=False):
     if DEBUG:
@@ -105,7 +160,7 @@ def add_body_paragraph(document, text):
 
 def set_up_doc(title, DEBUG=False):
     document = Document()
-    add_title(document, title, "Water Skills for Life")
+    add_title(document, title)
     return document
 
 
@@ -273,6 +328,10 @@ def summary_paragraph(document, DEBUG=False):
     df_summary_funder["ClassesMissingAssessment"] = (
         df_summary_funder["KaiakoClassCount"] - df_summary_funder["KaiakoCount"]
     )
+    df_summary_funder["ClassesMissingAssessment"] = (
+        df_summary_funder["ClassesMissingAssessment"]
+        .where(df_summary_funder["ClassesMissingAssessment"] > 0, "")
+    )
 
 
     df_table = df_summary_funder[
@@ -300,6 +359,7 @@ if __name__ == "__main__":
 
     document = set_up_doc(title, DEBUG)
     document = summary_paragraph(document, DEBUG)
+    document = add_assessment_circle_chart(document, DEBUG)
 
     document.save(filename)
     os.startfile(filename)

@@ -1362,8 +1362,6 @@ def apply_upload():
         dry_run = 1 if int(payload.get("dry_run", 0)) == 1 else 0
         rows = payload.get("json_data")
 
-
-
         if not class_id:
             return jsonify({"ok": False, "error": "Missing class_id"}), 400
 
@@ -1371,7 +1369,6 @@ def apply_upload():
             return jsonify({"ok": False, "error": "json_data must be a non-empty array"}), 400
 
         json_str = json.dumps(rows, ensure_ascii=False)
-
 
         term_context = {}
         unexpected_students = []
@@ -1387,7 +1384,6 @@ def apply_upload():
         try:
             cursor = conn.cursor()
 
-            # confirm database
             cursor.execute("SELECT DB_NAME() AS DbName")
 
             cursor.execute(
@@ -1460,11 +1456,12 @@ def apply_upload():
                     break
 
             cursor.close()
-            conn.commit()  # harmless even if proc already committed
+            conn.commit()
 
         finally:
             conn.close()
 
+        # Default status if proc did not return an explicit Ok/Message row
         if unexpected_students:
             status_obj = {
                 "ok": False,
@@ -1480,6 +1477,7 @@ def apply_upload():
             }
             overall_ok = True
 
+        # Prefer the proc's explicit status row if provided
         if status_rows_raw:
             last = status_rows_raw[-1]
             status_obj = {
@@ -1494,7 +1492,7 @@ def apply_upload():
         total_count = valid_count + unexpected_count
 
         summary = {
-            "success": unexpected_count == 0,
+            "success": bool(overall_ok),
             "dry_run": bool(dry_run),
             "total_rows": total_count,
             "valid_rows": valid_count,
@@ -1502,7 +1500,7 @@ def apply_upload():
         }
 
         return jsonify({
-            "ok": overall_ok,
+            "ok": bool(overall_ok),
             "status": status_obj,
             "dry_run": dry_run,
             "term_context": term_context,
@@ -1519,6 +1517,7 @@ def apply_upload():
     except Exception as e:
         traceback.print_exc()
         return jsonify({"ok": False, "error": str(e)}), 500
+
 @class_bp.route("/remove_from_class", methods=["POST"])
 @login_required
 def remove_from_class():
