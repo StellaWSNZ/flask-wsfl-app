@@ -1368,6 +1368,37 @@ def apply_upload():
         if not isinstance(rows, list) or not rows:
             return jsonify({"ok": False, "error": "json_data must be a non-empty array"}), 400
 
+        # Require at least one competency column in the uploaded data
+        non_competency_fields = {
+            "NSN",
+            "FirstName",
+            "PreferredName",
+            "LastName",
+            "DateOfBirth",
+            "YearLevel",
+            "Ethnicity"
+        }
+
+        uploaded_keys = set()
+        for row in rows:
+            if isinstance(row, dict):
+                uploaded_keys.update(str(k).strip() for k in row.keys() if k is not None)
+
+        competency_keys = [
+            k for k in uploaded_keys
+            if k and k not in non_competency_fields
+        ]
+
+        if not competency_keys:
+            return jsonify({
+                "ok": False,
+                "status": {
+                    "ok": False,
+                    "message": "No competency columns were found in the uploaded file.",
+                    "count": 0
+                }
+            }), 400
+
         json_str = json.dumps(rows, ensure_ascii=False)
 
         term_context = {}

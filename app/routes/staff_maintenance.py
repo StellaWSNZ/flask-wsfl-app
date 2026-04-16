@@ -1252,7 +1252,7 @@ def send_school_reminder_email():
         if not rows:
             flash("No school admin staff found.", "warning")
         else:
-            from_entity = session.get("user_desc") or "Water Safety New Zealand"
+            from_entity = session.get("desc") or "Water Safety New Zealand"
             requested_by = f"{session.get('user_firstname') or ''} {session.get('user_surname') or ''}".strip()
 
             sent_count = 0

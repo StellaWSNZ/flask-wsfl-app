@@ -384,7 +384,15 @@
     } else {
       msg += '.';
     }
-
+    if (compCount <= 0) {
+      uploadStatus.className = 'mt-3 alert alert-danger';
+      uploadStatus.textContent =
+  'No competency columns were found. Please download and use the achievement template.';
+      
+      lastPayloadJson = null;
+      applyBtn.disabled = true;
+      return;
+    }
     previewInfoBox.className = 'alert alert-info mt-3';
     previewInfoBox.innerHTML = msg;
     previewInfoBox.classList.remove('d-none');
