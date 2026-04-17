@@ -90,7 +90,7 @@ EXCLUDED_EMAIL_FOLDERS = {
     "rss feeds",
     "conversation history",
     "sync issues",
-"bounce backs",
+    "bounce backs",
 }
 
 

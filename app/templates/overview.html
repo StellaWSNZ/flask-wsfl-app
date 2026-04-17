@@ -313,6 +313,17 @@
                               role="button"
                               tabindex="0"
                             >i</span>
+                          {% elif col_clean|lower in ['total students unedited'] %}
+                            Total Students Unedited
+                            <span
+                              class="info-dot ms-1"
+                              data-bs-toggle="tooltip"
+                              data-bs-placement="top"
+                              title="This is the total number of students across the unedited classes."
+                              aria-label="About Classes Edited"
+                              role="button"
+                              tabindex="0"
+                            >i</span>
                           {% else %}
                             {{ col_clean }}
                           {% endif %}
