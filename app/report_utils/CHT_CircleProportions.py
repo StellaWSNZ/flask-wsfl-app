@@ -477,7 +477,7 @@ def circle_plot_png(
             cy=label_y,
             width=label_box_width,
             height=label_box_height,
-            ratio=0.5,
+            ratio=0.25,
             corners_round=[1, 3],
             n_arc=64,
         )

@@ -6,7 +6,7 @@ from pathlib import Path
 import pandas as pd
 from docx import Document
 from docx.enum.table import WD_TABLE_ALIGNMENT, WD_CELL_VERTICAL_ALIGNMENT
-from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING
 from docx.shared import Pt, RGBColor, Inches
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
@@ -50,7 +50,7 @@ def set_cell_text(
     cell,
     text,
     bold=False,
-    font_name="Aptos",
+    font_name="PP Mori",
     font_size=9,
     font_color="000000",
     align="left"
@@ -64,6 +64,9 @@ def set_cell_text(
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     elif align == "right":
         p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+
+    p.paragraph_format.line_spacing = 1.15
+    p.paragraph_format.line_spacing_rule = WD_LINE_SPACING.MULTIPLE
 
     run = p.add_run(str(text))
     run.bold = bold
@@ -90,7 +93,7 @@ def add_title(document, title, subtitle=None):
         p2.paragraph_format.space_after = Pt(8)
 
         r2 = p2.add_run(subtitle)
-        r2.font.name = "Aptos"
+        r2.font.name = "PP Mori"
         r2.font.size = Pt(10)
         r2.font.color.rgb = RGBColor.from_string("666666")
 
@@ -111,9 +114,11 @@ def add_heading(document, text, level=1):
 def add_body_paragraph(document, text, space_after=6):
     p = document.add_paragraph()
     p.paragraph_format.space_after = Pt(space_after)
+    p.paragraph_format.line_spacing = 1.15
+    p.paragraph_format.line_spacing_rule = WD_LINE_SPACING.MULTIPLE
 
     r = p.add_run(text)
-    r.font.name = "Aptos"
+    r.font.name = "PP Mori"
     r.font.size = Pt(10)
     r.font.color.rgb = RGBColor.from_string("000000")
     return document
@@ -175,7 +180,6 @@ def draw_table_df(document, df, shading=False, DEBUG=False):
     if DEBUG:
         print(f"Headers: {list(df.columns)}")
 
-    # Header row
     for j, col in enumerate(df.columns):
         cell = table.cell(0, j)
         set_cell_shading(cell, WSFL_BLUE)
@@ -189,7 +193,6 @@ def draw_table_df(document, df, shading=False, DEBUG=False):
             align="center"
         )
 
-    # Body
     for i in range(nrow):
         for j in range(ncol):
             val = df.iat[i, j]
@@ -211,7 +214,7 @@ def draw_table_df(document, df, shading=False, DEBUG=False):
                 cell,
                 text,
                 bold=False,
-                font_name="Aptos",
+                font_name="PP Mori",
                 font_size=9,
                 font_color="000000",
                 align=align
@@ -238,10 +241,7 @@ def build_region_phrase(region_names):
 # =============================================================================
 # Chart helpers
 # =============================================================================
-def render_assessment_circle_chart(
-    bucket,
-    out_path="assessment_circle_chart.png"
-):
+def render_assessment_circle_chart(bucket, out_path="assessment_circle_chart.png"):
     font_family = load_ppmori_fonts("app/static/fonts")
 
     fig, ax = plt.subplots(figsize=(6.8, 2.7), dpi=300)
@@ -287,6 +287,7 @@ def add_assessment_circle_chart(document, bucket, DEBUG=False):
 
     p = document.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
     run = p.add_run()
     run.add_picture(img_path, width=Inches(5.2))
 
@@ -296,10 +297,7 @@ def add_assessment_circle_chart(document, bucket, DEBUG=False):
     return document
 
 
-def render_level_score_chart(
-    df_level_total,
-    out_path="assessment_score_chart.png"
-):
+def render_level_score_chart(df_level_total, out_path="assessment_score_chart.png"):
     font_family = load_ppmori_fonts("app/static/fonts")
 
     df_plot = df_level_total.pivot(
@@ -377,6 +375,7 @@ def add_level_score_chart(document, df_level_total, DEBUG=False):
 
     p = document.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
     run = p.add_run()
     run.add_picture(img_path, width=Inches(5.4))
 
@@ -386,16 +385,109 @@ def add_level_score_chart(document, df_level_total, DEBUG=False):
     return document
 
 
+def render_funder_level_chart(df_funder_levels, out_path="funder_level_chart.png"):
+    font_family = load_ppmori_fonts("app/static/fonts")
+
+    df_plot = df_funder_levels.pivot(
+        index="Funder",
+        columns="LevelName",
+        values="AssessmentCount"
+    ).fillna(0)
+
+    level_order = [
+        "Foundational Level",
+        "Intermediate Level",
+        "Expert Level"
+    ]
+    df_plot = df_plot.reindex(columns=level_order, fill_value=0)
+
+    colours = {
+        "Foundational Level": "#BBE6E9",
+        "Intermediate Level": "#2EBDC2",
+        "Expert Level": "#1A427D"
+    }
+
+    fig, ax = plt.subplots(figsize=(6.8, 3.2), dpi=300)
+    fig.patch.set_facecolor("white")
+    ax.set_facecolor("white")
+
+    bottom = None
+    x = range(len(df_plot.index))
+
+    for level in level_order:
+        vals = df_plot[level].values
+        ax.bar(
+            x,
+            vals,
+            bottom=bottom,
+            label=level,
+            color=colours[level],
+            edgecolor="none",
+            width=0.7
+        )
+        bottom = vals if bottom is None else bottom + vals
+
+    ax.set_xticks(list(x))
+    ax.set_xticklabels(
+        df_plot.index,
+        rotation=30,
+        ha="right",
+        fontsize=8,
+        fontname=font_family
+    )
+    ax.set_ylabel("Number of Assessments", fontname=font_family, fontsize=10)
+
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.grid(axis="y", alpha=0.2)
+
+    ax.tick_params(axis="y", labelsize=9)
+
+    legend = ax.legend(
+        frameon=False,
+        fontsize=8,
+        ncol=3,
+        loc="upper center",
+        bbox_to_anchor=(0.5, 1.18)
+    )
+    for txt in legend.get_texts():
+        txt.set_fontname(font_family)
+
+    fig.tight_layout()
+
+    fig.savefig(
+        out_path,
+        dpi=300,
+        bbox_inches="tight",
+        pad_inches=0.02,
+        facecolor="white"
+    )
+    plt.close(fig)
+
+    return out_path
+
+
+def add_funder_level_chart(document, df_funder_levels, DEBUG=False):
+    img_path = render_funder_level_chart(df_funder_levels)
+
+    p = document.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+    run = p.add_run()
+    run.add_picture(img_path, width=Inches(5.8))
+
+    if DEBUG:
+        print(f"Inserted funder level chart image: {img_path}")
+
+    return document
+
+
 # =============================================================================
 # Data
 # =============================================================================
-def get_page1_data(DEBUG=False):
+def get_report_data(DEBUG=False):
     con = get_db_engine()
 
-    df_summary_funder = pd.read_sql(
-        "EXEC KaiakoAnalysis @Request = 'KaiakoTargets'",
-        con
-    )
     df_summary = pd.read_sql(
         "EXEC KaiakoAnalysis @Request = 'OverallSummary'",
         con
@@ -404,21 +496,153 @@ def get_page1_data(DEBUG=False):
         "EXEC KaiakoAnalysis @Request = 'LevelTotalSchool'",
         con
     )
+    df_funder_levels = pd.read_sql(
+        "EXEC KaiakoAnalysis @Request = 'FunderLevelDistribution'",
+        con
+    )
+    df_kaiako_targets = pd.read_sql(
+        "EXEC KaiakoAnalysis @Request = 'KaiakoTargets'",
+        con
+    )
 
     if DEBUG:
         print(df_summary)
-        print(df_summary_funder)
         print(df_level_total)
+        print(df_funder_levels)
+        print(df_kaiako_targets)
 
-    return df_summary, df_summary_funder, df_level_total
+    return df_summary, df_level_total, df_funder_levels, df_kaiako_targets
+
+
+def prepare_targets_table(df_kaiako_targets):
+    df = df_kaiako_targets.copy()
+
+    df = df.rename(columns={
+        "KaiakoTarget": "Target",
+        "KaiakoCount": "Assessments",
+        "KaiakoClassCount": "KaiakoClasses",
+        "AssessmentCompletePercentage": "ClassesAssessedPercentage",
+        "TargetPercentage": "TargetPercentage"
+    })
+
+    df = df[
+        [
+            "Funder",
+            "Target",
+            "Assessments",
+            "KaiakoClasses",
+            "ClassesAssessedPercentage",
+            "TargetPercentage"
+        ]
+    ]
+
+    return df
+
+
+def build_funder_chart_insights(df_funder_levels):
+    if df_funder_levels.empty:
+        return []
+
+    df_plot = df_funder_levels.pivot(
+        index="Funder",
+        columns="LevelName",
+        values="AssessmentCount"
+    ).fillna(0)
+
+    for col in ["Foundational Level", "Intermediate Level", "Expert Level"]:
+        if col not in df_plot.columns:
+            df_plot[col] = 0
+
+    df_plot["Total"] = (
+        df_plot["Foundational Level"] +
+        df_plot["Intermediate Level"] +
+        df_plot["Expert Level"]
+    )
+
+    nonzero = df_plot[df_plot["Total"] > 0].copy()
+    if nonzero.empty:
+        return []
+
+    nonzero["ExpertPct"] = nonzero["Expert Level"] / nonzero["Total"] * 100
+    nonzero["Range"] = (
+        nonzero[["Foundational Level", "Intermediate Level", "Expert Level"]]
+        .gt(0).sum(axis=1)
+    )
+
+    highest_expert_funder = nonzero["ExpertPct"].idxmax()
+    highest_expert_pct = nonzero.loc[highest_expert_funder, "ExpertPct"]
+
+    widest_range_funder = nonzero["Range"].idxmax()
+
+    insights = [
+        f"{highest_expert_funder} has the highest proportion of Expert-level assessments ({highest_expert_pct:.1f}%)."
+    ]
+
+    if nonzero["Range"].max() > 1:
+        insights.append(
+            f"{widest_range_funder} shows the broadest spread across assessment levels."
+        )
+
+    intermediate_dominant = nonzero[
+        (nonzero["Intermediate Level"] >= nonzero["Foundational Level"]) &
+        (nonzero["Intermediate Level"] >= nonzero["Expert Level"])
+    ]
+
+    if len(intermediate_dominant) >= 1:
+        insights.append(
+            "Intermediate-level assessments remain the most common pattern across several funders."
+        )
+
+    return insights[:3]
+
+
+def build_target_insights(df_targets_table):
+    if df_targets_table.empty:
+        return []
+
+    insights = []
+
+    no_target = df_targets_table[
+        df_targets_table["Target"].isna() | (df_targets_table["Target"] == 0)
+    ]
+    if not no_target.empty:
+        if len(no_target) == 1:
+            insights.append(
+                f"{no_target.iloc[0]['Funder']} did not have a funded Kaiako target for the period."
+            )
+        else:
+            insights.append(
+                "Some organisations did not have a funded Kaiako target for the period."
+            )
+
+    low_completion = df_targets_table[
+        df_targets_table["ClassesAssessedPercentage"].notna() &
+        (df_targets_table["ClassesAssessedPercentage"] < 80)
+    ]
+    if not low_completion.empty:
+        worst_completion = low_completion.sort_values("ClassesAssessedPercentage").iloc[0]
+        insights.append(
+            f"{worst_completion['Funder']} shows lower assessment completion across Kaiako classes "
+            f"({worst_completion['ClassesAssessedPercentage']:.1f}%), suggesting that not all delivered "
+            f"classes have recorded teacher assessments."
+        )
+
+    high_target = df_targets_table[
+        df_targets_table["TargetPercentage"].notna() &
+        (df_targets_table["TargetPercentage"] >= 100)
+    ]
+    if not high_target.empty:
+        insights.append(
+            "Some funders have met or exceeded their funded Kaiako targets."
+        )
+
+    return insights[:3]
 
 
 # =============================================================================
-# Page 1 builder
+# Page builders
 # =============================================================================
-def build_page1_content(document, DEBUG=False):
-    df_summary, df_summary_funder, df_level_total = get_page1_data(DEBUG=DEBUG)
-
+def build_page1_content(document, df_summary, df_level_total, DEBUG=False):
     if df_summary.empty:
         add_heading(document, "Summary", level=1)
         add_body_paragraph(document, "No summary data was returned.")
@@ -525,33 +749,49 @@ def build_page1_content(document, DEBUG=False):
         )
         add_body_paragraph(document, peaks_text)
 
-    add_heading(document, "Funder Overview", level=2)
+        insight_text = (
+            "While these consistent ratings are expected, the spread across total "
+            "scores shows variation within each level, particularly within the "
+            "Intermediate group. This indicates that teachers classified at the "
+            "same level may still differ in how consistently they meet the "
+            "underlying assessment criteria."
+        )
+        add_body_paragraph(document, insight_text)
+
+    return document
+
+
+def build_page2_content(document, df_funder_levels, df_kaiako_targets, DEBUG=False):
+    document.add_page_break()
+
+    add_heading(document, "Funder Comparison", level=1)
     add_body_paragraph(
         document,
-        "The table below summarises performance across funded organisations."
+        "The chart below compares the distribution of Foundational, Intermediate, "
+        "and Expert teacher assessments across funded organisations."
     )
 
-    df_summary_funder = df_summary_funder.copy()
-    df_summary_funder["ClassesMissingAssessment"] = (
-        df_summary_funder["KaiakoClassCount"] - df_summary_funder["KaiakoCount"]
-    )
-    df_summary_funder["ClassesMissingAssessment"] = (
-        df_summary_funder["ClassesMissingAssessment"]
-        .where(df_summary_funder["ClassesMissingAssessment"] > 0, "")
+    if not df_funder_levels.empty:
+        document = add_funder_level_chart(document, df_funder_levels, DEBUG=DEBUG)
+
+        chart_insights = build_funder_chart_insights(df_funder_levels)
+        for sentence in chart_insights:
+            add_body_paragraph(document, sentence)
+
+    add_heading(document, "Delivery Against Targets", level=2)
+    add_body_paragraph(
+        document,
+        "The table below shows delivery against funded targets for each organisation."
     )
 
-    df_table = df_summary_funder[
-        [
-            "Funder",
-            "KaiakoTarget",
-            "KaiakoCount",
-            "KaiakoClassCount",
-            "ClassesMissingAssessment",
-            "TargetPercentage",
-        ]
-    ]
+    if not df_kaiako_targets.empty:
+        df_targets_table = prepare_targets_table(df_kaiako_targets)
+        document = draw_table_df(document, df_targets_table, shading=True, DEBUG=DEBUG)
 
-    document = draw_table_df(document, df_table, shading=True, DEBUG=DEBUG)
+        target_insights = build_target_insights(df_targets_table)
+        for sentence in target_insights:
+            add_body_paragraph(document, sentence)
+
     return document
 
 
@@ -562,13 +802,21 @@ if __name__ == "__main__":
     DEBUG = True
 
     title = "Teacher Assessment Analysis"
-    subtitle = "Kaiako Led Programmes – Page 1 Overview"
+    subtitle = "Kaiako Led Programmes – Overview and Funder Comparison"
     filename = f"{title}.docx"
 
     close_word(DEBUG)
 
+    df_summary, df_level_total, df_funder_levels, df_kaiako_targets = get_report_data(DEBUG=DEBUG)
+
     document = set_up_doc(title, subtitle=subtitle)
-    document = build_page1_content(document, DEBUG=DEBUG)
+    document = build_page1_content(document, df_summary, df_level_total, DEBUG=DEBUG)
+    document = build_page2_content(
+        document,
+        df_funder_levels,
+        df_kaiako_targets,
+        DEBUG=DEBUG
+    )
 
     document.save(filename)
     os.startfile(filename)
