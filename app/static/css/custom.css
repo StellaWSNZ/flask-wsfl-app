@@ -135,3 +135,8 @@ thead.custom-header th {
   color: #fff !important;
   border-color: var(--bs-danger-custom) !important;
 }
+
+[class^="btn-outline-"],
+[class*=" btn-outline-"] {
+  border-width: 2px !important;
+}

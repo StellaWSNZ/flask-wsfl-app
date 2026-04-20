@@ -1987,6 +1987,67 @@ def move_school_funder():
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
     
+
+@admin_bp.route("/remove_school_from_term", methods=["POST"])
+@login_required
+def remove_school_from_term():
+    if session.get("user_role") != "ADM":
+        return jsonify({"success": False, "message": "Unauthorised"}), 403
+
+    data = request.get_json(silent=True) or {}
+
+    moe_number = data.get("MOENumber")
+    term = data.get("Term")
+    year = data.get("Year")
+    funder_id = data.get("FunderID")
+
+    if not moe_number or not term or not year or not funder_id:
+        return jsonify({
+            "success": False,
+            "message": "MOENumber, Term, Year, and FunderID are required."
+        }), 400
+
+    try:
+        moe_number = int(moe_number)
+        term = int(term)
+        year = int(year)
+        funder_id = int(funder_id)
+    except (TypeError, ValueError):
+        return jsonify({
+            "success": False,
+            "message": "Invalid input values."
+        }), 400
+
+    try:
+        with get_db_engine().begin() as conn:
+            conn.execute(
+                text("""
+                    EXEC FlaskHelperFunctionsSpecific
+                        @Request = 'RemoveSchoolFromTerm',
+                        @MOENumber = :moe_number,
+                        @Term = :term,
+                        @CalendarYear = :year,
+                        @FunderID = :funder_id
+                """),
+                {
+                    "moe_number": moe_number,
+                    "term": term,
+                    "year": year,
+                    "funder_id": funder_id
+                }
+            )
+
+        return jsonify({
+            "success": True,
+            "message": "School removed successfully."
+        })
+
+    except Exception as e:
+        print("❌ remove_school_from_term error:", str(e))
+        return jsonify({
+            "success": False,
+            "message": str(e)
+        }), 500
     
 
 @admin_bp.route("/move_school_term", methods=["POST"])

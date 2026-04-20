@@ -122,39 +122,61 @@
                     {% endfor %}
                   </select>
 
-                  <button type="button"
-                          class="btn btn-outline-primary add-provider-btn"
-                          data-bs-toggle="modal"
-                          data-bs-target="#newProviderModal"
-                          aria-label="Add new provider">
-                    <i class="bi bi-plus-lg" aria-hidden="true"></i>
-                  </button>
+                 <button type="button"
+        class="btn btn-outline-primary add-provider-btn has-tooltip"
+        data-bs-toggle="modal"
+        data-bs-target="#newProviderModal"
+        title="Add new provider"
+        aria-label="Add new provider">
+  <i class="bi bi-plus-lg"></i>
+</button>
                   {% if user_role == 'ADM' and school.MovableFlag == 1 %}
                     <button type="button"
-                            class="btn btn-outline-secondary move-term-btn"
-                            data-bs-toggle="modal"
-                            data-bs-target="#moveTermModal"
-                            data-moe="{{ school.MOENumber }}"
-                            data-school="{{ school.School }}"
-                            data-current-funder-id="{{ selected_funder }}"
-                            data-current-funder-name="{{ selected_funder_name }}"
-                            data-current-term="{{ selected_term }}"
-                            data-current-year="{{ selected_year }}">
-                      <i class="bi bi-calendar" aria-hidden="true"></i>
-                    </button>
+        class="btn btn-outline-secondary move-term-btn has-tooltip"
+        data-bs-toggle="modal"
+        data-bs-target="#moveTermModal"
+        data-moe="{{ school.MOENumber }}"
+        data-school="{{ school.School }}"
+        data-current-funder-id="{{ selected_funder }}"
+        data-current-funder-name="{{ selected_funder_name }}"
+        data-current-term="{{ selected_term }}"
+        data-current-year="{{ selected_year }}"
+        title="Move school to another term"
+        aria-label="Move school to another term">
+  <i class="bi bi-calendar"></i>
+</button>
                   {% endif %}
                   {% if user_role == 'ADM' %}
                     <button type="button"
-                            class="btn btn-outline-info move-school-btn"
-                            data-bs-toggle="modal"
-                            data-bs-target="#moveSchoolModal"
-                            data-moe="{{ school.MOENumber }}"
-                            data-school="{{ school.School }}"
-                            data-current-funder-id="{{ selected_funder }}"
-                            data-current-funder-name="{{ selected_funder_name }}">
-                      <i class="bi bi-arrow-left-right" aria-hidden="true"></i>
-                    </button>
+        class="btn btn-outline-info move-school-btn has-tooltip"
+        data-bs-toggle="modal"
+        data-bs-target="#moveSchoolModal"
+        data-moe="{{ school.MOENumber }}"
+        data-school="{{ school.School }}"
+        data-current-funder-id="{{ selected_funder }}"
+        data-current-funder-name="{{ selected_funder_name }}"
+        title="Move school to another funder"
+        aria-label="Move school to another funder">
+  <i class="bi bi-arrow-left-right"></i>
+</button>
                   {% endif %}
+                  {% if user_role == 'ADM' and school.TotalClasses == 0 %}
+                    <button type="button"
+        class="btn btn-outline-danger remove-school-btn has-tooltip"
+        data-bs-toggle="modal"
+        data-bs-target="#removeSchoolModal"
+        data-moe="{{ school.MOENumber }}"
+        data-school="{{ school.School }}"
+        data-term="{{ selected_term }}"
+        data-year="{{ selected_year }}"
+        data-funder-id="{{ selected_funder }}"
+        data-funder-name="{{ selected_funder_name }}"
+        title="Remove school from this term"
+        aria-label="Remove school from this term">
+  <i class="bi bi-trash"></i>
+</button>
+
+                  {% endif %} 
                 </div>
 
                 <!-- CLM MODE: Provider 2 (Facility) + Facility staff -->
@@ -347,6 +369,56 @@
   </div>
 </div>
 {% endif %}
+
+<!-- ========================= -->
+<!-- Remove School Modal       -->
+<!-- ========================= -->
+<div class="modal fade" id="removeSchoolModal" tabindex="-1" aria-labelledby="removeSchoolModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="removeSchoolForm">
+        <div class="modal-header">
+          <h5 class="modal-title" id="removeSchoolModalLabel">Remove School from Term</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body">
+          <input type="hidden" id="removeSchoolMOE" name="moe_number">
+          <input type="hidden" id="removeSchoolTerm" name="term">
+          <input type="hidden" id="removeSchoolYear" name="year">
+          <input type="hidden" id="removeSchoolFunderID" name="funder_id">
+
+          <div class="mb-3">
+            <label class="form-label">School</label>
+            <input type="text" class="form-control" id="removeSchoolName" readonly>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Funder</label>
+            <input type="text" class="form-control" id="removeSchoolFunderName" readonly>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Current term/year</label>
+            <input type="text" class="form-control" id="removeSchoolTermYearDisplay" readonly>
+          </div>
+
+          <div class="alert alert-warning mb-0">
+            This will remove the school from the selected funder, term, and year only. Historical data should remain unchanged.
+          </div>
+
+          <div id="removeSchoolSuccess" class="alert alert-success d-none mt-3"></div>
+          <div id="removeSchoolError" class="alert alert-danger d-none mt-3"></div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-danger">Confirm Remove</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 <!-- ========================= -->
 <!-- Move Term/Year Modal      -->
 <!-- ========================= -->
@@ -521,6 +593,39 @@ const moveTermNewTerm = document.getElementById("moveTermNewTerm");
 const moveTermNewYear = document.getElementById("moveTermNewYear");
 const moveTermSuccess = document.getElementById("moveTermSuccess");
 const moveTermError = document.getElementById("moveTermError");
+
+
+const removeSchoolForm = document.getElementById("removeSchoolForm");
+
+const removeSchoolMOE = document.getElementById("removeSchoolMOE");
+const removeSchoolTerm = document.getElementById("removeSchoolTerm");
+const removeSchoolYear = document.getElementById("removeSchoolYear");
+const removeSchoolFunderID = document.getElementById("removeSchoolFunderID");
+
+const removeSchoolName = document.getElementById("removeSchoolName");
+const removeSchoolFunderName = document.getElementById("removeSchoolFunderName");
+const removeSchoolTermYearDisplay = document.getElementById("removeSchoolTermYearDisplay");
+
+const removeSchoolSuccess = document.getElementById("removeSchoolSuccess");
+const removeSchoolError = document.getElementById("removeSchoolError");
+const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+tooltipTriggerList.forEach(el => new bootstrap.Tooltip(el));
+document.querySelectorAll(".remove-school-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    if (removeSchoolSuccess) removeSchoolSuccess.classList.add("d-none");
+    if (removeSchoolError) removeSchoolError.classList.add("d-none");
+
+    removeSchoolMOE.value = btn.dataset.moe || "";
+    removeSchoolTerm.value = btn.dataset.term || "";
+    removeSchoolYear.value = btn.dataset.year || "";
+    removeSchoolFunderID.value = btn.dataset.funderId || "";
+
+    removeSchoolName.value = btn.dataset.school || "";
+    removeSchoolFunderName.value = btn.dataset.funderName || "";
+    removeSchoolTermYearDisplay.value = `Term ${btn.dataset.term || ""}, ${btn.dataset.year || ""}`;
+  });
+});
+
   document.querySelectorAll(".move-term-btn").forEach(btn => {
   btn.addEventListener("click", () => {
     if (moveTermSuccess) moveTermSuccess.classList.add("d-none");
@@ -549,6 +654,42 @@ const moveTermError = document.getElementById("moveTermError");
         btn.dataset.currentFunderId || "";
       });
   });
+  if (removeSchoolForm) {
+  removeSchoolForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    removeSchoolSuccess.classList.add("d-none");
+    removeSchoolError.classList.add("d-none");
+
+    try {
+      const response = await fetch("/remove_school_from_term", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          MOENumber: removeSchoolMOE.value,
+          Term: removeSchoolTerm.value,
+          Year: removeSchoolYear.value,
+          FunderID: removeSchoolFunderID.value
+        })
+      });
+
+      const result = await response.json().catch(() => ({}));
+
+      if (response.ok && result.success) {
+        removeSchoolSuccess.textContent = "School removed successfully.";
+        removeSchoolSuccess.classList.remove("d-none");
+        setTimeout(() => location.reload(), 800);
+      } else {
+        removeSchoolError.textContent = result.message || "Failed to remove school.";
+        removeSchoolError.classList.remove("d-none");
+      }
+    } catch (err) {
+      console.error("❌ Error removing school:", err);
+      removeSchoolError.textContent = "Something went wrong.";
+      removeSchoolError.classList.remove("d-none");
+    }
+  });
+}
   if (moveTermForm) {
   moveTermForm.addEventListener("submit", async (e) => {
     e.preventDefault();
