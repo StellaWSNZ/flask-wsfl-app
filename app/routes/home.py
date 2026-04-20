@@ -217,7 +217,7 @@ def home():
             if requested_view in {"errors", "esther"}:
                 session["stella_dashboard_view"] = requested_view
             dashboard_mode = session.get("stella_dashboard_view", "errors")
-        elif email == "esther@watersafety.org.nz":
+        elif email in ["esther@watersafety.org.nz","gavin@watersafety.org.nz"] :
             dashboard_mode = "esther"
 
         error_cards = []
@@ -249,7 +249,7 @@ def home():
                     "created_at": created_str
                 })
 
-        if email in ["stella@watersafety.org.nz", "esther@watersafety.org.nz"]:
+        if email in ["stella@watersafety.org.nz", "esther@watersafety.org.nz","gavin@watersafety.org.nz"]:
             try:
                 engine = get_db_engine()
 
