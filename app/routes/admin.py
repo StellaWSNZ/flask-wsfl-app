@@ -570,47 +570,50 @@ def serve_logo(logo_type, logo_id):
         return Response(result[0], mimetype=result[1])
     return '', 404
 
-
 @admin_bp.route("/assign_provider", methods=["POST"])
 @login_required
 def assign_provider():
     try:
         data = request.get_json(silent=True) or {}
 
-        moe_number  = data.get("MOENumber")
-        term        = data.get("Term")
-        year        = data.get("Year")
-        provider_id = data.get("ProviderID")
+        current_app.logger.info(f"assign_provider raw payload: {data}")
 
-        # NEW:
-        slot        = data.get("Slot", 1)       # default slot 1
-        funder_id   = data.get("FunderID")      # required for CLM branching in SP
+        moe_number = data.get("MOENumber")
+        term = data.get("Term")
+        year = data.get("Year")
+        provider_id = data.get("ProviderID")
+        slot = data.get("Slot", 1)
+        funder_id = data.get("FunderID")
 
         # -------------------------
         # Basic validation
         # -------------------------
-        if not (moe_number and term and year):
+        if moe_number is None or term is None or year is None:
             raise ValueError("Missing required fields: MOENumber, Term, and Year are required.")
 
-        # Slot must be 1 or 2
+        try:
+            moe_number = int(moe_number)
+            term = int(term)
+            year = int(year)
+        except (TypeError, ValueError):
+            raise ValueError("MOENumber, Term, and Year must be integers.")
+
         try:
             slot = int(slot)
         except (TypeError, ValueError):
             raise ValueError("Slot must be 1 or 2.")
+
         if slot not in (1, 2):
             raise ValueError("Slot must be 1 or 2.")
 
-        # FunderID required (because SP checks SwimMagic CLM by funder)
-        # If you truly want to allow older callers, you can set it to None and let SP treat as non-CLM,
-        # but then CLM slot2 logic won't work reliably.
         if funder_id in ("", None):
             raise ValueError("Missing required field: FunderID.")
+
         try:
             funder_id = int(funder_id)
         except (TypeError, ValueError):
             raise ValueError("FunderID must be an integer.")
 
-        # Normalize ProviderID (allow None to clear)
         if provider_id in ("", None):
             provider_id = None
         else:
@@ -619,29 +622,29 @@ def assign_provider():
             except (TypeError, ValueError):
                 raise ValueError("ProviderID must be an integer or null.")
 
-        # Normalise numeric types (optional but tidy)
-        try:
-            moe_number = int(moe_number)
-            term = int(term)
-            year = int(year)
-        except (TypeError, ValueError):
-            raise ValueError("MOENumber, Term, and Year must be integers.")
+        current_app.logger.info(
+            "assign_provider normalized payload -> "
+            f"MOE={moe_number}, Term={term}, Year={year}, "
+            f"FunderID={funder_id}, ProviderID={provider_id}, Slot={slot}"
+        )
 
         # -------------------------
         # Execute SP
         # -------------------------
         engine = get_db_engine()
         with engine.begin() as conn:
-            conn.execute(
+            current_app.logger.info("Calling SP FlaskHelperFunctionsSpecific / AssignProviderToSchool")
+
+            result = conn.execute(
                 text("""
-                    EXEC FlaskHelperFunctionsSpecific
-                         @Request   = 'AssignProviderToSchool',
-                         @MOENumber = :moe,
-                         @Year      = :year,
-                         @Term      = :term,
-                         @FunderID  = :funder_id,
-                         @Slot      = :slot,
-                         @ProviderID= :pid
+                    EXEC dbo.FlaskHelperFunctionsSpecific
+                         @Request    = 'AssignProviderToSchool',
+                         @MOENumber  = :moe,
+                         @Term       = :term,
+                         @Year       = :year,
+                         @FunderID   = :funder_id,
+                         @Slot       = :slot,
+                         @ProviderID = :provider_id
                 """),
                 {
                     "moe": moe_number,
@@ -649,16 +652,24 @@ def assign_provider():
                     "year": year,
                     "funder_id": funder_id,
                     "slot": slot,
-                    "pid": provider_id,
+                    "provider_id": provider_id,
                 },
             )
 
+            # Optional debug: if your SP temporarily returns a SELECT,
+            # this will log it. If not, it will just say no result set.
+            try:
+                rows = result.fetchall()
+                current_app.logger.info(f"assign_provider SP returned rows: {rows}")
+            except Exception:
+                current_app.logger.info("assign_provider SP returned no result set")
+
+        current_app.logger.info("assign_provider completed successfully")
         return jsonify(success=True)
 
     except Exception as e:
-        current_app.logger.exception("❌ assign_provider failed")
+        current_app.logger.exception("assign_provider failed")
 
-        # ---- Write error to DB (never raise from here) ----
         try:
             log_alert(
                 email=(session.get("user_email") or "")[:320],
@@ -668,11 +679,9 @@ def assign_provider():
                 message=f"assign_provider error: {str(e)[:2000]}",
             )
         except Exception:
-            current_app.logger.exception("⚠️ Failed to log alert in assign_provider.")
+            current_app.logger.exception("Failed to log alert in assign_provider")
 
         return jsonify(success=False, error=str(e)), 500
-
-
 
 @admin_bp.route("/api/clm_facilities", methods=["GET"])
 @login_required

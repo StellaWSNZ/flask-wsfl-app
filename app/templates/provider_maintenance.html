@@ -813,54 +813,78 @@ const moveTermError = document.getElementById("moveTermError");
   };
 
   // ---------- Provider dropdown handlers ----------
-  document.querySelectorAll(".provider-select").forEach(select => {
-    let previousText = select.options[select.selectedIndex]?.textContent?.toLowerCase() || "";
+document.querySelectorAll(".provider-select").forEach(select => {
+  let previousText = select.options[select.selectedIndex]?.textContent?.toLowerCase() || "";
 
-    // Initial UI
-    syncScopeUI(select);
-
-    select.addEventListener("change", async () => {
-      const selectedText = select.options[select.selectedIndex]?.textContent?.toLowerCase() || "";
-
-      const scope = select.closest(".provider-scope");
-      const moe  = select.dataset.moe;
-      const term = select.dataset.term;
-      const year = select.dataset.year;
-      const funderId = select.dataset.funder;
-
-      // If user changed from Kaiako to non-Kaiako, delete staff assignment + clear facility UI
-      if (previousText.includes("kaiako") && !selectedText.includes("kaiako")) {
-        try {
-          await postAssignKaiakoStaff({ moe, term, year, email: "" });
-        } catch (err) {
-          console.error("❌ Error deleting staff assignment:", err);
-        }
-
-        if (scope) {
-          const facilitySelect = scope.querySelector(".clm-facility-select");
-          const staffSelect = scope.querySelector(".clm-staff-select");
-          if (facilitySelect) facilitySelect.value = "";
-          if (staffSelect) staffSelect.innerHTML = `<option value="">Not Assigned</option>`;
-          scope.dataset.currentProvider2id = "";
-        }
-      }
-
-      // Assign Provider1 (slot 1)
-      try {
-        await postAssignProvider({
-          moe, term, year, funderId,
-          providerId: select.value || null,
-          slot: 1
-        });
-        if (scope) scope.dataset.currentProvider1id = select.value || "";
-      } catch (err) {
-        console.error("❌ Error assigning Provider1:", err);
-      }
-
-      previousText = selectedText;
-      await syncScopeUI(select);
-    });
+  console.log("attached provider-select", {
+    moe: select.dataset.moe,
+    initialValue: select.value,
+    initialText: previousText
   });
+
+  select.addEventListener("change", async (e) => {
+    console.log("CHANGE EVENT FIRED", {
+      moe: select.dataset.moe,
+      rawValue: select.value,
+      selectedIndex: select.selectedIndex,
+      selectedText: select.options[select.selectedIndex]?.textContent
+    });
+
+    const selectedText = select.options[select.selectedIndex]?.textContent?.toLowerCase() || "";
+    const selectedValue = (select.value === "") ? null : parseInt(select.value, 10);
+
+    const scope = select.closest(".provider-scope");
+    const moe = parseInt(select.dataset.moe, 10);
+    const term = parseInt(select.dataset.term, 10);
+    const year = parseInt(select.dataset.year, 10);
+    const funderId = parseInt(select.dataset.funder, 10);
+
+    try {
+      console.log("about to call assign_provider", {
+        MOENumber: moe,
+        Term: term,
+        Year: year,
+        FunderID: funderId,
+        ProviderID: selectedValue,
+        Slot: 1
+      });
+
+      const response = await fetch("/assign_provider", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          MOENumber: moe,
+          Term: term,
+          Year: year,
+          FunderID: funderId,
+          ProviderID: selectedValue,
+          Slot: 1
+        })
+      });
+
+      const result = await response.json().catch(() => ({}));
+
+      console.log("assign_provider response", {
+        ok: response.ok,
+        status: response.status,
+        result
+      });
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || result.message || "assign_provider failed");
+      }
+
+      if (scope) {
+        scope.dataset.currentProvider1id = selectedValue ?? "";
+      }
+
+    } catch (err) {
+      console.error("assign_provider failed in change handler", err);
+    }
+
+    previousText = selectedText;
+  });
+});
 
   // ---------- NON-CLM funder staff dropdown handler ----------
   document.querySelectorAll(".funder-staff-select").forEach(dropdown => {
