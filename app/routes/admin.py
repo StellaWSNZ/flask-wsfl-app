@@ -2090,3 +2090,62 @@ def move_school_term():
         return jsonify({"success": True})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
+    
+    
+@admin_bp.route("/school_summary", methods=["GET", "POST"])
+def school_summary():
+    print("*")
+    terms = get_terms()
+    years = get_years()
+
+    df = None
+    selected_term = None
+    selected_year = None
+    selected_school = None
+
+    if request.method == "POST":
+        selected_term = request.form.get("term", type=int)
+        selected_year = request.form.get("year", type=int)
+        selected_school = request.form.get("school", type=int)
+
+        if selected_term and selected_year and selected_school:
+            try:
+                with get_db_engine().begin() as conn:
+                    result = conn.execute(
+                        text("""
+                            EXEC dbo.GetSchoolSummaryHierarchy
+                                @Term = :term,
+                                @CalendarYear = :year,
+                                @MOENumber = :moenumber
+                        """),
+                        {
+                            "term": selected_term,
+                            "year": selected_year,
+                            "moenumber": selected_school
+                        }
+                    )
+
+                    df = pd.DataFrame(result.fetchall(), columns=result.keys())
+
+            except Exception as e:
+                # Print full error to console (for debugging)
+                print("❌ Error running stored procedure:", str(e))
+
+                # Optional: log to database if you have AUD_Alerts
+
+
+                flash("Something went wrong while loading the summary. Please try again.", "danger")
+    print("*")
+    table_data = df.to_dict(orient="records") if df is not None else []
+    table_columns = list(df.columns) if df is not None else []
+    print("*")
+    return render_template(
+        "school_summary.html",
+        terms=terms,
+        years=years,
+        table_data=table_data,
+        table_columns=table_columns,
+        selected_term=selected_term,
+        selected_year=selected_year,
+        selected_school=selected_school
+    )

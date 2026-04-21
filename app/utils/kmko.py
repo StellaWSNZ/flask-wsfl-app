@@ -42,7 +42,7 @@ def get_db_engine():
     """
     load_dotenv()
 
-    db_url = os.getenv("DB_URL_CUSTOM")
+    db_url = os.getenv("DB_URL")
     if db_url:
         return create_engine(db_url, pool_pre_ping=True, future=True)
 

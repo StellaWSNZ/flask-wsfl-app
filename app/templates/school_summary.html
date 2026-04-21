@@ -1,0 +1,131 @@
+{% extends "header.html" %}
+{% block title %}School Summary{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="card shadow-sm">
+    <div class="card-header">
+      <h4 class="mb-0">School Summary</h4>
+    </div>
+    <div class="card-body">
+      <form method="post" class="row g-3 mb-4">
+
+        <div class="col-md-4">
+          <label for="year" class="form-label">Year</label>
+          <select class="form-select" id="year" name="year" required>
+            <option value="">Select year</option>
+            {% for y in years %}
+              {% set year_value = y.CalendarYear if y.CalendarYear is defined else y %}
+              <option value="{{ year_value }}"
+                {% if selected_year == year_value %}selected{% endif %}>
+                {{ year_value }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-md-4">
+          <label for="term" class="form-label">Term</label>
+          <select class="form-select" id="term" name="term" required>
+            <option value="">Select term</option>
+            {% for t in terms %}
+              {% set term_value = t.Term if t.Term is defined else t %}
+              <option value="{{ term_value }}"
+                {% if selected_term == term_value %}selected{% endif %}>
+                {{ term_value }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-md-4">
+          <label for="school" class="form-label">School</label>
+          <select class="form-select" id="school" name="school" required>
+            <option value="">Loading schools...</option>
+          </select>
+        </div>
+
+        <div class="col-12">
+          <button type="submit" class="btn btn-primary">Show Summary</button>
+        </div>
+      </form>
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+              {{ message }}
+              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+
+      {% if table_columns and table_data %}
+        <div class="table-responsive">
+          <table class="table table-bordered table-sm align-middle">
+            <thead class="table-light">
+              <tr>
+                {% for col in table_columns %}
+                  <th>{{ col }}</th>
+                {% endfor %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in table_data %}
+                <tr>
+                  {% for col in table_columns %}
+                    <td>{{ row[col] }}</td>
+                  {% endfor %}
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% elif request.method == "POST" %}
+        <div class="alert alert-info">No rows returned.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const schoolSelect = document.getElementById("school");
+    const selectedSchool = "{{ selected_school if selected_school is not none else '' }}";
+
+    fetch("{{ url_for('api_bp.get_entities') }}?entity_type=School")
+        .then(response => response.json())
+        .then(data => {
+            console.log("API response:", data);
+
+            schoolSelect.innerHTML = '<option value="">Select school</option>';
+
+            if (!data.ok) {
+                schoolSelect.innerHTML = '<option value="">Failed to load schools</option>';
+                return;
+            }
+
+            const items = data.entities || [];
+
+            items.forEach(item => {
+                const option = document.createElement("option");
+                option.value = item.id;
+                option.textContent = item.description;
+
+                if (String(item.id) === String(selectedSchool)) {
+                    option.selected = true;
+                }
+
+                schoolSelect.appendChild(option);
+            });
+        })
+        .catch(error => {
+            console.error("Error loading schools:", error);
+            schoolSelect.innerHTML = '<option value="">Failed to load schools</option>';
+        });
+});
+</script>
+{% endblock %}
