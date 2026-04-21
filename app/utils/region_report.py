@@ -1182,13 +1182,13 @@ def build_region_report_pdf(
     stats = stats_from_summary_row(
         df_summary,
         bucket_map={
-            "Eligible schools": "TotalSchools",
+            "All schools": "TotalSchools",
             "Equity Index 446+": "TotalSchools446+",
             "Supported 24/25": "TotalSchoolsSupportedLY",
             "Supported 25/26": "TotalSchoolsSupportedTY",
         },
         colours = {
-            "Eligible schools": "#1a427d",
+            "All schools": "#1a427d",
             "Equity Index 446+": "#3C7EBD",
             "Supported 24/25": "#24ABE2",
             "Supported 25/26": "#b1d6ed",
