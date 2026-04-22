@@ -9,6 +9,8 @@ import pandas as pd
 import math
 from sqlalchemy import text
 from user_agents import parse as ua_parse
+from collections import defaultdict, OrderedDict
+import json 
 from flask import (
     Blueprint,
     Response,
@@ -2091,14 +2093,16 @@ def move_school_term():
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
     
-    
 @admin_bp.route("/school_summary", methods=["GET", "POST"])
 def school_summary():
-    print("*")
     terms = get_terms()
     years = get_years()
 
     df = None
+    structured = []
+    table_data = []
+    table_columns = []
+
     selected_term = None
     selected_year = None
     selected_school = None
@@ -2108,7 +2112,9 @@ def school_summary():
         selected_year = request.form.get("year", type=int)
         selected_school = request.form.get("school", type=int)
 
-        if selected_term and selected_year and selected_school:
+        if not selected_term or not selected_year or not selected_school:
+            flash("Please select a year, term, and school.", "warning")
+        else:
             try:
                 with get_db_engine().begin() as conn:
                     result = conn.execute(
@@ -2125,27 +2131,120 @@ def school_summary():
                         }
                     )
 
-                    df = pd.DataFrame(result.fetchall(), columns=result.keys())
+                    rows = result.fetchall()
+                    columns = result.keys()
+                    df = pd.DataFrame(rows, columns=columns)
+
+                if df is not None and not df.empty:
+                    table_data = df.to_dict(orient="records")
+                    table_columns = list(df.columns)
+
+                    # Build nested structure:
+                    # sections -> groups -> rows
+                    section_map = OrderedDict()
+
+                    for _, row in df.iterrows():
+                        row_dict = {
+                            "SectionOrder": row["SectionOrder"],
+                            "SortOrder": row["SortOrder"],
+                            "GroupID": row["GroupID"],
+                            "Indent": row["Indent"],
+                            "Heading": row["Heading"],
+                            "Summary": row["Summary"],
+                            "RowType": row["RowType"],
+                            "DetailJSON": row["DetailJSON"],
+                        }
+
+                        # Parse JSON detail rows for class competency preview
+                        if row_dict["RowType"] == "ClassCompetencyJSON":
+                            raw_json = row_dict.get("DetailJSON")
+                            parsed_rows = []
+
+                            if raw_json and str(raw_json).strip() not in ["", "[]", "null", "None"]:
+                                try:
+                                    parsed_rows = json.loads(raw_json)
+                                except Exception:
+                                    parsed_rows = []
+
+                            parsed_rows = sorted(
+                                parsed_rows,
+                                key=lambda x: (
+                                    (x.get("FirstName") or "").lower(),
+                                    (x.get("LastName") or "").lower(),
+                                    (x.get("CompetencyName") or "").lower(),
+                                    (x.get("CompetencyDate") or "")
+                                )
+                            )
+
+                            row_dict["ParsedDetailRows"] = parsed_rows
+                            row_dict["PreviewRows"] = parsed_rows[:5]
+                            row_dict["HasMoreRows"] = len(parsed_rows) > 5
+                            row_dict["DetailCount"] = len(parsed_rows)
+                        else:
+                            row_dict["ParsedDetailRows"] = []
+                            row_dict["PreviewRows"] = []
+                            row_dict["HasMoreRows"] = False
+                            row_dict["DetailCount"] = 0
+
+                        section_key = (row_dict["SectionOrder"], row_dict["Heading"])
+                        group_key = row_dict["GroupID"]
+
+                        if section_key not in section_map:
+                            section_map[section_key] = {
+                                "section_order": row_dict["SectionOrder"],
+                                "section_name": row_dict["Heading"],
+                                "groups": OrderedDict()
+                            }
+
+                        if group_key not in section_map[section_key]["groups"]:
+                            section_map[section_key]["groups"][group_key] = {
+                                "group_id": group_key,
+                                "rows": []
+                            }
+
+                        section_map[section_key]["groups"][group_key]["rows"].append(row_dict)
+
+                    # Convert ordered dicts to template-friendly lists
+                    structured = []
+                    for _, section in section_map.items():
+                        groups = list(section["groups"].values())
+
+                        for group in groups:
+                            group["rows"] = sorted(
+                                group["rows"],
+                                key=lambda r: (
+                                    r["SortOrder"] if r["SortOrder"] is not None else 0,
+                                    r["Indent"] if r["Indent"] is not None else 0,
+                                    r["Summary"] or ""
+                                )
+                            )
+
+                        structured.append({
+                            "section_order": section["section_order"],
+                            "section_name": section["section_name"],
+                            "groups": groups
+                        })
+
+                    structured = sorted(
+                        structured,
+                        key=lambda s: (s["section_order"], s["section_name"] or "")
+                    )
+
+                else:
+                    flash("No rows returned.", "info")
 
             except Exception as e:
-                # Print full error to console (for debugging)
-                print("❌ Error running stored procedure:", str(e))
+                print("❌ Error running school summary route:", str(e))
+                flash(f"Something went wrong while loading the summary: {str(e)}", "danger")
 
-                # Optional: log to database if you have AUD_Alerts
-
-
-                flash("Something went wrong while loading the summary. Please try again.", "danger")
-    print("*")
-    table_data = df.to_dict(orient="records") if df is not None else []
-    table_columns = list(df.columns) if df is not None else []
-    print("*")
     return render_template(
         "school_summary.html",
         terms=terms,
         years=years,
-        table_data=table_data,
-        table_columns=table_columns,
         selected_term=selected_term,
         selected_year=selected_year,
-        selected_school=selected_school
+        selected_school=selected_school,
+        table_data=table_data,
+        table_columns=table_columns,
+        structured=structured
     )

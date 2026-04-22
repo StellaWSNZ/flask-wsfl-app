@@ -1,16 +1,136 @@
 {% extends "header.html" %}
 {% block title %}School Summary{% endblock %}
 
+{% block head %}
+<style>
+  .wsfl-page-title {
+    color: #1a427d;
+    font-weight: 700;
+  }
+
+  .wsfl-summary-card {
+    border: none;
+    border-radius: 1rem;
+    background: #ffffff;
+    box-shadow: 0 0.25rem 1rem rgba(26, 66, 125, 0.08);
+    overflow: hidden;
+  }
+
+  .wsfl-summary-card .card-title {
+    background: #1a427d;
+    color: #ffffff;
+    font-weight: 700;
+    margin: 0;
+    padding: 0.9rem 1.1rem;
+    font-size: 1rem;
+  }
+
+  .wsfl-summary-card .card-body {
+    padding: 1rem 1.1rem 1.1rem 1.1rem;
+  }
+
+  .wsfl-class-card {
+    border: none;
+    border-radius: 1rem;
+    background: #ffffff;
+    box-shadow: 0 0.25rem 1rem rgba(26, 66, 125, 0.08);
+    overflow: hidden;
+  }
+
+  .wsfl-class-header {
+    background: #1a427d;
+    color: #ffffff;
+    border-top-left-radius: 1rem;
+    border-top-right-radius: 1rem;
+    padding: 1rem 1.25rem;
+  }
+
+  .wsfl-class-title {
+    color: #ffffff;
+    font-weight: 700;
+    margin-bottom: 0;
+  }
+
+  .wsfl-metric-chip {
+    display: inline-block;
+    background: #e9f0fa;
+    color: #1a427d;
+    border-radius: 999px;
+    padding: 0.4rem 0.8rem;
+    font-weight: 600;
+    font-size: 0.92rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .wsfl-detail-row {
+    margin-bottom: 0.45rem;
+    color: #2f3b52;
+  }
+
+  .wsfl-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .wsfl-soft-box {
+    background: #f8fbff;
+    border: 1px solid #dbe7f5;
+    border-radius: 0.75rem;
+    padding: 0.9rem 1rem;
+  }
+
+  .wsfl-preview-title {
+    color: #1a427d;
+    font-weight: 600;
+    margin-bottom: 0.6rem;
+  }
+
+  .wsfl-muted {
+    color: #6c7a8c;
+  }
+
+  .copy-feedback {
+    font-size: 0.88rem;
+    color: #198754;
+    display: none;
+  }
+
+  .details-table thead th {
+    background: #e9f0fa;
+    color: #1a427d;
+    border-color: #dbe7f5;
+    font-weight: 700;
+  }
+
+  .details-table td {
+    border-color: #dbe7f5;
+  }
+
+  .btn-outline-primary {
+    border-color: #1a427d;
+    color: #1a427d;
+  }
+
+  .btn-outline-primary:hover,
+  .btn-outline-primary:focus {
+    background-color: #1a427d;
+    border-color: #1a427d;
+    color: #ffffff;
+  }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container py-4">
-  <div class="card shadow-sm">
-    <div class="card-header">
-      <h4 class="mb-0">School Summary</h4>
-    </div>
-    <div class="card-body">
-      <form method="post" class="row g-3 mb-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="wsfl-page-title mb-0">School Summary</h3>
+  </div>
 
-        <div class="col-md-4">
+  <div class="card shadow-sm mb-4">
+    <div class="card-body">
+      <form method="post" class="row g-3 align-items-end">
+        <div class="col-md-3">
           <label for="year" class="form-label">Year</label>
           <select class="form-select" id="year" name="year" required>
             <option value="">Select year</option>
@@ -24,7 +144,7 @@
           </select>
         </div>
 
-        <div class="col-md-4">
+        <div class="col-md-3">
           <label for="term" class="form-label">Term</label>
           <select class="form-select" id="term" name="term" required>
             <option value="">Select term</option>
@@ -41,91 +161,418 @@
         <div class="col-md-4">
           <label for="school" class="form-label">School</label>
           <select class="form-select" id="school" name="school" required>
-            <option value="">Loading schools...</option>
+            <option value="">Select year and term first</option>
           </select>
         </div>
 
-        <div class="col-12">
+        <div class="col-md-2 d-grid">
           <button type="submit" class="btn btn-primary">Show Summary</button>
         </div>
       </form>
-
-      {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-          {% for category, message in messages %}
-            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-              {{ message }}
-              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-          {% endfor %}
-        {% endif %}
-      {% endwith %}
-
-      {% if table_columns and table_data %}
-        <div class="table-responsive">
-          <table class="table table-bordered table-sm align-middle">
-            <thead class="table-light">
-              <tr>
-                {% for col in table_columns %}
-                  <th>{{ col }}</th>
-                {% endfor %}
-              </tr>
-            </thead>
-            <tbody>
-              {% for row in table_data %}
-                <tr>
-                  {% for col in table_columns %}
-                    <td>{{ row[col] }}</td>
-                  {% endfor %}
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      {% elif request.method == "POST" %}
-        <div class="alert alert-info">No rows returned.</div>
-      {% endif %}
     </div>
   </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  {% if structured %}
+    {% set users_section = namespace(value=None) %}
+    {% set assignments_section = namespace(value=None) %}
+    {% set classes_section = namespace(value=None) %}
+
+    {% for section in structured %}
+      {% if section.section_name == "Users" %}
+        {% set users_section.value = section %}
+      {% elif section.section_name == "Assignments" %}
+        {% set assignments_section.value = section %}
+      {% elif section.section_name == "Classes" %}
+        {% set classes_section.value = section %}
+      {% endif %}
+    {% endfor %}
+
+    <div class="row g-3 mb-4">
+      {% if users_section.value %}
+        <div class="col-md-4">
+          <div class="card wsfl-summary-card h-100" id="usersSummaryCard">
+            <h5 class="card-title">Users</h5>
+            <div class="card-body">
+              {% for group in users_section.value.groups %}
+                {% for row in group.rows %}
+                  <div class="{% if row['Indent'] == 1 %}fw-semibold{% else %}wsfl-muted{% endif %} mb-2 copy-user-line">
+                    {{ row["Summary"] }}
+                  </div>
+                {% endfor %}
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      {% endif %}
+
+      {% if assignments_section.value %}
+        <div class="col-md-4">
+          <div class="card wsfl-summary-card h-100">
+            <h5 class="card-title">Assignments</h5>
+            <div class="card-body">
+              {% for group in assignments_section.value.groups %}
+                {% for row in group.rows %}
+                  <div class="mb-2">{{ row["Summary"] }}</div>
+                {% endfor %}
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      {% endif %}
+
+      {% if classes_section.value %}
+        <div class="col-md-4">
+          <div class="card wsfl-summary-card h-100">
+            <h5 class="card-title">Classes</h5>
+            <div class="card-body">
+              {% for group in classes_section.value.groups %}
+                {% if not group.group_id %}
+                  {% for row in group.rows %}
+                    <div class="mb-2">{{ row["Summary"] }}</div>
+                  {% endfor %}
+                {% endif %}
+              {% endfor %}
+
+              <div class="wsfl-actions mt-3 no-copy">
+                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="copyVisibleSummary()">
+                  Copy all visible text
+                </button>
+                <button type="button" class="btn btn-outline-primary btn-sm">
+                  Export all changed records
+                </button>
+              </div>
+              <div id="copyAllFeedback" class="copy-feedback mt-2 no-copy">Copied.</div>
+            </div>
+          </div>
+        </div>
+      {% endif %}
+    </div>
+
+    {% if classes_section.value %}
+      {% for group in classes_section.value.groups %}
+        {% if group.group_id %}
+          {% set class_row = namespace(value=None) %}
+          {% set metric_rows = [] %}
+          {% set json_row = namespace(value=None) %}
+
+          {% for row in group.rows %}
+            {% if row["RowType"] == "Class" %}
+              {% set class_row.value = row %}
+            {% elif row["RowType"] == "ClassCompetencyJSON" %}
+              {% set json_row.value = row %}
+            {% else %}
+              {% set _ = metric_rows.append(row) %}
+            {% endif %}
+          {% endfor %}
+
+          <div class="card wsfl-class-card mb-4 class-summary-card" data-group-id="{{ group.group_id }}">
+            <div class="wsfl-class-header">
+              <div class="wsfl-class-title copy-class-title">
+                {{ class_row.value["Summary"] if class_row.value else "Class" }}
+              </div>
+            </div>
+
+            <div class="card-body">
+              {% for row in metric_rows %}
+                {% if row["RowType"] == "ClassMetric" %}
+                  <div class="wsfl-metric-chip copy-line">{{ row["Summary"] }}</div>
+                {% else %}
+                  <div class="wsfl-detail-row copy-line">
+                    {{ row["Summary"] }}
+                  </div>
+                {% endif %}
+              {% endfor %}
+
+              <div class="wsfl-actions mt-3 no-copy">
+                <button class="btn btn-outline-primary btn-sm details-toggle-btn"
+                        type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#details{{ group.group_id }}"
+                        aria-expanded="false"
+                        aria-controls="details{{ group.group_id }}">
+                  View more details
+                </button>
+
+                <button type="button"
+                        class="btn btn-outline-secondary btn-sm"
+                        onclick="copyClassSummary('{{ group.group_id }}')">
+                  Copy class summary
+                </button>
+
+                <button type="button" class="btn btn-outline-primary btn-sm">
+                  Export class records
+                </button>
+              </div>
+
+              <div id="copyFeedback{{ group.group_id }}" class="copy-feedback mt-2 no-copy">Copied.</div>
+
+              <div class="collapse mt-3 no-copy details-collapse" id="details{{ group.group_id }}">
+                <div class="wsfl-soft-box">
+
+                  {% if json_row.value %}
+                    {% if json_row.value["DetailCount"] == 0 %}
+                      <div class="text-muted fst-italic details-copy-block">
+                        No competencies dated in the term.
+                      </div>
+                    {% else %}
+                      <div class="wsfl-preview-title details-copy-block">
+                        {{ json_row.value["Summary"] }} ({{ json_row.value["DetailCount"] }})
+                      </div>
+
+                      <div class="table-responsive details-copy-block">
+                        <table class="table table-sm table-bordered align-middle mb-2 details-table">
+                          <thead>
+                            <tr>
+                              <th>First name</th>
+                              <th>Last name</th>
+                              <th>Competency</th>
+                              <th>Date</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {% for item in json_row.value["PreviewRows"] %}
+                              <tr>
+                                <td>{{ item["FirstName"] }}</td>
+                                <td>{{ item["LastName"] }}</td>
+                                <td>{{ item["CompetencyName"] }}</td>
+                                <td>{{ item["CompetencyDate"] }}</td>
+                              </tr>
+                            {% endfor %}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {% if json_row.value["HasMoreRows"] %}
+                        <button class="btn btn-outline-secondary btn-sm no-copy"
+                                type="button"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#moreRows{{ group.group_id }}"
+                                aria-expanded="false"
+                                aria-controls="moreRows{{ group.group_id }}">
+                          Show all rows
+                        </button>
+
+                        <div class="collapse mt-3 details-copy-block" id="moreRows{{ group.group_id }}">
+                          <div class="table-responsive">
+                            <table class="table table-sm table-bordered align-middle details-table">
+                              <thead>
+                                <tr>
+                                  <th>First name</th>
+                                  <th>Last name</th>
+                                  <th>Competency</th>
+                                  <th>Date</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {% for item in json_row.value["ParsedDetailRows"][5:] %}
+                                  <tr>
+                                    <td>{{ item["FirstName"] }}</td>
+                                    <td>{{ item["LastName"] }}</td>
+                                    <td>{{ item["CompetencyName"] }}</td>
+                                    <td>{{ item["CompetencyDate"] }}</td>
+                                  </tr>
+                                {% endfor %}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      {% endif %}
+                    {% endif %}
+                  {% else %}
+                    <div class="text-muted fst-italic details-copy-block">
+                      No detail records available.
+                    </div>
+                  {% endif %}
+
+                </div>
+              </div>
+            </div>
+          </div>
+        {% endif %}
+      {% endfor %}
+    {% endif %}
+
+  {% elif request.method == "POST" %}
+    <div class="alert alert-info">No rows returned.</div>
+  {% endif %}
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
 document.addEventListener("DOMContentLoaded", function () {
+    const yearSelect = document.getElementById("year");
+    const termSelect = document.getElementById("term");
     const schoolSelect = document.getElementById("school");
     const selectedSchool = "{{ selected_school if selected_school is not none else '' }}";
 
-    fetch("{{ url_for('api_bp.get_entities') }}?entity_type=School")
-        .then(response => response.json())
-        .then(data => {
-            console.log("API response:", data);
+    function loadSchools() {
+        const year = yearSelect.value;
+        const term = termSelect.value;
 
-            schoolSelect.innerHTML = '<option value="">Select school</option>';
+        schoolSelect.innerHTML = '<option value="">Loading schools...</option>';
 
-            if (!data.ok) {
-                schoolSelect.innerHTML = '<option value="">Failed to load schools</option>';
-                return;
-            }
+        if (!year || !term) {
+            schoolSelect.innerHTML = '<option value="">Select year and term first</option>';
+            return;
+        }
 
-            const items = data.entities || [];
+        fetch("{{ url_for('class_bp.get_schools_for_term_year') }}?term=" + encodeURIComponent(term) + "&year=" + encodeURIComponent(year))
+            .then(response => response.json())
+            .then(data => {
+                schoolSelect.innerHTML = '<option value="">Select school</option>';
 
-            items.forEach(item => {
-                const option = document.createElement("option");
-                option.value = item.id;
-                option.textContent = item.description;
+                data.forEach(item => {
+                    const option = document.createElement("option");
+                    option.value = item.MOENumber;
+                    option.textContent = item.School;
 
-                if (String(item.id) === String(selectedSchool)) {
-                    option.selected = true;
+                    if (String(item.MOENumber) === String(selectedSchool)) {
+                        option.selected = true;
+                    }
+
+                    schoolSelect.appendChild(option);
+                });
+
+                if (data.length === 0) {
+                    schoolSelect.innerHTML = '<option value="">No schools found</option>';
                 }
-
-                schoolSelect.appendChild(option);
+            })
+            .catch(error => {
+                console.error("Error loading schools:", error);
+                schoolSelect.innerHTML = '<option value="">Failed to load schools</option>';
             });
-        })
-        .catch(error => {
-            console.error("Error loading schools:", error);
-            schoolSelect.innerHTML = '<option value="">Failed to load schools</option>';
+    }
+
+    yearSelect.addEventListener("change", loadSchools);
+    termSelect.addEventListener("change", loadSchools);
+
+    if (yearSelect.value && termSelect.value) {
+        loadSchools();
+    }
+
+    document.querySelectorAll('.details-collapse').forEach(collapseEl => {
+        collapseEl.addEventListener('show.bs.collapse', function () {
+            const card = collapseEl.closest('.class-summary-card');
+            const btn = card ? card.querySelector('.details-toggle-btn') : null;
+            if (btn) btn.textContent = 'Hide details';
         });
+
+        collapseEl.addEventListener('hide.bs.collapse', function () {
+            const card = collapseEl.closest('.class-summary-card');
+            const btn = card ? card.querySelector('.details-toggle-btn') : null;
+            if (btn) btn.textContent = 'View more details';
+        });
+    });
 });
+
+function copyText(text, feedbackId) {
+    navigator.clipboard.writeText(text).then(() => {
+        const el = document.getElementById(feedbackId);
+        if (el) {
+            el.style.display = "block";
+            setTimeout(() => {
+                el.style.display = "none";
+            }, 1500);
+        }
+    });
+}
+
+function tableToText(table) {
+    const rows = Array.from(table.querySelectorAll('tr'));
+    return rows.map(row => {
+        const cells = Array.from(row.querySelectorAll('th, td'));
+        return cells.map(cell => cell.innerText.trim()).join(' | ');
+    }).join('\n');
+}
+
+function getOpenDetailsText(card) {
+    const details = card.querySelector('.details-collapse.show');
+    if (!details) return '';
+
+    let parts = [];
+
+    const copyBlocks = details.querySelectorAll('.details-copy-block');
+    copyBlocks.forEach(block => {
+        if (block.classList.contains('table-responsive')) {
+            const table = block.querySelector('table');
+            if (table) {
+                parts.push(tableToText(table));
+            }
+        } else {
+            const text = block.innerText.trim();
+            if (text) parts.push(text);
+        }
+    });
+
+    return parts.join('\n\n').trim();
+}
+
+function copyClassSummary(groupId) {
+    const card = document.querySelector('.class-summary-card[data-group-id="' + groupId + '"]');
+    if (!card) return;
+
+    const title = card.querySelector('.copy-class-title')?.innerText.trim() || '';
+    const lines = Array.from(card.querySelectorAll('.copy-line'))
+        .map(el => el.innerText.trim())
+        .filter(Boolean);
+
+    const openDetailsText = getOpenDetailsText(card);
+
+    let parts = [];
+    if (title) parts.push(title);
+    if (lines.length) parts.push(lines.join('\n'));
+    if (openDetailsText) parts.push(openDetailsText);
+
+    copyText(parts.join('\n\n').trim(), 'copyFeedback' + groupId);
+}
+
+function copyVisibleSummary() {
+    let parts = [];
+
+    const usersCard = document.getElementById('usersSummaryCard');
+    if (usersCard) {
+        const userLines = Array.from(usersCard.querySelectorAll('.copy-user-line'))
+            .map(el => el.innerText.trim())
+            .filter(Boolean);
+
+        if (userLines.length) {
+            parts.push('Users');
+            parts.push(userLines.join('\n'));
+        }
+    }
+
+    const cards = document.querySelectorAll('.class-summary-card');
+    cards.forEach(card => {
+        const title = card.querySelector('.copy-class-title')?.innerText.trim() || '';
+        const lines = Array.from(card.querySelectorAll('.copy-line'))
+            .map(el => el.innerText.trim())
+            .filter(Boolean);
+        const openDetailsText = getOpenDetailsText(card);
+
+        let classParts = [];
+        if (title) classParts.push(title);
+        if (lines.length) classParts.push(lines.join('\n'));
+        if (openDetailsText) classParts.push(openDetailsText);
+
+        const classText = classParts.join('\n\n').trim();
+        if (classText) {
+            parts.push(classText);
+        }
+    });
+
+    copyText(parts.join('\n\n').trim(), 'copyAllFeedback');
+}
 </script>
 {% endblock %}
