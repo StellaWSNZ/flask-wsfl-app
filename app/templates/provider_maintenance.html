@@ -957,20 +957,10 @@ document.querySelectorAll(".remove-school-btn").forEach(btn => {
 document.querySelectorAll(".provider-select").forEach(select => {
   let previousText = select.options[select.selectedIndex]?.textContent?.toLowerCase() || "";
 
-  console.log("attached provider-select", {
-    moe: select.dataset.moe,
-    initialValue: select.value,
-    initialText: previousText
-  });
+  // show correct UI on first load
+  syncScopeUI(select);
 
-  select.addEventListener("change", async (e) => {
-    console.log("CHANGE EVENT FIRED", {
-      moe: select.dataset.moe,
-      rawValue: select.value,
-      selectedIndex: select.selectedIndex,
-      selectedText: select.options[select.selectedIndex]?.textContent
-    });
-
+  select.addEventListener("change", async () => {
     const selectedText = select.options[select.selectedIndex]?.textContent?.toLowerCase() || "";
     const selectedValue = (select.value === "") ? null : parseInt(select.value, 10);
 
@@ -981,15 +971,6 @@ document.querySelectorAll(".provider-select").forEach(select => {
     const funderId = parseInt(select.dataset.funder, 10);
 
     try {
-      console.log("about to call assign_provider", {
-        MOENumber: moe,
-        Term: term,
-        Year: year,
-        FunderID: funderId,
-        ProviderID: selectedValue,
-        Slot: 1
-      });
-
       const response = await fetch("/assign_provider", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1005,12 +986,6 @@ document.querySelectorAll(".provider-select").forEach(select => {
 
       const result = await response.json().catch(() => ({}));
 
-      console.log("assign_provider response", {
-        ok: response.ok,
-        status: response.status,
-        result
-      });
-
       if (!response.ok || !result.success) {
         throw new Error(result.error || result.message || "assign_provider failed");
       }
@@ -1018,6 +993,9 @@ document.querySelectorAll(".provider-select").forEach(select => {
       if (scope) {
         scope.dataset.currentProvider1id = selectedValue ?? "";
       }
+
+      // now update visibility
+      await syncScopeUI(select);
 
     } catch (err) {
       console.error("assign_provider failed in change handler", err);
