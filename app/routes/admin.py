@@ -24,7 +24,7 @@ from flask import (
     session,
     url_for,
 )
-
+import re
 from app.extensions import mail
 from app.routes.auth import login_required
 from app.utils.database import get_db_engine, log_alert, get_terms, get_years
@@ -2106,11 +2106,15 @@ def school_summary():
     selected_term = None
     selected_year = None
     selected_school = None
+    selected_min_percent = None
+    selected_sort = "class_asc"
 
     if request.method == "POST":
         selected_term = request.form.get("term", type=int)
         selected_year = request.form.get("year", type=int)
         selected_school = request.form.get("school", type=int)
+        selected_min_percent = request.form.get("min_percent", "").strip()
+        selected_sort = request.form.get("sort_by", "class_asc")
 
         if not selected_term or not selected_year or not selected_school:
             flash("Please select a year, term, and school.", "warning")
@@ -2139,33 +2143,36 @@ def school_summary():
                     table_data = df.to_dict(orient="records")
                     table_columns = list(df.columns)
 
-                    # Build nested structure:
-                    # sections -> groups -> rows
                     section_map = OrderedDict()
 
                     for _, row in df.iterrows():
+                        group_id = row["GroupID"]
+                        if pd.notna(group_id):
+                            group_id = int(group_id)
+                        else:
+                            group_id = None
+
                         row_dict = {
                             "SectionOrder": row["SectionOrder"],
                             "SortOrder": row["SortOrder"],
-                            "GroupID": row["GroupID"],
+                            "GroupID": group_id,
                             "Indent": row["Indent"],
-                            "Heading": row["Heading"],
+                            "Heading": (row["Heading"] or "").strip(),
                             "Summary": row["Summary"],
                             "RowType": row["RowType"],
                             "DetailJSON": row["DetailJSON"],
                         }
 
-                        # Parse JSON detail rows for class competency preview
+                        raw_json = row_dict.get("DetailJSON")
+                        parsed_rows = []
+
+                        if raw_json and str(raw_json).strip() not in ["", "[]", "null", "None"]:
+                            try:
+                                parsed_rows = json.loads(raw_json)
+                            except Exception:
+                                parsed_rows = []
+
                         if row_dict["RowType"] == "ClassCompetencyJSON":
-                            raw_json = row_dict.get("DetailJSON")
-                            parsed_rows = []
-
-                            if raw_json and str(raw_json).strip() not in ["", "[]", "null", "None"]:
-                                try:
-                                    parsed_rows = json.loads(raw_json)
-                                except Exception:
-                                    parsed_rows = []
-
                             parsed_rows = sorted(
                                 parsed_rows,
                                 key=lambda x: (
@@ -2175,18 +2182,32 @@ def school_summary():
                                     (x.get("CompetencyDate") or "")
                                 )
                             )
-
                             row_dict["ParsedDetailRows"] = parsed_rows
                             row_dict["PreviewRows"] = parsed_rows[:5]
                             row_dict["HasMoreRows"] = len(parsed_rows) > 5
                             row_dict["DetailCount"] = len(parsed_rows)
+
+                        elif row_dict["RowType"] == "MultiClassSummary":
+                            parsed_rows = sorted(
+                                parsed_rows,
+                                key=lambda x: (
+                                    (x.get("LastName") or "").lower(),
+                                    (x.get("FirstName") or "").lower(),
+                                    str(x.get("NSN") or "")
+                                )
+                            )
+                            row_dict["ParsedDetailRows"] = parsed_rows
+                            row_dict["PreviewRows"] = parsed_rows[:5]
+                            row_dict["HasMoreRows"] = len(parsed_rows) > 5
+                            row_dict["DetailCount"] = len(parsed_rows)
+
                         else:
                             row_dict["ParsedDetailRows"] = []
                             row_dict["PreviewRows"] = []
                             row_dict["HasMoreRows"] = False
                             row_dict["DetailCount"] = 0
 
-                        section_key = (row_dict["SectionOrder"], row_dict["Heading"])
+                        section_key = row_dict["SectionOrder"]
                         group_key = row_dict["GroupID"]
 
                         if section_key not in section_map:
@@ -2204,7 +2225,6 @@ def school_summary():
 
                         section_map[section_key]["groups"][group_key]["rows"].append(row_dict)
 
-                    # Convert ordered dicts to template-friendly lists
                     structured = []
                     for _, section in section_map.items():
                         groups = list(section["groups"].values())
@@ -2227,8 +2247,114 @@ def school_summary():
 
                     structured = sorted(
                         structured,
-                        key=lambda s: (s["section_order"], s["section_name"] or "")
+                        key=lambda s: (
+                            s["section_order"] if s["section_order"] is not None else 0,
+                            s["section_name"] or ""
+                        )
                     )
+
+                    # -----------------------------------------
+                    # Filter + sort class groups only
+                    # -----------------------------------------
+                    try:
+                        min_percent_value = float(selected_min_percent) if selected_min_percent != "" else None
+                    except ValueError:
+                        min_percent_value = None
+
+                    def extract_percent(row_summary):
+                        if not row_summary:
+                            return None
+                        m = re.search(r"(\d+)\s*%", str(row_summary))
+                        return float(m.group(1)) if m else None
+
+                    def extract_class_name(summary):
+                        if not summary:
+                            return ""
+                        return str(summary).split("|")[0].strip().lower()
+
+                    def extract_teacher_name(summary):
+                        if not summary:
+                            return ""
+                        m = re.search(r"Teacher:\s*([^|]+)", str(summary))
+                        return m.group(1).strip().lower() if m else ""
+
+                    def extract_year_levels(summary):
+                        if not summary:
+                            return []
+                        m = re.search(r"Year levels:\s*([^|]+)", str(summary))
+                        if not m:
+                            return []
+                        vals = []
+                        for part in m.group(1).split(","):
+                            part = part.strip()
+                            if part.isdigit():
+                                vals.append(int(part))
+                        return vals
+
+                    if structured:
+                        for section in structured:
+                            if section["section_name"] == "Classes":
+                                summary_groups = []
+                                class_groups = []
+
+                                for group in section["groups"]:
+                                    if group["group_id"] == 12:
+                                        summary_groups.append(group)
+                                    elif group["group_id"] is not None:
+                                        class_groups.append(group)
+
+                                if min_percent_value is not None:
+                                    filtered_groups = []
+                                    for group in class_groups:
+                                        metric_row = next(
+                                            (r for r in group["rows"] if r.get("RowType") == "ClassMetric"),
+                                            None
+                                        )
+                                        pct = extract_percent(metric_row.get("Summary") if metric_row else None)
+                                        if pct is not None and pct >= min_percent_value:
+                                            filtered_groups.append(group)
+                                    class_groups = filtered_groups
+
+                                def class_group_sort_key(group):
+                                    class_row = next((r for r in group["rows"] if r.get("RowType") == "Class"), None)
+                                    metric_row = next((r for r in group["rows"] if r.get("RowType") == "ClassMetric"), None)
+
+                                    class_summary = class_row.get("Summary") if class_row else ""
+                                    metric_summary = metric_row.get("Summary") if metric_row else ""
+
+                                    class_name = extract_class_name(class_summary)
+                                    teacher_name = extract_teacher_name(class_summary)
+                                    pct = extract_percent(metric_summary)
+                                    pct = pct if pct is not None else -1
+                                    year_levels = extract_year_levels(class_summary)
+                                    min_year = min(year_levels) if year_levels else 999
+                                    max_year = max(year_levels) if year_levels else 999
+
+                                    return {
+                                        "teacher_asc": (teacher_name, class_name),
+                                        "teacher_desc": (teacher_name, class_name),
+                                        "class_asc": (class_name, teacher_name),
+                                        "class_desc": (class_name, teacher_name),
+                                        "percent_asc": (pct, class_name),
+                                        "percent_desc": (pct, class_name),
+                                        "year_asc": (min_year, max_year, class_name),
+                                        "year_desc": (min_year, max_year, class_name),
+                                    }.get(selected_sort, (class_name, teacher_name))
+
+                                reverse_map = {
+                                    "teacher_desc": True,
+                                    "class_desc": True,
+                                    "percent_desc": True,
+                                    "year_desc": True,
+                                }
+
+                                class_groups = sorted(
+                                    class_groups,
+                                    key=class_group_sort_key,
+                                    reverse=reverse_map.get(selected_sort, False)
+                                )
+
+                                section["groups"] = summary_groups + class_groups
 
                 else:
                     flash("No rows returned.", "info")
@@ -2244,6 +2370,8 @@ def school_summary():
         selected_term=selected_term,
         selected_year=selected_year,
         selected_school=selected_school,
+        selected_min_percent=selected_min_percent,
+        selected_sort=selected_sort,
         table_data=table_data,
         table_columns=table_columns,
         structured=structured

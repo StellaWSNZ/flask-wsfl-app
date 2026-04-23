@@ -93,7 +93,13 @@
   .copy-feedback {
     font-size: 0.88rem;
     color: #198754;
-    display: none;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+    min-height: 1.2rem;
+  }
+
+  .copy-feedback.show {
+    opacity: 1;
   }
 
   .details-table thead th {
@@ -118,6 +124,29 @@
     border-color: #1a427d;
     color: #ffffff;
   }
+
+  .wsfl-summary-line-main {
+    font-weight: 700;
+    margin-bottom: 0.55rem;
+    color: #1f2d3d;
+  }
+
+  .wsfl-summary-line-sub {
+    margin-bottom: 0.5rem;
+    color: #2f3b52;
+  }
+
+  .wsfl-helper-card-title {
+    color: #1a427d;
+    font-weight: 700;
+    font-size: 1.02rem;
+  }
+
+  .wsfl-helper-card-text {
+    color: #5c6b7c;
+    font-size: 0.92rem;
+    line-height: 1.45;
+  }
 </style>
 {% endblock %}
 
@@ -128,9 +157,34 @@
   </div>
 
   <div class="card shadow-sm mb-4">
+    <div class="card-body d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
+      <div>
+        <div class="wsfl-helper-card-title mb-1">About this page</div>
+        <div class="wsfl-helper-card-text">
+          Use this page to quickly check which classes have had progress this term,
+          identify duplicate students across classes, see who uploaded each class list,
+          and copy a summary to send in an email to the school.
+        </div>
+        <div class="text-muted mt-1" style="font-size: 0.82rem;">
+          Tip: filters and sorting below affect the class cards, and the copied report follows what is currently visible.
+        </div>
+      </div>
+
+      <div class="d-flex flex-column align-items-start align-items-md-end gap-1">
+        <button type="button"
+                class="btn btn-primary btn-sm"
+                onclick="copyVisibleSummary()">
+          Copy visible report
+        </button>
+        <div id="copyAllFeedback" class="copy-feedback">Copied.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm mb-4">
     <div class="card-body">
       <form method="post" class="row g-3 align-items-end">
-        <div class="col-md-3">
+        <div class="col-md-2">
           <label for="year" class="form-label">Year</label>
           <select class="form-select" id="year" name="year" required>
             <option value="">Select year</option>
@@ -144,7 +198,7 @@
           </select>
         </div>
 
-        <div class="col-md-3">
+        <div class="col-md-2">
           <label for="term" class="form-label">Term</label>
           <select class="form-select" id="term" name="term" required>
             <option value="">Select term</option>
@@ -158,15 +212,44 @@
           </select>
         </div>
 
-        <div class="col-md-4">
+        <div class="col-md-3">
           <label for="school" class="form-label">School</label>
           <select class="form-select" id="school" name="school" required>
             <option value="">Select year and term first</option>
           </select>
         </div>
 
-        <div class="col-md-2 d-grid">
-          <button type="submit" class="btn btn-primary">Show Summary</button>
+        <div class="col-md-2">
+          <label for="min_percent" class="form-label">Minimum % complete</label>
+          <input
+            type="number"
+            class="form-control"
+            id="min_percent"
+            name="min_percent"
+            min="0"
+            max="100"
+            step="1"
+            value="{{ selected_min_percent or '' }}"
+            placeholder="e.g. 20"
+          >
+        </div>
+
+        <div class="col-md-2">
+          <label for="sort_by" class="form-label">Sort by</label>
+          <select class="form-select" id="sort_by" name="sort_by">
+            <option value="class_asc" {% if selected_sort == "class_asc" %}selected{% endif %}>Class name A–Z</option>
+            <option value="class_desc" {% if selected_sort == "class_desc" %}selected{% endif %}>Class name Z–A</option>
+            <option value="teacher_asc" {% if selected_sort == "teacher_asc" %}selected{% endif %}>Teacher name A–Z</option>
+            <option value="teacher_desc" {% if selected_sort == "teacher_desc" %}selected{% endif %}>Teacher name Z–A</option>
+            <option value="percent_asc" {% if selected_sort == "percent_asc" %}selected{% endif %}>% complete low–high</option>
+            <option value="percent_desc" {% if selected_sort == "percent_desc" %}selected{% endif %}>% complete high–low</option>
+            <option value="year_asc" {% if selected_sort == "year_asc" %}selected{% endif %}>Year levels low–high</option>
+            <option value="year_desc" {% if selected_sort == "year_desc" %}selected{% endif %}>Year levels high–low</option>
+          </select>
+        </div>
+
+        <div class="col-md-1 d-grid">
+          <button type="submit" class="btn btn-primary">Show</button>
         </div>
       </form>
     </div>
@@ -198,9 +281,9 @@
       {% endif %}
     {% endfor %}
 
-    <div class="row g-3 mb-4">
+    <div class="row g-3 mb-4 align-items-stretch">
       {% if users_section.value %}
-        <div class="col-md-4">
+        <div class="col-md-6 col-lg-6">
           <div class="card wsfl-summary-card h-100" id="usersSummaryCard">
             <h5 class="card-title">Users</h5>
             <div class="card-body">
@@ -217,42 +300,24 @@
       {% endif %}
 
       {% if assignments_section.value %}
-        <div class="col-md-4">
-          <div class="card wsfl-summary-card h-100">
-            <h5 class="card-title">Assignments</h5>
+        <div class="col-md-6 col-lg-6">
+          <div class="card wsfl-summary-card h-100" id="assignmentsSummaryCard">
+            <h5 class="card-title">Overview</h5>
             <div class="card-body">
               {% for group in assignments_section.value.groups %}
                 {% for row in group.rows %}
-                  <div class="mb-2">{{ row["Summary"] }}</div>
+                  <div class="mb-2 copy-assignment-line">{{ row["Summary"] }}</div>
                 {% endfor %}
-              {% endfor %}
-            </div>
-          </div>
-        </div>
-      {% endif %}
-
-      {% if classes_section.value %}
-        <div class="col-md-4">
-          <div class="card wsfl-summary-card h-100">
-            <h5 class="card-title">Classes</h5>
-            <div class="card-body">
-              {% for group in classes_section.value.groups %}
-                {% if not group.group_id %}
-                  {% for row in group.rows %}
-                    <div class="mb-2">{{ row["Summary"] }}</div>
-                  {% endfor %}
-                {% endif %}
               {% endfor %}
 
               <div class="wsfl-actions mt-3 no-copy">
-                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="copyVisibleSummary()">
-                  Copy all visible text
-                </button>
                 <button type="button" class="btn btn-outline-primary btn-sm">
                   Export all changed records
                 </button>
+                <button type="button" class="btn btn-outline-primary btn-sm">
+                  Export all class records
+                </button>
               </div>
-              <div id="copyAllFeedback" class="copy-feedback mt-2 no-copy">Copied.</div>
             </div>
           </div>
         </div>
@@ -260,8 +325,115 @@
     </div>
 
     {% if classes_section.value %}
+      <div class="row mb-4">
+        <div class="col-12">
+          <div class="card wsfl-summary-card" id="classesSummaryCard">
+            <h5 class="card-title">Class Summary</h5>
+            <div class="card-body">
+              {% for group in classes_section.value.groups %}
+                {% if group.group_id == 12 %}
+                  {% for row in group.rows %}
+                    {% if row["RowType"] == "Summary" %}
+                      <div class="wsfl-summary-line-main copy-classes-line">{{ row["Summary"] }}</div>
+
+                    {% elif row["RowType"] == "ClassOverviewMetric" %}
+                      <div class="wsfl-summary-line-sub copy-classes-line">{{ row["Summary"] }}</div>
+
+                    {% elif row["RowType"] == "MultiClassSummary" %}
+                      <div class="wsfl-summary-line-sub copy-classes-line">{{ row["Summary"] }}</div>
+
+                      {% if row["DetailCount"] > 0 %}
+                        <div class="wsfl-actions mt-2 mb-2 no-copy">
+                          <button class="btn btn-outline-primary btn-sm class-summary-details-toggle-btn"
+                                  type="button"
+                                  data-bs-toggle="collapse"
+                                  data-bs-target="#multiClassSummaryDetails"
+                                  aria-expanded="false"
+                                  aria-controls="multiClassSummaryDetails">
+                            View more details
+                          </button>
+                        </div>
+
+                        <div class="collapse mt-3 no-copy class-summary-details-collapse" id="multiClassSummaryDetails">
+                          <div class="wsfl-soft-box">
+                            <div class="wsfl-preview-title details-copy-block">
+                              Students in multiple classes ({{ row["DetailCount"] }})
+                            </div>
+
+                            <div class="table-responsive details-copy-block">
+                              <table class="table table-sm table-bordered align-middle mb-2 details-table">
+                                <thead>
+                                  <tr>
+                                    <th>First name</th>
+                                    <th>Last name</th>
+                                    <th>Classes</th>
+                                    <th>Class names</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {% for item in row["PreviewRows"] %}
+                                    <tr>
+                                      <td>{{ item["FirstName"] }}</td>
+                                      <td>{{ item["LastName"] }}</td>
+                                      <td>{{ item["ClassCount"] }}</td>
+                                      <td>{{ item["ClassNames"] }}</td>
+                                    </tr>
+                                  {% endfor %}
+                                </tbody>
+                              </table>
+                            </div>
+
+                            {% if row["HasMoreRows"] %}
+                              <button class="btn btn-outline-secondary btn-sm no-copy"
+                                      type="button"
+                                      data-bs-toggle="collapse"
+                                      data-bs-target="#multiClassSummaryMoreRows"
+                                      aria-expanded="false"
+                                      aria-controls="multiClassSummaryMoreRows">
+                                Show all rows
+                              </button>
+
+                              <div class="collapse mt-3 details-copy-block" id="multiClassSummaryMoreRows">
+                                <div class="table-responsive">
+                                  <table class="table table-sm table-bordered align-middle details-table">
+                                    <thead>
+                                      <tr>
+                                        <th>First name</th>
+                                        <th>Last name</th>
+                                        <th>Classes</th>
+                                        <th>Class names</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {% for item in row["ParsedDetailRows"][5:] %}
+                                        <tr>
+                                          <td>{{ item["FirstName"] }}</td>
+                                          <td>{{ item["LastName"] }}</td>
+                                          <td>{{ item["ClassCount"] }}</td>
+                                          <td>{{ item["ClassNames"] }}</td>
+                                        </tr>
+                                      {% endfor %}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            {% endif %}
+                          </div>
+                        </div>
+                      {% endif %}
+                    {% endif %}
+                  {% endfor %}
+                {% endif %}
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+
+    {% if classes_section.value %}
       {% for group in classes_section.value.groups %}
-        {% if group.group_id %}
+        {% if group.group_id and group.group_id != 12 %}
           {% set class_row = namespace(value=None) %}
           {% set metric_rows = [] %}
           {% set json_row = namespace(value=None) %}
@@ -279,7 +451,7 @@
           <div class="card wsfl-class-card mb-4 class-summary-card" data-group-id="{{ group.group_id }}">
             <div class="wsfl-class-header">
               <div class="wsfl-class-title copy-class-title">
-                {{ class_row.value["Summary"] if class_row.value else "Class" }}
+                {{ class_row.value["Summary"] if class_row.value else "Class Summary" }}
               </div>
             </div>
 
@@ -288,9 +460,7 @@
                 {% if row["RowType"] == "ClassMetric" %}
                   <div class="wsfl-metric-chip copy-line">{{ row["Summary"] }}</div>
                 {% else %}
-                  <div class="wsfl-detail-row copy-line">
-                    {{ row["Summary"] }}
-                  </div>
+                  <div class="wsfl-detail-row copy-line">{{ row["Summary"] }}</div>
                 {% endif %}
               {% endfor %}
 
@@ -310,16 +480,22 @@
                   Copy class summary
                 </button>
 
-                <button type="button" class="btn btn-outline-primary btn-sm">
-                  Export class records
-                </button>
+                <a href="{{ url_for(
+                      'class_bp.export_achievements_changes_excel',
+                      class_id=group.group_id,
+                      term=selected_term,
+                      year=selected_year,
+                      school=selected_school
+                  ) }}"
+                  class="btn btn-outline-primary btn-sm">
+                    Export achievements with changes
+                  </a>
               </div>
 
               <div id="copyFeedback{{ group.group_id }}" class="copy-feedback mt-2 no-copy">Copied.</div>
 
               <div class="collapse mt-3 no-copy details-collapse" id="details{{ group.group_id }}">
                 <div class="wsfl-soft-box">
-
                   {% if json_row.value %}
                     {% if json_row.value["DetailCount"] == 0 %}
                       <div class="text-muted fst-italic details-copy-block">
@@ -352,49 +528,12 @@
                           </tbody>
                         </table>
                       </div>
-
-                      {% if json_row.value["HasMoreRows"] %}
-                        <button class="btn btn-outline-secondary btn-sm no-copy"
-                                type="button"
-                                data-bs-toggle="collapse"
-                                data-bs-target="#moreRows{{ group.group_id }}"
-                                aria-expanded="false"
-                                aria-controls="moreRows{{ group.group_id }}">
-                          Show all rows
-                        </button>
-
-                        <div class="collapse mt-3 details-copy-block" id="moreRows{{ group.group_id }}">
-                          <div class="table-responsive">
-                            <table class="table table-sm table-bordered align-middle details-table">
-                              <thead>
-                                <tr>
-                                  <th>First name</th>
-                                  <th>Last name</th>
-                                  <th>Competency</th>
-                                  <th>Date</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {% for item in json_row.value["ParsedDetailRows"][5:] %}
-                                  <tr>
-                                    <td>{{ item["FirstName"] }}</td>
-                                    <td>{{ item["LastName"] }}</td>
-                                    <td>{{ item["CompetencyName"] }}</td>
-                                    <td>{{ item["CompetencyDate"] }}</td>
-                                  </tr>
-                                {% endfor %}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-                      {% endif %}
                     {% endif %}
                   {% else %}
                     <div class="text-muted fst-italic details-copy-block">
                       No detail records available.
                     </div>
                   {% endif %}
-
                 </div>
               </div>
             </div>
@@ -402,9 +541,6 @@
         {% endif %}
       {% endfor %}
     {% endif %}
-
-  {% elif request.method == "POST" %}
-    <div class="alert alert-info">No rows returned.</div>
   {% endif %}
 </div>
 {% endblock %}
@@ -475,21 +611,36 @@ document.addEventListener("DOMContentLoaded", function () {
             if (btn) btn.textContent = 'View more details';
         });
     });
+
+    document.querySelectorAll('.class-summary-details-collapse').forEach(collapseEl => {
+        collapseEl.addEventListener('show.bs.collapse', function () {
+            const btn = document.querySelector('[data-bs-target="#' + collapseEl.id + '"]');
+            if (btn) btn.textContent = 'Hide details';
+        });
+
+        collapseEl.addEventListener('hide.bs.collapse', function () {
+            const btn = document.querySelector('[data-bs-target="#' + collapseEl.id + '"]');
+            if (btn) btn.textContent = 'View more details';
+        });
+    });
 });
+
+function showCopyFeedback(feedbackId) {
+    const el = document.getElementById(feedbackId);
+    if (!el) return;
+    el.classList.add("show");
+    setTimeout(() => {
+        el.classList.remove("show");
+    }, 1800);
+}
 
 function copyText(text, feedbackId) {
     navigator.clipboard.writeText(text).then(() => {
-        const el = document.getElementById(feedbackId);
-        if (el) {
-            el.style.display = "block";
-            setTimeout(() => {
-                el.style.display = "none";
-            }, 1500);
-        }
+        showCopyFeedback(feedbackId);
     });
 }
 
-function tableToText(table) {
+function tableToEmailText(table) {
     const rows = Array.from(table.querySelectorAll('tr'));
     return rows.map(row => {
         const cells = Array.from(row.querySelectorAll('th, td'));
@@ -508,7 +659,32 @@ function getOpenDetailsText(card) {
         if (block.classList.contains('table-responsive')) {
             const table = block.querySelector('table');
             if (table) {
-                parts.push(tableToText(table));
+                parts.push(tableToEmailText(table));
+            }
+        } else {
+            const text = block.innerText.trim();
+            if (text) parts.push(text);
+        }
+    });
+
+    return parts.join('\n\n').trim();
+}
+
+function getOpenClassSummaryDetailsText() {
+    const classesSummaryCard = document.getElementById('classesSummaryCard');
+    if (!classesSummaryCard) return '';
+
+    const details = classesSummaryCard.querySelector('.class-summary-details-collapse.show');
+    if (!details) return '';
+
+    let parts = [];
+
+    const copyBlocks = details.querySelectorAll('.details-copy-block');
+    copyBlocks.forEach(block => {
+        if (block.classList.contains('table-responsive')) {
+            const table = block.querySelector('table');
+            if (table) {
+                parts.push(tableToEmailText(table));
             }
         } else {
             const text = block.innerText.trim();
@@ -532,7 +708,7 @@ function copyClassSummary(groupId) {
 
     let parts = [];
     if (title) parts.push(title);
-    if (lines.length) parts.push(lines.join('\n'));
+    if (lines.length) parts.push(lines.map(line => '- ' + line).join('\n'));
     if (openDetailsText) parts.push(openDetailsText);
 
     copyText(parts.join('\n\n').trim(), 'copyFeedback' + groupId);
@@ -540,6 +716,8 @@ function copyClassSummary(groupId) {
 
 function copyVisibleSummary() {
     let parts = [];
+    parts.push('School Summary');
+    parts.push('Generated from the visible sections on the page.');
 
     const usersCard = document.getElementById('usersSummaryCard');
     if (usersCard) {
@@ -549,7 +727,41 @@ function copyVisibleSummary() {
 
         if (userLines.length) {
             parts.push('Users');
-            parts.push(userLines.join('\n'));
+            parts.push(userLines.map(line => '- ' + line).join('\n'));
+        }
+    }
+
+    const assignmentsCard = document.getElementById('assignmentsSummaryCard');
+    if (assignmentsCard) {
+        const assignmentLines = Array.from(assignmentsCard.querySelectorAll('.copy-assignment-line'))
+            .map(el => el.innerText.trim())
+            .filter(Boolean);
+
+        if (assignmentLines.length) {
+            parts.push('Assignments');
+            parts.push(assignmentLines.map(line => '- ' + line).join('\n'));
+        }
+    }
+
+    const classesSummaryCard = document.getElementById('classesSummaryCard');
+    if (classesSummaryCard) {
+        const classSummaryLines = Array.from(classesSummaryCard.querySelectorAll('.copy-classes-line'))
+            .map(el => el.innerText.trim())
+            .filter(Boolean);
+
+        let classSummaryParts = [];
+        if (classSummaryLines.length) {
+            classSummaryParts.push('Class Summary');
+            classSummaryParts.push(classSummaryLines.map(line => '- ' + line).join('\n'));
+        }
+
+        const openSummaryDetailsText = getOpenClassSummaryDetailsText();
+        if (openSummaryDetailsText) {
+            classSummaryParts.push(openSummaryDetailsText);
+        }
+
+        if (classSummaryParts.length) {
+            parts.push(classSummaryParts.join('\n\n'));
         }
     }
 
@@ -563,7 +775,7 @@ function copyVisibleSummary() {
 
         let classParts = [];
         if (title) classParts.push(title);
-        if (lines.length) classParts.push(lines.join('\n'));
+        if (lines.length) classParts.push(lines.map(line => '- ' + line).join('\n'));
         if (openDetailsText) classParts.push(openDetailsText);
 
         const classText = classParts.join('\n\n').trim();
@@ -572,7 +784,8 @@ function copyVisibleSummary() {
         }
     });
 
-    copyText(parts.join('\n\n').trim(), 'copyAllFeedback');
+    const finalText = parts.join('\n\n').trim();
+    copyText(finalText, 'copyAllFeedback');
 }
 </script>
 {% endblock %}
