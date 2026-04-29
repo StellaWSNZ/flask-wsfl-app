@@ -312,18 +312,21 @@
 
   {% if structured %}
     {% set users_section = namespace(value=None) %}
-    {% set assignments_section = namespace(value=None) %}
-    {% set classes_section = namespace(value=None) %}
+{% set assignments_section = namespace(value=None) %}
+{% set classes_section = namespace(value=None) %}
+{% set kaiako_section = namespace(value=None) %}
 
-    {% for section in structured %}
-      {% if section.section_name == "Users" %}
-        {% set users_section.value = section %}
-      {% elif section.section_name == "Overview" %}
-        {% set assignments_section.value = section %}
-      {% elif section.section_name == "Classes" %}
-        {% set classes_section.value = section %}
-      {% endif %}
-    {% endfor %}
+{% for section in structured %}
+  {% if section.section_name == "Users" %}
+    {% set users_section.value = section %}
+  {% elif section.section_name == "Overview" %}
+    {% set assignments_section.value = section %}
+  {% elif section.section_name == "Classes" %}
+    {% set classes_section.value = section %}
+  {% elif section.section_name == "Kaiako" %}
+    {% set kaiako_section.value = section %}
+  {% endif %}
+{% endfor %}
 
     <div class="row g-3 mb-4 align-items-stretch">
       {% if users_section.value %}
@@ -367,117 +370,233 @@
         </div>
       {% endif %}
     </div>
+{% if kaiako_section.value %}
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card wsfl-summary-card" id="kaiakoSummaryCard">
+        <h5 class="card-title">Kaiako Summary</h5>
 
-    {% if classes_section.value %}
-      <div class="row mb-4">
-        <div class="col-12">
-          <div class="card wsfl-summary-card" id="classesSummaryCard">
-            <h5 class="card-title">Class Summary</h5>
-            <div class="card-body">
-              {% for group in classes_section.value.groups %}
-                {% if group.group_id == 12 %}
-                  {% for row in group.rows %}
-                    {% if row["RowType"] == "Summary" %}
-                      <div class="wsfl-summary-line-main copy-classes-line">{{ row["Summary"] }}</div>
-                    {% elif row["RowType"] == "ClassWarning" %}
-                        <div class="wsfl-warning copy-classes-line">
+        <div class="card-body">
+          {% for group in kaiako_section.value.groups %}
+            {% for row in group.rows %}
 
-                        {{ row["Summary"] }}
+              {% if row["RowType"] == "KaiakoSummary" %}
+                <div class="wsfl-summary-line-main copy-kaiako-line">
+                  {{ row["Summary"] }}
+                </div>
+
+              {% elif row["RowType"] == "KaiakoMetric" %}
+                <div class="wsfl-summary-line-sub copy-kaiako-line">
+                  {{ row["Summary"] }}
+                </div>
+
+              {% elif row["RowType"] == "KaiakoJSON" %}
+                
+
+                {% if row["DetailCount"] > 0 %}
+                  {% set kaiako_id = "kaiakoDetails_" ~ row["SortOrder"] %}
+                  {% set kaiako_more_id = "kaiakoMoreRows_" ~ row["SortOrder"] %}
+
+                  <div class="wsfl-actions mt-2 mb-2 no-copy">
+                    <button class="btn btn-outline-primary btn-sm kaiako-details-toggle-btn"
+                            type="button"
+                            data-bs-toggle="collapse"
+                            data-bs-target="#{{ kaiako_id }}"
+                            aria-expanded="false"
+                            aria-controls="{{ kaiako_id }}">
+                      View more details
+                    </button>
+                  </div>
+
+                  <div class="collapse mt-3 no-copy kaiako-details-collapse" id="{{ kaiako_id }}">
+                    <div class="wsfl-soft-box">
+                      <div class="wsfl-preview-title details-copy-block">
+                        Kaiako eLearning details ({{ row["DetailCount"] }})
                       </div>
-                    {% elif row["RowType"] == "ClassOverviewMetric" %}
-                      <div class="wsfl-summary-line-sub copy-classes-line">{{ row["Summary"] }}</div>
 
-                    {% elif row["RowType"] == "MultiClassSummary" %}
-                      <div class="wsfl-summary-line-sub copy-classes-line">{{ row["Summary"] }}</div>
+                      <div class="table-responsive details-copy-block">
+                        <table class="table table-sm table-bordered align-middle mb-2 details-table">
+  <thead>
+    <tr>
+      <th>First name</th>
+      <th>Surname</th>
+      <th>Email</th>
+      <th>Course</th>
+      <th>Status</th>
+    </tr>
+  </thead>
 
-                      {% if row["DetailCount"] > 0 %}
-                        <div class="wsfl-actions mt-2 mb-2 no-copy">
-                          <button class="btn btn-outline-primary btn-sm class-summary-details-toggle-btn"
-                                  type="button"
-                                  data-bs-toggle="collapse"
-                                  data-bs-target="#multiClassSummaryDetails"
-                                  aria-expanded="false"
-                                  aria-controls="multiClassSummaryDetails">
-                            View more details
-                          </button>
-                        </div>
+  <tbody>
+    {% for item in row["PreviewRows"] %}
+      <tr>
+        <td>{{ item["FirstName"] }}</td>
+        <td>{{ item["Surname"] }}</td>
+        <td>{{ item["Email"] }}</td>
+        <td>{{ item["CourseName"] }}</td>
+        <td>{{ item["StatusName"] }}</td>
+      </tr>
+    {% endfor %}
+  </tbody>
 
-                        <div class="collapse mt-3 no-copy class-summary-details-collapse" id="multiClassSummaryDetails">
-                          <div class="wsfl-soft-box">
-                            <div class="wsfl-preview-title details-copy-block">
-                              Students in multiple classes ({{ row["DetailCount"] }})
-                            </div>
+  {% if row["HasMoreRows"] %}
+    <tbody class="collapse kaiako-more-collapse" id="{{ kaiako_more_id }}">
+      {% for item in row["ParsedDetailRows"][5:] %}
+        <tr>
+          <td>{{ item["FirstName"] }}</td>
+          <td>{{ item["Surname"] }}</td>
+          <td>{{ item["Email"] }}</td>
+          <td>{{ item["CourseName"] }}</td>
+          <td>{{ item["StatusName"] }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  {% endif %}
+</table>
 
-                            <div class="table-responsive details-copy-block">
-                              <table class="table table-sm table-bordered align-middle mb-2 details-table">
-                                <thead>
-                                  <tr>
-                                    <th>First name</th>
-                                    <th>Last name</th>
-                                    <th>Classes</th>
-                                    <th>Class names</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {% for item in row["PreviewRows"] %}
-                                    <tr>
-                                      <td>{{ item["FirstName"] }}</td>
-                                      <td>{{ item["LastName"] }}</td>
-                                      <td>{{ item["ClassCount"] }}</td>
-                                      <td>{{ item["ClassNames"] }}</td>
-                                    </tr>
-                                  {% endfor %}
-                                </tbody>
-                              </table>
-                            </div>
+{% if row["HasMoreRows"] %}
+  <button class="btn btn-outline-secondary btn-sm no-copy kaiako-more-toggle-btn"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#{{ kaiako_more_id }}"
+          aria-expanded="false"
+          aria-controls="{{ kaiako_more_id }}">
+    Show all rows
+  </button>
+{% endif %}
+                      </div>
 
-                            {% if row["HasMoreRows"] %}
-                              <button class="btn btn-outline-secondary btn-sm no-copy"
-                                      type="button"
-                                      data-bs-toggle="collapse"
-                                      data-bs-target="#multiClassSummaryMoreRows"
-                                      aria-expanded="false"
-                                      aria-controls="multiClassSummaryMoreRows">
-                                Show all rows
-                              </button>
-
-                              <div class="collapse mt-3 details-copy-block" id="multiClassSummaryMoreRows">
-                                <div class="table-responsive">
-                                  <table class="table table-sm table-bordered align-middle details-table">
-                                    <thead>
-                                      <tr>
-                                        <th>First name</th>
-                                        <th>Last name</th>
-                                        <th>Classes</th>
-                                        <th>Class names</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {% for item in row["ParsedDetailRows"][5:] %}
-                                        <tr>
-                                          <td>{{ item["FirstName"] }}</td>
-                                          <td>{{ item["LastName"] }}</td>
-                                          <td>{{ item["ClassCount"] }}</td>
-                                          <td>{{ item["ClassNames"] }}</td>
-                                        </tr>
-                                      {% endfor %}
-                                    </tbody>
-                                  </table>
-                                </div>
-                              </div>
-                            {% endif %}
-                          </div>
-                        </div>
-                      {% endif %}
-                    {% endif %}
-                  {% endfor %}
+                    </div>
+                
+                  </div>
                 {% endif %}
-              {% endfor %}
-            </div>
-          </div>
+              {% endif %}
+
+            {% endfor %}
+          {% endfor %}
         </div>
       </div>
-    {% endif %}
+    </div>
+  </div>
+{% endif %}
+
+{% if classes_section.value %}
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card wsfl-summary-card" id="classesSummaryCard">
+        <h5 class="card-title">Class Summary</h5>
+        <div class="card-body">
+
+          {% for group in classes_section.value.groups %}
+            {% if group.group_id == 12 %}
+
+              {% for row in group.rows %}
+
+                {% if row["RowType"] == "Summary" %}
+                  <div class="wsfl-summary-line-main copy-classes-line">
+                    {{ row["Summary"] }}
+                  </div>
+
+                {% elif row["RowType"] == "ClassWarning" %}
+                  <div class="wsfl-warning copy-classes-line">
+                    {{ row["Summary"] }}
+                  </div>
+
+                {% elif row["RowType"] == "ClassOverviewMetric" %}
+                  <div class="wsfl-summary-line-sub copy-classes-line">
+                    {{ row["Summary"] }}
+                  </div>
+
+                {% elif row["RowType"] == "MultiClassSummary" %}
+                  <div class="wsfl-summary-line-sub copy-classes-line">
+                    {{ row["Summary"] }}
+                  </div>
+
+                  {% if row["DetailCount"] > 0 %}
+
+                    <!-- VIEW DETAILS -->
+                    <div class="wsfl-actions mt-2 mb-2 no-copy">
+                      <button class="btn btn-outline-primary btn-sm class-summary-details-toggle-btn"
+                              type="button"
+                              data-bs-toggle="collapse"
+                              data-bs-target="#multiClassSummaryDetails"
+                              aria-expanded="false"
+                              aria-controls="multiClassSummaryDetails">
+                        View more details
+                      </button>
+                    </div>
+
+                    <div class="collapse mt-3 no-copy class-summary-details-collapse" id="multiClassSummaryDetails">
+                      <div class="wsfl-soft-box">
+
+                        <div class="wsfl-preview-title">
+                          Students in multiple classes ({{ row["DetailCount"] }})
+                        </div>
+
+                        <div class="table-responsive">
+                          <table class="table table-sm table-bordered align-middle mb-2 details-table">
+                            <thead>
+                              <tr>
+                                <th>First name</th>
+                                <th>Last name</th>
+                                <th>Classes</th>
+                                <th>Class names</th>
+                              </tr>
+                            </thead>
+
+                            <tbody>
+                              {% for item in row["PreviewRows"] %}
+                                <tr>
+                                  <td>{{ item["FirstName"] }}</td>
+                                  <td>{{ item["LastName"] }}</td>
+                                  <td>{{ item["ClassCount"] }}</td>
+                                  <td>{{ item["ClassNames"] }}</td>
+                                </tr>
+                              {% endfor %}
+                            </tbody>
+
+                            {% if row["HasMoreRows"] %}
+                              <tbody class="collapse multi-class-more-collapse" id="multiClassSummaryMoreRows">
+                                {% for item in row["ParsedDetailRows"][5:] %}
+                                  <tr>
+                                    <td>{{ item["FirstName"] }}</td>
+                                    <td>{{ item["LastName"] }}</td>
+                                    <td>{{ item["ClassCount"] }}</td>
+                                    <td>{{ item["ClassNames"] }}</td>
+                                  </tr>
+                                {% endfor %}
+                              </tbody>
+                            {% endif %}
+                          </table>
+                        </div>
+
+                        {% if row["HasMoreRows"] %}
+                          <button class="btn btn-outline-secondary btn-sm"
+                                  type="button"
+                                  data-bs-toggle="collapse"
+                                  data-bs-target="#multiClassSummaryMoreRows"
+                                  aria-expanded="false"
+                                  aria-controls="multiClassSummaryMoreRows">
+                            Show all rows
+                          </button>
+                        {% endif %}
+
+                      </div>
+                    </div>
+
+                  {% endif %}
+
+                {% endif %}
+
+              {% endfor %}
+
+            {% endif %}
+          {% endfor %}
+
+        </div>
+      </div>
+    </div>
+  </div>
+{% endif %}
 
     {% if classes_section.value %}
       {% for group in classes_section.value.groups %}
@@ -592,6 +711,8 @@
   {% endif %}  
 </div>
 {% endblock %}
+
+
 {% block scripts %}
 <script>
 document.addEventListener("DOMContentLoaded", function () {
@@ -644,27 +765,31 @@ document.addEventListener("DOMContentLoaded", function () {
         loadSchools();
     }
 
-    // Toggle buttons
-    document.querySelectorAll('.details-collapse').forEach(collapseEl => {
-        collapseEl.addEventListener('show.bs.collapse', function () {
-            const btn = collapseEl.closest('.class-summary-card')?.querySelector('.details-toggle-btn');
-            if (btn) btn.textContent = 'Hide details';
-        });
+    function attachCollapseLabel(selector, showText, hideText) {
+        document.querySelectorAll(selector).forEach(collapseEl => {
+            collapseEl.addEventListener("show.bs.collapse", function () {
+                const btn = document.querySelector(`[data-bs-target="#${collapseEl.id}"]`);
+                if (btn) btn.textContent = hideText;
+            });
 
-        collapseEl.addEventListener('hide.bs.collapse', function () {
-            const btn = collapseEl.closest('.class-summary-card')?.querySelector('.details-toggle-btn');
-            if (btn) btn.textContent = 'View more details';
+            collapseEl.addEventListener("hide.bs.collapse", function () {
+                const btn = document.querySelector(`[data-bs-target="#${collapseEl.id}"]`);
+                if (btn) btn.textContent = showText;
+            });
         });
-    });
+    }
+
+    attachCollapseLabel(".details-collapse", "View more details", "Hide details");
+    attachCollapseLabel(".class-summary-details-collapse", "View more details", "Hide details");
+    attachCollapseLabel(".multi-class-more-collapse", "Show all rows", "Hide rows");
+    attachCollapseLabel(".kaiako-details-collapse", "View more details", "Hide details");
+    attachCollapseLabel(".kaiako-more-collapse", "Show all rows", "Hide rows");
 });
-
-// -------------------------
-// COPY HELPERS
-// -------------------------
 
 function showCopyFeedback(feedbackId) {
     const el = document.getElementById(feedbackId);
     if (!el) return;
+
     el.classList.add("show");
     setTimeout(() => el.classList.remove("show"), 1800);
 }
@@ -675,17 +800,45 @@ function copyText(text, feedbackId) {
     });
 }
 
-// -------------------------
-// TEXT COPY (PLAIN)
-// -------------------------
-
 function copyVisibleSummary() {
     let parts = [];
     parts.push("School Summary");
 
-    document.querySelectorAll('.class-summary-card').forEach(card => {
-        const title = card.querySelector('.copy-class-title')?.innerText.trim() || '';
-        const lines = Array.from(card.querySelectorAll('.copy-line'))
+    const userLines = Array.from(document.querySelectorAll(".copy-user-line"))
+        .map(el => el.innerText.trim())
+        .filter(Boolean);
+
+    const overviewLines = Array.from(document.querySelectorAll(".copy-assignment-line"))
+        .map(el => el.innerText.trim())
+        .filter(Boolean);
+
+    const kaiakoLines = Array.from(document.querySelectorAll(".copy-kaiako-line"))
+        .map(el => el.innerText.trim())
+        .filter(Boolean);
+
+    const classSummaryLines = Array.from(document.querySelectorAll(".copy-classes-line"))
+        .map(el => el.innerText.trim())
+        .filter(Boolean);
+
+    if (userLines.length) {
+        parts.push("Users\n" + userLines.map(l => "- " + l).join("\n"));
+    }
+
+    if (overviewLines.length) {
+        parts.push("Overview\n" + overviewLines.map(l => "- " + l).join("\n"));
+    }
+
+    if (kaiakoLines.length) {
+        parts.push("Kaiako Summary\n" + kaiakoLines.map(l => "- " + l).join("\n"));
+    }
+
+    if (classSummaryLines.length) {
+        parts.push("Class Summary\n" + classSummaryLines.map(l => "- " + l).join("\n"));
+    }
+
+    document.querySelectorAll(".class-summary-card").forEach(card => {
+        const title = card.querySelector(".copy-class-title")?.innerText.trim() || "";
+        const lines = Array.from(card.querySelectorAll(".copy-line"))
             .map(el => el.innerText.trim())
             .filter(Boolean);
 
@@ -700,10 +853,6 @@ function copyVisibleSummary() {
 
     copyText(parts.join("\n\n"), "copyAllFeedback");
 }
-
-// -------------------------
-// FORMATTED COPY (FULL REPORT)
-// -------------------------
 
 function escapeHtml(text) {
     return String(text || "")
@@ -739,25 +888,26 @@ function copyVisibleSummaryRich() {
             <h2 style="color:#1a427d; margin-bottom:14px;">School Summary</h2>
     `);
 
-    // USERS
     const userLines = Array.from(document.querySelectorAll(".copy-user-line"))
         .map(el => el.innerText.trim())
         .filter(Boolean);
     htmlParts.push(sectionBlock("Users", userLines));
 
-    // OVERVIEW
     const overviewLines = Array.from(document.querySelectorAll(".copy-assignment-line"))
         .map(el => el.innerText.trim())
         .filter(Boolean);
     htmlParts.push(sectionBlock("Overview", overviewLines));
 
-    // CLASS SUMMARY
+    const kaiakoLines = Array.from(document.querySelectorAll(".copy-kaiako-line"))
+        .map(el => el.innerText.trim())
+        .filter(Boolean);
+    htmlParts.push(sectionBlock("Kaiako Summary", kaiakoLines));
+
     const classSummaryLines = Array.from(document.querySelectorAll(".copy-classes-line"))
         .map(el => el.innerText.trim())
         .filter(Boolean);
     htmlParts.push(sectionBlock("Class Summary", classSummaryLines));
 
-    // INDIVIDUAL CLASSES
     document.querySelectorAll(".class-summary-card").forEach(card => {
         const title = card.querySelector(".copy-class-title")?.innerText.trim() || "Class";
         const lines = Array.from(card.querySelectorAll(".copy-line"))
@@ -782,10 +932,6 @@ function copyVisibleSummaryRich() {
         copyVisibleSummary();
     });
 }
-
-// -------------------------
-// EXPORT
-// -------------------------
 
 function exportVisibleClassRecords() {
     const classIds = Array.from(document.querySelectorAll(".class-summary-card"))

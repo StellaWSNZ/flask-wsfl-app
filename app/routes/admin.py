@@ -2190,7 +2190,19 @@ def school_summary():
                             row_dict["PreviewRows"] = parsed_rows[:5]
                             row_dict["HasMoreRows"] = len(parsed_rows) > 5
                             row_dict["DetailCount"] = len(parsed_rows)
-
+                        elif row_dict["RowType"] == "KaiakoJSON":
+                            parsed_rows = sorted(
+                                parsed_rows,
+                                key=lambda x: (
+                                    (x.get("Surname") or "").lower(),
+                                    (x.get("FirstName") or "").lower(),
+                                    (x.get("CourseName") or "").lower()
+                                )
+                            )
+                            row_dict["ParsedDetailRows"] = parsed_rows
+                            row_dict["PreviewRows"] = parsed_rows[:5]
+                            row_dict["HasMoreRows"] = len(parsed_rows) > 5
+                            row_dict["DetailCount"] = len(parsed_rows)
                         elif row_dict["RowType"] == "MultiClassSummary":
                             parsed_rows = sorted(
                                 parsed_rows,
