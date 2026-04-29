@@ -2095,6 +2095,8 @@ def move_school_term():
     
 @admin_bp.route("/SchoolDetails", methods=["GET", "POST"])
 def school_summary():
+    if(session.get("user_role")!="ADM"):
+        return "Unauthorized", 403
     terms = get_terms()
     years = get_years()
 
