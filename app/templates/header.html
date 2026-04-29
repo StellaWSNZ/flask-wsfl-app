@@ -562,13 +562,7 @@
                     >Overview</a
                   >
                 </li>
-                <li>
-                  <a
-                    class="dropdown-item py-2"
-                    href="{{ url_for('apr_bp.apr_page') }}"
-                    >Approved Providers</a
-                  >
-                </li>
+                
                 <li>
                   <a
                     class="dropdown-item py-2"
@@ -576,7 +570,12 @@
                     >Reports vs Database</a
                   >
                 </li>
-
+<li>
+                  <a
+                    class="dropdown-item py-2"
+                    href="{{ url_for('admin_bp.school_summary') }}"
+                    >School Details</a
+                  >
                 <li><hr class="dropdown-divider" /></li>
                 <li>
                   <h6 class="dropdown-header">Entity &amp; User Management</h6>
@@ -628,6 +627,13 @@
                     class="dropdown-item py-2"
                     href="{{ url_for('survey_bp.bulk_emails') }}"
                     >Email Reminders</a
+                  >
+                </li>
+                <li>
+                  <a
+                    class="dropdown-item py-2"
+                    href="{{ url_for('apr_bp.apr_page') }}"
+                    >Approved Providers</a
                   >
                 </li>
                 <li><hr class="dropdown-divider" /></li>
@@ -737,6 +743,13 @@
                     >Edit Class Lists</a
                   >
                 </li>
+                <li>
+                  <a
+                    class="dropdown-item py-2"
+                    href="{{ url_for('admin_bp.school_summary') }}"
+                    >School Details</a
+                  >
+                <li>
               </ul>
             </li>
             {% endif %}
