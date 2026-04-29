@@ -2093,7 +2093,7 @@ def move_school_term():
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
     
-@admin_bp.route("/school_summary", methods=["GET", "POST"])
+@admin_bp.route("/SchoolDetails", methods=["GET", "POST"])
 def school_summary():
     terms = get_terms()
     years = get_years()
@@ -2108,12 +2108,14 @@ def school_summary():
     selected_school = None
     selected_min_percent = None
     selected_sort = "class_asc"
-
+    selected_threshold_percent = ""
+    selected_threshold_operator = "lte"
     if request.method == "POST":
         selected_term = request.form.get("term", type=int)
         selected_year = request.form.get("year", type=int)
         selected_school = request.form.get("school", type=int)
-        selected_min_percent = request.form.get("min_percent", "").strip()
+        selected_threshold_percent = request.form.get("threshold_percent", "").strip()
+        selected_threshold_operator = request.form.get("threshold_operator", "lte")
         selected_sort = request.form.get("sort_by", "class_asc")
 
         if not selected_term or not selected_year or not selected_school:
@@ -2257,9 +2259,13 @@ def school_summary():
                     # Filter + sort class groups only
                     # -----------------------------------------
                     try:
-                        min_percent_value = float(selected_min_percent) if selected_min_percent != "" else None
+                        threshold_value = (
+                            float(selected_threshold_percent)
+                            if selected_threshold_percent not in [None, ""]
+                            else None
+                        )
                     except ValueError:
-                        min_percent_value = None
+                        threshold_value = None
 
                     def extract_percent(row_summary):
                         if not row_summary:
@@ -2303,16 +2309,28 @@ def school_summary():
                                     elif group["group_id"] is not None:
                                         class_groups.append(group)
 
-                                if min_percent_value is not None:
+                                if threshold_value is not None:
                                     filtered_groups = []
+
                                     for group in class_groups:
                                         metric_row = next(
                                             (r for r in group["rows"] if r.get("RowType") == "ClassMetric"),
                                             None
                                         )
+
                                         pct = extract_percent(metric_row.get("Summary") if metric_row else None)
-                                        if pct is not None and pct >= min_percent_value:
+
+                                        if pct is None:
+                                            continue
+
+                                        if selected_threshold_operator == "gte":
+                                            keep = pct >= threshold_value
+                                        else:
+                                            keep = pct <= threshold_value
+
+                                        if keep:
                                             filtered_groups.append(group)
+
                                     class_groups = filtered_groups
 
                                 def class_group_sort_key(group):
@@ -2370,7 +2388,8 @@ def school_summary():
         selected_term=selected_term,
         selected_year=selected_year,
         selected_school=selected_school,
-        selected_min_percent=selected_min_percent,
+        selected_threshold_percent=selected_threshold_percent,
+        selected_threshold_operator=selected_threshold_operator,
         selected_sort=selected_sort,
         table_data=table_data,
         table_columns=table_columns,

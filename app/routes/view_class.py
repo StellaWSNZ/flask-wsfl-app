@@ -2569,6 +2569,8 @@ def funder_classes():
 def provider_classes():
     return redirect(url_for("class_bp.filter_classes"))
 
+
+    
 @class_bp.route("/export_achievements_changes_excel", methods=["GET", "POST"])
 @login_required
 def export_achievements_changes_excel():
@@ -2587,33 +2589,28 @@ def export_achievements_changes_excel():
         _ensure_authorised_for_class(engine, class_id)
         meta = _get_class_meta(engine, class_id)
 
-        current_app.logger.info("=== export_achievements_changes_excel ===")
-        current_app.logger.info(
-            "class_id=%s term=%s year=%s school=%s method=%s",
-            class_id, term, year, school, request.method
-        )
-
-        # -------------------------------------------------
-        # Load LONG format data from proc
-        # Expected columns:
-        # SortKey, NSN, PreferredName, LastName, YearLevelID,
-        # CompetencyName, CompetencyStatus
-        # -------------------------------------------------
         with engine.begin() as conn:
             df_long = pd.read_sql(
-                text("EXEC FlaskExportAchievementsChanges @ClassID=:cid, @Term=:t, @Year=:y"),
+                text("""
+                    EXEC FlaskExportAchievementsChanges 
+                        @ClassID = :cid, 
+                        @Term = :t, 
+                        @Year = :y
+                """),
                 conn,
                 params={"cid": class_id, "t": term, "y": year}
             )
 
+        col_meta = {}
+
         if df_long is None or df_long.empty:
-            df = pd.DataFrame(columns=["No results"])
-            col_meta = {}
+            df = pd.DataFrame(columns=["LastName", "PreferredName", "YearLevel"])
         else:
             required_cols = {
                 "SortKey", "NSN", "PreferredName", "LastName",
                 "YearLevelID", "CompetencyName", "CompetencyStatus"
             }
+
             missing = required_cols.difference(df_long.columns)
             if missing:
                 return jsonify({
@@ -2624,13 +2621,10 @@ def export_achievements_changes_excel():
             df_long["SortKey"] = df_long["SortKey"].astype(str).str.strip()
             df_long["CompetencyName"] = df_long["CompetencyName"].astype(str).str.strip()
             df_long["CompetencyStatus"] = pd.to_numeric(
-                df_long["CompetencyStatus"], errors="coerce"
+                df_long["CompetencyStatus"],
+                errors="coerce"
             ).fillna(0).astype(int)
 
-            # Keep header metadata for later
-            col_meta = {}
-
-            # Pivot using both SortKey + display name
             df = (
                 df_long.pivot_table(
                     index=["NSN", "LastName", "PreferredName", "YearLevelID"],
@@ -2643,14 +2637,18 @@ def export_achievements_changes_excel():
             )
             df.columns.name = None
 
-            def sort_tuple_from_key(sk: str):
+            df.columns = [
+                c[0] if isinstance(c, tuple) and (c[1] is None or c[1] == "") else c
+                for c in df.columns
+            ]
+
+            def sort_tuple_from_key(sk):
                 try:
                     yg, comp = str(sk).split("_", 1)
-                    return (int(yg), int(comp))
+                    return int(yg), int(comp)
                 except Exception:
-                    return (999, 999)
+                    return 999, 999
 
-            # Separate id vs achievement columns
             id_cols_raw = [c for c in df.columns if not isinstance(c, tuple)]
             ach_cols_raw = [c for c in df.columns if isinstance(c, tuple)]
 
@@ -2665,24 +2663,22 @@ def export_achievements_changes_excel():
 
             df = df[id_cols_raw + ach_cols_raw]
 
-            # Flatten cols back to strings, but keep metadata
             flat_cols = []
             used = set()
 
             for c in df.columns:
                 if isinstance(c, tuple):
-                    sk, display = c
+                    sort_key, display = c
                     display = str(display).strip()
 
-                    # ensure unique flat names if duplicates somehow happen
                     flat_name = display
                     i = 2
                     while flat_name in used:
                         flat_name = f"{display} [{i}]"
                         i += 1
+
                     used.add(flat_name)
 
-                    # Split "Competency (YearGroup)" for header layout
                     m = re.match(r"^(.*?)\s*\((.*?)\)\s*$", display)
                     if m:
                         base = (m.group(1) or "").strip()
@@ -2692,76 +2688,82 @@ def export_achievements_changes_excel():
                         sub = ""
 
                     col_meta[flat_name] = {
-                        "sort_key": sk,
+                        "sort_key": sort_key,
                         "base": base,
-                        "sub": sub,
+                        "sub": sub
                     }
+
                     flat_cols.append(flat_name)
                 else:
                     flat_cols.append(c)
 
             df.columns = flat_cols
 
-        current_app.logger.info("pivoted df shape: %s", getattr(df, "shape", None))
-
         # -------------------------------------------------
-        # Clean and shape
+        # Clean and order columns
         # -------------------------------------------------
         df.drop(columns=["NSN"], errors="ignore", inplace=True)
 
-        def _clean_col(c: str) -> str:
+        def clean_col(c):
             s = str(c)
             s = re.sub(r"<br\s*/?>", " ", s, flags=re.I)
             return s.strip()
 
-        df.rename(columns={c: _clean_col(c) for c in df.columns}, inplace=True)
+        df.rename(columns={c: clean_col(c) for c in df.columns}, inplace=True)
 
         if "YearLevelID" in df.columns:
             df.rename(columns={"YearLevelID": "YearLevel"}, inplace=True)
 
+        def display_col_sort_key(col_name):
+            meta_row = col_meta.get(col_name, {})
+            sort_key = meta_row.get("sort_key", "")
+
+            try:
+                yg, comp = str(sort_key).split("_", 1)
+                return int(yg), int(comp), meta_row.get("base", str(col_name)).lower()
+            except Exception:
+                return 999, 999, str(col_name).lower()
+
         id_cols = [c for c in ["LastName", "PreferredName", "YearLevel"] if c in df.columns]
         ach_cols = [c for c in df.columns if c not in id_cols]
-
-        # Re-sort flat achievement columns by stored SortKey
-        def display_col_sort_key(col_name: str):
-            meta_row = col_meta.get(col_name, {})
-            sk = meta_row.get("sort_key", "")
-            try:
-                yg, comp = str(sk).split("_", 1)
-                return (int(yg), int(comp), meta_row.get("base", str(col_name)).lower())
-            except Exception:
-                return (999, 999, str(col_name).lower())
-
         ach_cols = sorted(ach_cols, key=display_col_sort_key)
-        if id_cols:
-            df = df[id_cols + ach_cols]
 
-        # Recompute
+        df = df[id_cols + ach_cols]
+
+        # Optional: sort students by last name, preferred name, year level
+        sort_cols = [c for c in ["LastName", "PreferredName", "YearLevel"] if c in df.columns]
+        if sort_cols:
+            df = df.sort_values(by=sort_cols, kind="stable").reset_index(drop=True)
         id_cols = [c for c in ["LastName", "PreferredName", "YearLevel"] if c in df.columns]
         rest_cols = [c for c in df.columns if c not in id_cols]
 
         # -------------------------------------------------
-        # Achievement state handling
-        # 0 = blank
-        # 1 = Y
-        # 2 = Y + yellow highlight
+        # Layout rows
         # -------------------------------------------------
-        def _is_achievement_state(series: pd.Series) -> bool:
-            uniq = set(series.dropna().astype(str).str.strip().unique())
-            return uniq.issubset({"0", "1", "2", "0.0", "1.0", "2.0"})
-
-        highlight_cells = set()
-
         DATA_START_COL = len(id_cols)
+
+        DATA_START_COL = 3  # D; identity are A..C
         TITLE_ROW = 0
         HEADER_BASE_ROW = 0
         HEADER_SUB_ROW = 1
         DATA_START_ROW = 2
 
+        # -------------------------------------------------
+        # Convert achievement states
+        # 0 = blank
+        # 1 = Y
+        # 2 = Y highlighted yellow
+        # -------------------------------------------------
+        def is_achievement_state(series):
+            uniq = set(series.dropna().astype(str).str.strip().unique())
+            return uniq.issubset({"0", "1", "2", "0.0", "1.0", "2.0"})
+
+        highlight_cells = set()
+
         for col_idx, col in enumerate(rest_cols, start=len(id_cols)):
             s = df[col]
 
-            if _is_achievement_state(s):
+            if is_achievement_state(s):
                 original_vals = s.copy()
 
                 df[col] = (
@@ -2769,15 +2771,14 @@ def export_achievements_changes_excel():
                         2: "Y", 2.0: "Y", "2": "Y", "2.0": "Y",
                         1: "Y", 1.0: "Y", "1": "Y", "1.0": "Y",
                         0: "", 0.0: "", "0": "", "0.0": ""
-                    }).fillna("")
+                    })
+                    .fillna("")
                 )
 
                 for row_idx, raw_val in enumerate(original_vals):
                     raw_str = str(raw_val).strip() if pd.notna(raw_val) else ""
                     if raw_str in {"2", "2.0"}:
-                        excel_row = DATA_START_ROW + row_idx
-                        excel_col = col_idx
-                        highlight_cells.add((excel_row, excel_col))
+                        highlight_cells.add((DATA_START_ROW + row_idx, col_idx))
 
         # -------------------------------------------------
         # Write Excel
@@ -2785,18 +2786,27 @@ def export_achievements_changes_excel():
         bio = io.BytesIO()
         sheet = "Achievement Changes"
 
-        def split_header_from_meta(col_name: str) -> tuple[str, str]:
+        def split_header_from_meta(col_name):
             meta_row = col_meta.get(col_name)
             if meta_row:
                 return meta_row.get("base", str(col_name)), meta_row.get("sub", "")
+
             s = str(col_name).strip()
             m = re.match(r"^(.*?)\s*(?:\((.*?)\))?\s*$", s)
+
             base = ((m.group(1) if m else s) or "").strip()
             sub = ((m.group(2) or "") if m and m.lastindex and m.lastindex >= 2 else "").strip()
+
             return base, sub
 
         with pd.ExcelWriter(bio, engine="xlsxwriter") as writer:
-            df.to_excel(writer, index=False, header=False, sheet_name=sheet, startrow=DATA_START_ROW)
+            df.to_excel(
+                writer,
+                index=False,
+                header=False,
+                sheet_name=sheet,
+                startrow=DATA_START_ROW
+            )
 
             wb = writer.book
             ws = writer.sheets[sheet]
@@ -2813,19 +2823,20 @@ def export_achievements_changes_excel():
                 f"Term {term}, {year}",
                 "Yellow Y = achieved in this term"
             ]
-            title_text = "\n".join([ln for ln in title_lines if ln])
+
+            title_text = "\n".join([line for line in title_lines if line])
 
             title_fmt = wb.add_format({
                 "bold": True,
                 "font_size": 12,
                 "align": "left",
                 "valign": "top",
-                "text_wrap": True,
+                "text_wrap": True
             })
 
-            header_row1_rot = wb.add_format({
+            header_rotated_fmt = wb.add_format({
                 "bold": True,
-                "valign": "top",
+                "valign": "bottom",
                 "align": "center",
                 "text_wrap": True,
                 "border": 1,
@@ -2833,9 +2844,9 @@ def export_achievements_changes_excel():
                 "rotation": 90
             })
 
-            header_row2_h = wb.add_format({
+            header_sub_fmt = wb.add_format({
                 "bold": True,
-                "valign": "top",
+                "valign": "vcenter",
                 "align": "center",
                 "text_wrap": True,
                 "border": 1,
@@ -2852,8 +2863,8 @@ def export_achievements_changes_excel():
             })
 
             cell_text_fmt = wb.add_format({
-                "valign": "bottom",
-                "text_wrap": True
+                "valign": "vcenter",
+                "text_wrap": False
             })
 
             cell_center_fmt = wb.add_format({
@@ -2868,42 +2879,45 @@ def export_achievements_changes_excel():
                 "border": 1
             })
 
-            ws.merge_range(TITLE_ROW, 0, TITLE_ROW, min(2, last_col), title_text, title_fmt)
-
-            ws.set_row(TITLE_ROW, 85)
+            # Row heights
+            ws.set_row(TITLE_ROW, 70)
+            ws.set_row(1, 8)
             ws.set_row(HEADER_BASE_ROW, 120)
-            ws.set_row(HEADER_SUB_ROW, 20)
+            ws.set_row(HEADER_SUB_ROW, 24)
             ws.set_default_row(17)
-
+            ws.merge_range(TITLE_ROW, 0, TITLE_ROW, DATA_START_COL-1, title_text, title_fmt)
+            # ID headers: LastName, PreferredName, YearLevel
             for j, name in enumerate(id_cols):
-                if j <= last_col:
-                    ws.write(HEADER_SUB_ROW, j, name, id_header_fmt)
+                ws.write(HEADER_SUB_ROW, j, name, id_header_fmt)
 
+            # Competency headers
             for j in range(DATA_START_COL, last_col + 1):
                 base, sub = split_header_from_meta(df.columns[j])
-                ws.write(HEADER_BASE_ROW, j, base, header_row1_rot)
-                ws.write(HEADER_SUB_ROW, j, sub, header_row2_h)
+                ws.write(HEADER_BASE_ROW, j, base, header_rotated_fmt)
+                ws.write(HEADER_SUB_ROW, j, sub, header_sub_fmt)
 
-            width_map = {"LastName": 16, "PreferredName": 14, "YearLevel": 10}
-            narrow_width = 6
-            default_identity_width = 12
-
+            # Column widths
+            width_map = {
+                "LastName": 16,
+                "PreferredName": 16,
+                "YearLevel": 10
+            }
+            
             for j, col in enumerate(df.columns):
-                series = df[col]
-                col_fmt = cell_center_fmt if (
-                    pd.api.types.is_numeric_dtype(series) or pd.api.types.is_bool_dtype(series)
-                ) else cell_text_fmt
+                if col in id_cols:
+                    width = width_map.get(col, 14)
+                    fmt = cell_text_fmt if col != "YearLevel" else cell_center_fmt
+                else:
+                    width = 6
+                    fmt = cell_center_fmt
 
-                width = width_map.get(
-                    col,
-                    default_identity_width if col in id_cols else narrow_width
-                )
-                ws.set_column(j, j, width, col_fmt)
+                ws.set_column(j, j, width, fmt)
 
-            ws.freeze_panes(DATA_START_ROW, DATA_START_COL)
-
+            # Highlight Y values achieved in selected term
             for r, c in highlight_cells:
                 ws.write(r, c, "Y", highlight_y_fmt)
+
+
 
         bio.seek(0)
 
@@ -2919,5 +2933,544 @@ def export_achievements_changes_excel():
         )
 
     except Exception as e:
-        current_app.logger.exception("❌ export_achievements_changes_excel failed: %s", str(e))
-        return jsonify({"success": False, "error": "Export failed. See server logs for details."}), 500
+        current_app.logger.exception(
+            "❌ export_achievements_changes_excel failed: %s",
+            str(e)
+        )
+        return jsonify({
+            "success": False,
+            "error": "Export failed. See server logs for details."
+        }), 500
+        
+        
+@class_bp.route("/export_visible_class_records_excel", methods=["GET"])
+@login_required
+def export_visible_class_records_excel():
+    try:
+        engine = get_db_engine()
+
+        term = int(float(request.values.get("term") or 0))
+        year = int(float(request.values.get("year") or 0))
+        school = int(float(request.values.get("school") or 0))
+
+        class_ids_raw = request.values.get("class_ids", "")
+
+        class_ids = [
+            int(x.strip())
+            for x in class_ids_raw.split(",")
+            if x.strip().isdigit()
+        ]
+
+        if not term or not year or not school:
+            return jsonify({
+                "success": False,
+                "error": "Missing term, year, or school"
+            }), 400
+
+        if not class_ids:
+            return jsonify({
+                "success": False,
+                "error": "No class IDs supplied"
+            }), 400
+
+        # Always validate server-side
+        for class_id in class_ids:
+            _ensure_authorised_for_class(engine, class_id)
+
+        class_ids_csv = ",".join(str(x) for x in class_ids)
+
+        with engine.begin() as conn:
+            class_meta_df = pd.read_sql(
+                text("""
+                    EXEC dbo.FlaskGetVisibleClassExportList
+                        @Term = :term,
+                        @CalendarYear = :year,
+                        @MOENumber = :school,
+                        @ClassIDs = :class_ids
+                """),
+                conn,
+                params={
+                    "term": term,
+                    "year": year,
+                    "school": school,
+                    "class_ids": class_ids_csv
+                }
+            )
+
+        if class_meta_df.empty:
+            return jsonify({
+                "success": False,
+                "error": "No matching classes found"
+            }), 404
+
+        bio = io.BytesIO()
+        used_sheet_names = set()
+
+        def safe_sheet_name(name):
+            name = str(name or "Class").strip()
+            name = re.sub(r"[\[\]\:\*\?\/\\]", "-", name)
+            name = name[:31].strip() or "Class"
+
+            base = name
+            i = 2
+
+            while name.lower() in used_sheet_names:
+                suffix = f" {i}"
+                name = base[:31 - len(suffix)] + suffix
+                i += 1
+
+            used_sheet_names.add(name.lower())
+            return name
+
+        def sort_tuple_from_key(sk):
+            try:
+                yg, comp = str(sk).split("_", 1)
+                return int(yg), int(comp)
+            except Exception:
+                return 999, 999
+
+        def clean_col(c):
+            s = str(c)
+            s = re.sub(r"<br\s*/?>", " ", s, flags=re.I)
+            return s.strip()
+
+        def build_class_export_df(conn, class_id):
+            df_long = pd.read_sql(
+                text("""
+                    EXEC FlaskExportAchievementsChanges
+                        @ClassID = :cid,
+                        @Term = :term,
+                        @Year = :year
+                """),
+                conn,
+                params={
+                    "cid": class_id,
+                    "term": term,
+                    "year": year
+                }
+            )
+
+            col_meta = {}
+
+            if df_long is None or df_long.empty:
+                return pd.DataFrame(columns=["LastName", "PreferredName", "YearLevel"]), col_meta
+
+            required_cols = {
+                "SortKey", "NSN", "PreferredName", "LastName",
+                "YearLevelID", "CompetencyName", "CompetencyStatus"
+            }
+
+            missing = required_cols.difference(df_long.columns)
+            if missing:
+                raise ValueError(
+                    f"Stored procedure is missing expected columns: {', '.join(sorted(missing))}"
+                )
+
+            df_long["SortKey"] = df_long["SortKey"].astype(str).str.strip()
+            df_long["CompetencyName"] = df_long["CompetencyName"].astype(str).str.strip()
+            df_long["CompetencyStatus"] = pd.to_numeric(
+                df_long["CompetencyStatus"],
+                errors="coerce"
+            ).fillna(0).astype(int)
+
+            df = (
+                df_long.pivot_table(
+                    index=["NSN", "LastName", "PreferredName", "YearLevelID"],
+                    columns=["SortKey", "CompetencyName"],
+                    values="CompetencyStatus",
+                    aggfunc="max",
+                    fill_value=0
+                )
+                .reset_index()
+            )
+
+            df.columns.name = None
+
+            # Fix tuple identity columns e.g. ('LastName', '')
+            df.columns = [
+                c[0] if isinstance(c, tuple) and (c[1] is None or c[1] == "") else c
+                for c in df.columns
+            ]
+
+            id_cols_raw = [c for c in df.columns if not isinstance(c, tuple)]
+            ach_cols_raw = [c for c in df.columns if isinstance(c, tuple)]
+
+            ach_cols_raw = sorted(
+                ach_cols_raw,
+                key=lambda c: (
+                    sort_tuple_from_key(c[0])[0],
+                    sort_tuple_from_key(c[0])[1],
+                    str(c[1]).lower()
+                )
+            )
+
+            df = df[id_cols_raw + ach_cols_raw]
+
+            flat_cols = []
+            used = set()
+
+            for c in df.columns:
+                if isinstance(c, tuple):
+                    sort_key, display = c
+                    display = str(display).strip()
+
+                    flat_name = display
+                    i = 2
+                    while flat_name in used:
+                        flat_name = f"{display} [{i}]"
+                        i += 1
+
+                    used.add(flat_name)
+
+                    m = re.match(r"^(.*?)\s*\((.*?)\)\s*$", display)
+                    if m:
+                        base = (m.group(1) or "").strip()
+                        sub = (m.group(2) or "").strip()
+                    else:
+                        base = display
+                        sub = ""
+
+                    col_meta[flat_name] = {
+                        "sort_key": sort_key,
+                        "base": base,
+                        "sub": sub
+                    }
+
+                    flat_cols.append(flat_name)
+                else:
+                    flat_cols.append(c)
+
+            df.columns = flat_cols
+
+            df.drop(columns=["NSN"], errors="ignore", inplace=True)
+            df.rename(columns={c: clean_col(c) for c in df.columns}, inplace=True)
+
+            if "YearLevelID" in df.columns:
+                df.rename(columns={"YearLevelID": "YearLevel"}, inplace=True)
+
+            def display_col_sort_key(col_name):
+                meta_row = col_meta.get(col_name, {})
+                sort_key = meta_row.get("sort_key", "")
+
+                try:
+                    yg, comp = str(sort_key).split("_", 1)
+                    return int(yg), int(comp), meta_row.get("base", str(col_name)).lower()
+                except Exception:
+                    return 999, 999, str(col_name).lower()
+
+            id_cols = [c for c in ["LastName", "PreferredName", "YearLevel"] if c in df.columns]
+            ach_cols = [c for c in df.columns if c not in id_cols]
+            ach_cols = sorted(ach_cols, key=display_col_sort_key)
+
+            df = df[id_cols + ach_cols]
+
+            sort_cols = [c for c in ["LastName", "PreferredName", "YearLevel"] if c in df.columns]
+            if sort_cols:
+                df = df.sort_values(by=sort_cols, kind="stable").reset_index(drop=True)
+
+            return df, col_meta
+
+        def is_achievement_state(series):
+            uniq = set(series.dropna().astype(str).str.strip().unique())
+            return uniq.issubset({"0", "1", "2", "0.0", "1.0", "2.0"})
+
+        def split_header_from_meta(col_name, col_meta):
+            meta_row = col_meta.get(col_name)
+            if meta_row:
+                return meta_row.get("base", str(col_name)), meta_row.get("sub", "")
+
+            s = str(col_name).strip()
+            m = re.match(r"^(.*?)\s*(?:\((.*?)\))?\s*$", s)
+            base = ((m.group(1) if m else s) or "").strip()
+            sub = ((m.group(2) or "") if m and m.lastindex and m.lastindex >= 2 else "").strip()
+            return base, sub
+        threshold_value = request.values.get("threshold_percent")
+        threshold_operator = request.values.get("threshold_operator", "lte")
+
+        if threshold_value not in [None, ""]:
+            op_symbol = "≤" if threshold_operator == "lte" else "≥"
+            filter_text = f"Filtered to classes where % with any new achievement {op_symbol} {threshold_value}%"
+        else:
+            filter_text = "All classes shown"
+        with pd.ExcelWriter(bio, engine="xlsxwriter") as writer:
+            wb = writer.book
+
+            title_fmt = wb.add_format({
+                "bold": True,
+                "font_size": 12,
+                "align": "left",
+                "valign": "top",
+                "text_wrap": True
+            })
+
+            header_rotated_fmt = wb.add_format({
+                "bold": True,
+                "valign": "bottom",
+                "align": "center",
+                "text_wrap": True,
+                "border": 1,
+                "bg_color": "#F2F2F2",
+                "rotation": 90
+            })
+
+            header_sub_fmt = wb.add_format({
+                "bold": True,
+                "valign": "vcenter",
+                "align": "center",
+                "text_wrap": True,
+                "border": 1,
+                "bg_color": "#F2F2F2"
+            })
+
+            id_header_fmt = wb.add_format({
+                "bold": True,
+                "valign": "vcenter",
+                "align": "left",
+                "border": 1,
+                "bg_color": "#F2F2F2"
+            })
+
+            cell_text_fmt = wb.add_format({
+                "valign": "vcenter",
+                "text_wrap": False
+            })
+
+            cell_center_fmt = wb.add_format({
+                "valign": "vcenter",
+                "align": "center"
+            })
+
+            highlight_y_fmt = wb.add_format({
+                "valign": "vcenter",
+                "align": "center",
+                "bg_color": "#FFF59D",
+                "border": 1
+            })
+
+            TITLE_ROW = 0
+            HEADER_BASE_ROW = 0
+            HEADER_SUB_ROW = 1
+            DATA_START_ROW = 2
+
+            with engine.begin() as conn:
+                df_overview = pd.read_sql(
+                    text("""
+                        EXEC FlaskHelperFunctionsSpecific
+                            @Request = 'ClassOverviewExport',
+                            @Term = :term,
+                            @CalendarYear = :year,
+                            @MOENumber = :school
+                    """),
+                    conn,
+                    params={
+                        "term": term,
+                        "year": year,
+                        "school": school
+                    }
+                )
+
+                if df_overview is not None and not df_overview.empty:
+                    visible_class_ids = set(class_meta_df["ClassID"].astype(int).tolist())
+
+                    df_overview["Included in export"] = df_overview["ClassID"].astype(int).apply(
+                        lambda x: "Yes" if x in visible_class_ids else "No"
+                    )
+
+                    df_overview["% with any new achievement"] = (
+                        df_overview["StudentsWithAnyNewAchievement"] /
+                        df_overview["StudentCount"].replace({0: pd.NA})
+                    ).fillna(0)
+
+                    df_overview.rename(columns={
+                        "ClassName": "Class name",
+                        "TeacherName": "Teacher",
+                        "YearLevels": "Year levels",
+                        "StudentCount": "Students",
+                        "StudentsWithAnyNewAchievement": "Students with any new achievement"
+                    }, inplace=True)
+
+                    overview_cols = [
+                        "Class name",
+                        "Teacher",
+                        "Year levels",
+                        "Students",
+                        "Students with any new achievement",
+                        "% with any new achievement",
+                        "Included in export"
+                    ]
+
+                    df_overview = df_overview[[c for c in overview_cols if c in df_overview.columns]]
+
+                    df_overview.to_excel(
+                        writer,
+                        index=False,
+                        sheet_name="Overview",
+                        startrow=2
+                    )
+
+                    ws_overview = writer.sheets["Overview"]
+
+                    overview_title_fmt = wb.add_format({
+                        "bold": True,
+                        "font_size": 14,
+                        "align": "left",
+                        "valign": "vcenter"
+                    })
+
+                    overview_header_fmt = wb.add_format({
+                        "bold": True,
+                        "bg_color": "#1a427d",
+                        "font_color": "#FFFFFF",
+                        "border": 1,
+                        "align": "center",
+                        "valign": "vcenter",
+                        "text_wrap": True
+                    })
+
+                    overview_pct_fmt = wb.add_format({
+                        "num_format": "0%",
+                        "align": "center",
+                        "valign": "vcenter"
+                    })
+                    school_name = class_meta_df["SchoolName"].dropna().iloc[0] \
+                        if "SchoolName" in class_meta_df.columns and not class_meta_df["SchoolName"].dropna().empty \
+                        else f"School {school}"
+                    ws_overview.write(0, 0, f"{school_name} — Term {term}, {year}", overview_title_fmt)
+                    ws_overview.write(1, 0, filter_text)
+
+                    for col_num, value in enumerate(df_overview.columns):
+                        ws_overview.write(2, col_num, value, overview_header_fmt)
+
+                    for col_num, col_name in enumerate(df_overview.columns):
+                        if col_name == "% with any new achievement":
+                            ws_overview.set_column(col_num, col_num, 16, overview_pct_fmt)
+                        elif col_name in ["Class name", "Teacher"]:
+                            ws_overview.set_column(col_num, col_num, 24)
+                        elif col_name == "Year levels":
+                            ws_overview.set_column(col_num, col_num, 14)
+                        else:
+                            ws_overview.set_column(col_num, col_num, 18)
+
+                    ws_overview.freeze_panes(3, 0)
+                    
+                for _, class_row in class_meta_df.iterrows():
+                    class_id = int(class_row["ClassID"])
+                    class_name = class_row.get("ClassName", "")
+                    teacher_name = class_row.get("TeacherName", "")
+                    school_name = class_row.get("SchoolName", "")
+
+                    df, col_meta = build_class_export_df(conn, class_id)
+
+                    id_cols = [c for c in ["LastName", "PreferredName", "YearLevel"] if c in df.columns]
+                    rest_cols = [c for c in df.columns if c not in id_cols]
+                    DATA_START_COL = len(id_cols)
+
+                    highlight_cells = set()
+
+                    for col_idx, col in enumerate(rest_cols, start=len(id_cols)):
+                        s = df[col]
+
+                        if is_achievement_state(s):
+                            original_vals = s.copy()
+
+                            df[col] = (
+                                s.replace({
+                                    2: "Y", 2.0: "Y", "2": "Y", "2.0": "Y",
+                                    1: "Y", 1.0: "Y", "1": "Y", "1.0": "Y",
+                                    0: "", 0.0: "", "0": "", "0.0": ""
+                                })
+                                .fillna("")
+                            )
+
+                            for row_idx, raw_val in enumerate(original_vals):
+                                raw_str = str(raw_val).strip() if pd.notna(raw_val) else ""
+                                if raw_str in {"2", "2.0"}:
+                                    highlight_cells.add((DATA_START_ROW + row_idx, col_idx))
+
+                    sheet_name = safe_sheet_name(f"{class_name}" or f"Class {class_id}")
+
+                    df.to_excel(
+                        writer,
+                        index=False,
+                        header=False,
+                        sheet_name=sheet_name,
+                        startrow=DATA_START_ROW
+                    )
+
+                    ws = writer.sheets[sheet_name]
+                    last_col = max(0, len(df.columns) - 1)
+
+                    title_lines = [
+                        f"{school_name} — {class_name}".strip(" —"),
+                        f"Teacher: {teacher_name}" if teacher_name else "",
+                        f"Term {term}, {year}",
+                        "Yellow Y = achieved in this term"
+                    ]
+
+                    title_text = "\n".join([line for line in title_lines if line])
+
+                    ws.merge_range(
+                        TITLE_ROW,
+                        0,
+                        TITLE_ROW,
+                        max(DATA_START_COL - 1, 0),
+                        title_text,
+                        title_fmt
+                    )
+
+                    ws.set_row(TITLE_ROW, 70)
+                    ws.set_row(1, 8)
+                    ws.set_row(HEADER_BASE_ROW, 120)
+                    ws.set_row(HEADER_SUB_ROW, 24)
+                    ws.set_default_row(17)
+
+                    for j, name in enumerate(id_cols):
+                        ws.write(HEADER_SUB_ROW, j, name, id_header_fmt)
+
+                    for j in range(DATA_START_COL, last_col + 1):
+                        base, sub = split_header_from_meta(df.columns[j], col_meta)
+                        ws.write(HEADER_BASE_ROW, j, base, header_rotated_fmt)
+                        ws.write(HEADER_SUB_ROW, j, sub, header_sub_fmt)
+
+                    width_map = {
+                        "LastName": 16,
+                        "PreferredName": 16,
+                        "YearLevel": 10
+                    }
+
+                    for j, col in enumerate(df.columns):
+                        if col in id_cols:
+                            width = width_map.get(col, 14)
+                            fmt = cell_text_fmt if col != "YearLevel" else cell_center_fmt
+                        else:
+                            width = 6
+                            fmt = cell_center_fmt
+
+                        ws.set_column(j, j, width, fmt)
+
+                    for r, c in highlight_cells:
+                        ws.write(r, c, "Y", highlight_y_fmt)
+
+                    ws.freeze_panes(DATA_START_ROW, DATA_START_COL)
+
+        bio.seek(0)
+
+        school_name = class_meta_df["SchoolName"].dropna().iloc[0] if "SchoolName" in class_meta_df.columns and not class_meta_df["SchoolName"].dropna().empty else f"School {school}"
+
+        fname = _safe_filename(
+            f"{school_name} - Visible Class Records (T{term} {year}).xlsx"
+        )
+
+        return send_file(
+            bio,
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            as_attachment=True,
+            download_name=fname
+        )
+
+    except Exception as e:
+        current_app.logger.exception("❌ export_visible_class_records_excel failed: %s", str(e))
+        return jsonify({
+            "success": False,
+            "error": "Export failed. See server logs for details."
+        }), 500

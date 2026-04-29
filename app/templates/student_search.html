@@ -181,10 +181,12 @@ block content %}
             }
               (Term ${student.Term ?? ""}, ${student.CalendarYear ?? ""})
             </p>
-            <p class="card-text mb-3"><strong>NSN:</strong> ${
+            <p class="card-text mb-1"><strong>NSN:</strong> ${
               student.NSN ?? ""
             }</p>
-
+            <p class="card-text mb-1"><strong>Latest School:</strong> ${
+              student.LatestSchoolName ?? ""
+            }</p>
             <div class="mt-auto d-flex justify-content-end">
               <button class="btn btn-primary btn-sm text-white edit-btn"
                       data-nsn="${student.NSN ?? ""}"

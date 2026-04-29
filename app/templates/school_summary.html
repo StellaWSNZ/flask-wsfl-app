@@ -147,6 +147,16 @@
     font-size: 0.92rem;
     line-height: 1.45;
   }
+
+  .wsfl-warning {
+  background: #fff4e5;
+  border: 1px solid #fcb35ad8;
+  color: #8a4b00;
+  border-radius: 0.6rem;
+  padding: 0.65rem 0.8rem;
+  font-size: 0.92rem;
+  margin-bottom: 0.6rem;
+}
 </style>
 {% endblock %}
 
@@ -171,19 +181,33 @@
       </div>
 
       <div class="d-flex flex-column align-items-start align-items-md-end gap-1">
-        <button type="button"
-                class="btn btn-primary btn-sm"
-                onclick="copyVisibleSummary()">
-          Copy visible report
-        </button>
-        <div id="copyAllFeedback" class="copy-feedback">Copied.</div>
-      </div>
+  <div class="d-flex flex-wrap gap-2">
+    <button type="button"
+            class="btn btn-primary btn-sm"
+            onclick="copyVisibleSummary()">
+      Copy text report
+    </button>
+
+    <button type="button"
+            class="btn btn-outline-primary btn-sm"
+            onclick="copyVisibleSummaryRich()">
+      Copy formatted report
+    </button>
+  </div>
+
+  <div id="copyAllFeedback" class="copy-feedback">Copied.</div>
+</div>
     </div>
   </div>
 
   <div class="card shadow-sm mb-4">
     <div class="card-body">
-      <form method="post" class="row g-3 align-items-end">
+      
+        <form method="post">
+
+      <!-- Row 1 -->
+      <div class="row g-3 align-items-end mb-2">
+
         <div class="col-md-2">
           <label for="year" class="form-label">Year</label>
           <select class="form-select" id="year" name="year" required>
@@ -212,29 +236,46 @@
           </select>
         </div>
 
-        <div class="col-md-3">
+        <div class="col-md-4">
           <label for="school" class="form-label">School</label>
           <select class="form-select" id="school" name="school" required>
             <option value="">Select year and term first</option>
           </select>
         </div>
 
+      </div>
+
+      <!-- Row 2 -->
+      <div class="row g-3 align-items-end">
+
+        <div class="col-md-3">
+          <label for="threshold_operator" class="form-label">Threshold</label>
+          <select class="form-select" id="threshold_operator" name="threshold_operator">
+            <option value="lte" {% if selected_threshold_operator == "lte" %}selected{% endif %}>
+              ≤ Less than or equal to
+            </option>
+            <option value="gte" {% if selected_threshold_operator == "gte" %}selected{% endif %}>
+              ≥ Greater than or equal to
+            </option>
+          </select>
+        </div>
+
         <div class="col-md-2">
-          <label for="min_percent" class="form-label">Minimum % complete</label>
+          <label for="threshold_percent" class="form-label">Competency %</label>
           <input
             type="number"
             class="form-control"
-            id="min_percent"
-            name="min_percent"
+            id="threshold_percent"
+            name="threshold_percent"
             min="0"
             max="100"
             step="1"
-            value="{{ selected_min_percent or '' }}"
+            value="{{ selected_threshold_percent or '' }}"
             placeholder="e.g. 20"
           >
         </div>
 
-        <div class="col-md-2">
+        <div class="col-md-4">
           <label for="sort_by" class="form-label">Sort by</label>
           <select class="form-select" id="sort_by" name="sort_by">
             <option value="class_asc" {% if selected_sort == "class_asc" %}selected{% endif %}>Class name A–Z</option>
@@ -248,10 +289,13 @@
           </select>
         </div>
 
-        <div class="col-md-1 d-grid">
+        <div class="col-md-2 d-grid">
           <button type="submit" class="btn btn-primary">Show</button>
         </div>
-      </form>
+
+      </div>
+
+    </form>
     </div>
   </div>
 
@@ -274,7 +318,7 @@
     {% for section in structured %}
       {% if section.section_name == "Users" %}
         {% set users_section.value = section %}
-      {% elif section.section_name == "Assignments" %}
+      {% elif section.section_name == "Overview" %}
         {% set assignments_section.value = section %}
       {% elif section.section_name == "Classes" %}
         {% set classes_section.value = section %}
@@ -311,12 +355,12 @@
               {% endfor %}
 
               <div class="wsfl-actions mt-3 no-copy">
-                <button type="button" class="btn btn-outline-primary btn-sm">
-                  Export all changed records
-                </button>
-                <button type="button" class="btn btn-outline-primary btn-sm">
-                  Export all class records
-                </button>
+                
+                <button type="button"
+        class="btn btn-outline-primary btn-sm"
+        onclick="exportVisibleClassRecords()">
+  Export visible class records
+</button>
               </div>
             </div>
           </div>
@@ -335,7 +379,11 @@
                   {% for row in group.rows %}
                     {% if row["RowType"] == "Summary" %}
                       <div class="wsfl-summary-line-main copy-classes-line">{{ row["Summary"] }}</div>
+                    {% elif row["RowType"] == "ClassWarning" %}
+                        <div class="wsfl-warning copy-classes-line">
 
+                        {{ row["Summary"] }}
+                      </div>
                     {% elif row["RowType"] == "ClassOverviewMetric" %}
                       <div class="wsfl-summary-line-sub copy-classes-line">{{ row["Summary"] }}</div>
 
@@ -541,10 +589,9 @@
         {% endif %}
       {% endfor %}
     {% endif %}
-  {% endif %}
+  {% endif %}  
 </div>
 {% endblock %}
-
 {% block scripts %}
 <script>
 document.addEventListener("DOMContentLoaded", function () {
@@ -585,8 +632,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     schoolSelect.innerHTML = '<option value="">No schools found</option>';
                 }
             })
-            .catch(error => {
-                console.error("Error loading schools:", error);
+            .catch(() => {
                 schoolSelect.innerHTML = '<option value="">Failed to load schools</option>';
             });
     }
@@ -598,40 +644,29 @@ document.addEventListener("DOMContentLoaded", function () {
         loadSchools();
     }
 
+    // Toggle buttons
     document.querySelectorAll('.details-collapse').forEach(collapseEl => {
         collapseEl.addEventListener('show.bs.collapse', function () {
-            const card = collapseEl.closest('.class-summary-card');
-            const btn = card ? card.querySelector('.details-toggle-btn') : null;
+            const btn = collapseEl.closest('.class-summary-card')?.querySelector('.details-toggle-btn');
             if (btn) btn.textContent = 'Hide details';
         });
 
         collapseEl.addEventListener('hide.bs.collapse', function () {
-            const card = collapseEl.closest('.class-summary-card');
-            const btn = card ? card.querySelector('.details-toggle-btn') : null;
-            if (btn) btn.textContent = 'View more details';
-        });
-    });
-
-    document.querySelectorAll('.class-summary-details-collapse').forEach(collapseEl => {
-        collapseEl.addEventListener('show.bs.collapse', function () {
-            const btn = document.querySelector('[data-bs-target="#' + collapseEl.id + '"]');
-            if (btn) btn.textContent = 'Hide details';
-        });
-
-        collapseEl.addEventListener('hide.bs.collapse', function () {
-            const btn = document.querySelector('[data-bs-target="#' + collapseEl.id + '"]');
+            const btn = collapseEl.closest('.class-summary-card')?.querySelector('.details-toggle-btn');
             if (btn) btn.textContent = 'View more details';
         });
     });
 });
 
+// -------------------------
+// COPY HELPERS
+// -------------------------
+
 function showCopyFeedback(feedbackId) {
     const el = document.getElementById(feedbackId);
     if (!el) return;
     el.classList.add("show");
-    setTimeout(() => {
-        el.classList.remove("show");
-    }, 1800);
+    setTimeout(() => el.classList.remove("show"), 1800);
 }
 
 function copyText(text, feedbackId) {
@@ -640,152 +675,136 @@ function copyText(text, feedbackId) {
     });
 }
 
-function tableToEmailText(table) {
-    const rows = Array.from(table.querySelectorAll('tr'));
-    return rows.map(row => {
-        const cells = Array.from(row.querySelectorAll('th, td'));
-        return cells.map(cell => cell.innerText.trim()).join(' | ');
-    }).join('\n');
-}
-
-function getOpenDetailsText(card) {
-    const details = card.querySelector('.details-collapse.show');
-    if (!details) return '';
-
-    let parts = [];
-
-    const copyBlocks = details.querySelectorAll('.details-copy-block');
-    copyBlocks.forEach(block => {
-        if (block.classList.contains('table-responsive')) {
-            const table = block.querySelector('table');
-            if (table) {
-                parts.push(tableToEmailText(table));
-            }
-        } else {
-            const text = block.innerText.trim();
-            if (text) parts.push(text);
-        }
-    });
-
-    return parts.join('\n\n').trim();
-}
-
-function getOpenClassSummaryDetailsText() {
-    const classesSummaryCard = document.getElementById('classesSummaryCard');
-    if (!classesSummaryCard) return '';
-
-    const details = classesSummaryCard.querySelector('.class-summary-details-collapse.show');
-    if (!details) return '';
-
-    let parts = [];
-
-    const copyBlocks = details.querySelectorAll('.details-copy-block');
-    copyBlocks.forEach(block => {
-        if (block.classList.contains('table-responsive')) {
-            const table = block.querySelector('table');
-            if (table) {
-                parts.push(tableToEmailText(table));
-            }
-        } else {
-            const text = block.innerText.trim();
-            if (text) parts.push(text);
-        }
-    });
-
-    return parts.join('\n\n').trim();
-}
-
-function copyClassSummary(groupId) {
-    const card = document.querySelector('.class-summary-card[data-group-id="' + groupId + '"]');
-    if (!card) return;
-
-    const title = card.querySelector('.copy-class-title')?.innerText.trim() || '';
-    const lines = Array.from(card.querySelectorAll('.copy-line'))
-        .map(el => el.innerText.trim())
-        .filter(Boolean);
-
-    const openDetailsText = getOpenDetailsText(card);
-
-    let parts = [];
-    if (title) parts.push(title);
-    if (lines.length) parts.push(lines.map(line => '- ' + line).join('\n'));
-    if (openDetailsText) parts.push(openDetailsText);
-
-    copyText(parts.join('\n\n').trim(), 'copyFeedback' + groupId);
-}
+// -------------------------
+// TEXT COPY (PLAIN)
+// -------------------------
 
 function copyVisibleSummary() {
     let parts = [];
-    parts.push('School Summary');
-    parts.push('Generated from the visible sections on the page.');
+    parts.push("School Summary");
 
-    const usersCard = document.getElementById('usersSummaryCard');
-    if (usersCard) {
-        const userLines = Array.from(usersCard.querySelectorAll('.copy-user-line'))
-            .map(el => el.innerText.trim())
-            .filter(Boolean);
-
-        if (userLines.length) {
-            parts.push('Users');
-            parts.push(userLines.map(line => '- ' + line).join('\n'));
-        }
-    }
-
-    const assignmentsCard = document.getElementById('assignmentsSummaryCard');
-    if (assignmentsCard) {
-        const assignmentLines = Array.from(assignmentsCard.querySelectorAll('.copy-assignment-line'))
-            .map(el => el.innerText.trim())
-            .filter(Boolean);
-
-        if (assignmentLines.length) {
-            parts.push('Assignments');
-            parts.push(assignmentLines.map(line => '- ' + line).join('\n'));
-        }
-    }
-
-    const classesSummaryCard = document.getElementById('classesSummaryCard');
-    if (classesSummaryCard) {
-        const classSummaryLines = Array.from(classesSummaryCard.querySelectorAll('.copy-classes-line'))
-            .map(el => el.innerText.trim())
-            .filter(Boolean);
-
-        let classSummaryParts = [];
-        if (classSummaryLines.length) {
-            classSummaryParts.push('Class Summary');
-            classSummaryParts.push(classSummaryLines.map(line => '- ' + line).join('\n'));
-        }
-
-        const openSummaryDetailsText = getOpenClassSummaryDetailsText();
-        if (openSummaryDetailsText) {
-            classSummaryParts.push(openSummaryDetailsText);
-        }
-
-        if (classSummaryParts.length) {
-            parts.push(classSummaryParts.join('\n\n'));
-        }
-    }
-
-    const cards = document.querySelectorAll('.class-summary-card');
-    cards.forEach(card => {
+    document.querySelectorAll('.class-summary-card').forEach(card => {
         const title = card.querySelector('.copy-class-title')?.innerText.trim() || '';
         const lines = Array.from(card.querySelectorAll('.copy-line'))
             .map(el => el.innerText.trim())
             .filter(Boolean);
-        const openDetailsText = getOpenDetailsText(card);
 
-        let classParts = [];
-        if (title) classParts.push(title);
-        if (lines.length) classParts.push(lines.map(line => '- ' + line).join('\n'));
-        if (openDetailsText) classParts.push(openDetailsText);
+        let block = [];
+        if (title) block.push(title);
+        if (lines.length) block.push(lines.map(l => "- " + l).join("\n"));
 
-        const classText = classParts.join('\n\n').trim();
-        if (classText) {
-            parts.push(classText);
+        if (block.length) {
+            parts.push(block.join("\n\n"));
         }
     });
 
-    const finalText = parts.join('\n\n').trim();
-    copyText(finalText, 'copyAllFeedback');
+    copyText(parts.join("\n\n"), "copyAllFeedback");
+}
+
+// -------------------------
+// FORMATTED COPY (FULL REPORT)
+// -------------------------
+
+function escapeHtml(text) {
+    return String(text || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+}
+
+function sectionBlock(title, lines) {
+    if (!lines.length) return "";
+
+    return `
+        <div style="margin-bottom:16px; border:1px solid #dbe7f5; border-radius:8px; overflow:hidden;">
+            <div style="background:#1a427d; color:#ffffff; font-weight:bold; padding:9px 12px;">
+                ${escapeHtml(title)}
+            </div>
+            <div style="padding:10px 12px;">
+                <ul style="margin:0; padding-left:18px;">
+                    ${lines.map(line => `<li>${escapeHtml(line)}</li>`).join("")}
+                </ul>
+            </div>
+        </div>
+    `;
+}
+
+function copyVisibleSummaryRich() {
+    let htmlParts = [];
+
+    htmlParts.push(`
+        <div style="font-family: Arial, sans-serif; font-size:13px; color:#1f2d3d;">
+            <h2 style="color:#1a427d; margin-bottom:14px;">School Summary</h2>
+    `);
+
+    // USERS
+    const userLines = Array.from(document.querySelectorAll(".copy-user-line"))
+        .map(el => el.innerText.trim())
+        .filter(Boolean);
+    htmlParts.push(sectionBlock("Users", userLines));
+
+    // OVERVIEW
+    const overviewLines = Array.from(document.querySelectorAll(".copy-assignment-line"))
+        .map(el => el.innerText.trim())
+        .filter(Boolean);
+    htmlParts.push(sectionBlock("Overview", overviewLines));
+
+    // CLASS SUMMARY
+    const classSummaryLines = Array.from(document.querySelectorAll(".copy-classes-line"))
+        .map(el => el.innerText.trim())
+        .filter(Boolean);
+    htmlParts.push(sectionBlock("Class Summary", classSummaryLines));
+
+    // INDIVIDUAL CLASSES
+    document.querySelectorAll(".class-summary-card").forEach(card => {
+        const title = card.querySelector(".copy-class-title")?.innerText.trim() || "Class";
+        const lines = Array.from(card.querySelectorAll(".copy-line"))
+            .map(el => el.innerText.trim())
+            .filter(Boolean);
+
+        htmlParts.push(sectionBlock(title, lines));
+    });
+
+    htmlParts.push("</div>");
+
+    const html = htmlParts.join("");
+
+    navigator.clipboard.write([
+        new ClipboardItem({
+            "text/html": new Blob([html], { type: "text/html" }),
+            "text/plain": new Blob([document.body.innerText], { type: "text/plain" })
+        })
+    ]).then(() => {
+        showCopyFeedback("copyAllFeedback");
+    }).catch(() => {
+        copyVisibleSummary();
+    });
+}
+
+// -------------------------
+// EXPORT
+// -------------------------
+
+function exportVisibleClassRecords() {
+    const classIds = Array.from(document.querySelectorAll(".class-summary-card"))
+        .map(card => card.dataset.groupId)
+        .filter(Boolean);
+
+    if (!classIds.length) {
+        alert("No visible class records to export.");
+        return;
+    }
+
+    const params = new URLSearchParams();
+    params.append("term", "{{ selected_term or '' }}");
+    params.append("year", "{{ selected_year or '' }}");
+    params.append("school", "{{ selected_school or '' }}");
+    params.append("class_ids", classIds.join(","));
+
+    window.location.href =
+        "{{ url_for('class_bp.export_visible_class_records_excel') }}?" + params.toString();
 }
 </script>
 {% endblock %}
