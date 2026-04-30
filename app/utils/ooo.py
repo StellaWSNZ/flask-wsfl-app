@@ -1352,6 +1352,7 @@ def get_commit_rows(
     rows = []
     for msg, data in grouped.items():
         rows.append({
+            "date_sort": data["date"],   # 👈 keep real datetime
             "date": data["date"].strftime("%d %b"),
             "insertions": data["insertions"],
             "deletions": data["deletions"],
@@ -1362,7 +1363,7 @@ def get_commit_rows(
     # -----------------------------
     # STEP 4: sort + limit
     # -----------------------------
-    rows.sort(key=lambda x: x["date"], reverse=True)
+    rows.sort(key=lambda x: x["date_sort"], reverse=True)
 
     return rows[:max_count]
 def get_commit_panel_layout(row_h: float = 0.020) -> dict:
