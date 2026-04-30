@@ -11,11 +11,12 @@
     --muted: #6c757d;
   }
 
- .dashboard-shell {
-  max-width: 1500px;
-  margin: 0 auto;
-  height: calc(100vh - 200px);   /* 👈 controls total height */
-}
+  .dashboard-shell {
+    max-width: 1500px;
+    margin: 0 auto;
+    height: calc(100vh - 200px);
+    /* 👈 controls total height */
+  }
 
   .welcome-bubble {
     background: linear-gradient(135deg, #f8fbff 0%, #eef5fc 100%);
@@ -48,22 +49,23 @@
   }
 
   .main-flex {
-  display: flex;
-  gap: 1rem;
-  align-items: stretch;
-  height: 100%;   /* 👈 THIS is key */
-}
+    display: flex;
+    gap: 1rem;
+    align-items: stretch;
+    height: 100%;
+    /* 👈 THIS is key */
+  }
 
   .video-box {
-  flex: 3 1 80%;
-  height: 100%;
-}
+    flex: 3 1 80%;
+    height: 100%;
+  }
 
-.video-box iframe {
-  width: 100%;
-  height: 100%;
-  border-radius: 0.75rem;
-}
+  .video-box iframe {
+    width: 100%;
+    height: 100%;
+    border-radius: 0.75rem;
+  }
 
   .video-box iframe {
     width: 100%;
@@ -75,13 +77,13 @@
   }
 
   .cards-grid {
-  width: 100%;
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  grid-template-rows: repeat(2, 1fr);
-  gap: 0.85rem;
-  height: 100%;
-}
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+    gap: 0.85rem;
+    height: 100%;
+  }
 
   .dashboard-card {
     background: white;
@@ -227,10 +229,12 @@
     font-weight: 600;
     color: white !important;
   }
+
   mark {
     background-color: #78BFEA;
     color: white;
   }
+
   .sportnz-table thead th {
     background-color: var(--brand-blue);
     color: white;
@@ -245,11 +249,7 @@
   .student-summary-card {
     border: 1px solid var(--card-border);
   }
-.highlight-col {
-    background-color: #78BFEA !important;
-    font-weight: 600;
-    color: white !important;
-  }
+
   .student-ytd-number {
     font-size: 2.8rem;
     font-weight: 700;
@@ -272,6 +272,10 @@
     line-height: 1.3;
   }
 
+  .collapse.show {
+    margin-top: 0.5rem;
+  }
+
   @media (max-width: 900px) {
     .main-flex {
       flex-direction: column;
@@ -288,7 +292,8 @@
     }
   }
 
-  @media (max-height: 820px), (max-width: 1100px) {
+  @media (max-height: 820px),
+  (max-width: 1100px) {
     .dashboard-card-subtitle {
       display: none;
     }
@@ -306,306 +311,366 @@
 <div class="container-fluid px-3">
   <div class="dashboard-shell">
 
-<div class="mb-2">
-  <div class="welcome-bubble d-flex justify-content-between align-items-center">
+    <div class="mb-2">
+      <div class="welcome-bubble d-flex justify-content-between align-items-center">
 
-    <!-- LEFT: welcome text -->
-    <div>
-      <h5 class="welcome-title mb-0">Welcome, {{ display_name }}!</h5>
-      <p class="welcome-subtitle mb-0">{{ subtitle }}</p>
+        <!-- LEFT: welcome text -->
+        <div>
+          <h5 class="welcome-title mb-0">Welcome, {{ display_name }}!</h5>
+          <p class="welcome-subtitle mb-0">{{ subtitle }}</p>
+        </div>
+
+        <!-- RIGHT: toggle -->
+        {% if user_email == 'stella@watersafety.org.nz' %}
+        <div class="btn-group" role="group" aria-label="Dashboard toggle">
+          <a href="{{ url_for('home_bp.home', view='errors') }}" class="btn btn-sm {% if dashboard_mode == 'errors' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+            Error Cards
+          </a>
+          <a href="{{ url_for('home_bp.home', view='esther') }}" class="btn btn-sm {% if dashboard_mode == 'esther' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+            Esther Dashboard
+          </a>
+        </div>
+        {% endif %}
+
+      </div>
     </div>
-
-    <!-- RIGHT: toggle -->
-    {% if user_email == 'stella@watersafety.org.nz' %}
-    <div class="btn-group" role="group" aria-label="Dashboard toggle">
-      <a
-        href="{{ url_for('home_bp.home', view='errors') }}"
-        class="btn btn-sm {% if dashboard_mode == 'errors' %}btn-primary{% else %}btn-outline-primary{% endif %}"
-      >
-        Error Cards
-      </a>
-      <a
-        href="{{ url_for('home_bp.home', view='esther') }}"
-        class="btn btn-sm {% if dashboard_mode == 'esther' %}btn-primary{% else %}btn-outline-primary{% endif %}"
-      >
-        Esther Dashboard
-      </a>
-    </div>
-    {% endif %}
-
-  </div>
-</div>
 
     {% if dashboard_mode == 'errors' %}
 
-      <div class="row g-3">
-        {% for card in cards %}
-          {% if card.type|default('') == 'error' %}
-          <div class="col-md-6 col-xl-4">
-            <div class="card card-error">
-              <div class="card-header">{{ card.title }}</div>
-              <div class="card-body d-flex flex-column">
-                <div class="mb-2 small">
-                  <div>
-                    <span class="fw-semibold">Entity:</span> {{ card.entity }}
-                  </div>
-                  <div>
-                    <span class="fw-semibold">User:</span>
-                    {% if card.user_full_name %}
-                      {{ card.user_full_name }}
-                    {% else %}
-                      <span class="text-muted">(unknown)</span>
-                    {% endif %}
-                  </div>
-                  <div>
-                    <span class="fw-semibold">Email:</span>
-                    <span class="text-muted">{{ card.email }}</span>
-                  </div>
-                  {% if card.created_at %}
-                  <div>
-                    <span class="fw-semibold">Logged:</span>
-                    <div class="text-muted">{{ card.created_at }}</div>
-                  </div>
-                  {% endif %}
-                </div>
-
-                <pre class="mb-3 small">{{ card.text }}</pre>
-
-                {% if card.href %}
-                <a href="{{ card.href }}" class="btn btn-outline-primary mt-auto">
-                  Open
-                </a>
+    <div class="row g-3">
+      {% for card in cards %}
+      {% if card.type|default('') == 'error' %}
+      <div class="col-md-6 col-xl-4">
+        <div class="card card-error">
+          <div class="card-header">{{ card.title }}</div>
+          <div class="card-body d-flex flex-column">
+            <div class="mb-2 small">
+              <div>
+                <span class="fw-semibold">Entity:</span> {{ card.entity }}
+              </div>
+              <div>
+                <span class="fw-semibold">User:</span>
+                {% if card.user_full_name %}
+                {{ card.user_full_name }}
+                {% else %}
+                <span class="text-muted">(unknown)</span>
                 {% endif %}
               </div>
+              <div>
+                <span class="fw-semibold">Email:</span>
+                <span class="text-muted">{{ card.email }}</span>
+              </div>
+              {% if card.created_at %}
+              <div>
+                <span class="fw-semibold">Logged:</span>
+                <div class="text-muted">{{ card.created_at }}</div>
+              </div>
+              {% endif %}
             </div>
+
+            <pre class="mb-3 small">{{ card.text }}</pre>
+
+            {% if card.href %}
+            <a href="{{ card.href }}" class="btn btn-outline-primary mt-auto">
+              Open
+            </a>
+            {% endif %}
           </div>
-          {% endif %}
-        {% endfor %}
+        </div>
       </div>
+      {% endif %}
+      {% endfor %}
+    </div>
 
     {% elif dashboard_mode == 'esther' %}
 
-      <div class="row justify-content-center g-3 align-items-start">
+    <div class="row justify-content-center g-3 align-items-start">
 
-        <div class="col-md-5">
+      <div class="col-md-6">
 
-          {% if review_summary %}
-          <div class="card summary-card compact mb-3">
-            <div class="card-body summary-lines">
-              <h5 class="card-title text-primary">External Review Summary</h5>
-              <p>
-                <strong>{{ review_summary.TotalExternalReviews }}</strong> external reviews completed YTD
-                across <strong>{{ review_summary.SeenEntities }}</strong> entities.
-              </p>
-              <p>
-                <strong>{{ review_summary.SeenInstructors }}</strong> of
-                <strong>{{ review_summary.TotalInstructors }}</strong> instructors seen
-                (<strong>{{ review_summary.PctAllInstructorsSeen }}%</strong>).
-              </p>
-              <p>
-                <strong>{{ review_summary.SeenInstructors }}</strong> of
-                <strong>{{ review_summary.InstructorsInSeenEntities }}</strong> instructors in reviewed entities
-                (<strong>{{ review_summary.PctSeenWithinSeenEntities }}%</strong>).
-              </p>
-              <p>
-                <strong>{{ review_summary.SeenEntities }}</strong> of
-                <strong>{{ review_summary.TotalInstructorEntities }}</strong> entities reviewed
-                (<strong>{{ review_summary.PctSeenEntitiesOfInstructorEntities }}%</strong>).
-              </p>
-            </div>
+        {% if review_summary %}
+        <div class="card summary-card compact mb-3">
+          <div class="card-body summary-lines">
+            <h5 class="card-title text-primary">External Review Summary</h5>
+            <p>
+              <strong>{{ review_summary.TotalExternalReviews }}</strong> external reviews completed YTD
+              across <strong>{{ review_summary.SeenEntities }}</strong> entities.
+            </p>
+            <p>
+              <strong>{{ review_summary.SeenInstructors }}</strong> of
+              <strong>{{ review_summary.TotalInstructors }}</strong> instructors seen
+              (<strong>{{ review_summary.PctAllInstructorsSeen }}%</strong>).
+            </p>
+            <p>
+              <strong>{{ review_summary.SeenInstructors }}</strong> of
+              <strong>{{ review_summary.InstructorsInSeenEntities }}</strong> instructors in reviewed entities
+              (<strong>{{ review_summary.PctSeenWithinSeenEntities }}%</strong>).
+            </p>
+            <p>
+              <strong>{{ review_summary.SeenEntities }}</strong> of
+              <strong>{{ review_summary.TotalInstructorEntities }}</strong> entities reviewed
+              (<strong>{{ review_summary.PctSeenEntitiesOfInstructorEntities }}%</strong>).
+            </p>
           </div>
-          {% endif %}
+        </div>
+        {% endif %}
 
-          {% if kaiako_summary %}
-          <div class="card summary-card compact mb-3">
-            <div class="card-body summary-lines">
-              <h5 class="card-title text-primary">Kaiako Summary</h5>
+        {% if kaiako_summary %}
+        <div class="card summary-card compact mb-3">
+          <div class="card-body summary-lines">
+            <h5 class="card-title text-primary">Kaiako Summary</h5>
+            <div class="row">
+            <div class="col-md-7">
+            <p class="mb-1">
+              <strong>Number of Kaiako-led schools:</strong>
+              {{ kaiako_summary.NumberOfKaiakoSchools }}
+            </p>
 
+            <p class="mb-1">
+              <strong>Number of delivering Kaiako across these schools:</strong>
+              {{ kaiako_summary.NumberOfKaiako }}
+            </p>
+
+            <p class="mb-3">
+              <strong>Total Kaiako assessments:</strong>
+              {{ kaiako_summary.TotalTeacherAssessments }}
+              <span class="text-muted">
+                ({{ kaiako_summary.TotalTeacherAssessmentsReliever }} with relievers)
+              </span>
+            </p>
+            <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#showRegions" aria-expanded="false" aria-controls="showRegions">
+              Show Regions
+            </button>
+
+            <div class="collapse regions-toggle mt-2" id="showRegions">
               <p class="mb-1">
-                <strong>Number of Kaiako-led schools:</strong>
-                {{ kaiako_summary.NumberOfKaiakoSchools }}
+                <strong>Regions with Kaiako-led delivery:</strong>
               </p>
 
-              <p class="mb-1">
-                <strong>Number of delivering Kaiako across these schools:</strong>
-                {{ kaiako_summary.NumberOfKaiako }}
-              </p>
-
-              <p class="mb-3">
-                <strong>Total Kaiako assessments:</strong>
-                {{ kaiako_summary.TotalTeacherAssessments }}
-                <span class="text-muted">
-                  ({{ kaiako_summary.TotalTeacherAssessmentsReliever }} with relievers)
-                </span>
-              </p>
-
-              <div class="table-responsive mb-3">
-                <table class="table table-sm table-bordered kaiako-mini-table mb-0">
-                  <thead>
-                    <tr>
-                      <th>Level</th>
-                      <th class="text-end">Count</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td>Foundational</td>
-                      <td class="text-end">{{ kaiako_summary.FoundationalLevel }}</td>
-                    </tr>
-                    <tr>
-                      <td>Intermediate</td>
-                      <td class="text-end">{{ kaiako_summary.IntermediateLevel }}</td>
-                    </tr>
-                    <tr>
-                      <td>Expert</td>
-                      <td class="text-end">{{ kaiako_summary.ExpertLevel }}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-
-              <p class="mb-1"><strong>Regions with Kaiako-led delivery:</strong></p>
               <ul class="kaiako-regions">
                 {% for region in (kaiako_summary.KaiakoRegions or '').split(',') %}
-                  {% if region.strip() %}
-                  <li>{{ region.strip() }}</li>
-                  {% endif %}
+                {% if region.strip() %}
+                <li>{{ region.strip() }}</li>
+                {% endif %}
                 {% endfor %}
               </ul>
-            </div>
-          </div>
-          {% endif %}
 
+            </div>
+            </div><div class="col-md-5">
+<div class="table-responsive mb-0">
+  <table class="table table-sm table-bordered kaiako-mini-table mb-0">
+    <thead>
+      <tr>
+        <th>Level</th>
+        <th class="text-end">Count</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Foundational</td>
+        <td class="text-end">{{ kaiako_summary.FoundationalLevel }}</td>
+      </tr>
+      <tr>
+        <td>Intermediate</td>
+        <td class="text-end">{{ kaiako_summary.IntermediateLevel }}</td>
+      </tr>
+      <tr>
+        <td>Expert</td>
+        <td class="text-end">{{ kaiako_summary.ExpertLevel }}</td>
+      </tr>
+    </tbody>
+  </table>
+</div> </div>
+</div>
+            
+          </div>
         </div>
+        {% endif %}
+        {% if board_rows%}
+        <div class="card summary-card compact mb-3">
+          <div class="card-body summary-lines">
+            <h5 class="card-title text-primary">Average Competency Years 5–6</h5>
+            <p>
+              This shows the average rate of achievement for Years 5–6 across the funding year to date.
+              The student group grows each term (e.g. Term 3 only, then Terms 3–4, then Terms 3–4–1, etc.),
+              so results reflect both progress and new students being added over time.
+              Student counts are also cumulative, meaning each period includes students from all previous terms 
+              (e.g. Term 3–4 includes Terms 3 and 4).
+            </p>
+           
+            <table class="table table-sm table-bordered kaiako-mini-table mb-0">
 
-        <div class="col-md-7">
+              <thead>
+                <tr>
+                  <th>To Date</th>
+                  <th>Average Rate</th>
+                  <th>Student Count</th>
+                </tr>
+              </thead>
+              <tbody>
 
-          {% if student_summary %}
-          <div class="card summary-card compact mb-3 student-summary-card">
-            <div class="card-body">
-              <h5 class="card-title text-primary mb-3">Student Summary</h5>
-
-              <div class="row align-items-center">
-                <div class="col-6">
-                  <div class="student-ytd-number">
-                    {{ "{:,}".format(student_summary.StudentYTD or 0) }}
-                  </div>
-                  <div class="student-ytd-label">
-                    students this funding year to date
-                  </div>
-                </div>
-
-                <div class="col-6 student-summary-text text-muted">
-                  <p class="mb-2">
-                    Last full funding year:
-                    <strong class="text-dark">
-                      {{ "{:,}".format(student_summary.StudentLastFullFundingYear or 0) }}
-                    </strong>
-                  </p>
-
-                  <p class="mb-0">
-                    All-time unique students:
-                    <strong class="text-dark">
-                      {{ "{:,}".format(student_summary.StudentUnique or 0) }}
-                    </strong>
-                  </p>
-                </div>
-              </div>
-            </div>
+                {% for row in board_rows%}
+                <tr>
+                  <td>{{row.PeriodLabel}}</td>
+                  <td>{{row.AverageAchievementWeight| round(4) * 100}}%</td>
+                  <td>{{ "{:,}".format(row.StudentCount) }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+            <p class="text-muted small mb-2 pt-1">
+              Latest term may be less stable due to newly added students.
+            </p>
           </div>
-          {% endif %}
-
-          {% if sportnz_table %}
-          <div class="card summary-card">
-            <div class="card-body">
-              <h5 class="card-title text-primary mb-3">Sport NZ YTD by Term</h5>
-
-              <div class="table-responsive">
-                <table class="table table-sm table-bordered align-middle text-center mb-0 sportnz-table">
-                  <thead>
-                    <tr>
-                      <th rowspan="2" class="text-start">Competency</th>
-                      {% for g in sportnz_table.term_groups %}
-                      <th colspan="2">{{ g.label }}</th>
-                      {% endfor %}
-                    </tr>
-                    <tr>
-                      {% for g in sportnz_table.term_groups %}
-                      <th>Students</th>
-                      <th>Rate</th>
-                      {% endfor %}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {% for row in sportnz_table.rows %}
-                    <tr>
-                      <td class="text-start">{{ row.label }}</td>
-
-                      {% for cell in row.cells %}
-                      <td class="{% if loop.index == sportnz_table.term_groups|length - 1 %}highlight-col{% endif %}">
-                        {{ cell.student_count }}
-                      </td>
-                      <td class="{% if loop.index == sportnz_table.term_groups|length - 1 %}highlight-col{% endif %}">
-                        {{ cell.rate }}
-                      </td>
-                      {% endfor %}
-                    </tr>
-                    {% endfor %}
-                  </tbody>
-                </table>
-                <p></p>
-                <p class="text-muted small mb-3">
-  Results are cumulative across the funding year. For example, Term 4 includes Terms 3 and 4, and Term 1 includes Terms 3 and 4 of the previous year plus Term 1 of the current year.<strong> Student counts and rates are both cumulative. </strong>The most recent term should be interpreted with caution, as newly uploaded students may appear before competencies have been entered. For that reason it is reccomended to use the <strong><mark>second to last column</mark></strong>.
-</p>
-              </div>
-
-            </div>
-          </div>
-          {% endif %}
-
         </div>
+        {%endif%}
       </div>
+
+      <div class="col-md-6">
+
+        {% if student_summary %}
+        <div class="card summary-card compact mb-3 student-summary-card">
+          <div class="card-body">
+            <h5 class="card-title text-primary mb-3">Student Summary</h5>
+
+            <div class="row align-items-center">
+              <div class="col-6">
+                <div class="student-ytd-number">
+                  {{ "{:,}".format(student_summary.StudentYTD or 0) }}
+                </div>
+                <div class="student-ytd-label">
+                  students this funding year to date
+                </div>
+              </div>
+
+              <div class="col-6 student-summary-text text-muted">
+                <p class="mb-2">
+                  Last full funding year:
+                  <strong class="text-dark">
+                    {{ "{:,}".format(student_summary.StudentLastFullFundingYear or 0) }}
+                  </strong>
+                </p>
+
+                <p class="mb-0">
+                  All-time unique students:
+                  <strong class="text-dark">
+                    {{ "{:,}".format(student_summary.StudentUnique or 0) }}
+                  </strong>
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+
+        {% if sportnz_table %}
+        <div class="card summary-card">
+          <div class="card-body">
+            <h5 class="card-title text-primary mb-3">Sport NZ YTD by Term</h5>
+
+            <div class="table-responsive">
+              <table class="table table-sm table-bordered align-middle text-center mb-0 sportnz-table">
+                <thead>
+                  <tr>
+                    <th rowspan="2" class="text-start">Competency</th>
+                    {% for g in sportnz_table.term_groups %}
+                    <th colspan="2">{{ g.label }}</th>
+                    {% endfor %}
+                  </tr>
+                  <tr>
+                    {% for g in sportnz_table.term_groups %}
+                    <th>Students</th>
+                    <th>Rate</th>
+                    {% endfor %}
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in sportnz_table.rows %}
+                  <tr>
+                    <td class="text-start">{{ row.label }}</td>
+
+                    {% for cell in row.cells %}
+                    <td class="{% if loop.index == sportnz_table.term_groups|length - 1 %}highlight-col{% endif %}">
+                      {{ cell.student_count }}
+                    </td>
+                    <td class="{% if loop.index == sportnz_table.term_groups|length - 1 %}highlight-col{% endif %}">
+                      {{ cell.rate }}
+                    </td>
+                    {% endfor %}
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+              <p></p>
+              <p class="text-muted small mb-3">
+                Results are cumulative across the funding year. For example, Term 4 includes Terms 3 and 4, and Term 1 includes Terms 3 and 4 of the previous year plus Term 1 of the current year.<strong> Student counts and rates are both cumulative. </strong>The most recent term should be interpreted with caution, as newly uploaded students may appear before competencies have been entered. For that reason it is recomended to use the <strong><mark>second to last column</mark></strong>.
+              </p>
+            </div>
+
+          </div>
+        </div>
+        {% endif %}
+
+      </div>
+    </div>
 
     {% else %}
 
-      <div class="main-flex">
-        <div class="video-box">
-          {% if video_url %}
-          <iframe
-            src="{{ video_url }}"
-            title="Dashboard video"
-            allowfullscreen>
-          </iframe>
-          {% endif %}
-        </div>
-
-        <div class="cards-grid">
-          {% for card in cards %}
-            {% if card.type|default('') != 'error' %}
-            <div class="dashboard-card">
-              {% if card.icon %}
-              <img src="{{ card.icon }}" alt="{{ card.title }}" class="card-icon">
-              {% endif %}
-
-              <div class="dashboard-card-body">
-                <p class="dashboard-card-title">{{ card.title }}</p>
-                {% if card.subtitle %}
-                <p class="dashboard-card-subtitle">{{ card.subtitle }}</p>
-                {% endif %}
-
-                <div class="dashboard-card-actions">
-                  {% if card.href %}
-                  <a href="{{ card.href }}" class="btn btn-outline-primary btn-sm">Open</a>
-                  {% endif %}
-                </div>
-              </div>
-            </div>
-            {% endif %}
-          {% endfor %}
-        </div>
+    <div class="main-flex">
+      <div class="video-box">
+        {% if video_url %}
+        <iframe src="{{ video_url }}" title="Dashboard video" allowfullscreen>
+        </iframe>
+        {% endif %}
       </div>
+
+      <div class="cards-grid">
+        {% for card in cards %}
+        {% if card.type|default('') != 'error' %}
+        <div class="dashboard-card">
+          {% if card.icon %}
+          <img src="{{ card.icon }}" alt="{{ card.title }}" class="card-icon">
+          {% endif %}
+
+          <div class="dashboard-card-body">
+            <p class="dashboard-card-title">{{ card.title }}</p>
+            {% if card.subtitle %}
+            <p class="dashboard-card-subtitle">{{ card.subtitle }}</p>
+            {% endif %}
+
+            <div class="dashboard-card-actions">
+              {% if card.href %}
+              <a href="{{ card.href }}" class="btn btn-outline-primary btn-sm">Open</a>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        {% endif %}
+        {% endfor %}
+      </div>
+    </div>
 
     {% endif %}
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function attachCollapseLabel(selector, showText, hideText) {
+    document.querySelectorAll(selector).forEach(el => {
+      el.addEventListener('show.bs.collapse', () => {
+        const btn = document.querySelector(`[data-bs-target="#${el.id}"]`);
+        if (btn) btn.textContent = hideText;
+      });
+      el.addEventListener('hide.bs.collapse', () => {
+        const btn = document.querySelector(`[data-bs-target="#${el.id}"]`);
+        if (btn) btn.textContent = showText;
+      });
+    });
+  }
+  document.addEventListener("DOMContentLoaded", function() {
+    attachCollapseLabel(".regions-toggle", "Show Regions", "Hide Regions");
+  });
+</script>
 {% endblock %}

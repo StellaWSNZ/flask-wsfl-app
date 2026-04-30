@@ -122,7 +122,7 @@ def home():
         sportnz_table = None
         kaiako_summary = None
         student_summary = None
-
+        board_rows = None
         if role == "ADM":
             if last_login_nzt:
                 subtitle = "You are logged in as Admin. Last Logged in: " + datetime.fromisoformat(last_login_nzt).strftime('%A, %d %B %Y, %I:%M %p')
@@ -274,7 +274,10 @@ def home():
                         {"year": nearest_year, "term": nearest_term}
                     ).mappings().all()
                     student_summary = dict(student_rows[0]) if student_rows else None
-
+                    board_rows = conn.execute(
+                        text("EXEC dbo.GetTermlyYTDAchievementWeightByYearGroup @CalendarYear = :year, @Term = :term,@YearGroupID= :yg"),
+                        {"year": nearest_year, "term": nearest_term,"yg":3}
+                    ).mappings().all()
                     sport_rows = conn.execute(
                         text("EXEC dbo.GetSportNZStatsByTerm @CalendarYear = :year, @Term = :term"),
                         {"year": nearest_year, "term": nearest_term}
@@ -345,7 +348,7 @@ def home():
                 student_summary = None
 
         cards = _normalise_cards((error_cards or []) + (cards or []))
-
+        print(board_rows)
         return render_template(
             "index.html",
             display_name=display_name,
@@ -355,6 +358,7 @@ def home():
             video_url="https://www.youtube.com/embed/59CXUrI328Y?si=MzpSy_bZ8_lKj5_E" ,
             review_summary=review_summary,
             sportnz_table=sportnz_table,
+            board_rows = board_rows, 
             kaiako_summary=kaiako_summary,
             student_summary=student_summary,
             dashboard_mode=dashboard_mode,
