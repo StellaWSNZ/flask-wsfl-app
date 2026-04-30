@@ -2116,7 +2116,7 @@ def school_summary():
         selected_term = request.form.get("term", type=int)
         selected_year = request.form.get("year", type=int)
         selected_school = request.form.get("school", type=int)
-        selected_threshold_percent = request.form.get("threshold_percent", "").strip()
+        selected_threshold_percent = request.form.get("threshold_percent", 100).strip()
         selected_threshold_operator = request.form.get("threshold_operator", "lte")
         selected_sort = request.form.get("sort_by", "class_asc")
 
