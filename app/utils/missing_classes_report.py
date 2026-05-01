@@ -475,9 +475,7 @@ if __name__ == "__main__":
         )
 
     print(f"✅ PDF written: {pdf_out}")
-    print(f"📄 Pages: {meta['pages']} | Rows: {meta['rows_display']} (raw={meta['rows_raw']}) | Mode: {meta['mode']}")
 
     if preview:
         preview_png = OUT_DIR / "Missing_Classes_preview.png"
         preview.savefig(preview_png, dpi=200)
-        print(f"🖼 Preview written: {preview_png}")

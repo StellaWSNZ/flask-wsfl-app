@@ -18,7 +18,7 @@ def create_app():
     app.secret_key = os.getenv("SECRET_KEY", "changeme123")
 
     # -----------------------------
-    # 🔌 Database Configuration
+    # Database Configuration
     # -----------------------------
 
     user = os.getenv("WSNZDBUSER")
@@ -36,21 +36,19 @@ def create_app():
         f"/WSFL?driver=ODBC+Driver+18+for+SQL+Server"
     )
 
-    # print("🧪 DB_URL =", db_url)
-
     app.config["SQLALCHEMY_DATABASE_URI"] = db_url
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
     db.init_app(app)
 
     # -----------------------------
-    # 💾 Stored Procedure Session Setup
+    # Stored Procedure Session Setup
     # -----------------------------
     engine = get_db_engine()
     app.session_interface = StoredProcSessionInterface(engine)
 
     # -----------------------------
-    # 📧 Email Configuration
+    # Email Configuration
     # -----------------------------
     app.config.update(
         MAIL_SERVER="smtp.office365.com",
@@ -63,13 +61,13 @@ def create_app():
     mail.init_app(app)
 
     # -----------------------------
-    # 🔗 Register Blueprints
+    # Register Blueprints
     # -----------------------------
     register_routes(app)
     
     
     # -----------------------------
-    # 🔐 Redirect Unauthenticated Users
+    # Redirect Unauthenticated Users
     # -----------------------------
     @app.before_request
     def require_login():
@@ -94,7 +92,7 @@ def create_app():
                 return redirect(url_for("auth_bp.login", next=request.url))
 
     # -----------------------------
-    # 📦 Inject User Info into Templates
+    # Inject User Info into Templates
     # -----------------------------
     @app.context_processor
     def inject_user_role():

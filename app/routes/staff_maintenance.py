@@ -434,12 +434,8 @@ def helper():
 @staff_bp.post("/add_school_to_funder")
 @login_required
 def add_school_to_funder():
-    print("\n==============================")
-    print("🚀 add_school_to_funder called")
-    print("==============================")
 
     data = request.get_json(silent=True) or {}
-    print("📦 Raw payload:", data)
 
     moe = data.get("MoeNumber")
     term = data.get("Term")
@@ -453,7 +449,7 @@ def add_school_to_funder():
     print(f"➡ Parsed values | MOE={moe} | Term={term} | Year={year} | Funder={funder} | Provider={provider}")
 
     if not all([moe, term, year, funder]):
-        print("❌ Missing required fields")
+        print("Missing required fields")
         return jsonify(ok=False, error="Missing required fields."), 400
 
     try:
@@ -463,10 +459,10 @@ def add_school_to_funder():
         fid_i = int(funder)
         pid_i = int(provider) if provider is not None else None
 
-        print(f"🔢 Converted to ints | MOE={moe_i} | Term={term_i} | Year={year_i} | Funder={fid_i} | Provider={pid_i}")
+        print(f"Converted to ints | MOE={moe_i} | Term={term_i} | Year={year_i} | Funder={fid_i} | Provider={pid_i}")
 
         with get_db_engine().begin() as conn:
-            print("🗄 Executing stored procedure AddSchoolFunder")
+            print("Executing stored procedure AddSchoolFunder")
 
             result = conn.execute(
                 text("""
@@ -488,11 +484,9 @@ def add_school_to_funder():
                 }
             )
 
-            print("✅ Stored procedure executed")
 
             try:
                 row = result.fetchone()
-                print("📄 Stored procedure returned:", row)
 
                 if row is not None:
                     ok = row[0] if len(row) > 0 else True

@@ -27,8 +27,6 @@ def get_db_engine():
         pool_timeout=30,
         future=True,
     )
-
-    # 🔐 Safety check — NEVER skip this
     
 
     return engine

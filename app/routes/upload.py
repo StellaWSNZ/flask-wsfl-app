@@ -485,7 +485,7 @@ def classlistupload():
 
         current_app.logger.exception("Error in classlistupload")
 
-        # 🔎 ship the error to AUD_Alerts (never raises)
+        #  ship the error to AUD_Alerts (never raises)
         try:
             log_alert(
                 email    = session.get("user_email"),

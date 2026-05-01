@@ -15,7 +15,6 @@
     max-width: 1500px;
     margin: 0 auto;
     height: calc(100vh - 200px);
-    /* 👈 controls total height */
   }
 
   .welcome-bubble {
@@ -53,7 +52,6 @@
     gap: 1rem;
     align-items: stretch;
     height: 100%;
-    /* 👈 THIS is key */
   }
 
   .video-box {
@@ -418,71 +416,74 @@
         {% if kaiako_summary %}
         <div class="card summary-card compact mb-3">
           <div class="card-body summary-lines">
-            <h5 class="card-title text-primary">Kaiako Summary</h5>
             <div class="row">
-            <div class="col-md-7">
-            <p class="mb-1">
-              <strong>Number of Kaiako-led schools:</strong>
-              {{ kaiako_summary.NumberOfKaiakoSchools }}
-            </p>
+              <div class="col-md-7">
+                <h5 class="card-title text-primary">Kaiako Summary</h5>
 
-            <p class="mb-1">
-              <strong>Number of delivering Kaiako across these schools:</strong>
-              {{ kaiako_summary.NumberOfKaiako }}
-            </p>
+                <p class="mb-1">
+                  <strong>Number of Kaiako-led schools:</strong>
+                  {{ kaiako_summary.NumberOfKaiakoSchools }}
+                </p>
 
-            <p class="mb-3">
-              <strong>Total Kaiako assessments:</strong>
-              {{ kaiako_summary.TotalTeacherAssessments }}
-              <span class="text-muted">
-                ({{ kaiako_summary.TotalTeacherAssessmentsReliever }} with relievers)
-              </span>
-            </p>
-            <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#showRegions" aria-expanded="false" aria-controls="showRegions">
-              Show Regions
-            </button>
+                <p class="mb-1">
+                  <strong>Number of delivering Kaiako across these schools:</strong>
+                  {{ kaiako_summary.NumberOfKaiako }}
+                </p>
 
-            <div class="collapse regions-toggle mt-2" id="showRegions">
-              <p class="mb-1">
-                <strong>Regions with Kaiako-led delivery:</strong>
-              </p>
+                <p class="mb-3">
+                  <strong>Total Kaiako assessments:</strong>
+                  {{ kaiako_summary.TotalTeacherAssessments }}
+                  <span class="text-muted">
+                    ({{ kaiako_summary.TotalTeacherAssessmentsReliever }} with relievers)
+                  </span>
+                </p>
+                <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#showRegions" aria-expanded="false" aria-controls="showRegions">
+                  Show Regions
+                </button>
 
-              <ul class="kaiako-regions">
-                {% for region in (kaiako_summary.KaiakoRegions or '').split(',') %}
-                {% if region.strip() %}
-                <li>{{ region.strip() }}</li>
-                {% endif %}
-                {% endfor %}
-              </ul>
+                <div class="collapse regions-toggle mt-2" id="showRegions">
+                  <p class="mb-1">
+                    <strong>Regions with Kaiako-led delivery:</strong>
+                  </p>
 
+                  <ul class="kaiako-regions">
+                    {% for region in (kaiako_summary.KaiakoRegions or '').split(',') %}
+                    {% if region.strip() %}
+                    <li>{{ region.strip() }}</li>
+                    {% endif %}
+                    {% endfor %}
+                  </ul>
+
+                </div>
+              </div>
+              <div class="col-md-5">
+                <div class="table-responsive mb-0">
+                  <table class="table table-sm table-bordered kaiako-mini-table mb-0">
+                    <thead>
+                      <tr>
+                        <th>Level</th>
+                        <th class="text-end">Count</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>Foundational</td>
+                        <td class="text-end">{{ kaiako_summary.FoundationalLevel }}</td>
+                      </tr>
+                      <tr>
+                        <td>Intermediate</td>
+                        <td class="text-end">{{ kaiako_summary.IntermediateLevel }}</td>
+                      </tr>
+                      <tr>
+                        <td>Expert</td>
+                        <td class="text-end">{{ kaiako_summary.ExpertLevel }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
-            </div><div class="col-md-5">
-<div class="table-responsive mb-0">
-  <table class="table table-sm table-bordered kaiako-mini-table mb-0">
-    <thead>
-      <tr>
-        <th>Level</th>
-        <th class="text-end">Count</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td>Foundational</td>
-        <td class="text-end">{{ kaiako_summary.FoundationalLevel }}</td>
-      </tr>
-      <tr>
-        <td>Intermediate</td>
-        <td class="text-end">{{ kaiako_summary.IntermediateLevel }}</td>
-      </tr>
-      <tr>
-        <td>Expert</td>
-        <td class="text-end">{{ kaiako_summary.ExpertLevel }}</td>
-      </tr>
-    </tbody>
-  </table>
-</div> </div>
-</div>
-            
+
           </div>
         </div>
         {% endif %}
@@ -494,10 +495,10 @@
               This shows the average rate of achievement for Years 5–6 across the funding year to date.
               The student group grows each term (e.g. Term 3 only, then Terms 3–4, then Terms 3–4–1, etc.),
               so results reflect both progress and new students being added over time.
-              Student counts are also cumulative, meaning each period includes students from all previous terms 
+              Student counts are also cumulative, meaning each period includes students from all previous terms
               (e.g. Term 3–4 includes Terms 3 and 4).
             </p>
-           
+
             <table class="table table-sm table-bordered kaiako-mini-table mb-0">
 
               <thead>
@@ -512,7 +513,7 @@
                 {% for row in board_rows%}
                 <tr>
                   <td>{{row.PeriodLabel}}</td>
-                  <td>{{row.AverageAchievementWeight| round(4) * 100}}%</td>
+                  <td>{{ (row.AverageAchievementWeight * 100) | round(2) }}%</td>
                   <td>{{ "{:,}".format(row.StudentCount) }}</td>
                 </tr>
                 {% endfor %}

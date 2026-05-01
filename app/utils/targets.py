@@ -36,7 +36,6 @@ def draw_double_bars(df, pdf_filename):
     df = df[["ErrorCount", "StudentCountYTD", "Target"]]
     df["Total"] = df["ErrorCount"] + df["StudentCountYTD"]
     df["Delta"] = df["Total"] - df["Target"]
-    df = df.sort_index(ascending=False)  # 🔁 reverse alphabetical
 
     max_target = df[["Target", "Total"]].max().max()
     n = len(df)

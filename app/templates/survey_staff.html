@@ -5,7 +5,7 @@
 <div class="container mt-5">
   <h2 class="mb-4 text-primary text-center">Staff Form Responses</h2>
 
-  <!-- 🔍 Entity pickers -->
+  <!--  Entity pickers -->
   <form method="GET" id="entityFilterForm" class="mb-4">
     <div class="row g-3 justify-content-center align-items-end">
       <div class="col-md-3">
@@ -29,7 +29,7 @@
   </form>
 
   {% if staff_surveys %}
-  <!-- 🔎 Client filters -->
+  <!-- Client filters -->
   <div class="filter-bar row g-2 mb-3 justify-content-center text-center">
     <div class="col-12 col-md-3">
       <input id="filterName" type="text" class="form-control" placeholder="Filter by form description or email">
@@ -55,7 +55,7 @@
   </div>
   {% endif %}
 
-  <!-- 📋 Table (md+) -->
+  <!-- Table (md+) -->
   {% if staff_surveys %}
   <div class="table-responsive mt-2 d-none d-md-block" id="tableView">
     <table class="table table-bordered align-middle shadow-sm bg-white rounded table-hover">
@@ -102,7 +102,7 @@
     </table>
   </div>
 
-  <!-- 📱 Cards (< md) -->
+  <!-- Cards (< md) -->
   <div class="d-md-none" id="cardView" aria-live="polite">
     <div class="row g-3" id="cardContainer">
       {% for s in staff_surveys %}

@@ -309,9 +309,7 @@ if __name__ == "__main__":
         )
 
     print(f"✅ PDF written: {pdf_out}")
-    print(f"📄 Pages: {meta['pages']} | Rows: {meta['rows']}")
 
     if preview:
         preview_png = OUT_DIR / f"Funder_{FUNDER_ID}_preview.png"
         preview.savefig(preview_png, dpi=200)
-        print(f"🖼 Preview written: {preview_png}")

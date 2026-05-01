@@ -1194,7 +1194,6 @@ def get_commit_totals_for_report_week(
     for commit in repo.iter_commits():
         committed_dt = commit.committed_datetime
 
-        # make timezone naive (like your email logic 👀)
         committed_dt = commit.committed_datetime
 
         if committed_dt.tzinfo is not None:
@@ -1352,7 +1351,7 @@ def get_commit_rows(
     rows = []
     for msg, data in grouped.items():
         rows.append({
-            "date_sort": data["date"],   # 👈 keep real datetime
+            "date_sort": data["date"],    
             "date": data["date"].strftime("%d %b"),
             "insertions": data["insertions"],
             "deletions": data["deletions"],

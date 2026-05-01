@@ -394,7 +394,7 @@
       const entityType = entityTypeMap[selectedRole];
       if (!entityType) return;
 
-      // 🔁 use the blueprint URL + new payload shape
+      // use the blueprint URL + new payload shape
       fetch(
         `{{ url_for('api_bp.get_entities') }}?entity_type=${encodeURIComponent(
           entityType

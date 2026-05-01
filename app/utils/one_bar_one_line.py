@@ -690,7 +690,6 @@ def main():
 
     if args.csv:
         df = pd.read_csv(args.csv)
-        print(f"📥 Loaded {len(df)} rows from CSV {args.csv}")
         subject_name = args.subject_name or "CLM (All Funders)"
     else:
         engine = build_engine()
@@ -708,8 +707,6 @@ def main():
                 raise ValueError("--subject-id is required for provider/funder mode")
             df = get_rates(engine, args.year, args.term, args.subject_id, args.mode)
             subject_name = args.subject_name or get_subject_name(engine, args.mode, args.subject_id, df)
-
-        print(f"📥 Loaded {len(df)} rows from DB")
 
     fig = provider_portrait_with_target(
         df,

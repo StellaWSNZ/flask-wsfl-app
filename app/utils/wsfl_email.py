@@ -94,7 +94,6 @@ def build_plain_body(actual_email, first_name, school_name,
         f"{INTRO_LINE} {PROVIDER_NAME} may have uploaded {school}'s class lists to the WSFL database already. "
         f"If your lists have been uploaded, you'll see them under \"{NAV_PATH_PLAIN}\". "
         f"When you have a moment, please log in and check everything looks right.\n\n"
-        # 👇 Add this line
         f"Full instructions and videos are available any time at https://wsfl.onrender.com/instructions/School\n\n"
         # f"{guides_line_text()}\n"
         f"Login details\n"

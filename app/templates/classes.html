@@ -191,25 +191,22 @@ content %}
 
               <td>
                 {% if user_admin == 1 and cls.Movable == 1 %}
-                <div
-                  class="btn-group btn-group-sm"
-                  role="group"
-                  aria-label="Delete class"
-                >
-                  <button
-                    type="button"
-                    class="btn btn-outline-danger-custom delete-class-btn"
-                    title="Delete Class"
-                    data-class-id="{{ cls.ClassID }}"
-                    data-class-name="{{ cls.ClassName }}"
-                    data-teacher-name="{{ cls.TeacherName }}"
-                    data-current-term="{{ selected_term }}"
-                    data-current-year="{{ selected_year }}"
-                  >
-                    Delete Class
-                  </button>
-                </div>
-                {% endif %}
+                  <div class="btn-group btn-group-sm" role="group">
+                    <button
+                      type="button"
+                      class="btn btn-outline-danger-custom delete-class-btn"
+                      title="{% if cls.HasTeacherAssessment == 1 %}Cannot delete: teacher assessment exists{% else %}Delete Class{% endif %}"
+                      data-class-id="{{ cls.ClassID }}"
+                      data-class-name="{{ cls.ClassName }}"
+                      data-teacher-name="{{ cls.TeacherName }}"
+                      data-current-term="{{ selected_term }}"
+                      data-current-year="{{ selected_year }}"
+                      {% if cls.HasTeacherAssessment == 1 %}disabled{% endif %}
+                    >
+                      Delete Class
+                    </button>
+                  </div>
+                  {% endif %}
               </td>
             </tr>
             {% endfor %}

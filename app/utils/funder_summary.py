@@ -658,9 +658,7 @@ if __name__ == "__main__":
         )
 
     print(f"✅ PDF written: {pdf_out}")
-    print(f"📄 Pages: {meta['pages']} | Rows: {meta['rows']} | Terms: {meta['terms']}")
 
     if preview:
         preview_png = OUT_DIR / f"WSFL_FunderProgressSummary_{FUNDER_ID}_{FROM_YEAR}_preview.png"
         preview.savefig(preview_png, dpi=200)
-        print(f"🖼 Preview written: {preview_png}")

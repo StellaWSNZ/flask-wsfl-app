@@ -348,7 +348,7 @@ def home():
                 student_summary = None
 
         cards = _normalise_cards((error_cards or []) + (cards or []))
-        print(board_rows)
+
         return render_template(
             "index.html",
             display_name=display_name,

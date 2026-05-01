@@ -14,7 +14,7 @@ Run:
 """
 
 # ==============================
-# 🔁 TOGGLE HERE
+# TOGGLE HERE
 # ==============================
 MULTIPAGE = True
 YEAR = 2025
@@ -74,22 +74,16 @@ def main():
     out_dir = Path("reports") / "regions" / f"T{TERM}_{YEAR}"
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    print(f"📁 Output folder: {out_dir.resolve()}")
-    print(f"📅 Term {TERM}, {YEAR}")
-    print(f"📊 Bar series: {BAR_SERIES.upper()}")
-    print(f"📄 Multi-page mode: {MULTIPAGE}")
 
     # ===================================
     # MULTI-PAGE MODE
     # ===================================
     if MULTIPAGE:
         pdf_path = out_dir / f"All_Regions_T{TERM}_{YEAR}.pdf"
-        print(f"\n📘 Writing multi-page PDF: {pdf_path.name}")
 
         with PdfPages(pdf_path) as pdf:
 
             for region in REGIONS:
-                print(f"📊 Rendering {region}")
 
                 df = get_rates(
                     engine,
@@ -121,7 +115,6 @@ def main():
     # ===================================
     else:
         for region in REGIONS:
-            print(f"📊 Rendering {region}")
 
             df = get_rates(
                 engine,
@@ -151,7 +144,6 @@ def main():
 
             print(f"✅ Wrote {pdf_path.name}")
 
-    print("\n🎉 Done.")
 
 
 if __name__ == "__main__":

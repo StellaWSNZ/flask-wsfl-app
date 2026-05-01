@@ -53,7 +53,6 @@ def create_pdf_figure(
     return fig, ax
 
 
-# 🔥 helper to scale anything based on graph height
 def height_scaled_points(ax: plt.Axes, height_axes: float, frac: float) -> float:
     bbox = ax.get_position()
     fig_h_in = ax.figure.get_size_inches()[1]

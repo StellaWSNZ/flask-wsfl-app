@@ -215,9 +215,7 @@ def create_competency_report(term, year, provider_id, provider_name=None):
     providersresults = load_provider_results(con, year, term, provider_id)
 
     if not provider_name:
-        print("🔎 Looking up provider name...")
         provider_name = load_provider_name(con, provider_id)
-        print(f"📛 Provider name resolved: {provider_name}")
 
     fig, ax = plt.subplots(figsize=PAGE_SIZE)
     make_grid(ax, N_COLS, N_ROWS, ROW_HEIGHTS, TITLE_SPACE, SUBTITLE_SPACE, competencies_df, providersresults, DEBUG)
@@ -263,12 +261,10 @@ def main():
     os.makedirs(output_folder, exist_ok=True)
 
     for idx, row in providers_df.iterrows():
-        print(f"\n➡️ Processing index {idx}")
         
 
         provider_id = row['ProviderID']
         provider_name = row['Description']
-        print(f"🏷️  Provider ID: {provider_id}, Name: {provider_name}")
 
         safe_provider = sanitize_filename(provider_name)
         today = date.today().isoformat().replace("-", ".")
@@ -284,9 +280,8 @@ def main():
 def main():
     con = get_db_engine()
 
-    provider_id = 101  # 🎯 The specific ProviderID you want
+    provider_id = 101  
     provider_name = load_provider_name(con, provider_id)
-    print(f"🏷️ Provider ID: {provider_id}, Name: {provider_name}")
 
     safe_provider = sanitize_filename(provider_name)
     today = date.today().isoformat().replace("-", ".")
@@ -302,9 +297,7 @@ def main():
     print("✅ Report complete.")
 
 if __name__ == "__main__":
-    print("👟 Running script...")
     try:
         main()
-        print("🏁 Done.")
     except Exception as e:
         print("❌ Error:", e)

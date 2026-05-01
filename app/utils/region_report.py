@@ -1544,9 +1544,7 @@ if __name__ == "__main__":
         )
 
     print(f"✅ PDF written: {pdf_out}")
-    print(f"📄 Pages: {meta['pages']} | Schools: {meta['schools']} | Region: {meta['region']}")
 
     if preview:
         preview_png = OUT_DIR / "Region_Report_preview.png"
         preview.savefig(preview_png, dpi=200)
-        print(f"🖼 Preview written: {preview_png}")

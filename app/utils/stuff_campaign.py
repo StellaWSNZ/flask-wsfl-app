@@ -281,4 +281,3 @@ if __name__ == "__main__":
         )
 
     print(f"✅ PDF written: {pdf_out}")
-    print(f"📄 Pages: {meta['pages']} | Rows: {meta['rows']} | Scope: {meta['scope']}")
