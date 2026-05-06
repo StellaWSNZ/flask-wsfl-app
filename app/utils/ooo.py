@@ -2142,4 +2142,5 @@ if __name__ == "__main__":
         fonts_dir="app/static/fonts",
         dpi=300,
         footer_height_frac=0.13,
+        ooo_day="Wednesday",
     )

@@ -172,7 +172,6 @@ def staff_maintenance():
                     # 🔹 Convert pandas NA to real Python None before sending to Jinja
                     staff_rows = staff_data.where(pd.notnull(staff_data), None).to_dict("records")
                     columns = result.keys()
-                    print(staff_data.columns)
                     hidden_result = conn.execute(
                         text("EXEC FlaskGetHiddenStaff @EntityType = :etype, @EntityID = :eid"),
                         {"etype": role_type, "eid": target_id}

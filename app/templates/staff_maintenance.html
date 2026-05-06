@@ -337,7 +337,7 @@
                     <div class="col">
                       <button type="button" class="btn btn-sm btn-outline-primary w-100"
                         data-bs-toggle="modal" data-bs-target="#hideModal_{{ safe_id }}">
-                        Hide User
+                        Remove User
                       </button>
                     </div>
 
@@ -354,12 +354,12 @@
           <div class="modal-dialog">
             <div class="modal-content border-0 shadow">
               <div class="modal-header bg-danger text-white">
-                <h5 class="modal-title" id="hideLabel_{{ safe_id }}">Confirm Hide User</h5>
+                <h5 class="modal-title" id="hideLabel_{{ safe_id }}">Confirm User Removal</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
               </div>
               <div class="modal-body">
                 <p class="mb-2">
-                  Are you sure you want to <strong>hide this user</strong>?<br><br>
+                  Are you sure you want to <strong>remove this user</strong>?<br><br>
                   They will no longer appear in:
                 </p>
                 <ul>
@@ -377,7 +377,7 @@
                   <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
                   <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
                   <input type="hidden" name="email" value="{{ row.Email }}" />
-                  <button type="submit" class="btn btn-danger">Yes, Hide User</button>
+                  <button type="submit" class="btn btn-danger">Yes, Remove User</button>
                 </form>
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
               </div>
@@ -473,17 +473,26 @@
     <div class="card border-primary mt-5">
       <div class="card-body">
         <h5 class="text-primary mb-3">
-          {{ hidden_staff|length }} Staff Member{{ 's' if hidden_staff|length > 1 else '' }} Hidden
+          {{ hidden_staff|length }} Removed Staff Member{{ 's' if hidden_staff|length > 1 else '' }} 
         </h5>
         <ul class="list-unstyled">
           {% for person in hidden_staff %}
-            <li class="d-flex justify-content-between align-items-center mb-2">
-              <span>{{ person.FirstName }} {{ person.Surname }} ({{ person.Email }})</span>
+              <li class="staff-row d-flex justify-content-between align-items-center mb-1">
+              <span class="staff-info">
+                {{ person.FirstName }} {{ person.Surname }} ({{ person.Email }})
+              </span>
+
               <form method="POST" action="{{ url_for('staff_bp.unhide_user') }}" class="d-inline">
                 <input type="hidden" name="email" value="{{ person.Email }}">
                 <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
                 <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
-                <button type="submit" class="btn btn-sm btn-outline-primary">Unhide</button>
+                <button class="btn btn-xs btn-outline-primary add-btn">
+                {% if selected_entity_name%}
+                Add to {{selected_entity_name}}
+                {% else%}
+                  Add to entity
+                {% endif %}
+                </button>
               </form>
             </li>
           {% endfor %}
@@ -699,6 +708,36 @@
   height: 100%; min-height: 44px; white-space: normal; line-height: 1.2;
 }
 .action-row { align-items: stretch; }
+
+.staff-row {
+  padding: 6px 10px;
+  margin-bottom: 2px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.staff-row:last-child {
+  margin-bottom: 0;
+}
+.staff-info {
+  font-size: 0.95rem;
+}
+.staff-row:hover {
+  background-color: var(--pal-6-f); /* soft blue */
+  border-left: 4px solid var(--wsnz-light-blue);
+}
+
+.staff-row:hover .staff-info {
+  font-weight: 600;
+  color: var(--wsnz-dark-blue);
+}
+
+.staff-row:hover .add-btn {
+  background-color: var(--wsnz-light-blue);
+  color: white;
+  border-color: var(--wsnz-light-blue);
+}
+
 </style>
 
 <script>

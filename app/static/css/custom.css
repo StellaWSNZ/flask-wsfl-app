@@ -18,8 +18,60 @@
   --bs-info-custom: #2bb4d4; /* NEW third colour */
   --bs-danger-custom: #d64545; 
 
-}
 
+    /* WSNZ core */
+  --wsnz-light-blue: #2BACE2; /* Waipuna */
+  --wsnz-dark-blue:  #1A427D; /* Moana */
+
+  /* Palette */
+  --pal-1:  #dc6b3c;
+  --pal-2:  #fdc666;
+  --pal-3:  #1c437d;
+  --pal-4:  #7077a2;
+  --pal-5:  #3c7ebd;
+  --pal-6:  #24abe2;
+  --pal-7:  #78bfea;
+  --pal-8:  #00808d;
+  --pal-9:  #21b1be;
+  --pal-10: #23c0a8;
+
+  /* Faded palette */
+  --pal-1-f:  #FBF5EF;
+  --pal-2-f:  #FEF7EA;
+  --pal-3-f:  #EEEEF5;
+  --pal-4-f:  #F4F4F8;
+  --pal-5-f:  #EEF1F9;
+  --pal-6-f:  #EBF5FC;
+  --pal-7-f:  #E8F3FB;
+  --pal-8-f:  #EBF1F3;
+  --pal-9-f:  #EBF5F6;
+  --pal-10-f: #ECF7F5;
+
+  /* Utility */
+  --debug: #F468BA;
+
+  /* Greys */
+  --dk-gray:        #3F3F3F;
+  --gray:           #808080;
+  --semi-lt-gray:   #D8D8D8;
+  --lt-gray:        #F2F2F2;
+  --bar-gray:       #BAB7B6;
+  --back-gray:      #EEEDED;
+  --back-lineplot:  #D7E8F8;
+  --back-map:       #ECF2FA;
+  --back-text-page: #E9F3FA;
+
+  /* Base */
+  --black: #000000;
+  --white: #FFFFFF;
+  --dk-teal: #1F5362;
+}
+.btn-xs {
+    padding: 0.25rem 0.4rem;
+    font-size: 0.75rem;
+    line-height: 1;
+    border-radius: 0.2rem;
+}
 body {
   font-family: "PP Mori", "Segoe UI", sans-serif;
 }
