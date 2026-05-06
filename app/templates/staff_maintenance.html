@@ -3,10 +3,15 @@
 {% block title %}Staff Maintenance{% endblock %}
 {% block content %}
 
-<div class="container mt-5" style="max-width: 80%;">
-
-  {% if user_role in ["ADM", "FUN", "GRP", "PRO"] %}
-  <form method="POST" class="mb-4" id="entityForm">
+<div class="container mt-2 staff-page" style="max-width: 80%;">
+  <div class="staff-panel">  {% if user_role in ["ADM", "FUN", "GRP", "PRO"] %}
+    {% if not selected_entity_name %}
+  <h2 class="mb-3 text-center staff-page-title">Staff Maintenance</h2>
+  <p class="text-center text-muted mb-3">
+    Select an entity to view and manage staff.
+  </p>
+{% endif %}
+  <form method="POST"  id="entityForm">
     <div class="row g-2 align-items-end justify-content-center">
 
       <!-- Entity Type -->
@@ -52,7 +57,7 @@
   <!-- EXISTING FUNDER/SCHOOL BLUE POPUP -->
   <!-- ========================= -->
   <div id="missingSchoolWrapper"
-       class="alert alert-info mx-auto text-center py-2 mb-3"
+       class="alert alert-staff-info mx-auto text-center py-2 mb-3"
        style="display:none; max-width: 500px;">
     <i class="bi bi-info-circle me-2"></i>
     Are you missing a school?
@@ -64,7 +69,7 @@
   <!-- PROVIDER-ONLY (CLM) BLUE POPUP -->
   <!-- ========================= -->
   <div id="providerMissingSchoolWrapper"
-       class="alert alert-info mx-auto text-center py-2 mb-3"
+       class="alert alert-staff-info mx-auto text-center py-2 mb-3"
        style="display:none; max-width: 560px;">
     <i class="bi bi-info-circle me-2"></i>
     Are you missing a school for your provider?
@@ -72,15 +77,13 @@
     to add one.
   </div>
 
-  {% if selected_entity_name %}
-    <h2 class="mb-4 text-center text-primary">{{ selected_entity_name }} – Staff Maintenance</h2>
-  {% else %}
-    <h2 class="mb-4 text-center text-primary">Staff Maintenance</h2>
-  {% endif %}
+{% if selected_entity_name %}
+  <h2 class="mb-4 text-center staff-page-title">
+    {{ selected_entity_name }} – Staff Maintenance
+  </h2>
 
-  {% if name %}
     <div class="text-center mb-4">
-      <h6 class="mb-4 text-center text-primary">
+      <h6 class="mb-4 text-center staff-help-text">
         Are you missing staff?
         <a href="#" data-bs-toggle="modal" data-bs-target="#addStaffModal">Click here to add a staff member</a>
       </h6>
@@ -96,8 +99,7 @@
         <div class="modal fade" id="inviteModal_{{ safe_id }}" tabindex="-1" aria-labelledby="inviteLabel_{{ safe_id }}" aria-hidden="true">
           <div class="modal-dialog">
             <div class="modal-content border-0 shadow">
-              <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title" id="inviteLabel_{{ safe_id }}">
+<div class="modal-header staff-modal-header">                <h5 class="modal-title" id="inviteLabel_{{ safe_id }}">
                   Sending {{ row.FirstName }} an Invitation
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -119,7 +121,7 @@
                     <input type="hidden" name="admin" value="1">
                     <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
                     <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
-                    <button class="btn btn-sm btn-outline-primary w-100">
+                    <button class="btn btn-sm btn-outline-primary staff-action-btn w-100">
                       <i class="bi bi-check-lg me-1"></i>Invite with Admin Access
                     </button>
                   </form>
@@ -132,7 +134,7 @@
                     <input type="hidden" name="admin" value="0">
                     <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
                     <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
-                    <button class="btn btn-sm btn-outline-primary w-100">
+                    <button class="btn btn-sm btn-outline-primary staff-action-btn w-100">
                       <i class="bi bi-x-lg me-1"></i>Invite with Standard Access
                     </button>
                   </form>
@@ -145,11 +147,11 @@
 
         <!-- Staff Card -->
         <div class="col-12">
-          <div class="card shadow-sm border-2" style="border-color: #1a427d">
+<div class="card shadow-sm staff-card">
             <div class="card-body p-4">
               <div class="row">
                 <div class="col-12 text-center">
-                  <h4 class="text-uppercase text-primary fw-bold mb-4">{{ row.FirstName }} {{ row.Surname }}</h4>
+                 <h4 class="text-uppercase staff-card-title fw-bold mb-4">{{ row.FirstName }} {{ row.Surname }}</h4>
                 </div>
               </div>
 
@@ -208,13 +210,13 @@
   {% if not row.Delivering or row.Delivering == 0 %}
 
     <!-- Not applicable card -->
-    <div class="border rounded p-3 bg-light text-center h-100 d-flex align-items-center justify-content-center">
-      <div>
-        <i class="bi bi-info-circle text-primary mb-2" style="font-size: 1.5rem;"></i>
-        <p class="mb-0"><strong>eLearning not applicable</strong></p>
-        <small class="text-muted">This staff member is not delivering lessons</small>
-      </div>
-    </div>
+   <div class="staff-elearning-empty text-center h-100 d-flex align-items-center justify-content-center">
+  <div>
+    <i class="bi bi-info-circle staff-elearning-icon mb-2"></i>
+    <p class="mb-0"><strong>eLearning not applicable</strong></p>
+    <small class="text-muted">This staff member is not delivering lessons</small>
+  </div>
+</div>
 
   {% else %}
 
@@ -223,16 +225,16 @@
       {% for col in columns if col.startswith("ELearningName_") %}
         {% set course_id = col.split('_')[1] %}
         <div class="col">
-          <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center border rounded p-2 bg-light gap-2">
+<div class="staff-elearning-item d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2">
             <div class="flex-grow-1 pe-0 pe-md-3">
               <small>{{ row[col] }}</small>
             </div>
             <span class="course-badge badge
-              {% if row['ELearningStatus_' + course_id] == 'Passed' %}bg-success
-              {% elif row['ELearningStatus_' + course_id] == 'In Progress' %}bg-warning text-dark
-              {% elif row['ELearningStatus_' + course_id] == 'Cancelled' %}bg-danger
-              {% elif row['ELearningStatus_' + course_id] == 'Not Started' %}bg-secondary
-              {% else %}bg-secondary{% endif %}">
+             {% if row['ELearningStatus_' + course_id] == 'Passed' %}badge-status-passed
+{% elif row['ELearningStatus_' + course_id] == 'In Progress' %}badge-status-progress
+{% elif row['ELearningStatus_' + course_id] == 'Cancelled' %}badge-status-cancelled
+{% elif row['ELearningStatus_' + course_id] == 'Not Started' %}badge-status-not-started
+{% else %}badge-status-not-started{% endif %}">
               {{ row['ELearningStatus_' + course_id] }}
             </span>
           </div>
@@ -261,7 +263,7 @@
                         <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
                         <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
                         <button type="submit"
-                            class="btn btn-sm btn-outline-primary w-100"
+                            class="btn btn-sm btn-outline-primary staff-action-btn w-100"
                             {% if not row.Delivering or row.Delivering == 0 %}disabled{% endif %}>
                           {% if row.Active == 1 %}Email Self Review Reminder{% else %}Email Self Review Link{% endif %}
                         </button>
@@ -271,7 +273,7 @@
                     <div class="col">
                       {% if not row.LastSelfReview or row.LastSelfReview|string == "NaT" %}
   <button type="button"
-    class="btn btn-sm btn-outline-primary w-100"
+    class="btn btn-sm btn-outline-primary staff-action-btn w-100"
     {% if not row.Delivering or row.Delivering == 0 %}disabled{% endif %}
     data-bs-toggle="popover" data-bs-trigger="focus" data-bs-placement="top"
     title="No Self Reviews"
@@ -284,7 +286,7 @@
     <input type="hidden" name="firstname" value="{{ row.FirstName }}">
     <input type="hidden" name="lastname" value="{{ row.Surname }}">
     <button type="submit"
-      class="btn btn-sm btn-outline-primary w-100"
+      class="btn btn-sm btn-outline-primary staff-action-btn w-100"
       {% if not row.Delivering or row.Delivering == 0 %}disabled{% endif %}>
       View Past Self Reviews
     </button>
@@ -301,7 +303,7 @@
                         <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
                         <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
                         <button type="submit"
-                                class="btn btn-sm btn-outline-primary w-100"
+                                class="btn btn-sm btn-outline-primary staff-action-btn w-100"
                                 {% if not row.Delivering or row.Delivering == 0 %}disabled{% endif %}>
                           Email eLearning Reminder
                         </button>
@@ -309,14 +311,14 @@
                     </div>
 
                     <div class="col">
-                      <button class="btn btn-sm btn-outline-primary w-100" data-bs-toggle="modal" data-bs-target="#editModal_{{ safe_id }}">
+                      <button class="btn btn-sm btn-outline-primary staff-action-btn w-100" data-bs-toggle="modal" data-bs-target="#editModal_{{ safe_id }}">
                         Edit
                       </button>
                     </div>
 
                     {% if row.Active != 1 %}
                       <div class="col">
-                        <button type="button" class="btn btn-sm btn-outline-primary w-100"
+                        <button type="button" class="btn btn-sm btn-outline-primary staff-action-btn w-100"
                           data-bs-toggle="modal" data-bs-target="#inviteModal_{{ safe_id }}">
                           Invite User
                         </button>
@@ -329,13 +331,13 @@
                           <input type="hidden" name="email" value="{{ row.Email }}" />
                           <input type="hidden" name="firstname" value="{{ row.FirstName }}">
                           <input type="hidden" name="admin" value="{{ row.Admin or 0 }}">
-                          <button type="submit" class="btn btn-sm btn-outline-primary w-100">Disable User</button>
+                          <button type="submit" class="btn btn-sm btn-outline-primary staff-action-btn w-100">Disable User</button>
                         </form>
                       </div>
                     {% endif %}
 
                     <div class="col">
-                      <button type="button" class="btn btn-sm btn-outline-primary w-100"
+                      <button type="button" class="btn btn-sm btn-outline-primary staff-action-btn w-100"
                         data-bs-toggle="modal" data-bs-target="#hideModal_{{ safe_id }}">
                         Remove User
                       </button>
@@ -353,7 +355,7 @@
         <div class="modal fade" id="hideModal_{{ safe_id }}" tabindex="-1" aria-labelledby="hideLabel_{{ safe_id }}" aria-hidden="true">
           <div class="modal-dialog">
             <div class="modal-content border-0 shadow">
-              <div class="modal-header bg-danger text-white">
+              <div class="modal-header staff-modal-header-danger">
                 <h5 class="modal-title" id="hideLabel_{{ safe_id }}">Confirm User Removal</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
               </div>
@@ -389,8 +391,8 @@
         <div class="modal fade" id="editModal_{{ safe_id }}" tabindex="-1" aria-labelledby="editLabel_{{ safe_id }}" aria-hidden="true">
           <div class="modal-dialog">
             <div class="modal-content border-0 shadow">
-              <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title" id="editLabel_{{ safe_id }}">Edit Staff Member</h5>
+              <div class="modal-header staff-modal-header">                
+              <h5 class="modal-title" id="editLabel_{{ safe_id }}">Edit Staff Member</h5>
                 <button type="button" class="btn btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
               </div>
                             <form method="POST" action="{{ url_for('staff_bp.update_staff') }}">
@@ -470,9 +472,9 @@
   {% endif %}
 
   {% if hidden_staff and hidden_staff|length > 0 %}
-    <div class="card border-primary mt-5">
+    <div class="card staff-removed-card mt-5">
       <div class="card-body">
-        <h5 class="text-primary mb-3">
+        <h5 class="staff-removed-title mb-3">
           {{ hidden_staff|length }} Removed Staff Member{{ 's' if hidden_staff|length > 1 else '' }} 
         </h5>
         <ul class="list-unstyled">
@@ -508,7 +510,7 @@
         <form method="POST" action="{{ url_for('staff_bp.add_staff') }}">
           <input type="hidden" name="entity_type" value="{{ selected_entity_type }}">
           <input type="hidden" name="entity_id" value="{{ selected_entity_id }}">
-          <div class="modal-header bg-primary text-white">
+<div class="modal-header staff-modal-header">
             <h5 class="modal-title" id="addStaffLabel">Add New Staff</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
@@ -557,7 +559,7 @@
   <div class="modal fade" id="missingSchoolModal" tabindex="-1" aria-labelledby="missingSchoolLabel" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content border-0 shadow">
-        <div class="modal-header bg-primary text-white">
+<div class="modal-header staff-modal-header">
           <h5 class="modal-title" id="missingSchoolLabel">Assign School to Funder</h5>
           <button type="button" class="btn btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
@@ -636,8 +638,7 @@
   <div class="modal fade" id="providerMissingSchoolModal" tabindex="-1" aria-labelledby="providerMissingSchoolLabel" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content border-0 shadow">
-        <div class="modal-header bg-primary text-white">
-          <h5 class="modal-title" id="providerMissingSchoolLabel">Add School to Provider</h5>
+<div class="modal-header staff-modal-header">          <h5 class="modal-title" id="providerMissingSchoolLabel">Add School to Provider</h5>
           <button type="button" class="btn btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
 
@@ -693,53 +694,11 @@
       </div>
     </div>
   </div>
+ </div>
+</div> 
+{% endblock %}
 
-</div> <!-- /container -->
-
-<style>
-@media (max-width: 767.98px) {
-  .course-badge { align-self: flex-start; margin-top: .15rem; }
-}
-.action-row .col { display: flex; }
-.action-row .col > form,
-.action-row .col > .btn { display: flex; flex: 1 1 auto; }
-.action-row .btn {
-  display: flex; align-items: center; justify-content: center;
-  height: 100%; min-height: 44px; white-space: normal; line-height: 1.2;
-}
-.action-row { align-items: stretch; }
-
-.staff-row {
-  padding: 6px 10px;
-  margin-bottom: 2px;
-  border-radius: 6px;
-  transition: all 0.15s ease;
-}
-
-.staff-row:last-child {
-  margin-bottom: 0;
-}
-.staff-info {
-  font-size: 0.95rem;
-}
-.staff-row:hover {
-  background-color: var(--pal-6-f); /* soft blue */
-  border-left: 4px solid var(--wsnz-light-blue);
-}
-
-.staff-row:hover .staff-info {
-  font-weight: 600;
-  color: var(--wsnz-dark-blue);
-}
-
-.staff-row:hover .add-btn {
-  background-color: var(--wsnz-light-blue);
-  color: white;
-  border-color: var(--wsnz-light-blue);
-}
-
-</style>
-
+{% block scripts %}
 <script>
   function showModalAlert(type, msg) {
     const el = document.getElementById('ms_alert');
@@ -976,18 +935,26 @@
             return;
           }
 
-          entityDropdown.innerHTML = `<option disabled value="">-- Choose a ${selectedType} --</option>`;
+          entityDropdown.innerHTML = `
+            <option disabled selected value="">
+              Select a ${selectedType}
+            </option>
+          `;
+
           payload.entities.forEach((item) => {
             const option = document.createElement("option");
             option.value = item.id;
             option.textContent = item.description;
-            if (selectedEntityID && item.id.toString() === selectedEntityID) option.selected = true;
+
+            // Only preselect if coming back from a POST (not default load)
+            if (selectedEntityID && item.id.toString() === selectedEntityID) {
+              option.selected = true;
+            }
+
             entityDropdown.appendChild(option);
           });
 
-          if (!entityDropdown.value && entityDropdown.options.length > 1) {
-            entityDropdown.selectedIndex = 1;
-          }
+          
 
           toggleMissingSchoolLink();
           toggleProviderMissingSchoolLink();

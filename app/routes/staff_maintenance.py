@@ -202,7 +202,7 @@ def staff_maintenance():
             funder_popup_allowed=funder_popup_allowed,  # ✅ IMPORTANT for the JS
             data = staff_data.where(pd.notnull(staff_data), None).to_dict(orient="records"),
             columns=columns,
-            name=(desc or "") + "'s Staff eLearning",
+            name=None,
             user_role=user_role,
             user_admin=(int(user_admin or 0) == 1),
             has_groups=has_groups,

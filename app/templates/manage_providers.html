@@ -1,150 +1,232 @@
-{% extends "header.html" %} {% block title %}Manage Providers{% endblock %} {%
-block content %}
-<div class="container mt-4">
-  <h2 class="text-center text-primary mb-4">
-    Manage Providers for {{ funder_name }}
-  </h2>
-  <p class="text-center text-muted mb-4" style="font-size: 1.05rem">
-    Edit provider details, remove unused providers, or add new ones.
-  </p>
-  <div class="text-center mb-4">
-    <button
-      class="btn btn-primary"
-      data-bs-toggle="modal"
-      data-bs-target="#addProviderModal"
-    >
-      + Add Provider
-    </button>
-  </div>
-  <div class="row row-cols-1 row-cols-md-2 g-4">
-    {% for provider in providers %}
-    <div class="col">
-      <div class="card h-100 shadow-sm">
-        <div class="card-body">
-          <h5 class="text-center text-primary mb-4">
-            {{ provider.ProviderDesc }}
-          </h5>
-          <p class="mb-1 text-center">
-            <strong>Address:</strong> {{ provider.Address or "—" }}
-          </p>
-          <p class="mb-1 text-center">
-            <strong>Lat:</strong> {{ provider.Latitude or "—" }},
-            <strong>Lon:</strong> {{ provider.Longitude or "—" }}
-          </p>
-          {% if provider.Latitude is not none and provider.Longitude is not none
-          %}
-          <div
-            id="staticMap{{ provider.ProviderID }}"
-            class="rounded mb-3"
-            style="height: 200px"
-          ></div>
-          {% endif %}
+{% extends "header.html" %}
+{% block title %}Manage Providers{% endblock %}
 
-          <div class="d-flex flex-wrap justify-content-center gap-2">
-            <button
-              class="btn btn-outline-primary btn-sm"
-              type="button"
-              data-bs-toggle="modal"
-              data-bs-target="#editModal{{ provider.ProviderID }}"
-            >
-              Edit
-            </button>
+{% block content %}
+<div class="container mt-3 provider-page" style="max-width: 80%;">
+  <div class="provider-panel">
 
-            {% if provider.Deletable|int == 1 %}
-            <button
-              type="button"
-              class="btn btn-outline-danger btn-sm open-delete-modal"
-              data-provider-id="{{ provider.ProviderID }}"
-              data-provider-name="{{ provider.ProviderDesc }}"
-            >
-              Delete
-            </button>
+    <h2 class="provider-page-title text-center mb-1">
+      Manage Providers for {{ funder_name }}
+    </h2>
+
+    <p class="text-center provider-help-text mb-4">
+      Edit provider details, remove unused providers, or add new ones.
+    </p>
+
+    <div class="text-center mb-4">
+      <button
+        class="btn btn-primary"
+        data-bs-toggle="modal"
+        data-bs-target="#addProviderModal"
+      >
+        + Add Provider
+      </button>
+    </div>
+
+    <div class="row row-cols-1 row-cols-md-2 g-4">
+      {% for provider in providers %}
+      <div class="col">
+        <div class="card provider-card h-100 shadow-sm">
+          <div class="card-body">
+            <h5 class="provider-section-title text-center mb-4">
+              {{ provider.ProviderDesc }}
+            </h5>
+
+            <p class="mb-1 text-center">
+              <strong>Address:</strong> {{ provider.Address or "—" }}
+            </p>
+
+            <p class="mb-1 text-center">
+              <strong>Lat:</strong> {{ provider.Latitude or "—" }},
+              <strong>Lon:</strong> {{ provider.Longitude or "—" }}
+            </p>
+
+            {% if provider.Latitude is not none and provider.Longitude is not none %}
+            <div
+              id="staticMap{{ provider.ProviderID }}"
+              class="rounded mb-3"
+              style="height: 200px"
+            ></div>
             {% endif %}
+
+            <div class="d-flex flex-wrap justify-content-center gap-2">
+              <button
+                class="btn btn-outline-primary provider-icon-btn btn-sm"
+                type="button"
+                data-bs-toggle="modal"
+                data-bs-target="#editModal{{ provider.ProviderID }}"
+              >
+                Edit
+              </button>
+
+              {% if provider.Deletable|int == 1 %}
+              <button
+                type="button"
+                class="btn btn-outline-danger-custom btn-sm open-delete-modal"
+                data-provider-id="{{ provider.ProviderID }}"
+                data-provider-name="{{ provider.ProviderDesc }}"
+              >
+                Delete
+              </button>
+              {% endif %}
+            </div>
           </div>
         </div>
       </div>
+
+      <div
+        class="modal fade"
+        id="editModal{{ provider.ProviderID }}"
+        tabindex="-1"
+        aria-labelledby="editLabel{{ provider.ProviderID }}"
+        aria-hidden="true"
+      >
+        <div class="modal-dialog modal-lg">
+          <div class="modal-content border-0 shadow">
+            <form method="POST" action="{{ url_for('admin_bp.update_provider') }}">
+              <input
+                type="hidden"
+                name="provider_id"
+                value="{{ provider.ProviderID }}"
+              />
+
+              <div class="modal-header provider-modal-header">
+                <h5 class="modal-title" id="editLabel{{ provider.ProviderID }}">
+                  Edit Provider
+                </h5>
+                <button
+                  type="button"
+                  class="btn-close btn-close-white"
+                  data-bs-dismiss="modal"
+                ></button>
+              </div>
+
+              <div class="modal-body">
+                <div class="mb-3">
+                  <label class="form-label">Provider Name</label>
+                  <input
+                    type="text"
+                    class="form-control"
+                    name="new_name"
+                    value="{{ provider.ProviderDesc }}"
+                    required
+                  />
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">Address</label>
+                  <input
+                    type="text"
+                    class="form-control"
+                    name="new_address"
+                    value="{{ provider.Address or '' }}"
+                  />
+                </div>
+
+                <div class="row g-2">
+                  <div class="col">
+                    <label class="form-label">Latitude</label>
+                    <input
+                      type="text"
+                      class="form-control lat-input"
+                      name="new_latitude"
+                      value="{{ provider.Latitude or '' }}"
+                      data-map-id="{{ provider.ProviderID }}"
+                    />
+                  </div>
+
+                  <div class="col">
+                    <label class="form-label">Longitude</label>
+                    <input
+                      type="text"
+                      class="form-control lon-input"
+                      name="new_longitude"
+                      value="{{ provider.Longitude or '' }}"
+                      data-map-id="{{ provider.ProviderID }}"
+                    />
+                  </div>
+                </div>
+
+                <div
+                  id="modalMap{{ provider.ProviderID }}"
+                  class="rounded mt-3"
+                  style="height: 200px; max-height: 40vh"
+                ></div>
+
+                <div class="form-text mt-1">
+                  Drag the marker to update lat/lon or click to add a marker.
+                </div>
+              </div>
+
+              <div class="modal-footer">
+                <button
+                  type="button"
+                  class="btn btn-secondary"
+                  data-bs-dismiss="modal"
+                >
+                  Cancel
+                </button>
+                <button type="submit" class="btn btn-primary">
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
     </div>
 
     <div
       class="modal fade"
-      id="editModal{{ provider.ProviderID }}"
+      id="addProviderModal"
       tabindex="-1"
-      aria-labelledby="editLabel{{ provider.ProviderID }}"
+      aria-labelledby="addProviderLabel"
       aria-hidden="true"
     >
-      <div class="modal-dialog modal-lg m">
-        <div class="modal-content">
-          <form
-            method="POST"
-            action="{{ url_for('admin_bp.update_provider') }}"
-          >
-            <input
-              type="hidden"
-              name="provider_id"
-              value="{{ provider.ProviderID }}"
-            />
-            <div class="modal-header bg-primary text-white">
-              <h5 class="modal-title" id="editLabel{{ provider.ProviderID }}">
-                Edit Provider
-              </h5>
+      <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow">
+          <form method="POST" action="{{ url_for('admin_bp.add_provider_details') }}">
+            <input type="hidden" name="funder_id" value="{{ funder_id }}" />
+
+            <div class="modal-header provider-modal-header">
+              <h5 class="modal-title" id="addProviderLabel">Add New Provider</h5>
               <button
                 type="button"
-                class="btn-close"
+                class="btn-close btn-close-white"
                 data-bs-dismiss="modal"
               ></button>
             </div>
+
             <div class="modal-body">
-              <div class="mb-3">
+              <div class="mb-2">
                 <label class="form-label">Provider Name</label>
                 <input
                   type="text"
+                  name="provider_name"
                   class="form-control"
-                  name="new_name"
-                  value="{{ provider.ProviderDesc }}"
                   required
                 />
               </div>
-              <div class="mb-3">
+
+              <div class="mb-2">
                 <label class="form-label">Address</label>
-                <input
-                  type="text"
-                  class="form-control"
-                  name="new_address"
-                  value="{{ provider.Address or ''}}"
-                />
+                <input type="text" name="address" class="form-control" />
               </div>
+
               <div class="row g-2">
                 <div class="col">
                   <label class="form-label">Latitude</label>
-                  <input
-                    type="text"
-                    class="form-control lat-input"
-                    name="new_latitude"
-                    value="{{ provider.Latitude or '' }}"
-                    data-map-id="{{ provider.ProviderID }}"
-                  />
+                  <input type="text" name="latitude" class="form-control" />
                 </div>
+
                 <div class="col">
                   <label class="form-label">Longitude</label>
-                  <input
-                    type="text"
-                    class="form-control lon-input"
-                    name="new_longitude"
-                    value="{{ provider.Longitude or '' }}"
-                    data-map-id="{{ provider.ProviderID }}"
-                  />
+                  <input type="text" name="longitude" class="form-control" />
                 </div>
               </div>
-              <div
-                id="modalMap{{ provider.ProviderID }}"
-                class="rounded mt-3"
-                style="height: 200px; max-height: 40vh"
-              ></div>
-
-              <div class="form-text mt-1">
-                Drag the marker to update lat/lon or click to add a marker
-              </div>
             </div>
+
             <div class="modal-footer">
               <button
                 type="button"
@@ -153,120 +235,62 @@ block content %}
               >
                 Cancel
               </button>
-              <button type="submit" class="btn btn-success">
-                Save Changes
-              </button>
+              <button type="submit" class="btn btn-primary">Add Provider</button>
             </div>
           </form>
         </div>
       </div>
     </div>
-    {% endfor %}
-  </div>
-  <div
-    class="modal fade"
-    id="addProviderModal"
-    tabindex="-1"
-    aria-labelledby="addProviderLabel"
-    aria-hidden="true"
-  >
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
-      <div class="modal-content">
-        <form
-          method="POST"
-          action="{{ url_for('admin_bp.add_provider_details') }}"
-        >
-          <input type="hidden" name="funder_id" value="{{ funder_id }}" />
-          <div class="modal-header bg-success text-white">
-            <h5 class="modal-title" id="addProviderLabel">Add New Provider</h5>
-            <button
-              type="button"
-              class="btn-close"
-              data-bs-dismiss="modal"
-            ></button>
-          </div>
-          <div class="modal-body">
-            <div class="mb-2">
-              <label class="form-label">Provider Name</label>
-              <input
-                type="text"
-                name="provider_name"
-                class="form-control"
-                required
-              />
+
+    <div
+      class="modal fade"
+      id="confirmDeleteModal"
+      tabindex="-1"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+          <form
+            method="POST"
+            action="{{ url_for('admin_bp.delete_provider') }}"
+            id="confirmDeleteForm"
+          >
+            <div class="modal-header provider-modal-header-danger">
+              <h5 class="modal-title">Confirm Delete</h5>
+              <button
+                type="button"
+                class="btn-close btn-close-white"
+                data-bs-dismiss="modal"
+              ></button>
             </div>
-            <div class="mb-2">
-              <label class="form-label">Address</label>
-              <input type="text" name="address" class="form-control" />
+
+            <div class="modal-body">
+              Are you sure you want to delete
+              <strong id="providerName"></strong>?
+              <input type="hidden" name="provider_id" id="providerIdInput" />
             </div>
-            <div class="row g-2">
-              <div class="col">
-                <label class="form-label">Latitude</label>
-                <input type="text" name="latitude" class="form-control" />
-              </div>
-              <div class="col">
-                <label class="form-label">Longitude</label>
-                <input type="text" name="longitude" class="form-control" />
-              </div>
+
+            <div class="modal-footer">
+              <button
+                type="button"
+                class="btn btn-secondary"
+                data-bs-dismiss="modal"
+              >
+                Cancel
+              </button>
+              <button type="submit" class="btn btn-danger">Yes, Delete</button>
             </div>
-          </div>
-          <div class="modal-footer">
-            <button
-              type="button"
-              class="btn btn-secondary"
-              data-bs-dismiss="modal"
-            >
-              Cancel
-            </button>
-            <button type="submit" class="btn btn-success">Add Provider</button>
-          </div>
-        </form>
+          </form>
+        </div>
       </div>
     </div>
-  </div>
-  <div
-    class="modal fade"
-    id="confirmDeleteModal"
-    tabindex="-1"
-    aria-hidden="true"
-  >
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content">
-        <form
-          method="POST"
-          action="{{ url_for('admin_bp.delete_provider') }}"
-          id="confirmDeleteForm"
-        >
-          <div class="modal-header bg-danger text-white">
-            <h5 class="modal-title">Confirm Delete</h5>
-            <button
-              type="button"
-              class="btn-close"
-              data-bs-dismiss="modal"
-            ></button>
-          </div>
-          <div class="modal-body">
-            Are you sure you want to delete <strong id="providerName"></strong>?
-            <input type="hidden" name="provider_id" id="providerIdInput" />
-          </div>
-          <div class="modal-footer">
-            <button
-              type="button"
-              class="btn btn-secondary"
-              data-bs-dismiss="modal"
-            >
-              Cancel
-            </button>
-            <button type="submit" class="btn btn-danger">Yes, Delete</button>
-          </div>
-        </form>
-      </div>
-    </div>
+
   </div>
 </div>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
 <script type="application/json" id="providers-data">
   [
   {% for p in providers -%}
@@ -280,16 +304,13 @@ block content %}
   ]
 </script>
 
-<!-- 2) CLEAN JS (no Jinja in code) -->
 <script>
   document.addEventListener("DOMContentLoaded", function () {
-    // ---- Load providers from the JSON script tag
     const providersJsonEl = document.getElementById("providers-data");
     const PROVIDERS = providersJsonEl
       ? JSON.parse(providersJsonEl.textContent)
       : [];
 
-    // ---- Delete modal wiring
     const deleteButtons = document.querySelectorAll(".open-delete-modal");
     const providerNameEl = document.getElementById("providerName");
     const providerIdInput = document.getElementById("providerIdInput");
@@ -298,21 +319,22 @@ block content %}
       btn.addEventListener("click", () => {
         const providerId = btn.getAttribute("data-provider-id");
         const providerName = btn.getAttribute("data-provider-name");
+
         if (providerNameEl) providerNameEl.textContent = providerName || "";
         if (providerIdInput) providerIdInput.value = providerId || "";
+
         new bootstrap.Modal(
           document.getElementById("confirmDeleteModal")
         ).show();
       });
     });
 
-    // ---- Leaflet maps
-    const modalMaps = {}; // pid -> { map, marker }
+    const modalMaps = {};
 
     PROVIDERS.forEach((p) => {
-      // Static map in the card (only if we have coords)
       if (p.lat !== null && p.lon !== null) {
         const staticMapEl = document.getElementById("staticMap" + p.id);
+
         if (staticMapEl) {
           const staticMap = L.map(staticMapEl, {
             zoomControl: false,
@@ -328,32 +350,36 @@ block content %}
         }
       }
 
-      // Modal map (instantiate so user can add marker)
       const modalLat = p.lat === null ? -41.3 : p.lat;
       const modalLon = p.lon === null ? 174.8 : p.lon;
       const mapId = "modalMap" + p.id;
       const mapEl = document.getElementById(mapId);
+
       if (!mapEl) return;
 
       const modalMap = L.map(mapId).setView([modalLat, modalLon], 13);
+
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: 18,
       }).addTo(modalMap);
 
       let marker = null;
+
       if (p.lat !== null && p.lon !== null) {
         marker = L.marker([modalLat, modalLon], { draggable: true }).addTo(
           modalMap
         );
       }
+
       modalMaps[p.id] = { map: modalMap, marker };
 
-      // Click to add first marker
       modalMap.on("click", function (e) {
         if (!modalMaps[p.id].marker) {
           const m = L.marker(e.latlng, { draggable: true }).addTo(modalMap);
           modalMaps[p.id].marker = m;
+
           updateInputs(e.latlng.lat, e.latlng.lng, p.id);
+
           m.on("dragend", function (ev) {
             const pos = ev.target.getLatLng();
             updateInputs(pos.lat, pos.lng, p.id);
@@ -361,7 +387,6 @@ block content %}
         }
       });
 
-      // Drag existing marker updates inputs
       if (marker) {
         marker.on("dragend", function (e) {
           const pos = e.target.getLatLng();
@@ -370,17 +395,24 @@ block content %}
       }
     });
 
-    // Inputs -> marker/map
     document.querySelectorAll(".lat-input, .lon-input").forEach((input) => {
       input.addEventListener("input", (e) => {
         const pid = e.target.dataset.mapId;
-        const lat = parseFloat(
-          document.querySelector(`.lat-input[data-map-id='${pid}']`).value
+
+        const latInput = document.querySelector(
+          `.lat-input[data-map-id='${pid}']`
         );
-        const lon = parseFloat(
-          document.querySelector(`.lon-input[data-map-id='${pid}']`).value
+
+        const lonInput = document.querySelector(
+          `.lon-input[data-map-id='${pid}']`
         );
+
+        if (!latInput || !lonInput) return;
+
+        const lat = parseFloat(latInput.value);
+        const lon = parseFloat(lonInput.value);
         const mapObj = modalMaps[pid];
+
         if (!mapObj) return;
 
         if (!isNaN(lat) && !isNaN(lon)) {
@@ -388,6 +420,7 @@ block content %}
             mapObj.marker = L.marker([lat, lon], { draggable: true }).addTo(
               mapObj.map
             );
+
             mapObj.marker.on("dragend", function (ev) {
               const pos = ev.target.getLatLng();
               updateInputs(pos.lat, pos.lng, pid);
@@ -395,19 +428,24 @@ block content %}
           } else {
             mapObj.marker.setLatLng([lat, lon]);
           }
+
           mapObj.map.setView([lat, lon], 13);
         }
       });
     });
 
-    // Fix Leaflet sizing when edit modal is shown
     document.querySelectorAll(".modal").forEach((modal) => {
       modal.addEventListener("shown.bs.modal", function () {
         const id = this.id || "";
-        if (!id.startsWith("editModal")) return; // Only edit modals
+
+        if (!id.startsWith("editModal")) return;
+
         const pid = id.replace("editModal", "");
         const mapObj = modalMaps[pid];
-        if (mapObj) setTimeout(() => mapObj.map.invalidateSize(), 250);
+
+        if (mapObj) {
+          setTimeout(() => mapObj.map.invalidateSize(), 250);
+        }
       });
     });
 
@@ -415,9 +453,11 @@ block content %}
       const latInput = document.querySelector(
         `.lat-input[data-map-id='${pid}']`
       );
+
       const lonInput = document.querySelector(
         `.lon-input[data-map-id='${pid}']`
       );
+
       if (latInput) latInput.value = Number(lat).toFixed(6);
       if (lonInput) lonInput.value = Number(lon).toFixed(6);
     }

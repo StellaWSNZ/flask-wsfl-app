@@ -23,28 +23,6 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}" />
 
     <style>
-      html {
-        scroll-padding-top: calc(var(--navbar-h) + env(safe-area-inset-top, 0px));
-      }
-
-      .modal {
-        --bs-modal-margin: calc(var(--navbar-h) + 1rem);
-      }
-
-      html,
-      body {
-        height: 100%;
-      }
-
-      :root {
-        --navbar-h: 56px;
-      }
-
-      body {
-        position: relative;
-        min-height: 100%;
-      }
-
       body::before {
         content: "";
         position: fixed;
@@ -52,91 +30,7 @@
         z-index: -1;
         background: url("{{ url_for('static', filename='background.svg') }}") no-repeat center bottom / cover;
         transform: translateZ(0);
-      }
-
-      @media (max-width: 575.98px) {
-        body::before {
-          height: 100dvh;
-          background-attachment: scroll;
-        }
-      }
-
-      .navbar.fixed-top {
-        padding-top: env(safe-area-inset-top, 0px);
-        z-index: 1080;
-        backdrop-filter: saturate(120%) blur(6px);
-      }
-
-      .custom-navbar {
-        background: rgba(26, 66, 125, 0.92);
-      }
-
-      .dropdown-menu {
-        max-height: 70vh;
-        overflow-y: auto;
-      }
-
-      .help-modal .modal-content {
-        border-radius: 0.75rem;
-        border: none;
-        box-shadow: 0 0.75rem 2rem rgba(0, 0, 0, 0.25);
-        background: rgba(255, 255, 255, 0.97);
-      }
-
-      .help-modal .modal-header {
-        background: rgba(26, 66, 125, 0.95);
-        color: #fff;
-        border-bottom: none;
-      }
-
-      .help-modal .modal-title {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-      }
-
-      .help-modal .modal-title i {
-        font-size: 1.25rem;
-      }
-
-      .help-modal .modal-body {
-        padding-top: 1rem;
-        padding-bottom: 1rem;
-      }
-
-      .help-modal .list-group {
-        border-radius: 0.5rem;
-        overflow: hidden;
-      }
-
-      .help-modal .list-group-item {
-        border: 0;
-        padding-top: 0.75rem;
-        padding-bottom: 0.75rem;
-      }
-
-      .help-modal .list-group-item+.list-group-item {
-        border-top: 1px solid rgba(0, 0, 0, 0.06);
-      }
-
-      .help-modal .list-group-item i {
-        font-size: 1.1rem;
-      }
-
-      .help-modal .list-group-item .item-text-title {
-        font-weight: 500;
-      }
-
-      .help-modal .list-group-item .item-text-desc {
-        font-size: 0.85rem;
-      }
-
-      .help-modal .list-group-item-action:hover {
-        background-color: rgba(26, 66, 125, 0.06);
-      }
-
-      .help-modal .modal-footer {
-        border-top: none;
+        opacity: 1; 
       }
     </style>
 

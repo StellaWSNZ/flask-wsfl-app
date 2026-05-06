@@ -1,1113 +1,875 @@
-{# templates/provider_maintenance.html #}
-{% extends "header.html" %}
-{% block title %}Provider Maintenance{% endblock %}
-
-{% block content %}
-<h3 class="mb-4 text-center text-primary">Provider Maintenance</h3>
-
-{% if selected_funder %}
-  <div class="text-center mb-4">
-    Providers with errors?
-    <a href="{{ url_for('admin_bp.manage_providers', funder_id=selected_funder) }}"><strong>Click here to edit</strong></a>
-  </div>
-{% endif %}
-
-<!-- Filter Form -->
-<form method="POST" class="row justify-content-center g-3 mb-4">
-  {% if user_role == 'ADM' %}
-    <div class="col-md-3">
-      <label for="funder" class="form-label">Funder</label>
-      <select id="funder" name="funder" class="form-select" required>
-        {% if not selected_funder %}
-          <option value="" disabled selected>Pick a funder...</option>
-        {% endif %}
-        {% for f in funders %}
-          <option value="{{ f['id'] }}" {% if selected_funder == f['id'] %}selected{% endif %}>
+{# templates/provider_maintenance.html #} {% extends "header.html" %} {% block title %}Provider Maintenance{% endblock %} {% block content %} <div class="container mt-3 provider-page" style="max-width: 80%;">
+  <div class="provider-panel">
+    <h2 class="provider-page-title text-center mb-1"> Provider Maintenance </h2>
+    <p class="text-center provider-help-text mb-2"> Manage provider assignments, school delivery, and Kaiako-led settings. </p> {% if selected_funder %} <div class="alert provider-alert-info text-center mb-4 mx-auto p-2" style="width: 40%;" role="alert"> Providers with errors? <a href="{{ url_for('admin_bp.manage_providers', funder_id=selected_funder) }}">
+        <strong>Click here to edit</strong>
+      </a>
+    </div> {% endif %}
+    <!-- Filter Form -->
+    <form method="POST" class="row justify-content-center g-3 mb-4"> {% if user_role == 'ADM' %} <div class="col-md-3">
+        <label for="funder" class="form-label">Funder</label>
+        <select id="funder" name="funder" class="form-select" required> {% if not selected_funder %} <option value="" disabled selected>Pick a funder...</option> {% endif %} {% for f in funders %} <option value="{{ f['id'] }}" {% if selected_funder == f['id'] %}selected{% endif %}>
             {{ f['Description'] }}
-          </option>
-        {% endfor %}
-      </select>
-    </div>
-  {% endif %}
-
-  <div class="col-md-2">
-    <label for="term" class="form-label">Term</label>
-    <select id="term" name="term" class="form-select" required>
-      {% for t in terms %}
-        <option value="{{ t }}" {% if selected_term == t %}selected{% endif %}>Term {{ t }}</option>
-      {% endfor %}
-    </select>
-  </div>
-
-  <div class="col-md-2">
-    <label for="year" class="form-label">Year</label>
-    <select id="year" name="year" class="form-select" required>
-      {% for y in years %}
-        <option value="{{ y }}" {% if selected_year == y %}selected{% endif %}>{{ y }}</option>
-      {% endfor %}
-    </select>
-  </div>
-
-  <div class="col-md-auto d-flex align-items-end">
-    <button type="submit" class="btn btn-primary">Show Schools</button>
-  </div>
-</form>
-
-<style>
-  thead.custom-header th {
-    background-color: #004080 !important;
-    color: white !important;
-    border-color: #004080 !important;
-    text-align: center;
-  }
-</style>
-
-{% if schools %}
-
-<!-- ========================= -->
-<!-- Desktop table (>= sm)     -->
-<!-- ========================= -->
-<div class="d-none d-sm-block">
-  <div class="container">
-    <table class="table table-bordered table-hover align-middle">
-      <thead class="custom-header">
-        <tr>
-          <th>School Name</th>
-          <th>Total Classes</th>
-          <th>Total Students</th>
-          <th>Equity Index</th>
-          <th>Year Levels</th>
-          <th>Assign Provider</th>
-        </tr>
-      </thead>
-
-      <tbody>
-        {% for school in schools %}
-          <tr>
-            <td>{{ school.School }}</td>
-            <td class="text-center">{{ school.TotalClasses }}</td>
-            <td class="text-center">{{ school.TotalStudents }}</td>
-            <td class="text-center">{{ school.EquityIndex }}</td>
-            <td>{{ school.DistinctYearLevels }}</td>
-
-            <td>
-              <div class="provider-scope"
-                   data-is-clm="{{ 1 if is_swimmagic_clm else 0 }}"
-                   data-current-provider1id="{{ school.Provider1ID or '' }}"
-                   data-current-provider2id="{{ school.Provider2ID or '' }}">
-
-                <!-- Provider 1 select (Kaiako-led OR normal single-provider) -->
-                <div class="input-group input-group-sm">
-                  <select class="form-select provider-select"
-                          data-moe="{{ school.MOENumber }}"
-                          data-term="{{ selected_term }}"
-                          data-year="{{ selected_year }}"
-                          data-funder="{{ selected_funder }}">
-                    <option value="">Not chosen</option>
-
-                    {% for provider in providers %}
-                      {% set provider_is_kaiako = 'kaiako' in (provider.Description|lower) %}
-                      <option value="{{ provider.ProviderID }}"
-                        {% if school.Provider1ID and (school.Provider1ID|int == provider.ProviderID) %}
-                          selected
-                        {% endif %}>
-                        {% if provider_is_kaiako and selected_funder_name %}
-                          Kaiako led ({{ selected_funder_name }})
-                        {% elif provider_is_kaiako %}
-                          Kaiako led
-                        {% else %}
-                          {{ provider.Description }}
-                        {% endif %}
-                      </option>
-                    {% endfor %}
-                  </select>
-
-                 <button type="button"
-        class="btn btn-outline-primary add-provider-btn has-tooltip"
-        data-bs-toggle="modal"
-        data-bs-target="#newProviderModal"
-        title="Add new provider"
-        aria-label="Add new provider">
-  <i class="bi bi-plus-lg"></i>
-</button>
-                  {% if user_role == 'ADM' and school.MovableFlag == 1 %}
-                    <button type="button"
-        class="btn btn-outline-secondary move-term-btn has-tooltip"
-        data-bs-toggle="modal"
-        data-bs-target="#moveTermModal"
-        data-moe="{{ school.MOENumber }}"
-        data-school="{{ school.School }}"
-        data-current-funder-id="{{ selected_funder }}"
-        data-current-funder-name="{{ selected_funder_name }}"
-        data-current-term="{{ selected_term }}"
-        data-current-year="{{ selected_year }}"
-        title="Move school to another term"
-        aria-label="Move school to another term">
-  <i class="bi bi-calendar"></i>
-</button>
-                  {% endif %}
-                  {% if user_role == 'ADM' %}
-                    <button type="button"
-        class="btn btn-outline-info move-school-btn has-tooltip"
-        data-bs-toggle="modal"
-        data-bs-target="#moveSchoolModal"
-        data-moe="{{ school.MOENumber }}"
-        data-school="{{ school.School }}"
-        data-current-funder-id="{{ selected_funder }}"
-        data-current-funder-name="{{ selected_funder_name }}"
-        title="Move school to another funder"
-        aria-label="Move school to another funder">
-  <i class="bi bi-arrow-left-right"></i>
-</button>
-                  {% endif %}
-                  {% if user_role == 'ADM' and school.TotalClasses == 0 %}
-                    <button type="button"
-        class="btn btn-outline-danger remove-school-btn has-tooltip"
-        data-bs-toggle="modal"
-        data-bs-target="#removeSchoolModal"
-        data-moe="{{ school.MOENumber }}"
-        data-school="{{ school.School }}"
-        data-term="{{ selected_term }}"
-        data-year="{{ selected_year }}"
-        data-funder-id="{{ selected_funder }}"
-        data-funder-name="{{ selected_funder_name }}"
-        title="Remove school from this term"
-        aria-label="Remove school from this term">
-  <i class="bi bi-trash"></i>
-</button>
-
-                  {% endif %} 
-                </div>
-
-                <!-- CLM MODE: Provider 2 (Facility) + Facility staff -->
-                <div class="mt-2 clm-wrapper d-none">
-                  <label class="form-label small mb-1">Select CLM facility</label>
-                  <div class="input-group input-group-sm mb-2">
-                    <select class="form-select clm-facility-select"
-                            data-moe="{{ school.MOENumber }}"
-                            data-term="{{ selected_term }}"
-                            data-year="{{ selected_year }}"
-                            data-funder="{{ selected_funder }}">
-                      <option value="">Not selected</option>
-                      {# options populated by JS from /api/clm_facilities #}
-                    </select>
-                  </div>
-
-                  <label class="form-label small mb-1">Select facility staff member</label>
+          </option> {% endfor %} </select>
+      </div> {% endif %} <div class="col-md-2">
+        <label for="term" class="form-label">Term</label>
+        <select id="term" name="term" class="form-select" required> {% for t in terms %} <option value="{{ t }}" {% if selected_term == t %}selected{% endif %}>Term {{ t }}</option> {% endfor %} </select>
+      </div>
+      <div class="col-md-2">
+        <label for="year" class="form-label">Year</label>
+        <select id="year" name="year" class="form-select" required> {% for y in years %} <option value="{{ y }}" {% if selected_year == y %}selected{% endif %}>{{ y }}</option> {% endfor %} </select>
+      </div>
+      <div class="col-md-auto d-flex align-items-end">
+        <button type="submit" class="btn btn-primary">Show Schools</button>
+      </div>
+    </form> {% if schools %}
+    <!-- ========================= -->
+    <!-- Desktop table (>= sm)     -->
+    <!-- ========================= -->
+    <div class="d-none d-sm-block">
+      <div class="container">
+        <table class="table provider-table align-middle">
+          <thead>
+            <tr>
+              <th>School Name</th>
+              <th>Total Classes</th>
+              <th>Total Students</th>
+              <th>Equity Index</th>
+              <th>Year Levels</th>
+              <th> Assign Provider {% if user_role == 'ADM' %} <button type="button" class="btn btn-sm provider-help-btn" data-bs-toggle="popover" data-bs-trigger="focus" data-bs-placement="left" data-bs-html="true" tabindex="0" data-bs-content="
+      
+									<div class='small text-start'>
+										<div>
+											<i class='bi bi-plus-lg'></i> Add provider
+										</div>
+										<div>
+											<i class='bi bi-calendar'></i> Move term/year
+										</div>
+										<div>
+											<i class='bi bi-arrow-left-right'></i> Move funder
+										</div>
+										<div>
+											<i class='bi bi-trash'></i> Remove school
+										</div>
+									</div>
+    ">
+                  <i class="bi bi-info-circle-fill"></i>
+                </button> {% endif %} </th>
+            </tr>
+          </thead>
+          <tbody> {% for school in schools %} <tr>
+              <td>{{ school.School }}</td>
+              <td class="text-center">{{ school.TotalClasses }}</td>
+              <td class="text-center">{{ school.TotalStudents }}</td>
+              <td class="text-center">{{ school.EquityIndex }}</td>
+              <td>{{ school.DistinctYearLevels }}</td>
+              <td>
+                <div class="provider-scope" data-is-clm="{{ 1 if is_swimmagic_clm else 0 }}" data-current-provider1id="{{ school.Provider1ID or '' }}" data-current-provider2id="{{ school.Provider2ID or '' }}">
+                  <!-- Provider 1 select (Kaiako-led OR normal single-provider) -->
                   <div class="input-group input-group-sm">
-                    <select class="form-select clm-staff-select"
-                            data-moe="{{ school.MOENumber }}"
-                            data-term="{{ selected_term }}"
-                            data-year="{{ selected_year }}">
-                      <option value="">Not Assigned</option>
-                      {# options populated by JS from /api/clm_facility_staff #}
+                    <select class="form-select provider-select" data-moe="{{ school.MOENumber }}" data-term="{{ selected_term }}" data-year="{{ selected_year }}" data-funder="{{ selected_funder }}">
+                      <option value="">Not chosen</option> {% for provider in providers %} {% set provider_is_kaiako = 'kaiako' in (provider.Description|lower) %} <option value="{{ provider.ProviderID }}" {% if school.Provider1ID and (school.Provider1ID|int == provider.ProviderID) %} selected {% endif %}> {% if provider_is_kaiako and selected_funder_name %} Kaiako led ({{ selected_funder_name }}) {% elif provider_is_kaiako %} Kaiako led {% else %} {{ provider.Description }} {% endif %} </option> {% endfor %}
                     </select>
+                    <button type="button" class="btn btn-outline-primary provider-icon-btn add-provider-btn has-tooltip" data-bs-toggle="modal" data-bs-target="#newProviderModal" title="Add new provider" aria-label="Add new provider">
+                      <i class="bi bi-plus-lg"></i>
+                    </button> {% if user_role == 'ADM' and school.MovableFlag == 1 %} <button type="button" class="btn btn-outline-secondary move-term-btn has-tooltip" data-bs-toggle="modal" data-bs-target="#moveTermModal" data-moe="{{ school.MOENumber }}" data-school="{{ school.School }}" data-current-funder-id="{{ selected_funder }}" data-current-funder-name="{{ selected_funder_name }}" data-current-term="{{ selected_term }}" data-current-year="{{ selected_year }}" title="Move school to another term" aria-label="Move school to another term">
+                      <i class="bi bi-calendar"></i>
+                    </button> {% endif %} {% if user_role == 'ADM' %} <button type="button" class="btn btn-outline-info move-school-btn has-tooltip" data-bs-toggle="modal" data-bs-target="#moveSchoolModal" data-moe="{{ school.MOENumber }}" data-school="{{ school.School }}" data-current-funder-id="{{ selected_funder }}" data-current-funder-name="{{ selected_funder_name }}" title="Move school to another funder" aria-label="Move school to another funder">
+                      <i class="bi bi-arrow-left-right"></i>
+                    </button> {% endif %} {% if user_role == 'ADM' and school.TotalClasses == 0 %} <button type="button" class="btn btn-outline-danger remove-school-btn has-tooltip" data-bs-toggle="modal" data-bs-target="#removeSchoolModal" data-moe="{{ school.MOENumber }}" data-school="{{ school.School }}" data-term="{{ selected_term }}" data-year="{{ selected_year }}" data-funder-id="{{ selected_funder }}" data-funder-name="{{ selected_funder_name }}" title="Remove school from this term" aria-label="Remove school from this term">
+                      <i class="bi bi-trash"></i>
+                    </button> {% endif %}
                   </div>
-                  <div class="form-text">This appears only for SwimMagic CLM Kaiako-led delivery.</div>
-                </div>
-
-                <!-- NON-CLM: Kaiako staff dropdown (funder staff) -->
-                <div class="mt-2 staff-dropdown-wrapper d-none">
-                  <label class="form-label small mb-1">Assign Kaiako Staff</label>
-                  <div class="input-group input-group-sm">
-                    <select class="form-select funder-staff-select"
-                            name="staff_email_{{ school.MOENumber }}"
-                            data-moe="{{ school.MOENumber }}"
-                            data-term="{{ selected_term }}"
-                            data-year="{{ selected_year }}">
-                      <option value="">Not Assigned</option>
-                      {% for staff in staff_list %}
-                        <option value="{{ staff.Email }}"
-                          {% if school.SelectedStaffEmail == staff.Email %}selected{% endif %}>
+                  <!-- CLM MODE: Provider 2 (Facility) + Facility staff -->
+                  <div class="mt-2 clm-wrapper d-none">
+                    <label class="form-label small mb-1">Select CLM facility</label>
+                    <div class="input-group input-group-sm mb-2">
+                      <select class="form-select clm-facility-select" data-moe="{{ school.MOENumber }}" data-term="{{ selected_term }}" data-year="{{ selected_year }}" data-funder="{{ selected_funder }}">
+                        <option value="">Not selected</option> {# options populated by JS from /api/clm_facilities #}
+                      </select>
+                    </div>
+                    <label class="form-label small mb-1">Select facility staff member</label>
+                    <div class="input-group input-group-sm">
+                      <select class="form-select clm-staff-select" data-moe="{{ school.MOENumber }}" data-term="{{ selected_term }}" data-year="{{ selected_year }}">
+                        <option value="">Not Assigned</option> {# options populated by JS from /api/clm_facility_staff #}
+                      </select>
+                    </div>
+                    <div class="form-text">This appears only for SwimMagic CLM Kaiako-led delivery.</div>
+                  </div>
+                  <!-- NON-CLM: Kaiako staff dropdown (funder staff) -->
+                  <div class="mt-2 staff-dropdown-wrapper d-none">
+                    <label class="form-label small mb-1">Assign Kaiako Staff</label>
+                    <div class="input-group input-group-sm">
+                      <select class="form-select funder-staff-select" name="staff_email_{{ school.MOENumber }}" data-moe="{{ school.MOENumber }}" data-term="{{ selected_term }}" data-year="{{ selected_year }}">
+                        <option value="">Not Assigned</option> {% for staff in staff_list %} <option value="{{ staff.Email }}" {% if school.SelectedStaffEmail == staff.Email %}selected{% endif %}>
                           {{ staff.Name or (staff.FirstName ~ ' ' ~ staff.Surname) }}
-                        </option>
-                      {% endfor %}
-                    </select>
+                        </option> {% endfor %}
+                      </select>
+                    </div>
+                    <div class="form-text">Only required for Kaiako-led delivery.</div>
                   </div>
-                  <div class="form-text">Only required for Kaiako-led delivery.</div>
                 </div>
-
-              </div>
-            </td>
-          </tr>
-        {% endfor %}
-      </tbody>
-
-    </table>
-  </div>
-</div>
-
-<!-- ========================= -->
-<!-- Mobile cards (< sm)       -->
-<!-- ========================= -->
-<div class="d-sm-none" id="staffCards">
-  {% for school in schools %}
-    <div class="card shadow-sm mb-3">
-      <div class="card-header d-flex justify-content-between align-items-center">
-        <span class="fw-semibold">{{ school.School.split('(')[0].strip() }}</span>
-        <small class="text-muted">MOE Number: {{ school.MOENumber }}</small>
+              </td>
+            </tr> {% endfor %} </tbody>
+        </table>
       </div>
-
-      <div class="card-body pt-3">
-        <ul class="list-group list-group-flush mb-3">
-          <li class="list-group-item d-flex justify-content-between">
-            <span>Total Classes</span>
-            <span class="badge text-bg-primary">{{ school.TotalClasses }}</span>
-          </li>
-          <li class="list-group-item d-flex justify-content-between">
-            <span>Total Students</span>
-            <span class="badge text-bg-secondary">{{ school.TotalStudents }}</span>
-          </li>
-          <li class="list-group-item d-flex justify-content-between">
-            <span>Equity Index</span>
-            <span class="badge text-bg-info">{{ school.EquityIndex }}</span>
-          </li>
-          <li class="list-group-item">
-            <div class="mb-1">Year Levels</div>
-            <div class="small text-muted">{{ school.DistinctYearLevels }}</div>
-          </li>
-        </ul>
-
-        <div class="provider-scope"
-             data-is-clm="{{ 1 if is_swimmagic_clm else 0 }}"
-             data-current-provider1id="{{ school.Provider1ID or '' }}"
-             data-current-provider2id="{{ school.Provider2ID or '' }}">
-
-          <label class="form-label small mb-1">Assign Provider</label>
-
-          <div class="input-group input-group-sm mb-2">
-            <select class="form-select provider-select"
-                    data-moe="{{ school.MOENumber }}"
-                    data-term="{{ selected_term }}"
-                    data-year="{{ selected_year }}"
-                    data-funder="{{ selected_funder }}">
-              <option value="">Not chosen</option>
-
-              {% for provider in providers %}
-                {% set provider_is_kaiako = 'kaiako' in (provider.Description|lower) %}
-                <option value="{{ provider.ProviderID }}"
-                  {% if school.Provider1ID and (school.Provider1ID|int == provider.ProviderID) %}
-                    selected
-                  {% endif %}>
-                  {% if provider_is_kaiako and selected_funder_name %}
-                    Kaiako led ({{ selected_funder_name }})
-                  {% elif provider_is_kaiako %}
-                    Kaiako led
-                  {% else %}
-                    {{ provider.Description }}
-                  {% endif %}
-                </option>
-              {% endfor %}
-            </select>
-
-            <button type="button"
-                    class="btn btn-outline-secondary add-provider-btn"
-                    data-bs-toggle="modal"
-                    data-bs-target="#newProviderModal"
-                    title="Add new provider">
-              <i class="bi bi-plus-lg"></i>
-            </button>
-          </div>
-
-          <!-- CLM mode -->
-          <div class="clm-wrapper d-none">
-            <label class="form-label small mb-1">Select CLM facility</label>
+    </div>
+    <!-- ========================= -->
+    <!-- Mobile cards (< sm)       -->
+    <!-- ========================= -->
+    <div class="d-sm-none" id="staffCards"> {% for school in schools %} <div class="card provider-card shadow-sm mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span class="fw-semibold">{{ school.School.split('(')[0].strip() }}</span>
+          <small class="text-muted">MOE Number: {{ school.MOENumber }}</small>
+        </div>
+        <div class="card-body pt-3">
+          <ul class="list-group list-group-flush mb-3">
+            <li class="list-group-item d-flex justify-content-between">
+              <span>Total Classes</span>
+              <span class="badge text-bg-primary">{{ school.TotalClasses }}</span>
+            </li>
+            <li class="list-group-item d-flex justify-content-between">
+              <span>Total Students</span>
+              <span class="badge text-bg-secondary">{{ school.TotalStudents }}</span>
+            </li>
+            <li class="list-group-item d-flex justify-content-between">
+              <span>Equity Index</span>
+              <span class="badge text-bg-info">{{ school.EquityIndex }}</span>
+            </li>
+            <li class="list-group-item">
+              <div class="mb-1">Year Levels</div>
+              <div class="small text-muted">{{ school.DistinctYearLevels }}</div>
+            </li>
+          </ul>
+          <div class="provider-scope" data-is-clm="{{ 1 if is_swimmagic_clm else 0 }}" data-current-provider1id="{{ school.Provider1ID or '' }}" data-current-provider2id="{{ school.Provider2ID or '' }}">
+            <label class="form-label small mb-1">Assign Provider</label>
             <div class="input-group input-group-sm mb-2">
-              <select class="form-select clm-facility-select"
-                      data-moe="{{ school.MOENumber }}"
-                      data-term="{{ selected_term }}"
-                      data-year="{{ selected_year }}"
-                      data-funder="{{ selected_funder }}">
-                <option value="">Not selected</option>
+              <select class="form-select provider-select" data-moe="{{ school.MOENumber }}" data-term="{{ selected_term }}" data-year="{{ selected_year }}" data-funder="{{ selected_funder }}">
+                <option value="">Not chosen</option> {% for provider in providers %} {% set provider_is_kaiako = 'kaiako' in (provider.Description|lower) %} <option value="{{ provider.ProviderID }}" {% if school.Provider1ID and (school.Provider1ID|int == provider.ProviderID) %} selected {% endif %}> {% if provider_is_kaiako and selected_funder_name %} Kaiako led ({{ selected_funder_name }}) {% elif provider_is_kaiako %} Kaiako led {% else %} {{ provider.Description }} {% endif %} </option> {% endfor %}
               </select>
+              <button type="button" class="btn btn-outline-primary provider-icon-btn add-provider-btn" data-bs-toggle="modal" data-bs-target="#newProviderModal" title="Add new provider">
+                <i class="bi bi-plus-lg"></i>
+              </button>
             </div>
-
-            <label class="form-label small mb-1">Select facility staff member</label>
-            <div class="input-group input-group-sm">
-              <select class="form-select clm-staff-select"
-                      data-moe="{{ school.MOENumber }}"
-                      data-term="{{ selected_term }}"
-                      data-year="{{ selected_year }}">
-                <option value="">Not Assigned</option>
-              </select>
+            <!-- CLM mode -->
+            <div class="clm-wrapper d-none">
+              <label class="form-label small mb-1">Select CLM facility</label>
+              <div class="input-group input-group-sm mb-2">
+                <select class="form-select clm-facility-select" data-moe="{{ school.MOENumber }}" data-term="{{ selected_term }}" data-year="{{ selected_year }}" data-funder="{{ selected_funder }}">
+                  <option value="">Not selected</option>
+                </select>
+              </div>
+              <label class="form-label small mb-1">Select facility staff member</label>
+              <div class="input-group input-group-sm">
+                <select class="form-select clm-staff-select" data-moe="{{ school.MOENumber }}" data-term="{{ selected_term }}" data-year="{{ selected_year }}">
+                  <option value="">Not Assigned</option>
+                </select>
+              </div>
+              <div class="form-text">This appears only for SwimMagic CLM Kaiako-led delivery.</div>
             </div>
-
-            <div class="form-text">This appears only for SwimMagic CLM Kaiako-led delivery.</div>
-          </div>
-
-          <!-- Non-CLM Kaiako -->
-          <div class="staff-dropdown-wrapper d-none">
-            <label class="form-label small mb-1">Assign Kaiako Staff</label>
-            <div class="input-group input-group-sm">
-              <select class="form-select funder-staff-select"
-                      name="staff_email_{{ school.MOENumber }}"
-                      data-moe="{{ school.MOENumber }}"
-                      data-term="{{ selected_term }}"
-                      data-year="{{ selected_year }}">
-                <option value="">Not Assigned</option>
-                {% for staff in staff_list %}
-                  <option value="{{ staff.Email }}"
-                    {% if school.SelectedStaffEmail == staff.Email %}selected{% endif %}>
+            <!-- Non-CLM Kaiako -->
+            <div class="staff-dropdown-wrapper d-none">
+              <label class="form-label small mb-1">Assign Kaiako Staff</label>
+              <div class="input-group input-group-sm">
+                <select class="form-select funder-staff-select" name="staff_email_{{ school.MOENumber }}" data-moe="{{ school.MOENumber }}" data-term="{{ selected_term }}" data-year="{{ selected_year }}">
+                  <option value="">Not Assigned</option> {% for staff in staff_list %} <option value="{{ staff.Email }}" {% if school.SelectedStaffEmail == staff.Email %}selected{% endif %}>
                     {{ staff.Name or (staff.FirstName ~ ' ' ~ staff.Surname) }}
-                  </option>
-                {% endfor %}
-              </select>
+                  </option> {% endfor %}
+                </select>
+              </div>
+              <div class="form-text">Only required for Kaiako-led delivery.</div>
             </div>
-            <div class="form-text">Only required for Kaiako-led delivery.</div>
           </div>
-
+        </div>
+      </div> {% endfor %} </div> {% else %} <div class="d-flex justify-content-center">
+      <div class="alert provider-empty-alert text-center"> No schools found for the selected term and year. Please contact your schools regarding uploading the relevant class lists. </div>
+    </div> {% endif %}
+    <!-- ========================= -->
+    <!-- Remove School Modal       -->
+    <!-- ========================= -->
+    <div class="modal fade" id="removeSchoolModal" tabindex="-1" aria-labelledby="removeSchoolModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <form id="removeSchoolForm">
+            <div class="modal-header provider-modal-header">
+              <h5 class="modal-title" id="removeSchoolModalLabel">Remove School from Term</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+              <input type="hidden" id="removeSchoolMOE" name="moe_number">
+              <input type="hidden" id="removeSchoolTerm" name="term">
+              <input type="hidden" id="removeSchoolYear" name="year">
+              <input type="hidden" id="removeSchoolFunderID" name="funder_id">
+              <div class="mb-3">
+                <label class="form-label">School</label>
+                <input type="text" class="form-control" id="removeSchoolName" readonly>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Funder</label>
+                <input type="text" class="form-control" id="removeSchoolFunderName" readonly>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Current term/year</label>
+                <input type="text" class="form-control" id="removeSchoolTermYearDisplay" readonly>
+              </div>
+              <div class="alert alert-warning mb-0"> This will remove the school from the selected funder, term, and year only. Historical data should remain unchanged. </div>
+              <div id="removeSchoolSuccess" class="alert alert-success d-none mt-3"></div>
+              <div id="removeSchoolError" class="alert alert-danger d-none mt-3"></div>
+            </div>
+            <div class="modal-footer">
+              <button type="submit" class="btn btn-danger">Confirm Remove</button>
+            </div>
+          </form>
         </div>
       </div>
     </div>
-  {% endfor %}
-</div>
-
-{% else %}
-<div class="d-flex justify-content-center">
-  <div class="alert text-center w-40" style="background-color: #4d544120; color: #4d5441; border: 2px solid #4d5441;">
-    No schools found for the selected term and year. Please contact your schools regarding uploading the relevant class lists.
-  </div>
-</div>
-{% endif %}
-
-<!-- ========================= -->
-<!-- Remove School Modal       -->
-<!-- ========================= -->
-<div class="modal fade" id="removeSchoolModal" tabindex="-1" aria-labelledby="removeSchoolModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <form id="removeSchoolForm">
-        <div class="modal-header">
-          <h5 class="modal-title" id="removeSchoolModalLabel">Remove School from Term</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-        </div>
-
-        <div class="modal-body">
-          <input type="hidden" id="removeSchoolMOE" name="moe_number">
-          <input type="hidden" id="removeSchoolTerm" name="term">
-          <input type="hidden" id="removeSchoolYear" name="year">
-          <input type="hidden" id="removeSchoolFunderID" name="funder_id">
-
-          <div class="mb-3">
-            <label class="form-label">School</label>
-            <input type="text" class="form-control" id="removeSchoolName" readonly>
-          </div>
-
-          <div class="mb-3">
-            <label class="form-label">Funder</label>
-            <input type="text" class="form-control" id="removeSchoolFunderName" readonly>
-          </div>
-
-          <div class="mb-3">
-            <label class="form-label">Current term/year</label>
-            <input type="text" class="form-control" id="removeSchoolTermYearDisplay" readonly>
-          </div>
-
-          <div class="alert alert-warning mb-0">
-            This will remove the school from the selected funder, term, and year only. Historical data should remain unchanged.
-          </div>
-
-          <div id="removeSchoolSuccess" class="alert alert-success d-none mt-3"></div>
-          <div id="removeSchoolError" class="alert alert-danger d-none mt-3"></div>
-        </div>
-
-        <div class="modal-footer">
-          <button type="submit" class="btn btn-danger">Confirm Remove</button>
-        </div>
-      </form>
-    </div>
-  </div>
-</div>
-
-<!-- ========================= -->
-<!-- Move Term/Year Modal      -->
-<!-- ========================= -->
-<div class="modal fade" id="moveTermModal" tabindex="-1" aria-labelledby="moveTermModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <form id="moveTermForm">
-        <div class="modal-header">
-          <h5 class="modal-title" id="moveTermModalLabel">Move School to Another Term</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-        </div>
-
-        <div class="modal-body">
-          <input type="hidden" id="moveTermMOE" name="moe_number">
-          <input type="hidden" id="moveTermCurrentTerm" name="current_term">
-          <input type="hidden" id="moveTermCurrentYear" name="current_year">
-
-          <div class="mb-3">
-            <label class="form-label">School</label>
-            <input type="text" class="form-control" id="moveTermSchoolName" readonly>
-          </div>
-
-          <div class="mb-3">
-            <label class="form-label">Current funder</label>
-            <input type="text" class="form-control" id="moveTermCurrentFunder" readonly>
-          </div>
-
-          <div class="alert alert-info">
-            The current funder and provider for this school will stay the same. Only the term and year will be changed.
-          </div>
-
-          <div class="alert alert-warning">
-            This option is only available because no students at this school have been marked as achieved in the current term. Once a student has a competency marked as achieved, this option will no longer be available.
-          </div>
-
-          <div class="row">
-            <div class="col-md-6 mb-3">
-              <label for="moveTermNewTerm" class="form-label">New term</label>
-              <select class="form-select" id="moveTermNewTerm" name="new_term" required>
-                <option value="" disabled selected>Select term…</option>
-                {% for t in terms %}
-                  <option value="{{ t }}">Term {{ t }}</option>
-                {% endfor %}
-              </select>
+    <!-- ========================= -->
+    <!-- Move Term/Year Modal      -->
+    <!-- ========================= -->
+    <div class="modal fade" id="moveTermModal" tabindex="-1" aria-labelledby="moveTermModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <form id="moveTermForm">
+            <div class="modal-header provider-modal-header">
+              <h5 class="modal-title" id="moveTermModalLabel">Move School to Another Term</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-
-            <div class="col-md-6 mb-3">
-              <label for="moveTermNewYear" class="form-label">New year</label>
-              <select class="form-select" id="moveTermNewYear" name="new_year" required>
-                <option value="" disabled selected>Select year…</option>
-                {% for y in years %}
-                  <option value="{{ y }}">{{ y }}</option>
-                {% endfor %}
-              </select>
+            <div class="modal-body">
+              <input type="hidden" id="moveTermMOE" name="moe_number">
+              <input type="hidden" id="moveTermCurrentTerm" name="current_term">
+              <input type="hidden" id="moveTermCurrentYear" name="current_year">
+              <div class="mb-3">
+                <label class="form-label">School</label>
+                <input type="text" class="form-control" id="moveTermSchoolName" readonly>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Current funder</label>
+                <input type="text" class="form-control" id="moveTermCurrentFunder" readonly>
+              </div>
+              <div class="alert alert-info"> The current funder and provider for this school will stay the same. Only the term and year will be changed. </div>
+              <div class="alert alert-warning"> This option is only available because no students at this school have been marked as achieved in the current term. Once a student has a competency marked as achieved, this option will no longer be available. </div>
+              <div class="row">
+                <div class="col-md-6 mb-3">
+                  <label for="moveTermNewTerm" class="form-label">New term</label>
+                  <select class="form-select" id="moveTermNewTerm" name="new_term" required>
+                    <option value="" disabled selected>Select term…</option> {% for t in terms %} <option value="{{ t }}">Term {{ t }}</option> {% endfor %}
+                  </select>
+                </div>
+                <div class="col-md-6 mb-3">
+                  <label for="moveTermNewYear" class="form-label">New year</label>
+                  <select class="form-select" id="moveTermNewYear" name="new_year" required>
+                    <option value="" disabled selected>Select year…</option> {% for y in years %} <option value="{{ y }}">{{ y }}</option> {% endfor %}
+                  </select>
+                </div>
+              </div>
+              <div id="moveTermSuccess" class="alert alert-success d-none mt-3"></div>
+              <div id="moveTermError" class="alert alert-danger d-none mt-3"></div>
             </div>
-          </div>
-
-          <div id="moveTermSuccess" class="alert alert-success d-none mt-3"></div>
-          <div id="moveTermError" class="alert alert-danger d-none mt-3"></div>
+            <div class="modal-footer">
+              <button type="submit" class="btn btn-secondary">Confirm Move</button>
+            </div>
+          </form>
         </div>
-
-        <div class="modal-footer">
-          <button type="submit" class="btn btn-secondary">Confirm Move</button>
+      </div>
+    </div>
+    <!-- ========================= -->
+    <!-- Add Provider Modal         -->
+    <!-- ========================= -->
+    <div class="modal fade" id="newProviderModal" tabindex="-1" aria-labelledby="newProviderModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <form id="addProviderForm">
+            <div class="modal-header provider-modal-header">
+              <h5 class="modal-title" id="newProviderModalLabel">Add New Provider</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+              <input type="hidden" name="funder_id" value="{{ selected_funder }}">
+              <div class="mb-3">
+                <label for="providerName" class="form-label">Provider Name</label>
+                <input type="text" class="form-control" id="providerName" name="provider_name" required>
+              </div>
+              <div id="addProviderSuccess" class="alert alert-success d-none"></div>
+              <div id="addProviderError" class="alert alert-danger d-none"></div>
+            </div>
+            <div class="modal-footer">
+              <button type="submit" class="btn btn-primary">Add Provider</button>
+            </div>
+          </form>
         </div>
-      </form>
+      </div>
+    </div>
+    <!-- ========================= -->
+    <!-- Move Funder Modal         -->
+    <!-- ========================= -->
+    <div class="modal fade" id="moveSchoolModal" tabindex="-1" aria-labelledby="moveSchoolModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <form id="moveSchoolForm">
+            <div class="modal-header provider-modal-header">
+              <h5 class="modal-title" id="moveSchoolModalLabel">Move School to Another Funder</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+              <input type="hidden" id="moveSchoolMOE" name="moe_number">
+              <input type="hidden" id="moveSchoolTerm" name="term" value="{{ selected_term }}">
+              <input type="hidden" id="moveSchoolYear" name="year" value="{{ selected_year }}">
+              <input type="hidden" id="moveSchoolOldFunderID" name="old_funder_id">
+              <div class="mb-3">
+                <label class="form-label">School</label>
+                <input type="text" class="form-control" id="moveSchoolName" readonly>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Current funder</label>
+                <input type="text" class="form-control" id="moveSchoolCurrentFunder" readonly>
+              </div>
+              <div class="mb-3">
+                <label for="moveSchoolNewFunder" class="form-label">New funder</label>
+                <select class="form-select" id="moveSchoolNewFunder" name="new_funder_id" required>
+                  <option value="" disabled selected>Select a funder…</option> {% for f in funders %} <option value="{{ f['id'] }}">{{ f['Description'] }}</option> {% endfor %}
+                </select>
+              </div>
+              <div class="alert alert-warning mb-0"> This will move the school to another funder for the selected term and year. You will need to reassign a provider later. </div>
+              <div id="moveSchoolSuccess" class="alert alert-success d-none mt-3"></div>
+              <div id="moveSchoolError" class="alert alert-danger d-none mt-3"></div>
+            </div>
+            <div class="modal-footer">
+              <button type="submit" class="btn btn-info">Confirm Move</button>
+            </div>
+          </form>
+        </div>
+      </div>
     </div>
   </div>
-</div>
-<!-- ========================= -->
-<!-- Add Provider Modal         -->
-<!-- ========================= -->
-<div class="modal fade" id="newProviderModal" tabindex="-1" aria-labelledby="newProviderModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <form id="addProviderForm">
-        <div class="modal-header">
-          <h5 class="modal-title" id="newProviderModalLabel">Add New Provider</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-        </div>
-        <div class="modal-body">
-          <input type="hidden" name="funder_id" value="{{ selected_funder }}">
-          <div class="mb-3">
-            <label for="providerName" class="form-label">Provider Name</label>
-            <input type="text" class="form-control" id="providerName" name="provider_name" required>
-          </div>
-          <div id="addProviderSuccess" class="alert alert-success d-none"></div>
-          <div id="addProviderError" class="alert alert-danger d-none"></div>
-        </div>
-        <div class="modal-footer">
-          <button type="submit" class="btn btn-primary">Add Provider</button>
-        </div>
-      </form>
-    </div>
-  </div>
-</div>
-<!-- ========================= -->
-<!-- Move Funder Modal         -->
-<!-- ========================= -->
-<div class="modal fade" id="moveSchoolModal" tabindex="-1" aria-labelledby="moveSchoolModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <form id="moveSchoolForm">
-        <div class="modal-header">
-          <h5 class="modal-title" id="moveSchoolModalLabel">Move School to Another Funder</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-        </div>
-
-        <div class="modal-body">
-          <input type="hidden" id="moveSchoolMOE" name="moe_number">
-          <input type="hidden" id="moveSchoolTerm" name="term" value="{{ selected_term }}">
-          <input type="hidden" id="moveSchoolYear" name="year" value="{{ selected_year }}">
-          <input type="hidden" id="moveSchoolOldFunderID" name="old_funder_id">
-          <div class="mb-3">
-            <label class="form-label">School</label>
-            <input type="text" class="form-control" id="moveSchoolName" readonly>
-          </div>
-
-          <div class="mb-3">
-            <label class="form-label">Current funder</label>
-            <input type="text" class="form-control" id="moveSchoolCurrentFunder" readonly>
-          </div>
-
-          <div class="mb-3">
-            <label for="moveSchoolNewFunder" class="form-label">New funder</label>
-            <select class="form-select" id="moveSchoolNewFunder" name="new_funder_id" required>
-              <option value="" disabled selected>Select a funder…</option>
-              {% for f in funders %}
-                <option value="{{ f['id'] }}">{{ f['Description'] }}</option>
-              {% endfor %}
-            </select>
-          </div>
-
-          <div class="alert alert-warning mb-0">
-            This will move the school to another funder for the selected term and year. You will need to reassign a provider later.
-          </div>
-
-          <div id="moveSchoolSuccess" class="alert alert-success d-none mt-3"></div>
-          <div id="moveSchoolError" class="alert alert-danger d-none mt-3"></div>
-        </div>
-
-        <div class="modal-footer">
-          <button type="submit" class="btn btn-info">Confirm Move</button>
-        </div>
-      </form>
-    </div>
-  </div>
-</div>
-
+</div> {% endblock %} {% block scripts %}
 <!-- ========================= -->
 <!-- JS                          -->
 <!-- ========================= -->
 <script>
-document.addEventListener("DOMContentLoaded", () => {
-   const moveSchoolModal = document.getElementById("moveSchoolModal");
-  const moveSchoolForm = document.getElementById("moveSchoolForm");
-
-  const moveSchoolMOE = document.getElementById("moveSchoolMOE");
-  const moveSchoolName = document.getElementById("moveSchoolName");
-  const moveSchoolCurrentFunder = document.getElementById("moveSchoolCurrentFunder");
-  const moveSchoolNewFunder = document.getElementById("moveSchoolNewFunder");
-  const moveSchoolSuccess = document.getElementById("moveSchoolSuccess");
-  const moveSchoolError = document.getElementById("moveSchoolError");
-
-  const moveTermForm = document.getElementById("moveTermForm");
-
-const moveTermMOE = document.getElementById("moveTermMOE");
-const moveTermSchoolName = document.getElementById("moveTermSchoolName");
-const moveTermCurrentFunder = document.getElementById("moveTermCurrentFunder");
-const moveTermCurrentTerm = document.getElementById("moveTermCurrentTerm");
-const moveTermCurrentYear = document.getElementById("moveTermCurrentYear");
-const moveTermNewTerm = document.getElementById("moveTermNewTerm");
-const moveTermNewYear = document.getElementById("moveTermNewYear");
-const moveTermSuccess = document.getElementById("moveTermSuccess");
-const moveTermError = document.getElementById("moveTermError");
-
-
-const removeSchoolForm = document.getElementById("removeSchoolForm");
-
-const removeSchoolMOE = document.getElementById("removeSchoolMOE");
-const removeSchoolTerm = document.getElementById("removeSchoolTerm");
-const removeSchoolYear = document.getElementById("removeSchoolYear");
-const removeSchoolFunderID = document.getElementById("removeSchoolFunderID");
-
-const removeSchoolName = document.getElementById("removeSchoolName");
-const removeSchoolFunderName = document.getElementById("removeSchoolFunderName");
-const removeSchoolTermYearDisplay = document.getElementById("removeSchoolTermYearDisplay");
-
-const removeSchoolSuccess = document.getElementById("removeSchoolSuccess");
-const removeSchoolError = document.getElementById("removeSchoolError");
-const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
-tooltipTriggerList.forEach(el => new bootstrap.Tooltip(el));
-document.querySelectorAll(".remove-school-btn").forEach(btn => {
-  btn.addEventListener("click", () => {
-    if (removeSchoolSuccess) removeSchoolSuccess.classList.add("d-none");
-    if (removeSchoolError) removeSchoolError.classList.add("d-none");
-
-    removeSchoolMOE.value = btn.dataset.moe || "";
-    removeSchoolTerm.value = btn.dataset.term || "";
-    removeSchoolYear.value = btn.dataset.year || "";
-    removeSchoolFunderID.value = btn.dataset.funderId || "";
-
-    removeSchoolName.value = btn.dataset.school || "";
-    removeSchoolFunderName.value = btn.dataset.funderName || "";
-    removeSchoolTermYearDisplay.value = `Term ${btn.dataset.term || ""}, ${btn.dataset.year || ""}`;
-  });
-});
-
-  document.querySelectorAll(".move-term-btn").forEach(btn => {
-  btn.addEventListener("click", () => {
-    if (moveTermSuccess) moveTermSuccess.classList.add("d-none");
-    if (moveTermError) moveTermError.classList.add("d-none");
-
-    moveTermMOE.value = btn.dataset.moe || "";
-    moveTermSchoolName.value = btn.dataset.school || "";
-    moveTermCurrentFunder.value = btn.dataset.currentFunderName || "";
-    moveTermCurrentTerm.value = btn.dataset.currentTerm || "";
-    moveTermCurrentYear.value = btn.dataset.currentYear || "";
-
-    moveTermNewTerm.value = "";
-    moveTermNewYear.value = "";
-  });
-});
-  document.querySelectorAll(".move-school-btn").forEach(btn => {
-    btn.addEventListener("click", () => {
-      if (moveSchoolSuccess) moveSchoolSuccess.classList.add("d-none");
-      if (moveSchoolError) moveSchoolError.classList.add("d-none");
-
-      moveSchoolMOE.value = btn.dataset.moe || "";
-      moveSchoolName.value = btn.dataset.school || "";
-      moveSchoolCurrentFunder.value = btn.dataset.currentFunderName || "";
-      moveSchoolNewFunder.value = "";
-      document.getElementById("moveSchoolOldFunderID").value =
-        btn.dataset.currentFunderId || "";
+  document.addEventListener("DOMContentLoaded", () => {
+    const moveSchoolModal = document.getElementById("moveSchoolModal");
+    const moveSchoolForm = document.getElementById("moveSchoolForm");
+    const moveSchoolMOE = document.getElementById("moveSchoolMOE");
+    const moveSchoolName = document.getElementById("moveSchoolName");
+    const moveSchoolCurrentFunder = document.getElementById("moveSchoolCurrentFunder");
+    const moveSchoolNewFunder = document.getElementById("moveSchoolNewFunder");
+    const moveSchoolSuccess = document.getElementById("moveSchoolSuccess");
+    const moveSchoolError = document.getElementById("moveSchoolError");
+    const moveTermForm = document.getElementById("moveTermForm");
+    const moveTermMOE = document.getElementById("moveTermMOE");
+    const moveTermSchoolName = document.getElementById("moveTermSchoolName");
+    const moveTermCurrentFunder = document.getElementById("moveTermCurrentFunder");
+    const moveTermCurrentTerm = document.getElementById("moveTermCurrentTerm");
+    const moveTermCurrentYear = document.getElementById("moveTermCurrentYear");
+    const moveTermNewTerm = document.getElementById("moveTermNewTerm");
+    const moveTermNewYear = document.getElementById("moveTermNewYear");
+    const moveTermSuccess = document.getElementById("moveTermSuccess");
+    const moveTermError = document.getElementById("moveTermError");
+    const removeSchoolForm = document.getElementById("removeSchoolForm");
+    const removeSchoolMOE = document.getElementById("removeSchoolMOE");
+    const removeSchoolTerm = document.getElementById("removeSchoolTerm");
+    const removeSchoolYear = document.getElementById("removeSchoolYear");
+    const removeSchoolFunderID = document.getElementById("removeSchoolFunderID");
+    const removeSchoolName = document.getElementById("removeSchoolName");
+    const removeSchoolFunderName = document.getElementById("removeSchoolFunderName");
+    const removeSchoolTermYearDisplay = document.getElementById("removeSchoolTermYearDisplay");
+    const removeSchoolSuccess = document.getElementById("removeSchoolSuccess");
+    const removeSchoolError = document.getElementById("removeSchoolError");
+    const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+    tooltipTriggerList.forEach(el => new bootstrap.Tooltip(el));
+    const popoverTriggerList = document.querySelectorAll('[data-bs-toggle="popover"]');
+    popoverTriggerList.forEach(el => {
+      new bootstrap.Popover(el, {
+        html: true,
+        trigger: "focus"
       });
-  });
-  if (removeSchoolForm) {
-  removeSchoolForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
-
-    removeSchoolSuccess.classList.add("d-none");
-    removeSchoolError.classList.add("d-none");
-
-    try {
-      const response = await fetch("/remove_school_from_term", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          MOENumber: removeSchoolMOE.value,
-          Term: removeSchoolTerm.value,
-          Year: removeSchoolYear.value,
-          FunderID: removeSchoolFunderID.value
-        })
+    });
+    document.querySelectorAll(".remove-school-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        if (removeSchoolSuccess) removeSchoolSuccess.classList.add("d-none");
+        if (removeSchoolError) removeSchoolError.classList.add("d-none");
+        removeSchoolMOE.value = btn.dataset.moe || "";
+        removeSchoolTerm.value = btn.dataset.term || "";
+        removeSchoolYear.value = btn.dataset.year || "";
+        removeSchoolFunderID.value = btn.dataset.funderId || "";
+        removeSchoolName.value = btn.dataset.school || "";
+        removeSchoolFunderName.value = btn.dataset.funderName || "";
+        removeSchoolTermYearDisplay.value = `Term ${btn.dataset.term || ""}, ${btn.dataset.year || ""}`;
       });
-
-      const result = await response.json().catch(() => ({}));
-
-      if (response.ok && result.success) {
-        removeSchoolSuccess.textContent = "School removed successfully.";
-        removeSchoolSuccess.classList.remove("d-none");
-        setTimeout(() => location.reload(), 800);
-      } else {
-        removeSchoolError.textContent = result.message || "Failed to remove school.";
-        removeSchoolError.classList.remove("d-none");
-      }
-    } catch (err) {
-      console.error("❌ Error removing school:", err);
-      removeSchoolError.textContent = "Something went wrong.";
-      removeSchoolError.classList.remove("d-none");
+    });
+    document.querySelectorAll(".move-term-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        if (moveTermSuccess) moveTermSuccess.classList.add("d-none");
+        if (moveTermError) moveTermError.classList.add("d-none");
+        moveTermMOE.value = btn.dataset.moe || "";
+        moveTermSchoolName.value = btn.dataset.school || "";
+        moveTermCurrentFunder.value = btn.dataset.currentFunderName || "";
+        moveTermCurrentTerm.value = btn.dataset.currentTerm || "";
+        moveTermCurrentYear.value = btn.dataset.currentYear || "";
+        moveTermNewTerm.value = "";
+        moveTermNewYear.value = "";
+      });
+    });
+    document.querySelectorAll(".move-school-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        if (moveSchoolSuccess) moveSchoolSuccess.classList.add("d-none");
+        if (moveSchoolError) moveSchoolError.classList.add("d-none");
+        moveSchoolMOE.value = btn.dataset.moe || "";
+        moveSchoolName.value = btn.dataset.school || "";
+        moveSchoolCurrentFunder.value = btn.dataset.currentFunderName || "";
+        moveSchoolNewFunder.value = "";
+        document.getElementById("moveSchoolOldFunderID").value = btn.dataset.currentFunderId || "";
+      });
+    });
+    if (removeSchoolForm) {
+      removeSchoolForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        removeSchoolSuccess.classList.add("d-none");
+        removeSchoolError.classList.add("d-none");
+        try {
+          const response = await fetch("/remove_school_from_term", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              MOENumber: removeSchoolMOE.value,
+              Term: removeSchoolTerm.value,
+              Year: removeSchoolYear.value,
+              FunderID: removeSchoolFunderID.value
+            })
+          });
+          const result = await response.json().catch(() => ({}));
+          if (response.ok && result.success) {
+            removeSchoolSuccess.textContent = "School removed successfully.";
+            removeSchoolSuccess.classList.remove("d-none");
+            setTimeout(() => location.reload(), 800);
+          } else {
+            removeSchoolError.textContent = result.message || "Failed to remove school.";
+            removeSchoolError.classList.remove("d-none");
+          }
+        } catch (err) {
+          console.error("❌ Error removing school:", err);
+          removeSchoolError.textContent = "Something went wrong.";
+          removeSchoolError.classList.remove("d-none");
+        }
+      });
     }
-  });
-}
-  if (moveTermForm) {
-  moveTermForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
-
-    moveTermSuccess.classList.add("d-none");
-    moveTermError.classList.add("d-none");
-
-    try {
-      const response = await fetch("/move_school_term", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          MOENumber: moveTermMOE.value,
-          CurrentTerm: moveTermCurrentTerm.value,
-          CurrentYear: moveTermCurrentYear.value,
-          NewTerm: moveTermNewTerm.value,
-          NewYear: moveTermNewYear.value
-        })
+    if (moveTermForm) {
+      moveTermForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        moveTermSuccess.classList.add("d-none");
+        moveTermError.classList.add("d-none");
+        try {
+          const response = await fetch("/move_school_term", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              MOENumber: moveTermMOE.value,
+              CurrentTerm: moveTermCurrentTerm.value,
+              CurrentYear: moveTermCurrentYear.value,
+              NewTerm: moveTermNewTerm.value,
+              NewYear: moveTermNewYear.value
+            })
+          });
+          const result = await response.json().catch(() => ({}));
+          if (response.ok && result.success) {
+            moveTermSuccess.textContent = "School term/year moved successfully.";
+            moveTermSuccess.classList.remove("d-none");
+            setTimeout(() => location.reload(), 800);
+          } else {
+            moveTermError.textContent = result.message || "Failed to move school term/year.";
+            moveTermError.classList.remove("d-none");
+          }
+        } catch (err) {
+          console.error("❌ Error moving school term/year:", err);
+          moveTermError.textContent = "Something went wrong.";
+          moveTermError.classList.remove("d-none");
+        }
       });
-
-      const result = await response.json().catch(() => ({}));
-
-      if (response.ok && result.success) {
-        moveTermSuccess.textContent = "School term/year moved successfully.";
-        moveTermSuccess.classList.remove("d-none");
-        setTimeout(() => location.reload(), 800);
-      } else {
-        moveTermError.textContent = result.message || "Failed to move school term/year.";
-        moveTermError.classList.remove("d-none");
-      }
-    } catch (err) {
-      console.error("❌ Error moving school term/year:", err);
-      moveTermError.textContent = "Something went wrong.";
-      moveTermError.classList.remove("d-none");
     }
-  });
-}
-  if (moveSchoolForm) {
-    moveSchoolForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-
-      moveSchoolSuccess.classList.add("d-none");
-      moveSchoolError.classList.add("d-none");
-
-      try {
-        const response = await fetch("/move_school_funder", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            MOENumber: moveSchoolMOE.value,
-            Term: document.getElementById("moveSchoolTerm").value,
-            Year: document.getElementById("moveSchoolYear").value,
-            OldFunderID: document.getElementById("moveSchoolOldFunderID").value, 
-            NewFunderID: moveSchoolNewFunder.value
-          })
-        });
-
-        const result = await response.json().catch(() => ({}));
-
-        if (response.ok && result.success) {
-          moveSchoolSuccess.textContent = "School moved successfully.";
-          moveSchoolSuccess.classList.remove("d-none");
-          setTimeout(() => location.reload(), 800);
-        } else {
-          moveSchoolError.textContent = result.message || "Failed to move school.";
+    if (moveSchoolForm) {
+      moveSchoolForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        moveSchoolSuccess.classList.add("d-none");
+        moveSchoolError.classList.add("d-none");
+        try {
+          const response = await fetch("/move_school_funder", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              MOENumber: moveSchoolMOE.value,
+              Term: document.getElementById("moveSchoolTerm").value,
+              Year: document.getElementById("moveSchoolYear").value,
+              OldFunderID: document.getElementById("moveSchoolOldFunderID").value,
+              NewFunderID: moveSchoolNewFunder.value
+            })
+          });
+          const result = await response.json().catch(() => ({}));
+          if (response.ok && result.success) {
+            moveSchoolSuccess.textContent = "School moved successfully.";
+            moveSchoolSuccess.classList.remove("d-none");
+            setTimeout(() => location.reload(), 800);
+          } else {
+            moveSchoolError.textContent = result.message || "Failed to move school.";
+            moveSchoolError.classList.remove("d-none");
+          }
+        } catch (err) {
+          console.error("❌ Error moving school:", err);
+          moveSchoolError.textContent = "Something went wrong.";
           moveSchoolError.classList.remove("d-none");
         }
-      } catch (err) {
-        console.error("❌ Error moving school:", err);
-        moveSchoolError.textContent = "Something went wrong.";
-        moveSchoolError.classList.remove("d-none");
-      }
-    });
-  }
-  // ---------- helpers ----------
-  const isKaiakoText = (txt) => (txt || "").toLowerCase().includes("kaiako");
-
-  // NOTE: backend will be changed later to support Slot (1 = Provider1, 2 = Provider2)
-  const postAssignProvider = async ({ moe, term, year, funderId, providerId, slot }) => {
-    const response = await fetch("/assign_provider", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        MOENumber: moe,
-        Term: term,
-        Year: year,
-        FunderID: funderId,
-        ProviderID: providerId || null,
-        Slot: slot
-      })
-    });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok || !result.success) {
-      throw new Error(result.error || result.message || "assign_provider failed");
-    }
-    return result;
-  };
-
-  const postAssignKaiakoStaff = async ({ moe, term, year, email }) => {
-    const response = await fetch("/assign_kaiako_staff", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        MOENumber: moe,
-        Term: term,
-        Year: year,
-        Email: email || ""
-      })
-    });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok || !result.success) {
-      throw new Error(result.message || "assign_kaiako_staff failed");
-    }
-    return result;
-  };
-
-  const fetchClmFacilities = async ({ funderId, term, year }) => {
-    const url = `/api/clm_facilities?funder_id=${encodeURIComponent(funderId)}&term=${encodeURIComponent(term)}&year=${encodeURIComponent(year)}`;
-    const response = await fetch(url);
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok || !result.success) {
-      throw new Error(result.message || "Failed to load CLM facilities");
-    }
-    return result.facilities || [];
-  };
-
-  const fetchClmFacilityStaff = async ({ facilityId }) => {
-    const url = `/api/clm_facility_staff?facility_id=${encodeURIComponent(facilityId)}`;
-    const response = await fetch(url);
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok || !result.success) {
-      throw new Error(result.message || "Failed to load facility staff");
-    }
-    return result.staff || [];
-  };
-
-  const populateSelectOptions = (selectEl, rows, { valueKey, labelKey, placeholderLabel }) => {
-    if (!selectEl) return;
-    const current = selectEl.value;
-
-    selectEl.innerHTML = "";
-    const ph = document.createElement("option");
-    ph.value = "";
-    ph.textContent = placeholderLabel;
-    selectEl.appendChild(ph);
-
-    rows.forEach(r => {
-      const opt = document.createElement("option");
-      opt.value = r[valueKey];
-      opt.textContent = r[labelKey];
-      selectEl.appendChild(opt);
-    });
-
-    // restore value if still present
-    if (current) {
-      const exists = Array.from(selectEl.options).some(o => String(o.value) === String(current));
-      if (exists) selectEl.value = current;
-    }
-  };
-
-  const loadFacilityStaffInto = async (scope) => {
-    const clmFacilitySelect = scope.querySelector(".clm-facility-select");
-    const clmStaffSelect    = scope.querySelector(".clm-staff-select");
-    if (!clmFacilitySelect || !clmStaffSelect) return;
-
-    const facilityId = clmFacilitySelect.value;
-    if (!facilityId) {
-      clmStaffSelect.innerHTML = `<option value="">Not Assigned</option>`;
-      return;
-    }
-
-    try {
-      const staff = await fetchClmFacilityStaff({ facilityId });
-      const mapped = staff.map(s => {
-        const name = s.Name || [s.FirstName, s.Surname].filter(Boolean).join(" ").trim();
-        return { Email: s.Email, Name: name || (s.Email || "") };
-      }).filter(x => x.Email);
-
-      populateSelectOptions(clmStaffSelect, mapped, {
-        valueKey: "Email",
-        labelKey: "Name",
-        placeholderLabel: "Not Assigned"
       });
-
-    } catch (e) {
-      console.error("❌ Facility staff load error:", e);
-      clmStaffSelect.innerHTML = `<option value="">Not Assigned</option>`;
     }
-  };
-
-  // ---------- core UI state update per scope ----------
-  const syncScopeUI = async (providerSelect) => {
-    const scope = providerSelect.closest(".provider-scope");
-    if (!scope) return;
-
-    const isClm = scope.dataset.isClm === "1";
-    const selectedText = providerSelect.options[providerSelect.selectedIndex]?.textContent || "";
-    const isKaiako = isKaiakoText(selectedText);
-
-    const nonClmStaffWrapper = scope.querySelector(".staff-dropdown-wrapper");
-    const nonClmStaffSelect  = scope.querySelector(".funder-staff-select");
-
-    const clmWrapper         = scope.querySelector(".clm-wrapper");
-    const clmFacilitySelect  = scope.querySelector(".clm-facility-select");
-    const clmStaffSelect     = scope.querySelector(".clm-staff-select");
-
-    // Hide everything by default
-    if (nonClmStaffWrapper) nonClmStaffWrapper.classList.add("d-none");
-    if (clmWrapper) clmWrapper.classList.add("d-none");
-
-    // If NOT kaiako, reset/hide staff & CLM controls
-    if (!isKaiako) {
-      if (nonClmStaffSelect) nonClmStaffSelect.selectedIndex = 0;
-
-      if (clmFacilitySelect) clmFacilitySelect.value = "";
-      if (clmStaffSelect) clmStaffSelect.innerHTML = `<option value="">Not Assigned</option>`;
-      return;
-    }
-
-    // Kaiako selected:
-    if (isClm) {
-      // Show CLM facility+staff UI
-      if (clmWrapper) clmWrapper.classList.remove("d-none");
-
-      // Load facilities
-      const funderId = providerSelect.dataset.funder;
-      const term = providerSelect.dataset.term;
-      const year = providerSelect.dataset.year;
-
-      try {
-        const facilities = await fetchClmFacilities({ funderId, term, year });
-        const mapped = facilities.map(f => ({
-          FacilityID: f.FacilityID ?? f.FacilityId ?? f.ProviderID ?? f.ID,
-          FacilityName: f.FacilityName ?? f.Facility ?? f.Description ?? f.Name
-        })).filter(x => x.FacilityID != null && x.FacilityName);
-
-        populateSelectOptions(clmFacilitySelect, mapped, {
-          valueKey: "FacilityID",
-          labelKey: "FacilityName",
-          placeholderLabel: "Not selected"
-        });
-
-        // Preselect current Provider2 (facility) if present
-        const currentProvider2Id = scope.dataset.currentProvider2id;
-        if (currentProvider2Id) {
-          const has = Array.from(clmFacilitySelect.options).some(
-            o => String(o.value) === String(currentProvider2Id)
-          );
-          if (has) {
-            clmFacilitySelect.value = String(currentProvider2Id);
-            await loadFacilityStaffInto(scope);
-          }
-        }
-      } catch (e) {
-        console.error("❌ CLM facilities load error:", e);
-      }
-
-    } else {
-      // Non-CLM Kaiako: show funder staff dropdown
-      if (nonClmStaffWrapper) nonClmStaffWrapper.classList.remove("d-none");
-    }
-  };
-
-  // ---------- Provider dropdown handlers ----------
-document.querySelectorAll(".provider-select").forEach(select => {
-  let previousText = select.options[select.selectedIndex]?.textContent?.toLowerCase() || "";
-
-  // show correct UI on first load
-  syncScopeUI(select);
-
-  select.addEventListener("change", async () => {
-    const selectedText = select.options[select.selectedIndex]?.textContent?.toLowerCase() || "";
-    const selectedValue = (select.value === "") ? null : parseInt(select.value, 10);
-
-    const scope = select.closest(".provider-scope");
-    const moe = parseInt(select.dataset.moe, 10);
-    const term = parseInt(select.dataset.term, 10);
-    const year = parseInt(select.dataset.year, 10);
-    const funderId = parseInt(select.dataset.funder, 10);
-
-    try {
+    // ---------- helpers ----------
+    const isKaiakoText = (txt) => (txt || "").toLowerCase().includes("kaiako");
+    // NOTE: backend will be changed later to support Slot (1 = Provider1, 2 = Provider2)
+    const postAssignProvider = async ({
+      moe,
+      term,
+      year,
+      funderId,
+      providerId,
+      slot
+    }) => {
       const response = await fetch("/assign_provider", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json"
+        },
         body: JSON.stringify({
           MOENumber: moe,
           Term: term,
           Year: year,
           FunderID: funderId,
-          ProviderID: selectedValue,
-          Slot: 1
+          ProviderID: providerId || null,
+          Slot: slot
         })
       });
-
       const result = await response.json().catch(() => ({}));
-
       if (!response.ok || !result.success) {
         throw new Error(result.error || result.message || "assign_provider failed");
       }
-
-      if (scope) {
-        scope.dataset.currentProvider1id = selectedValue ?? "";
+      return result;
+    };
+    const postAssignKaiakoStaff = async ({
+      moe,
+      term,
+      year,
+      email
+    }) => {
+      const response = await fetch("/assign_kaiako_staff", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          MOENumber: moe,
+          Term: term,
+          Year: year,
+          Email: email || ""
+        })
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || "assign_kaiako_staff failed");
       }
-
-      // now update visibility
-      await syncScopeUI(select);
-
-    } catch (err) {
-      console.error("assign_provider failed in change handler", err);
-    }
-
-    previousText = selectedText;
-  });
-});
-
-  // ---------- NON-CLM funder staff dropdown handler ----------
-  document.querySelectorAll(".funder-staff-select").forEach(dropdown => {
-    dropdown.addEventListener("change", async () => {
-      const selectedEmail = dropdown.value;
-      const moe  = dropdown.dataset.moe;
-      const term = dropdown.dataset.term;
-      const year = dropdown.dataset.year;
-
+      return result;
+    };
+    const fetchClmFacilities = async ({
+      funderId,
+      term,
+      year
+    }) => {
+      const url = `/api/clm_facilities?funder_id=${encodeURIComponent(funderId)}&term=${encodeURIComponent(term)}&year=${encodeURIComponent(year)}`;
+      const response = await fetch(url);
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to load CLM facilities");
+      }
+      return result.facilities || [];
+    };
+    const fetchClmFacilityStaff = async ({
+      facilityId
+    }) => {
+      const url = `/api/clm_facility_staff?facility_id=${encodeURIComponent(facilityId)}`;
+      const response = await fetch(url);
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to load facility staff");
+      }
+      return result.staff || [];
+    };
+    const populateSelectOptions = (selectEl, rows, {
+      valueKey,
+      labelKey,
+      placeholderLabel
+    }) => {
+      if (!selectEl) return;
+      const current = selectEl.value;
+      selectEl.innerHTML = "";
+      const ph = document.createElement("option");
+      ph.value = "";
+      ph.textContent = placeholderLabel;
+      selectEl.appendChild(ph);
+      rows.forEach(r => {
+        const opt = document.createElement("option");
+        opt.value = r[valueKey];
+        opt.textContent = r[labelKey];
+        selectEl.appendChild(opt);
+      });
+      // restore value if still present
+      if (current) {
+        const exists = Array.from(selectEl.options).some(o => String(o.value) === String(current));
+        if (exists) selectEl.value = current;
+      }
+    };
+    const loadFacilityStaffInto = async (scope) => {
+      const clmFacilitySelect = scope.querySelector(".clm-facility-select");
+      const clmStaffSelect = scope.querySelector(".clm-staff-select");
+      if (!clmFacilitySelect || !clmStaffSelect) return;
+      const facilityId = clmFacilitySelect.value;
+      if (!facilityId) {
+        clmStaffSelect.innerHTML = `
+																					<option value="">Not Assigned</option>`;
+        return;
+      }
       try {
-        await postAssignKaiakoStaff({ moe, term, year, email: selectedEmail });
-      } catch (err) {
-        console.error("❌ Error posting to /assign_kaiako_staff:", err);
+        const staff = await fetchClmFacilityStaff({
+          facilityId
+        });
+        const mapped = staff.map(s => {
+          const name = s.Name || [s.FirstName, s.Surname].filter(Boolean).join(" ").trim();
+          return {
+            Email: s.Email,
+            Name: name || (s.Email || "")
+          };
+        }).filter(x => x.Email);
+        populateSelectOptions(clmStaffSelect, mapped, {
+          valueKey: "Email",
+          labelKey: "Name",
+          placeholderLabel: "Not Assigned"
+        });
+      } catch (e) {
+        console.error("❌ Facility staff load error:", e);
+        clmStaffSelect.innerHTML = `
+																					<option value="">Not Assigned</option>`;
       }
-    });
-  });
-
-  // ---------- CLM facility dropdown: assigns Provider2 + loads staff ----------
-  document.querySelectorAll(".clm-facility-select").forEach(select => {
-    select.addEventListener("change", async () => {
-      const scope = select.closest(".provider-scope");
+    };
+    // ---------- core UI state update per scope ----------
+    const syncScopeUI = async (providerSelect) => {
+      const scope = providerSelect.closest(".provider-scope");
       if (!scope) return;
-
-      const facilityProviderId = select.value;
-      const moe  = select.dataset.moe;
-      const term = select.dataset.term;
-      const year = select.dataset.year;
-      const funderId = select.dataset.funder;
-
-      // Assign Provider2 (slot 2)
-      try {
-        await postAssignProvider({
-          moe, term, year, funderId,
-          providerId: facilityProviderId || null,
-          slot: 2
-        });
-        scope.dataset.currentProvider2id = facilityProviderId || "";
-      } catch (err) {
-        console.error("❌ Error assigning Provider2 (facility):", err);
+      const isClm = scope.dataset.isClm === "1";
+      const selectedText = providerSelect.options[providerSelect.selectedIndex]?.textContent || "";
+      const isKaiako = isKaiakoText(selectedText);
+      const nonClmStaffWrapper = scope.querySelector(".staff-dropdown-wrapper");
+      const nonClmStaffSelect = scope.querySelector(".funder-staff-select");
+      const clmWrapper = scope.querySelector(".clm-wrapper");
+      const clmFacilitySelect = scope.querySelector(".clm-facility-select");
+      const clmStaffSelect = scope.querySelector(".clm-staff-select");
+      // Hide everything by default
+      if (nonClmStaffWrapper) nonClmStaffWrapper.classList.add("d-none");
+      if (clmWrapper) clmWrapper.classList.add("d-none");
+      // If NOT kaiako, reset/hide staff & CLM controls
+      if (!isKaiako) {
+        if (nonClmStaffSelect) nonClmStaffSelect.selectedIndex = 0;
+        if (clmFacilitySelect) clmFacilitySelect.value = "";
+        if (clmStaffSelect) clmStaffSelect.innerHTML = `
+																					<option value="">Not Assigned</option>`;
+        return;
       }
-
-      await loadFacilityStaffInto(scope);
-    });
-  });
-
-  // ---------- CLM facility staff dropdown: triggers assign_kaiako_staff ----------
-  document.querySelectorAll(".clm-staff-select").forEach(dropdown => {
-    dropdown.addEventListener("change", async () => {
-      const selectedEmail = dropdown.value;
-      const moe  = dropdown.dataset.moe;
-      const term = dropdown.dataset.term;
-      const year = dropdown.dataset.year;
-
-      try {
-        await postAssignKaiakoStaff({ moe, term, year, email: selectedEmail });
-      } catch (err) {
-        console.error("❌ Error assigning CLM facility staff:", err);
+      // Kaiako selected:
+      if (isClm) {
+        // Show CLM facility+staff UI
+        if (clmWrapper) clmWrapper.classList.remove("d-none");
+        // Load facilities
+        const funderId = providerSelect.dataset.funder;
+        const term = providerSelect.dataset.term;
+        const year = providerSelect.dataset.year;
+        try {
+          const facilities = await fetchClmFacilities({
+            funderId,
+            term,
+            year
+          });
+          const mapped = facilities.map(f => ({
+            FacilityID: f.FacilityID ?? f.FacilityId ?? f.ProviderID ?? f.ID,
+            FacilityName: f.FacilityName ?? f.Facility ?? f.Description ?? f.Name
+          })).filter(x => x.FacilityID != null && x.FacilityName);
+          populateSelectOptions(clmFacilitySelect, mapped, {
+            valueKey: "FacilityID",
+            labelKey: "FacilityName",
+            placeholderLabel: "Not selected"
+          });
+          // Preselect current Provider2 (facility) if present
+          const currentProvider2Id = scope.dataset.currentProvider2id;
+          if (currentProvider2Id) {
+            const has = Array.from(clmFacilitySelect.options).some(o => String(o.value) === String(currentProvider2Id));
+            if (has) {
+              clmFacilitySelect.value = String(currentProvider2Id);
+              await loadFacilityStaffInto(scope);
+            }
+          }
+        } catch (e) {
+          console.error("❌ CLM facilities load error:", e);
+        }
+      } else {
+        // Non-CLM Kaiako: show funder staff dropdown
+        if (nonClmStaffWrapper) nonClmStaffWrapper.classList.remove("d-none");
       }
+    };
+    // ---------- Provider dropdown handlers ----------
+    document.querySelectorAll(".provider-select").forEach(select => {
+      let previousText = select.options[select.selectedIndex]?.textContent?.toLowerCase() || "";
+      // show correct UI on first load
+      syncScopeUI(select);
+      select.addEventListener("change", async () => {
+        const selectedText = select.options[select.selectedIndex]?.textContent?.toLowerCase() || "";
+        const selectedValue = (select.value === "") ? null : parseInt(select.value, 10);
+        const scope = select.closest(".provider-scope");
+        const moe = parseInt(select.dataset.moe, 10);
+        const term = parseInt(select.dataset.term, 10);
+        const year = parseInt(select.dataset.year, 10);
+        const funderId = parseInt(select.dataset.funder, 10);
+        try {
+          const response = await fetch("/assign_provider", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              MOENumber: moe,
+              Term: term,
+              Year: year,
+              FunderID: funderId,
+              ProviderID: selectedValue,
+              Slot: 1
+            })
+          });
+          const result = await response.json().catch(() => ({}));
+          if (!response.ok || !result.success) {
+            throw new Error(result.error || result.message || "assign_provider failed");
+          }
+          if (scope) {
+            scope.dataset.currentProvider1id = selectedValue ?? "";
+          }
+          // now update visibility
+          await syncScopeUI(select);
+        } catch (err) {
+          console.error("assign_provider failed in change handler", err);
+        }
+        previousText = selectedText;
+      });
     });
-  });
-
-  // ---------- Add Provider modal form ----------
-  const addProviderForm = document.getElementById("addProviderForm");
-  if (addProviderForm) {
-    addProviderForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const form = e.target;
-
-      const providerName = form.provider_name.value;
-      const funderId     = form.funder_id.value;
-
-      const successAlert = document.getElementById("addProviderSuccess");
-      const errorAlert   = document.getElementById("addProviderError");
-
-      successAlert.classList.add("d-none");
-      errorAlert.classList.add("d-none");
-
-      try {
-        const response = await fetch("/add_provider", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ provider_name: providerName, funder_id: funderId })
-        });
-
-        const result = await response.json().catch(() => ({}));
-
-        if (response.ok && result.success) {
-          successAlert.textContent = "✅ Provider added successfully.";
-          successAlert.classList.remove("d-none");
-          form.reset();
-          setTimeout(() => location.reload(), 800);
-        } else {
-          errorAlert.textContent = result.message || "❌ Failed to add provider.";
+    // ---------- NON-CLM funder staff dropdown handler ----------
+    document.querySelectorAll(".funder-staff-select").forEach(dropdown => {
+      dropdown.addEventListener("change", async () => {
+        const selectedEmail = dropdown.value;
+        const moe = dropdown.dataset.moe;
+        const term = dropdown.dataset.term;
+        const year = dropdown.dataset.year;
+        try {
+          await postAssignKaiakoStaff({
+            moe,
+            term,
+            year,
+            email: selectedEmail
+          });
+        } catch (err) {
+          console.error("❌ Error posting to /assign_kaiako_staff:", err);
+        }
+      });
+    });
+    // ---------- CLM facility dropdown: assigns Provider2 + loads staff ----------
+    document.querySelectorAll(".clm-facility-select").forEach(select => {
+      select.addEventListener("change", async () => {
+        const scope = select.closest(".provider-scope");
+        if (!scope) return;
+        const facilityProviderId = select.value;
+        const moe = select.dataset.moe;
+        const term = select.dataset.term;
+        const year = select.dataset.year;
+        const funderId = select.dataset.funder;
+        // Assign Provider2 (slot 2)
+        try {
+          await postAssignProvider({
+            moe,
+            term,
+            year,
+            funderId,
+            providerId: facilityProviderId || null,
+            slot: 2
+          });
+          scope.dataset.currentProvider2id = facilityProviderId || "";
+        } catch (err) {
+          console.error("❌ Error assigning Provider2 (facility):", err);
+        }
+        await loadFacilityStaffInto(scope);
+      });
+    });
+    // ---------- CLM facility staff dropdown: triggers assign_kaiako_staff ----------
+    document.querySelectorAll(".clm-staff-select").forEach(dropdown => {
+      dropdown.addEventListener("change", async () => {
+        const selectedEmail = dropdown.value;
+        const moe = dropdown.dataset.moe;
+        const term = dropdown.dataset.term;
+        const year = dropdown.dataset.year;
+        try {
+          await postAssignKaiakoStaff({
+            moe,
+            term,
+            year,
+            email: selectedEmail
+          });
+        } catch (err) {
+          console.error("❌ Error assigning CLM facility staff:", err);
+        }
+      });
+    });
+    // ---------- Add Provider modal form ----------
+    const addProviderForm = document.getElementById("addProviderForm");
+    if (addProviderForm) {
+      addProviderForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const form = e.target;
+        const providerName = form.provider_name.value;
+        const funderId = form.funder_id.value;
+        const successAlert = document.getElementById("addProviderSuccess");
+        const errorAlert = document.getElementById("addProviderError");
+        successAlert.classList.add("d-none");
+        errorAlert.classList.add("d-none");
+        try {
+          const response = await fetch("/add_provider", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              provider_name: providerName,
+              funder_id: funderId
+            })
+          });
+          const result = await response.json().catch(() => ({}));
+          if (response.ok && result.success) {
+            successAlert.textContent = "✅ Provider added successfully.";
+            successAlert.classList.remove("d-none");
+            form.reset();
+            setTimeout(() => location.reload(), 800);
+          } else {
+            errorAlert.textContent = result.message || "❌ Failed to add provider.";
+            errorAlert.classList.remove("d-none");
+          }
+        } catch (err) {
+          console.error("❌ Error adding provider:", err);
+          errorAlert.textContent = "❌ Something went wrong.";
           errorAlert.classList.remove("d-none");
         }
-      } catch (err) {
-        console.error("❌ Error adding provider:", err);
-        errorAlert.textContent = "❌ Something went wrong.";
-        errorAlert.classList.remove("d-none");
-      }
-    });
-  }
-
-});
-</script>
-
-{% endblock %}
+      });
+    }
+  });
+</script> {% endblock %}

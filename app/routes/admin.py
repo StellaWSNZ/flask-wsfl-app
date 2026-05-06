@@ -1519,7 +1519,7 @@ def provider_maintenance():
             current_app.logger.exception(f"⚠️ Failed to log alert in ProviderMaintenance.")
 
         flash("Couldn’t load some data for provider maintenance. The issue has been logged.", "warning")
-    print(is_swimmagic_clm)
+    
     # ---------- Render ----------
     try:
         return render_template(
@@ -1530,9 +1530,8 @@ def provider_maintenance():
             terms = get_terms(),
             years = get_years(),
             selected_funder=selected_funder_i,
-             selected_funder_name=selected_funder_name,
-                 is_swimmagic_clm=is_swimmagic_clm,
-
+            selected_funder_name=selected_funder_name,
+            is_swimmagic_clm=is_swimmagic_clm,
             selected_term=selected_term_i,
             selected_year=selected_year_i,
             user_role=user_role,

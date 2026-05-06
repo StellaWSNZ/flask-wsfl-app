@@ -3,188 +3,160 @@
 
 {% block content %}
 
-<div class="container mt-5" style="max-width: 70%">
-  <h2 class="mb-4 text-center text-primary">
-    Working Instructions - {{ role_label|title }}
-  </h2>
+<div class="container mt-2 instructions-page" style="max-width: 80%">
+  <div class="instructions-panel">
 
-  {% if user_admin == 1 and user_role in ["FUN","ADM"] %}
-    <!-- Top video -->
-    <div class="video-wrapper">
-      <div class="ratio ratio-16x9">
-        <video
-          controls
-          playsinline
-          preload="metadata"
-          src="{{ url_for('static', filename='instructions/Funder Webinar.mp4') }}"
-        ></video>
-      </div>
-    </div>
+    <h2 class="instructions-page-title text-center mb-1">
+  {{ instructions_label }} Instructions
+</h2>
+<p class="text-center text-muted mb-4">
+  Learn how to use the system and complete key tasks.
+</p>
 
-    <div class="mb-3 text-center">
-      <a
-        class="btn btn-outline-primary btn-sm"
-        href="{{ url_for('static', filename='instructions/Funder Webinar.mp4') }}"
-        target="_blank"
-        rel="noopener"
-      >
-        Open video in new tab
-      </a>
-    </div>
-  {% elif user_admin == 1 and user_role in ["PRO","GRP"] %}
-  <div class="video-wrapper">
-      <div class="ratio ratio-16x9">
-        <video
-          controls
-          playsinline
-          preload="metadata"
-          src="{{ url_for('static', filename='instructions/Provider Webinar.mp4') }}"
-        ></video>
-      </div>
-    </div>
-
-    <div class="mb-3 text-center">
-      <a
-        class="btn btn-outline-primary btn-sm"
-        href="{{ url_for('static', filename='instructions/Provider Webinar.mp4') }}"
-        target="_blank"
-        rel="noopener"
-      >
-        Open video in new tab
-      </a>
-    </div>
-  {% endif %}
-
-  {% if items|length == 0 %}
-    <div class="alert alert-warning text-center" role="alert">
-      No instructions found for <strong>{{ role_label }}</strong>.<br />
-      Place files under <code>static/instructions/{{ role_code }}/</code>
-    </div>
-  {% else %}
-
-    <div class="accordion" id="instAccordion">
-      {% for item in items %}
-        {% set is_open = loop.first %}
-        {% set base = 'acc-' ~ loop.index %}
-        {% set header_id = base ~ '-hdr' %}
-        {% set panel_id = base ~ '-panel' %}
-
-        <div class="accordion-item border-2" style="border-color: #1a427d">
-
-          <h2 class="accordion-header" id="{{ header_id }}">
-            <button
-              class="accordion-button collapsed"
-              type="button"
-              data-bs-toggle="collapse"
-              data-bs-target="#{{ panel_id }}"
-            >
-              {{ item.title }}
-            </button>
-          </h2>
-
-          <div
-            id="{{ panel_id }}"
-            class="accordion-collapse collapse "
-            data-bs-parent="#instAccordion"
-          >
-            <div class="accordion-body">
-
-              {% if item.video_url %}
-                <div class="video-wrapper">
-                  <div class="ratio ratio-16x9">
-                    <video
-                      controls
-                      playsinline
-                      preload="metadata"
-                      src="{{ item.video_url }}"
-                    ></video>
-                  </div>
-                </div>
-
-                <div class="mb-3 text-center">
-                  <a
-                    class="btn btn-outline-primary btn-sm"
-                    href="{{ item.video_url }}"
-                    target="_blank"
-                  >
-                    Open video in new tab
-                  </a>
-                </div>
-              {% else %}
-                <p class="text-muted">No video available.</p>
-              {% endif %}
-
-              <div class="d-flex gap-2">
-                {% if item.pdf_url %}
-                  <a
-                    class="btn btn-primary"
-                    href="{{ item.pdf_download_url or item.pdf_url }}"
-                    download
-                  >
-                    Download PDF
-                  </a>
-
-                  <a
-                    class="btn btn-outline-primary"
-                    href="{{ item.pdf_url }}"
-                    target="_blank"
-                  >
-                    Open PDF
-                  </a>
-                {% else %}
-                  <span class="badge bg-secondary">No PDF</span>
-                {% endif %}
-              </div>
-
-            </div>
-          </div>
-
+    {% if user_admin == 1 and role_code == "FUN" %}
+      <!-- Top video -->
+      <div class="video-wrapper">
+        <div class="ratio ratio-16x9">
+          <video
+            controls
+            playsinline
+            preload="metadata"
+            src="{{ url_for('static', filename='instructions/Funder Webinar.mp4') }}"
+          ></video>
         </div>
-      {% endfor %}
-    </div>
+      </div>
 
-  {% endif %}
+      <div class="mb-3 text-center">
+        <a
+          class="btn btn-outline-primary btn-sm instructions-action-btn"
+          href="{{ url_for('static', filename='instructions/Funder Webinar.mp4') }}"
+          target="_blank"
+          rel="noopener"
+        >
+          Open video in new tab
+        </a>
+      </div>
+
+    {% elif user_admin == 1 and role_code in ["PRO", "GRP"] %}
+
+      <div class="video-wrapper">
+        <div class="ratio ratio-16x9">
+          <video
+            controls
+            playsinline
+            preload="metadata"
+            src="{{ url_for('static', filename='instructions/Provider Webinar.mp4') }}"
+          ></video>
+        </div>
+      </div>
+
+      <div class="mb-3 text-center">
+        <a
+          class="btn btn-outline-primary btn-sm instructions-action-btn"
+          href="{{ url_for('static', filename='instructions/Provider Webinar.mp4') }}"
+          target="_blank"
+          rel="noopener"
+        >
+          Open video in new tab
+        </a>
+      </div>
+
+    {% endif %}
+
+    {% if items|length == 0 %}
+
+      <div class="alert alert-warning text-center" role="alert">
+        No instructions found for <strong>{{ role_label }}</strong>.<br />
+        Place files under <code>static/instructions/{{ role_code }}/</code>
+      </div>
+
+    {% else %}
+
+      <div class="accordion mt-3" id="instAccordion">
+        {% for item in items %}
+          {% set base = 'acc-' ~ loop.index %}
+          {% set header_id = base ~ '-hdr' %}
+          {% set panel_id = base ~ '-panel' %}
+
+          <div class="accordion-item instructions-accordion-item">
+
+            <h2 class="accordion-header" id="{{ header_id }}">
+              <button
+                class="accordion-button collapsed"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#{{ panel_id }}"
+              >
+                {{ item.title }}
+              </button>
+            </h2>
+
+            <div
+              id="{{ panel_id }}"
+              class="accordion-collapse collapse"
+              data-bs-parent="#instAccordion"
+            >
+              <div class="accordion-body">
+
+                {% if item.video_url %}
+                  <div class="video-wrapper">
+                    <div class="ratio ratio-16x9">
+                      <video
+                        controls
+                        playsinline
+                        preload="metadata"
+                        src="{{ item.video_url }}"
+                      ></video>
+                    </div>
+                  </div>
+
+                  <div class="mb-3 text-center">
+                    <a
+                      class="btn btn-outline-primary btn-sm instructions-action-btn"
+                      href="{{ item.video_url }}"
+                      target="_blank"
+                    >
+                      Open video in new tab
+                    </a>
+                  </div>
+                {% else %}
+                  <p class="text-muted">No video available.</p>
+                {% endif %}
+
+                <div class="d-flex gap-2">
+                  {% if item.pdf_url %}
+
+                    <a
+                      class="btn btn-primary"
+                      href="{{ item.pdf_download_url or item.pdf_url }}"
+                      download
+                    >
+                      Download PDF
+                    </a>
+
+                    <a
+                      class="btn btn-outline-primary instructions-action-btn"
+                      href="{{ item.pdf_url }}"
+                      target="_blank"
+                    >
+                      Open PDF
+                    </a>
+
+                  {% else %}
+                    <span class="badge bg-secondary">No PDF</span>
+                  {% endif %}
+                </div>
+
+              </div>
+            </div>
+
+          </div>
+        {% endfor %}
+      </div>
+
+    {% endif %}
+
+  </div>
 </div>
-
-<style>
-.video-wrapper {
-  max-width: 700px;
-  margin: 0 auto 1rem auto;
-}
-
-.video-wrapper video {
-  width: 100%;
-  height: 100%;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-}
-
-/* Mobile tweaks */
-@media (max-width: 767.98px) {
-  .container {
-    max-width: 95% !important;
-    padding-left: 0.75rem !important;
-    padding-right: 0.75rem !important;
-  }
-
-  .video-wrapper {
-    max-width: 100%;
-  }
-
-  .accordion-button {
-    font-size: 1rem;
-    padding: 0.75rem 1rem;
-  }
-
-  .accordion-body {
-    padding: 0.75rem;
-  }
-
-  .btn {
-    padding: 0.45rem 0.75rem;
-    font-size: 0.9rem;
-  }
-}
-</style>
 
 {% endblock %}
