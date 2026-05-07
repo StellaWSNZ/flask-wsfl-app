@@ -2,11 +2,14 @@
 {% block title %}Admin Dashboard{% endblock %}
 
 {% block content %}
-<div class="container-fluid mt-4">
-  <h2 class="text-center text-primary mb-4">WSNZ Administrator Overview</h2>
-
+<div class="container-fluid mt-4 admin-overview-page">
+<h2 class="text-center admin-overview-title mb-4">
+  WSNZ Administrator Overview
+</h2>
   <!-- Filter Form -->
-  <form method="get" class="row g-3 align-items-end mb-4">
+  <div class="admin-overview-filter-card mb-4">
+
+<form method="get" class="row g-3 align-items-end mb-">
     <div class="col-md-2">
   <label for="entity_type" class="form-label">View By</label>
   <select class="form-select" name="entity_type" id="entity_type">
@@ -52,14 +55,12 @@
     </div>
     <div class="col-md-2">
         {% if form_submitted %}
-      <button type="submit" class="btn btn-primary w-100">Update</button>
-      {% else %}
-            <button type="submit" class="btn btn-primary w-100">Load</button>
-
+<button type="submit" class="btn admin-overview-primary-btn w-100">Update</button>      {% else %}
+<button type="submit" class="btn admin-overview-primary-btn w-100">Update</button>
       {% endif %}
     </div>
   </form>
-
+</div>
   {% if form_submitted %}
   <!-- Accordion -->
   <div class="accordion" id="funderAccordion">
@@ -78,9 +79,9 @@
           <div class="row">
             <!-- School Summary -->
             <div class="col-md-6">
-              <h5>School Summary</h5>
+              <h5 class="admin-overview-section-title">School Summary</h5>
               {% if funder.schools and funder.schools|length > 0 %}
-              <table class="table table-bordered table-sm">
+              <table class="table table-bordered table-sm admin-overview-table">
                 <thead>
                   <tr>
                     {% for col in funder.schools[0].keys() %}
@@ -121,9 +122,9 @@
 
             <!-- Staff eLearning Summary -->
             <div class="col-md-6">
-              <h5>Staff E-Learning Summary</h5>
+              <h5 class="admin-overview-section-title">Staff E-Learning Summary</h5>
               {% if  funder.elearning_summary %}
-              <table class="table table-bordered table-sm align-middle">
+              <table class="table table-bordered table-sm align-middle admin-overview-table">
                 <thead>
                   <tr>
                     <th>First Name</th>
@@ -160,11 +161,11 @@
                     {% for status in ["Not Started", "In Progress", "Passed", "Cancelled"] %}
                     <td>
                       <span class="badge {% if staff[status] == 0 %}faded-badge{% else %}
-                        {% if status == 'Not Started' %}bg-secondary
-                        {% elif status == 'In Progress' %}bg-warning text-dark
-                        {% elif status == 'Passed' %}bg-success
-                        {% elif status == 'Cancelled' %}bg-danger
-                        {% else %}bg-secondary
+                        {% if status == 'Not Started' %}course-badge badge-status-not-started
+                        {% elif status == 'In Progress' %}course-badge badge-status-progress
+                        {% elif status == 'Passed' %}course-badge badge-status-passed
+                        {% elif status == 'Cancelled' %}course-badge badge-status-not-cancelled
+                        {% else %}course-badge badge-status-not-started
                         {% endif %}{% endif %}"
                         data-bs-toggle="tooltip"
                         data-bs-placement="top"
@@ -190,7 +191,7 @@
   {% else %}
   <div class="row">
   <div class="col-md-6 mx-auto">
-    <div class="alert alert-info text-center mt-4">
+    <div class="alert admin-overview-empty-alert text-center mt-4">
       Please use the filter form above and press <strong>Load</strong> to load the dashboard.
     </div>
   </div>

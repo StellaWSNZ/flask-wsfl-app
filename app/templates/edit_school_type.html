@@ -2,26 +2,11 @@
 {% block title %}Edit School Type{% endblock %}
 
 {% block content %}
-<style>
-  thead.custom-header th {
-    background-color: #004080 !important;
-    color: white !important;
-    border-color: #004080 !important;
-    text-align: center;
-  }
-  /* Mobile niceties */
-  @media (max-width: 575.98px) {
-    #searchBar { width: 100%; }
-    .btn-group-mobile .btn { flex: 1 1 auto; }
-    .card .muted-label { color: #6c757d; font-size: .9rem; }
-    .card .sticky-actions { position: sticky; bottom: 0; background: #fff; padding-top: .5rem; }
-  }
-</style>
 
-<div class="container mt-4">
+
+<div class="container mt-4 school-type-page">
   <!-- Title -->
-  <h3 class="mb-4 text-center text-primary">School Type Editor</h3>
-
+<h3 class="mb-4 text-center school-type-page-title">School Type Management</h3>
   <!-- Search + Sort controls (GET to keep it light) -->
   <form method="get" class="d-flex flex-column align-items-center mb-3 gap-2">
     <input
@@ -59,7 +44,9 @@
     <input type="hidden" name="sort_by" value="{{ sort_by }}">
     <input type="hidden" name="dir"     value="{{ sort_direction }}">
     <div class="d-flex gap-2">
-      <button class="btn btn-primary">Search</button>
+      <button class="btn school-type-primary-btn">
+        Search
+      </button>
       <a class="btn btn-outline-secondary"
          href="{{ url_for(request.endpoint, q='', sort_by='schoolname', dir='asc', page=1) }}">Reset</a>
     </div>
@@ -73,7 +60,7 @@
   <!-- ============ MOBILE CARDS ============ -->
   <div id="mobileCards">
     {% for school in school_data %}
-    <div class="card shadow-sm mb-3">
+<div class="card school-type-card mb-3">
       <div class="card-header d-flex justify-content-between align-items-center">
         <span class="fw-semibold">{{ school.SchoolName }}</span>
         <small class="text-muted">MOE {{ school.MOENumber }}</small>
@@ -104,7 +91,7 @@
           </select>
 
           <div class="sticky-actions">
-            <button type="submit" class="btn btn-primary w-100">Update</button>
+            <button type="submit" class="btn btn-sm btn-outline-secondary-w">Update</button>
           </div>
         </form>
       </div>
@@ -114,8 +101,8 @@
   {% else %}
   <!-- ============ DESKTOP/TABLET TABLE ============ -->
   <div class="table-responsive">
-    <table class="table table-bordered table-hover align-middle">
-      <thead class="custom-header">
+    <table class="table table-bordered table-hover align-middle school-type-table">
+      <thead>
         <tr>
           <th>School Name</th>
           <th>MOENumber</th>
@@ -143,7 +130,7 @@
                 </option>
                 {% endfor %}
               </select>
-              <button type="submit" class="btn btn-sm btn-primary">Update</button>
+              <button type="submit" class="btn btn-sm btn-outline-secondary-w">Update</button>
             </form>
           </td>
         </tr>
@@ -182,38 +169,15 @@
   </ul>
 </nav>
 
-<style>
-  .pagination .page-link {
-    border: none;
-    color: #004080;
-    background-color: #fff;
-    transition: all 0.15s ease-in-out;
-  }
-  .pagination .page-link:hover {
-    background-color: #e6f0ff;
-    color: #003060;
-  }
 
-
-
-  
-  .pagination .page-item.disabled .page-link {
-    color: #adb5bd;
-    background-color: #f8f9fa;
-  }
-
-  .modal-backdrop.show { z-index: 2050 !important; }
-  .modal.show          { z-index: 2060 !important; }
-</style>
 
   {% endif %}
 </div>
 
-<!-- 📘 Glossary Modal (lazy-loaded) -->
 <div class="modal fade" id="glossaryModal" tabindex="-1" aria-labelledby="glossaryModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-scrollable">
     <div class="modal-content">
-      <div class="modal-header bg-primary text-white">
+<div class="modal-header school-type-modal-header">
         <h5 class="modal-title" id="glossaryModalLabel">School Type Glossary</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
@@ -226,7 +190,9 @@
     </div>
   </div>
 </div>
+{% endblock %}
 
+{% block scripts %}
 <!-- JS: single delegated submit + glossary lazy-load -->
 <script defer>
 document.addEventListener('DOMContentLoaded', () => {

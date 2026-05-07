@@ -2131,7 +2131,7 @@ def build_weekly_stats_pdf(
 
 if __name__ == "__main__":
     load_dotenv()
-    as_of = '2026-05-04' 
+    as_of = '2026-05-11' 
     out_dir = Path("out")
     out_dir.mkdir(exist_ok=True)
 
@@ -2142,5 +2142,5 @@ if __name__ == "__main__":
         fonts_dir="app/static/fonts",
         dpi=300,
         footer_height_frac=0.13,
-        ooo_day="Wednesday",
+        ooo_day="Monday",
     )

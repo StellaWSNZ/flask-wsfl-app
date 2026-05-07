@@ -1,70 +1,11 @@
 {% extends "header.html" %} {% block title %}Manage User Entities{% endblock %}
 {% block content %}
-<style>
-  thead.custom-header th {
-    background-color: #004080 !important;
-    color: white !important;
-    border-color: #004080 !important;
-    text-align: center;
-  }
 
-  /* Mobile card look */
-  .user-card {
-    border: 1px solid #e9ecef;
-    border-radius: 0.75rem;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-  }
-  .user-card .label {
-    color: #6c757d;
-    font-size: 0.9rem;
-  }
-  .truncate-email {
-    display: inline-block;
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .badge-role {
-    background: #0d6efd1a;
-    color: #0d6efd;
-  }
-  .badge-entity {
-    background: #1987541a;
-    color: #198754;
-  }
 
-  .user-card {
-    border: 1px solid #e0e0e0;
-  }
-
-  .truncate-email {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-size: 0.9rem;
-    color: #333;
-  }
-
-  .badge-role {
-    background-color: #0d6efd1a;
-    color: #0d6efd;
-  }
-  .badge-entity {
-    background-color: #1987541a;
-    color: #198754;
-  }
-
-  .modal-dialog {
-    /* move the modal down by navbar height + iOS safe area + a bit of spacing */
-    margin-top: calc(var(--navbar-h) + env(safe-area-inset-top, 0px) + 0.5rem);
-  }
-</style>
-
-<div class="container mt-4">
-  <h2 id="pageHeader" class="mb-3 text-primary text-center">
-    Manage User Entities
-  </h2>
+<div class="container mt-4 user-entity-page">
+  <h2 id="pageHeader" class="mb-3 user-entity-title text-center">
+  Manage User Entities
+</h2>
 
   <div class="row mb-3" id="filterControls" style="display: none">
     <div class="col-md-6">
@@ -84,7 +25,7 @@
   </div>
 
   <div id="loadingIndicator" class="text-center my-3">
-    <div class="spinner-border text-primary" role="status">
+    <div class="spinner-border user-entity-spinner" role="status">
       <span class="visually-hidden">Loading...</span>
     </div>
     <p class="text-muted mt-2">Loading users…</p>
@@ -99,8 +40,8 @@
   </div>
   <div class="d-none d-sm-block">
     <div class="table-responsive" id="userTableWrapper" style="display: none">
-      <table class="table table-bordered table-hover" id="userTable">
-        <thead class="custom-header">
+      <table class="table table-bordered table-hover user-entity-table" id="userTable">
+        <thead>
           <tr>
             <th>Name</th>
             <th>Email</th>
@@ -123,8 +64,8 @@
   <div class="modal-dialog">
     <div class="modal-content">
       <form id="editUserForm">
-        <div class="modal-header">
-          <h5 class="modal-title">Change User Entity</h5>
+        <div class="modal-header user-entity-modal-header">
+          <h5 class="modal-title">Change User Role & Entity</h5>
           <button
             type="button"
             class="btn-close"
@@ -174,7 +115,7 @@
           </div>
         </div>
         <div class="modal-footer">
-          <button type="submit" id="saveButton" class="btn btn-primary w-100">
+          <button type="submit" id="saveButton" class="btn user-entity-primary-btn w-100">
             Save Changes
           </button>
         </div>
@@ -182,7 +123,9 @@
     </div>
   </div>
 </div>
+{% endblock %}
 
+{% block scripts %}
 <script>
   document.addEventListener("DOMContentLoaded", function () {
     let allUsers = [];
@@ -250,7 +193,7 @@
           <td>${u.DisplayRole || "-"}</td>
           <td>${u.EntityName || "-"}</td>
           <td>
-            <button class="btn btn-sm btn-primary" onclick="editUser('${
+           <button class="btn btn-sm user-entity-action-btn" onclick="editUser('${
               u.Email
             }')" title="Edit">
               <i class="bi bi-pencil-fill"></i>
@@ -267,7 +210,7 @@
 
       users.forEach((u) => {
         const div = document.createElement("div");
-        div.className = "user-card p-3 mb-2 bg-white rounded shadow-sm";
+        div.className = "user-entity-card p-3 mb-2";
         div.innerHTML = `
           <div class="fw-semibold mb-1">${u.FirstName} ${u.Surname || ""}</div>
 
@@ -277,18 +220,16 @@
           </div>
 
           <div class="d-flex flex-wrap gap-2 mb-2">
-            <span class="badge rounded-pill badge-role">${
+            <span class="badge rounded-pill user-entity-role-badge">${
               u.DisplayRole || "-"
             }</span>
-            <span class="badge rounded-pill badge-entity">${
+            <span class="badge rounded-pill user-entity-entity-badge">${
               u.EntityName || "-"
             }</span>
           </div>
 
           <div class="text-end">
-            <button class="btn btn-sm btn-primary" onclick="editUser('${
-              u.Email
-            }')" title="Edit">
+            <button class="btn btn-sm user-entity-action-btn" onclick="editUser('${u.Email}')" title="Edit">
               <i class="bi bi-pencil-fill me-1"></i>Edit
             </button>
           </div>

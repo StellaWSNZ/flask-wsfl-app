@@ -382,7 +382,7 @@ def apr_update_entity():
                 return jsonify(ok=True, entity=None)
 
             row = df_one.iloc[0].to_dict()
-            current_app.logger.info(f"✅ Final row returned: {row}")
+            # current_app.logger.info(f"✅ Final row returned: {row}")
 
         return jsonify(ok=True, entity=row)
 

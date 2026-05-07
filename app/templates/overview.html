@@ -2,12 +2,10 @@
 {% block title %}Overview{% endblock %}
 
 {% block content %}
-<div class="container mt-5" style="max-width: 95%;">
-
-  <h2 class="text-center text-primary mb-4">{{ title }}</h2>
-
+<div class="container mt-5 entity-overview-page" style="max-width: 95%;">
+  <h2 class="text-center entity-overview-title mb-4">{{ title }}</h2>
   {% if user_role == "ADM" or (user_role in ["FUN","PRO","GRP"]) %}
-  <form method="POST" class="mb-4" id="entityForm">
+  <form method="POST" class="mb-4 entity-overview-filter-card" id="entityForm">
     <div class="row g-2 align-items-end justify-content-center">
 
       <!-- Entity Type -->
@@ -50,8 +48,7 @@
 
       <!-- Submit -->
       <div class="col-md-2">
-        <button type="submit" class="btn btn-primary w-100">Submit</button>
-      </div>
+<button type="submit" class="btn entity-overview-primary-btn w-100">Submit</button>      </div>
 
     </div>
   </form>
@@ -72,8 +69,8 @@
   <div class="row g-4">
     <!-- Column 1: Staff eLearning -->
     <div class="col-md-7">
-      <div class="card shadow-sm h-100">
-        <div class="card-header bg-primary text-white">
+      <div class="card entity-overview-card h-100">
+        <div class="card-header entity-overview-card-header">
           <h5 class="mb-0">Your Staff eLearning Progress</h5>
         </div>
         <div class="card-body">
@@ -121,7 +118,7 @@
           <!-- Desktop / tablet -->
           <div class="d-none d-sm-block">
             <div class="table-responsive">
-              <table class="table table-bordered text-center align-middle" id="elearnTable">
+              <table class="table table-bordered text-center align-middle entity-overview-table">
                 <thead class="table-light">
                   <tr>
                     <th>Staff</th>
@@ -145,14 +142,14 @@
                         </a>
                       {% else %}
                         {% set s = status|lower %}
-                        <span class="badge badge-tap
-                          {% if s in ['passed','completed'] %} bg-success
-                          {% elif s == 'cancelled' %} bg-danger
-                          {% elif s == 'in progress' %} bg-warning text-dark
-                          {% elif s in ['not started','enrolled','not enrolled'] %} bg-secondary
-                          {% else %} bg-light text-dark {% endif %}">
-                          {{ status }}
-                        </span>
+                        <span class="badge badge-sm badge-tap course-badge
+  {% if s in ['passed','completed'] %}badge-status-passed
+  {% elif s == 'cancelled' %}badge-status-cancelled
+  {% elif s == 'in progress' %}badge-status-progress
+  {% else %}badge-status-not-started
+  {% endif %}">
+  {{ status }}
+</span>
                       {% endif %}
                     </td>
                     {% endfor %}
@@ -217,19 +214,13 @@
                             </a>
                           {% else %}
                             {% set s = (status or '').lower() %}
-                            {% set color = {
-                              'passed': 'bg-success',
-                              'completed': 'bg-success',
-                              'cancelled': 'bg-danger',
-                              'in progress': 'bg-warning text-dark',
-                              'not started': 'bg-secondary',
-                              'enrolled': 'bg-secondary',
-                              'not enrolled': 'bg-secondary'
-                            }.get(s, 'bg-light text-dark') %}
-
-                            <span class="badge badge-sm badge-tap {{ color }}">
-                              {{ status }}
-                            </span>
+                            {% if s in ['passed','completed'] %}badge-status-passed
+                            {% elif s == 'cancelled' %}badge-status-cancelled
+                            {% elif s == 'in progress' %}badge-status-progress
+                            {% else %}badge-status-not-started
+                            {% endif %}">
+                            {{ status }}
+                          </span>
                           {% endif %}
                         </div>
                       </div>
@@ -249,8 +240,8 @@
 
     <!-- Column 2: School Summary -->
     <div class="col-md-5">
-      <div class="card shadow-sm h-100">
-        <div class="card-header bg-primary text-white">
+      <div class="card entity-overview-card h-100">
+        <div class="card-header entity-overview-card-header">
           <h5 class="mb-0">School Summary</h5>
         </div>
         <div class="card-body">
@@ -283,9 +274,9 @@
             </div>
 
             <div class="col-12">
-              <button type="submit" class="btn btn-outline-primary w-100">
-                Apply term/year
-              </button>
+              <button type="submit" class="btn entity-overview-action-btn w-100">
+  Apply term/year
+</button>
             </div>
           </form>
 
@@ -295,7 +286,7 @@
 
             <div class="d-none d-sm-block">
               <div class="table-responsive">
-                <table class="table table-bordered text-center align-middle">
+                <table class="table table-bordered text-center align-middle entity-overview-table">
                   <thead class="table-light">
                     <tr>
                       {% for col in cols %}
@@ -346,7 +337,7 @@
                         <td colspan="{{ cols|length - 3 }}" class="text-center text-muted">
                           <button
                             type="button"
-                            class="btn btn-sm btn-outline-primary open-school-reminder-modal"
+                            class="btn btn-sm entity-overview-action-btn open-school-reminder-modal"
                             data-bs-toggle="modal"
                             data-bs-target="#schoolReminderModal"
                             data-school="{{ row['School'] }}"
@@ -398,7 +389,7 @@
 
           {% if ethnicity_table %}
             <hr class="my-3">
-            <h6 class="mb-2 text-primary">Ethnicity breakdown</h6>
+            <h6 class="mb-2 entity-overview-title">Ethnicity breakdown</h6>
 
             <div class="d-none d-sm-block">
               <div class="table-responsive">
@@ -455,7 +446,7 @@
 <div class="modal fade" id="schoolReminderModal" tabindex="-1" aria-labelledby="schoolReminderModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-lg">
     <div class="modal-content border-0 shadow">
-      <div class="modal-header bg-primary text-white">
+      <div class="modal-header entity-overview-card-header">
         <h5 class="modal-title" id="schoolReminderModalLabel">Send reminder email to school</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
@@ -493,8 +484,7 @@
         </div>
 
         <div class="modal-footer">
-          <button type="submit" class="btn btn-primary" id="schoolReminder_sendBtn">
-            Send reminder
+<button type="submit" class="btn entity-overview-primary-btn" id="schoolReminder_sendBtn">            Send reminder
           </button>
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
         </div>

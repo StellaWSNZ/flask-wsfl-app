@@ -1730,6 +1730,15 @@ thead.custom-header th {
   padding: 1rem 1.25rem;
 }
 
+.workflow-panel {
+  background: var(--workflow-soft);
+  border: 1px solid var(--workflow-accent);
+  border-left: 5px solid var(--workflow-main);
+  box-shadow: 0 0.5rem 1.5rem rgba(0,0,0,0.05);
+}
+.workflow-section-title {
+  color: var(--workflow-main);
+}
 .workflow-title {
   color: var(--workflow-main);
   font-size: 1.4rem;
@@ -1759,6 +1768,7 @@ thead.custom-header th {
   border-radius: 12px;
   padding: 1.15rem 1.25rem;
 }
+
 
 .workflow-section-title {
   color: var(--workflow-main);
@@ -1908,6 +1918,35 @@ thead.custom-header th {
   margin-right: auto;
 }
 
+.workflow-btn-outline {
+  background-color: var(--white) !important;
+  color: var(--workflow-main) !important;
+  border: 2px solid var(--workflow-main) !important;
+}
+
+.workflow-btn-outline:hover,
+.workflow-btn-outline:focus {
+  background-color: var(---main) !important;
+  border-color: var(--workflow-accent) !important;
+  color: var(--workflow-accent) !important;
+}
+
+.workflow-btn-accent {
+  background: var(--workflow-accent) !important;
+  border: none !important;
+  color: var(--white) !important;
+  border-radius: 10px;
+  padding: 0.45rem 1rem;
+  font-weight: 600;
+}
+
+.workflow-btn-accent:hover,
+.workflow-btn-accent:focus {
+  background: var(--workflow-main) !important;
+  color: var(--white) !important;
+}
+
+
 /* =====================================================
    Workflow Status Colours
 ===================================================== */
@@ -1947,4 +1986,696 @@ thead.custom-header th {
 .badge.workflow-status-success {
   background-color: var(--success-green) !important;
   color: var(--white) !important;
+}
+
+
+/* =====================================================
+   EDIT SCHOOL TYPE PAGE
+===================================================== */
+
+.school-type-page {
+  --school-main: var(--pal-5);
+  --school-soft: var(--pal-5-f);
+  --school-accent: var(--pal-6);
+}
+
+.school-type-page-title {
+  color: var(--school-main);
+  font-weight: 700;
+}
+
+.school-type-page .filter-card {
+  background: var(--school-soft);
+  border: 1px solid var(--school-main);
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.school-type-table {
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--white);
+}
+
+.school-type-table thead th {
+  background-color: var(--school-soft) !important;
+  color: var(--wsnz-dark-blue) !important;
+  border-bottom: 2px solid var(--school-main) !important;
+  text-align: center;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
+.school-type-table tbody td {
+  vertical-align: middle;
+}
+
+.school-type-table tbody tr:hover {
+  background-color: var(--school-soft);
+}
+
+.school-type-card {
+  border: 1px solid var(--border-soft);
+  border-left: 4px solid var(--school-main);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--white);
+  box-shadow: 0 0.5rem 1.5rem rgba(0,0,0,0.06);
+}
+
+.school-type-card .card-header {
+  background: var(--school-soft);
+  border-bottom: 2px solid var(--school-main);
+  color: var(--wsnz-dark-blue);
+}
+
+.school-type-page .form-control:focus,
+.school-type-page .form-select:focus {
+  border-color: var(--school-main);
+  box-shadow: 0 0 0 0.2rem rgba(60, 126, 189, 0.18);
+}
+
+.school-type-page .pagination .page-link {
+  border: none;
+  color: var(--school-main);
+  background-color: var(--white);
+  transition: all 0.15s ease-in-out;
+}
+
+.school-type-page .pagination .page-link:hover {
+  background-color: var(--school-soft);
+  color: var(--wsnz-dark-blue);
+}
+
+.school-type-page .pagination .page-item.disabled .page-link {
+  color: #adb5bd;
+  background-color: #f8f9fa;
+}
+
+.school-type-modal-header {
+  background-color: var(--school-main);
+  color: var(--white);
+}
+
+@media (max-width: 575.98px) {
+  .school-type-page #searchBar {
+    width: 100%;
+  }
+
+  .school-type-page .btn-group-mobile .btn {
+    flex: 1 1 auto;
+  }
+
+  .school-type-page .muted-label {
+    color: var(--gray);
+    font-size: 0.9rem;
+  }
+
+  .school-type-page .sticky-actions {
+    position: sticky;
+    bottom: 0;
+    background: var(--white);
+    padding-top: 0.5rem;
+  }
+}
+
+.school-type-page .modal-backdrop.show {
+  z-index: 2050 !important;
+}
+
+.school-type-page .modal.show {
+  z-index: 2060 !important;
+}
+
+.school-type-action-btn {
+  background-color: var(--white) !important;
+  color: var(--school-main) !important;
+  border: 2px solid var(--school-main) !important;
+}
+
+.school-type-action-btn:hover,
+.school-type-action-btn:focus {
+  background-color: var(--school-main) !important;
+  border-color: var(--school-main) !important;
+  color: var(--white) !important;
+}
+
+.school-type-primary-btn {
+  background-color: var(--school-main) !important;
+  border: 2px solid var(--school-main) !important;
+  color: var(--white) !important;
+}
+
+.school-type-primary-btn:hover,
+.school-type-primary-btn:focus {
+  background-color: var(--wsnz-dark-blue) !important;
+  border-color: var(--wsnz-dark-blue) !important;
+  color: var(--white) !important;
+}
+
+/* =====================================================
+   STUDENT SEARCH PAGE
+===================================================== */
+
+.student-search-modal-header {
+  background-color: var(--student-main) !important;
+  color: var(--white) !important;
+  border-bottom: none;
+}
+
+.student-search-modal-header .modal-title {
+  color: var(--white) !important;
+  font-weight: 700;
+}
+
+.student-search-page {
+  --student-main: var(--dk-teal);
+  --student-soft: var(--pal-8-f);
+  --student-accent: var(--pal-8);
+}
+
+.student-search-page-title {
+  color: var(--student-main);
+  font-weight: 700;
+}
+
+.student-search-page .form-control:focus,
+.student-search-page .form-select:focus {
+  border-color: var(--student-accent);
+  box-shadow: 0 0 0 0.2rem rgba(0, 128, 141, 0.18);
+}
+
+.student-search-card {
+  border: 1px solid var(--border-soft);
+  border-left: 4px solid var(--student-accent);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--white);
+  box-shadow: 0 0.5rem 1.5rem rgba(0,0,0,0.06);
+}
+
+.student-search-card .card-title {
+  color: var(--student-main);
+  font-weight: 700;
+}
+
+
+.student-search-primary-btn {
+  background-color: var(--student-main) !important;
+  border: 2px solid var(--student-main) !important;
+  color: var(--white) !important;
+}
+
+.student-search-primary-btn:hover,
+.student-search-primary-btn:focus {
+  background-color: var(--student-accent) !important;
+  border-color: var(--student-accent) !important;
+  color: var(--white) !important;
+}
+
+.student-search-action-btn {
+  background-color: var(--white) !important;
+  color: var(--student-main) !important;
+  border: 2px solid var(--student-main) !important;
+}
+
+.student-search-action-btn:hover,
+.student-search-action-btn:focus {
+  background-color: var(--student-main) !important;
+  border-color: var(--student-main) !important;
+  color: var(--white) !important;
+}
+
+#editStudentModal {
+  --student-main: var(--dk-teal);
+  --student-soft: var(--pal-8-f);
+  --student-accent: var(--pal-8);
+}
+
+#editStudentModal .student-search-modal-header {
+  background-color: var(--student-main) !important;
+  color: var(--white) !important;
+  border-bottom: none !important;
+}
+
+#editStudentModal .student-search-modal-header .modal-title {
+  color: var(--white) !important;
+  font-weight: 700;
+}
+
+/* =====================================================
+   ADD SCHOOL USERS PAGE
+===================================================== */
+
+.add-school-users-page {
+  --add-user-main: var(--pal-8);
+  --add-user-soft: var(--pal-8-f);
+  --add-user-accent: var(--pal-6);
+}
+
+.add-school-users-title {
+  color: var(--add-user-main);
+  font-weight: 700;
+}
+
+.add-school-users-table {
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--white);
+}
+
+.add-school-users-table thead th {
+  background-color: var(--add-user-soft);
+  color: var(--wsnz-dark-blue);
+  border-bottom: 2px solid var(--add-user-main);
+  font-weight: 700;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.add-school-users-page .form-control:focus,
+.add-school-users-page .form-select:focus,
+.add-school-users-page .form-check-input:focus {
+  border-color: var(--add-user-main);
+  box-shadow: 0 0 0 0.2rem rgba(0, 128, 141, 0.18);
+}
+
+.add-school-users-page .form-check-input:checked {
+  background-color: var(--add-user-main);
+  border-color: var(--add-user-main);
+}
+
+.add-school-users-primary-btn {
+  background-color: var(--add-user-main) !important;
+  border: 2px solid var(--add-user-main) !important;
+  color: var(--white) !important;
+}
+
+.add-school-users-primary-btn:hover,
+.add-school-users-primary-btn:focus {
+  background-color: var(--wsnz-dark-blue) !important;
+  border-color: var(--wsnz-dark-blue) !important;
+  color: var(--white) !important;
+}
+
+.add-school-users-action-btn {
+  background-color: var(--white) !important;
+  color: var(--add-user-main) !important;
+  border: 2px solid var(--add-user-main) !important;
+}
+
+.add-school-users-action-btn:hover,
+.add-school-users-action-btn:focus {
+  background-color: var(--add-user-main) !important;
+  color: var(--white) !important;
+}
+
+/* =====================================================
+   MANAGE USER ENTITIES PAGE
+===================================================== */
+
+.user-entity-page {
+  --entity-main: var(--pal-8);
+  --entity-soft: var(--pal-8-f);
+  --entity-accent: var(--pal-6);
+}
+
+.user-entity-title {
+  color: var(--entity-main);
+  font-weight: 700;
+}
+
+.user-entity-table {
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--white);
+}
+
+.user-entity-table thead th {
+  background-color: var(--entity-soft);
+  color: var(--wsnz-dark-blue);
+  border-bottom: 2px solid var(--entity-main);
+  text-align: center;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
+.user-entity-card {
+  border: 1px solid var(--border-soft);
+  border-left: 4px solid var(--entity-main);
+  border-radius: 12px;
+  background: var(--white);
+  box-shadow: 0 0.5rem 1.5rem rgba(0,0,0,0.06);
+}
+
+.user-entity-action-btn {
+  background-color: var(--white) !important;
+  color: var(--entity-main) !important;
+  border: 2px solid var(--entity-main) !important;
+}
+
+.user-entity-action-btn:hover,
+.user-entity-action-btn:focus {
+  background-color: var(--entity-main) !important;
+  color: var(--white) !important;
+}
+
+.user-entity-primary-btn {
+  background-color: var(--entity-main) !important;
+  border: 2px solid var(--entity-main) !important;
+  color: var(--white) !important;
+}
+
+.user-entity-primary-btn:hover,
+.user-entity-primary-btn:focus {
+  background-color: var(--wsnz-dark-blue) !important;
+  border-color: var(--wsnz-dark-blue) !important;
+}
+
+.user-entity-modal-header {
+  background-color: var(--entity-main) !important;
+  color: var(--white) !important;
+  border-bottom: none;
+}
+
+.user-entity-modal-header .modal-title {
+  color: var(--white) !important;
+  font-weight: 700;
+}
+
+.user-entity-page .form-control:focus,
+.user-entity-page .form-select:focus {
+  border-color: var(--entity-main);
+  box-shadow: 0 0 0 0.2rem rgba(0, 128, 141, 0.18);
+}
+
+.user-entity-role-badge {
+  background: var(--entity-soft);
+  color: var(--entity-main);
+  border: 1px solid var(--entity-main);
+}
+
+.user-entity-entity-badge {
+  background: var(--pal-6-f);
+  color: var(--wsnz-dark-blue);
+  border: 1px solid var(--pal-6);
+}
+
+.truncate-email {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-entity-page .modal-content {
+  border-radius: 16px;
+  overflow: hidden;
+  border: none;
+}
+
+.user-entity-card {
+  box-shadow: 0 0.5rem 1.5rem rgba(0,0,0,0.06);
+}
+
+/* =====================================================
+   BULK REMINDERS PAGE
+===================================================== */
+
+.bulk-reminders-page {
+  --bulk-main: var(--pal-8);
+  --bulk-soft: var(--pal-8-f);
+  --bulk-accent: var(--pal-6);
+}
+
+.bulk-reminders-title {
+  color: var(--bulk-main);
+  font-weight: 700;
+}
+
+.bulk-reminders-page .form-control:focus,
+.bulk-reminders-page .form-select:focus,
+.bulk-reminders-page .form-check-input:focus {
+  border-color: var(--bulk-main);
+  box-shadow: 0 0 0 0.2rem rgba(0, 128, 141, 0.18);
+}
+
+.bulk-reminders-page .form-check-input:checked {
+  background-color: var(--bulk-main);
+  border-color: var(--bulk-main);
+}
+
+.bulk-reminders-primary-btn {
+  background-color: var(--bulk-main) !important;
+  border: 2px solid var(--bulk-main) !important;
+  color: var(--white) !important;
+}
+
+.bulk-reminders-primary-btn:hover,
+.bulk-reminders-primary-btn:focus {
+  background-color: var(--wsnz-dark-blue) !important;
+  border-color: var(--wsnz-dark-blue) !important;
+  color: var(--white) !important;
+}
+
+.bulk-reminders-action-btn {
+  background-color: var(--white) !important;
+  color: var(--bulk-main) !important;
+  border: 2px solid var(--bulk-main) !important;
+}
+
+.bulk-reminders-action-btn:hover,
+.bulk-reminders-action-btn:focus {
+  background-color: var(--bulk-main) !important;
+  border-color: var(--bulk-main) !important;
+  color: var(--white) !important;
+}
+
+.bulk-reminders-table {
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--white);
+}
+
+.bulk-reminders-table thead th {
+  background-color: var(--bulk-soft) !important;
+  color: var(--wsnz-dark-blue) !important;
+  border-bottom: 2px solid var(--bulk-main) !important;
+  text-align: center;
+  vertical-align: middle;
+  font-weight: 700;
+}
+
+.bulk-reminders-table .checkbox-header {
+  width: 70px;
+  text-align: center;
+}
+
+.bulk-reminders-table th.checkbox-header .icon-btn i,
+.bulk-reminders-table th.checkbox-header .btn-link .bi {
+  color: var(--bulk-main) !important;
+  font-size: 1.3rem;
+  vertical-align: middle;
+}
+
+.bulk-reminders-table td.select-col {
+  width: 70px;
+  text-align: center;
+}
+
+.bulk-reminders-modal-header {
+  background-color: var(--bulk-main) !important;
+  color: var(--white) !important;
+  border-bottom: none;
+}
+
+.bulk-reminders-modal-header .modal-title {
+  color: var(--white) !important;
+  font-weight: 700;
+}
+
+.bulk-reminders-spinner {
+  color: var(--bulk-main);
+}
+
+.bulk-reminders-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.bulk-reminders-actions-row .btn {
+  flex: 1 1 220px;
+  min-width: 220px;
+}
+
+@media (min-width: 992px) {
+  .bulk-reminders-actions-row {
+    flex-wrap: nowrap;
+  }
+
+  .bulk-reminders-actions-row .btn {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+}
+
+/* =====================================================
+   ADMIN ENTITY OVERVIEW PAGE
+===================================================== */
+
+.admin-overview-page {
+  --admin-main: var(--wsnz-dark-blue);
+  --admin-soft: var(--pal-6-f);
+  --admin-accent: var(--pal-6);
+}
+
+.admin-overview-title {
+  color: var(--admin-main);
+  font-weight: 700;
+}
+
+.admin-overview-filter-card {
+  background: var(--admin-soft);
+  border: 1px solid var(--admin-accent);
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.admin-overview-page .form-control:focus,
+.admin-overview-page .form-select:focus,
+.admin-overview-page .form-range:focus {
+  border-color: var(--admin-accent);
+  box-shadow: 0 0 0 0.2rem rgba(36, 171, 226, 0.18);
+}
+
+.admin-overview-primary-btn {
+  background-color: var(--admin-main) !important;
+  border: 2px solid var(--admin-main) !important;
+  color: var(--white) !important;
+}
+
+.admin-overview-primary-btn:hover,
+.admin-overview-primary-btn:focus {
+  background-color: var(--admin-accent) !important;
+  border-color: var(--admin-accent) !important;
+}
+
+.admin-overview-page .accordion-item {
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 0.75rem;
+}
+
+.admin-overview-page .accordion-button {
+  background: var(--white);
+  color: var(--admin-main);
+  font-weight: 700;
+}
+
+.admin-overview-page .accordion-button:not(.collapsed) {
+  background: var(--admin-soft);
+  color: var(--admin-main);
+  box-shadow: none;
+}
+
+.admin-overview-section-title {
+  color: var(--admin-main);
+  font-weight: 700;
+}
+
+.admin-overview-table {
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.admin-overview-table thead th {
+  background-color: var(--admin-soft);
+  color: var(--admin-main);
+  border-bottom: 2px solid var(--admin-accent);
+  font-weight: 700;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.admin-overview-empty-alert {
+  background: var(--admin-soft);
+  border: 1px solid var(--admin-accent);
+  color: var(--admin-main);
+  border-radius: 10px;
+}
+
+/* =====================================================
+   ENTITY OVERVIEW PAGE
+===================================================== */
+
+.entity-overview-page {
+  --overview-main: var(--wsnz-dark-blue);
+  --overview-soft: var(--pal-6-f);
+  --overview-accent: var(--pal-6);
+}
+
+.entity-overview-title {
+  color: var(--overview-main);
+  font-weight: 700;
+}
+
+.entity-overview-filter-card {
+  background: var(--overview-soft);
+  border: 1px solid var(--overview-accent);
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.entity-overview-card {
+  border: 1px solid var(--border-soft);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 0.75rem 2rem rgba(0,0,0,0.08);
+}
+
+.entity-overview-card-header {
+  background: var(--overview-main);
+  color: var(--white);
+  border-bottom: none;
+}
+
+.entity-overview-table thead th {
+  background: var(--overview-soft);
+  color: var(--overview-main);
+  border-bottom: 2px solid var(--overview-accent);
+  font-weight: 700;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.entity-overview-primary-btn {
+  background-color: var(--overview-main) !important;
+  border: 2px solid var(--overview-main) !important;
+  color: var(--white) !important;
+}
+
+.entity-overview-action-btn {
+  background-color: var(--white) !important;
+  color: var(--overview-main) !important;
+  border: 2px solid var(--overview-main) !important;
+}
+
+.entity-overview-action-btn:hover,
+.entity-overview-action-btn:focus {
+  background-color: var(--overview-main) !important;
+  color: var(--white) !important;
+}
+
+.entity-overview-page .form-control:focus,
+.entity-overview-page .form-select:focus {
+  border-color: var(--overview-accent);
+  box-shadow: 0 0 0 0.2rem rgba(36,171,226,0.18);
 }

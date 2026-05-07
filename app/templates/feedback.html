@@ -1,38 +1,46 @@
 {% extends "header.html" %} {% block title %}Submit Feedback{% endblock %} {%
 block content %}
-<div class="container d-flex justify-content-center mt-5">
+<div class="container form-page d-flex justify-content-center mt-5">
   <div class="col-md-8 col-lg-6">
     <div class="text-center mb-4">
-      <h3 class="text-primary mb-4 text-center">
-        Submit Feedback or Report an Issue
-      </h3>
-      <p class="text-muted fst-italic">
-        Submitting this form as {{ display_name }}, {{ desc }}
+      <h3 class="form-title mb-3 text-center">
+  Submit Feedback or Report an Issue
+</h3>
+<p class="form-subtitle fst-italic">        Submitting this form as {{ display_name }}, {{ desc }}
       </p>
     </div>
-    <form method="POST" enctype="multipart/form-data">
-      <div class="mb-3">
-        <label for="issue" class="form-label">Describe the issue</label>
-        <textarea
-          name="issue"
-          id="issue"
-          class="form-control"
-          rows="6"
-          required
-        >
-        </textarea>
-      </div>
-      <div class="mb-3">
-        <label for="screenshot" class="form-label">Optional Screenshot</label>
-        <input
-          class="form-control"
-          type="file"
-          name="screenshot"
-          accept="image/*"
-        />
-      </div>
-      <button type="submit" class="btn btn-primary">Submit Feedback</button>
+    <div class="form-section">
+  <form method="POST" enctype="multipart/form-data">
+        <div class="form-question">
+  <label for="issue" class="form-question-title">
+    Describe the issue
+  </label>
+
+  <textarea
+    name="issue"
+    id="issue"
+    class="form-control"
+    rows="6"
+    required
+  ></textarea>
+</div>
+        <div class="form-question">
+  <label for="screenshot" class="form-question-title">
+    Optional Screenshot
+  </label>
+
+  <input
+    class="form-control"
+    type="file"
+    name="screenshot"
+    accept="image/*"
+  />
+</div>
+      <button type="submit" class="btn btn-accent">
+  Submit Feedback
+</button>
     </form>
+    </div>
   </div>
 </div>
 {% endblock %}

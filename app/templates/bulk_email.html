@@ -15,53 +15,13 @@ block content %}
   href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css"
 />
 
-<style>
-  /* Main header row */
-  thead.custom-header th {
-    background-color: #004080 !important;
-    color: white !important;
-    border-color: #004080 !important;
-    text-align: center;
-    vertical-align: middle;
-  }
-
-  /* First column (icons) overrides */
-  th.checkbox-header {
-    background-color: white !important;
-    border-color: #004080 !important;
-    padding-top: 8px !important;
-    padding-bottom: 8px !important;
-    height: 52px;
-    width: 70px;
-    text-align: center;
-  }
-
-  th.checkbox-header .icon-btn i {
-    color: #ffffff !important; /* white */
-    font-size: 1.3rem;
-    vertical-align: middle;
-  }
-
-  th.checkbox-header .btn-link .bi {
-    color: #ffffff !important;
-    font-size: 1.3rem;
-    vertical-align: middle;
-  }
-
-  td.select-col {
-    width: 70px;
-    text-align: center;
-  }
-</style>
-
-<div class="container">
+<div class="container bulk-reminders-page">
   <!-- Show only on mobile -->
   <div class="alert alert-info py-2 px-3 d-md-none mb-3">
     For the best experience, use this page on a laptop or desktop. The table and
     filters can be hard to see on a small screen.
   </div>
-  <h3 class="mb-4 text-center text-primary">Email Reminders</h3>
-
+<h3 class="mb-4 text-center bulk-reminders-title">Email Reminders</h3>
   <div class="container">
     <div class="row g-4">
       <!-- Filters selector -->
@@ -130,9 +90,9 @@ block content %}
     <!-- Run query -->
     <div class="row mt-4">
       <div class="col-md-4">
-        <button type="button" id="runBulkQuery" class="btn btn-primary w-100">
-          Find matching users
-        </button>
+        <button type="button" id="runBulkQuery" class="btn bulk-reminders-primary-btn w-100">
+  Find matching users
+</button>
       </div>
     </div>
 
@@ -149,18 +109,19 @@ block content %}
       </div>
 
       <!-- Bulk action buttons -->
-      <div id="bulkActions" class="mb-3 d-none">
+      <div id="bulkActions"
+     class="mb-3 d-none bulk-reminders-actions-row">
         <button
           type="button"
           id="btnSendElearning"
-          class="btn btn-sm btn-outline-primary me-2 w-100 w-md-auto mb-2 mb-md-0"
+          class="btn btn-sm bulk-reminders-action-btn me-2 w-100 w-md-auto mb-2 mb-md-0"
         >
           Send eLearning reminder
         </button>
         <button
           type="button"
           id="btnSendSelfReview"
-          class="btn btn-sm btn-outline-primary me-2 w-100 w-md-auto mb-2 mb-md-0"
+         class="btn btn-sm bulk-reminders-action-btn me-2 w-100 w-md-auto mb-2 mb-md-0"
         >
           Send self review reminder
         </button>
@@ -169,21 +130,21 @@ block content %}
         <button
           type="button"
           id="btnSendInviteStandard"
-          class="btn btn-sm btn-outline-primary me-2 w-100 w-md-auto mb-2 mb-md-0"
+          class="btn btn-sm bulk-reminders-action-btn me-2 w-100 w-md-auto mb-2 mb-md-0"
         >
           Send user invitation (no admin access)
         </button>
         <button
           type="button"
           id="btnSendInviteAdmin"
-          class="btn btn-sm btn-outline-primary me-2 w-100 w-md-auto mb-2 mb-md-0"
+          class="btn btn-sm bulk-reminders-action-btn me-2 w-100 w-md-auto mb-2 mb-md-0"
         >
           Send user invitation (with admin access)
         </button>
       </div>
 
       <div id="resultsLoading" class="text-center my-3" style="display: none">
-        <div class="spinner-border text-primary" role="status">
+        <div class="spinner-border bulk-reminders-spinner" role="status">
           <span class="visually-hidden">Loading…</span>
         </div>
         <p class="text-muted mt-2">Loading matching users…</p>
@@ -200,11 +161,8 @@ block content %}
         class="table-responsive"
         style="display: none"
       >
-        <table
-          class="table table-bordered table-sm align-middle"
-          id="resultsTable"
-        >
-          <thead class="custom-header"></thead>
+       <table class="table table-bordered table-sm align-middle bulk-reminders-table" id="resultsTable">
+          <thead></thead>
           <tbody></tbody>
         </table>
       </div>
@@ -220,11 +178,11 @@ block content %}
   >
     <div class="modal-dialog modal-lg modal-dialog-centered">
       <div class="modal-content">
-        <div class="modal-header">
+        <div class="modal-header bulk-reminders-modal-header">
           <h5 class="modal-title" id="confirmSendTitle">Confirm sending</h5>
           <button
             type="button"
-            class="btn-close"
+            class="btn-close btn-close-white"
             data-bs-dismiss="modal"
             aria-label="Close"
           ></button>
@@ -242,14 +200,16 @@ block content %}
           >
             Go back
           </button>
-          <button type="button" id="confirmSendBtn" class="btn btn-primary">
-            Confirm &amp; send
-          </button>
+          <button type="button" id="confirmSendBtn" class="btn bulk-reminders-primary-btn">
+  Confirm &amp; send
+</button>
         </div>
       </div>
     </div>
   </div>
+{% endblock %}
 
+{% block scripts %}
   <script>
     document.addEventListener("DOMContentLoaded", function () {
       const ELEARNING_SUBJECT =
