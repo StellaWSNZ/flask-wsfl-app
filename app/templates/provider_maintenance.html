@@ -1,5 +1,5 @@
 {# templates/provider_maintenance.html #} {% extends "header.html" %} {% block title %}Provider Maintenance{% endblock %} {% block content %} <div class="container mt-3 provider-page" style="max-width: 80%;">
-  <div class="provider-panel">
+  <div class="page-panel">
     <h2 class="provider-page-title text-center mb-1"> Provider Maintenance </h2>
     <p class="text-center provider-help-text mb-2"> Manage provider assignments, school delivery, and Kaiako-led settings. </p> {% if selected_funder %} <div class="alert provider-alert-info text-center mb-4 mx-auto p-2" style="width: 40%;" role="alert"> Providers with errors? <a href="{{ url_for('admin_bp.manage_providers', funder_id=selected_funder) }}">
         <strong>Click here to edit</strong>

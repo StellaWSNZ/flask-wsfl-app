@@ -1339,7 +1339,7 @@ def thank_you():
 
 def _badge_class(title: str) -> str:
     # Map survey title to a stable blue shade (matches CSS in the template)
-    shades = ["badge-blue-1","badge-blue-2","badge-blue-3","badge-blue-4","badge-blue-5","badge-blue-6"]
+    shades = ["survey-badge-1","survey-badge-2","survey-badge-3","survey-badge-4","survey-badge-5","survey-badge-6"]
     return shades[hash((title or "").lower()) % len(shades)]
 
 def _normalize_entity_type(entity_type: str) -> str:
@@ -1397,8 +1397,8 @@ def _coerce_entity_type(chosen: str, allowed: list[dict]) -> str:
 
 
 def _badge_class(title: str) -> str:
-    shades = ["badge-blue-1","badge-blue-2","badge-blue-3",
-              "badge-blue-4","badge-blue-5","badge-blue-6"]
+    shades = ["survey-badge-1","survey-badge-2","survey-badge-3",
+              "survey-badge-4","survey-badge-5","survey-badge-6"]
     key = (title or "").strip().lower().encode("utf-8")
     # 2-byte digest → small integer → palette index
     h2 = hashlib.blake2b(key, digest_size=2).digest()

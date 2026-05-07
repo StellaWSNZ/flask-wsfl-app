@@ -4,116 +4,16 @@
 
 {% block content %}
 
-<style>
-.entity-card{
-  border: 2px solid #1a427d;
-  border-radius: 10px;
-  overflow: hidden;
-  background: rgb(246 250 255 / 95%);
-}
-.entity-header{
-  background-color: rgb(246 250 255 / 95%);
-  border-bottom: 1px solid rgb(239 244 251 / 100%);
-}
-.entity-title{
-  font-size: 1.2rem;
-  font-weight: 600;
-  color: #1a427d;
-  line-height: 1.2;
-}
+<!-- <div id="saveToast" class="alert alert-success shadow-sm">Saved ✓</div> -->
 
-/* BRAND */
-:root{
-  --brand-green:  #1f7a3f;
-  --brand-orange: #cc6d1f;
-  --brand-red:    #c0392b;
-  --brand-grey:   #6c757d;
-}
-
-/* OUTLINE badges */
-.badge-outline{
-  background-color: #ffffff;
-  border: 2px solid;
-  font-weight: 600;
-  padding: .35rem .7rem;
-  border-radius: 999px;
-  line-height: 1.1;
-}
-.badge-brand-green-outline{  color:var(--brand-green);  border-color:var(--brand-green); }
-.badge-brand-orange-outline{ color:var(--brand-orange); border-color:var(--brand-orange); }
-.badge-brand-red-outline{    color:var(--brand-red);    border-color:var(--brand-red); }
-.badge-brand-grey-outline{   color:var(--brand-grey);   border-color:var(--brand-grey); }
-.entity-badge{ font-size: 0.85rem; }
-
-/* SOLID badges */
-.badge-solid{
-  font-weight: 600;
-  padding: .35rem .7rem;
-  border-radius: 8px;
-  line-height: 1.1;
-}
-.badge-brand-green{  background-color:var(--brand-green);  color:#ffffff; }
-.badge-brand-orange{ background-color:var(--brand-orange); color:#ffffff; }
-.badge-brand-red{    background-color:var(--brand-red);    color:#ffffff; }
-.badge-brand-grey{   background-color:var(--brand-grey);   color:#ffffff; }
-
-.req-wrap{ margin-top:.6rem; }
-.req-badge{ font-size:0.8rem; font-weight:600; }
-
-.entity-card .card-header{ border-bottom: 0 !important; }
-.entity-card .card-body{ border-top: 0 !important; background: rgb(246 250 255 / 95%); }
-.details-body{ background: transparent; }
-
-.filter-card{
-  background: rgb(246 250 255 / 95%);
-  border: 1px solid rgb(239 244 251 / 100%);
-  border-radius: 10px;
-  padding: 12px;
-}
-.filter-row{ flex-wrap: nowrap; }
-.filter-col{ min-width: 220px; }
-@media (max-width: 991.98px){
-  .filter-row{ flex-wrap: wrap; }
-  .filter-col{ min-width: 0; }
-}
-
-/* Toast */
-#saveToast{
-  position: fixed;
-  top: 16px;
-  right: 16px;
-  z-index: 2000;
-  display: none;
-  min-width: 220px;
-}
-
-/* Equal height helpers */
-.equal-row { align-items: stretch; }
-.equal-card { height: 100%; display:flex; flex-direction:column; }
-.equal-card .form-control,
-.equal-card .form-select { flex: 1 1 auto; }
-
-.filter-inner{
-  display:inline-block;
-  width:fit-content;
-  max-width:100%;
-}
-
-.filter-tip{
-  width:100%;
-}
-
-</style>
-
-<div id="saveToast" class="alert alert-success shadow-sm">Saved ✓</div>
-
-<div class="row justify-content-center">
-  <div class="col-12 col-lg-10">
+<div class="container mt-3 provider-page">
+  <div class="row justify-content-center">
+    <div class="col-12 col-lg-10">
 
     <!-- HEADER + ADD ENTITY BUTTON -->
 <div class="d-flex justify-content-between align-items-center mb-3">
 
-  <h2 class="mb-0">Approved Providers</h2>
+  <h2 class="provider-page-title mb-0">Approved Providers</h2>
 
   <!-- RIGHT SIDE BUTTONS -->
   <div class="d-flex align-items-center gap-2">
@@ -121,7 +21,7 @@
 
 {% if can_edit %}
     <button
-      class="btn btn-primary"
+      class="btn provider-icon-btn"
       type="button"
       id="btnAddEntity"
       data-bs-toggle="modal"
@@ -139,7 +39,7 @@
       <div class="modal-dialog">
         <div class="modal-content">
 
-          <div class="modal-header">
+          <div class="modal-header provider-modal-header">
             <h5 class="modal-title">Add entity</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
@@ -160,7 +60,7 @@
 
           <div class="modal-footer">
             <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
-            <button class="btn btn-primary" type="button" id="btnAddEntitySubmit">Add</button>
+            <button class="btn provider-icon-btn" type="button" id="btnAddEntitySubmit">Add</button>
           </div>
 
         </div>
@@ -177,16 +77,15 @@
       <div class="filter-inner text-start">
 
         <!-- INFO ALERT -->
-        <div class="alert alert-info py-2 text-center mb-3 filter-tip" role="alert">
+        <div class="provider-tip text-center mb-3 filter-tip" role="alert">
           <strong>Tip:</strong> These filters allow multiple selections. Hold
           <strong>Ctrl</strong> (Windows) / <strong>Cmd</strong> (Mac)
           to select multiple, or <strong>Shift</strong> to select a range.
         </div>
 
         <!-- FILTER ROW -->
-        <div class="row g-2 mb-2 justify-content-center filter-row">
-
-          <div class="col-12 col-md-auto filter-col">
+        <div class="filter-row mb-2">
+          <div class="filter-col">
             <label class="form-label">Approved Status</label>
             {% set picked_approved = request.args.getlist('approved[]') %}
             <select name="approved[]" class="form-select" multiple size="4">
@@ -199,7 +98,7 @@
             <div class="form-text">Leave empty = Any</div>
           </div>
 
-          <div class="col-12 col-md-auto filter-col">
+          <div class="filter-col">
             <label class="form-label">Lesson Plan Status</label>
             {% set picked_lesson = request.args.getlist('lesson[]') %}
             <select name="lesson[]" class="form-select" multiple size="4">
@@ -212,7 +111,7 @@
             <div class="form-text">Leave empty = Any</div>
           </div>
 
-          <div class="col-12 col-md-auto filter-col">
+          <div class="filter-col">
             <label class="form-label">External Review Status</label>
             {% set picked_external = request.args.getlist('external[]') %}
             <select name="external[]" class="form-select" multiple size="4">
@@ -225,7 +124,7 @@
             <div class="form-text">Leave empty = Any</div>
           </div>
 
-          <div class="col-12 col-md-auto filter-col">
+          <div class="filter-col">
             <label class="form-label">Database Training Status</label>
             {% set picked_db = request.args.getlist('db[]') %}
             <select name="db[]" class="form-select" multiple size="4">
@@ -238,7 +137,7 @@
             <div class="form-text">Leave empty = Any</div>
           </div>
 
-          <div class="col-12 col-md-auto filter-col">
+          <div class="filter-col">
             <label class="form-label">Self Review</label>
             {% set picked_self = request.args.getlist('self[]') %}
             <select name="self[]" class="form-select" multiple size="4">
@@ -255,7 +154,7 @@
 
         <!-- BUTTONS -->
         <div class="d-flex justify-content-center gap-3 mt-2">
-          <button type="submit" class="btn btn-primary px-4">Apply</button>
+          <button type="submit" class="btn provider-icon-btn px-4">Apply</button>
           <a href="{{ request.path }}" class="btn btn-outline-secondary px-4">Clear</a>
         </div>
 
@@ -272,33 +171,45 @@
 
         <!-- HEADER -->
         <div class="card-header entity-header">
-          <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+          <div class="entity-card-top">
 
             <!-- LEFT -->
-            <div>
-              <div class="d-flex align-items-center flex-wrap gap-2">
-                <div class="entity-title" id="title_{{ key }}">{{ row.EntityName }}</div>
+            <div class="entity-card-main">
 
-                <span class="badge badge-outline entity-badge" id="badge_affiliation_{{ key }}"></span>
-                <span class="badge badge-outline entity-badge" id="badge_requirements_{{ key }}"></span>
-              </div>
+  <!-- TOP ROW -->
+  <div class="entity-heading-row">
 
-              <div class="small text-muted mt-1" id="subtitle_{{ key }}">
-                {{ row.Subtitle or '' }}
-              </div>
+    <div class="entity-title-wrap">
+      <div class="entity-title" id="title_{{ key }}">
+        {{ row.EntityName }}
+      </div>
+    </div>
 
+    <div class="entity-summary-badges">
+      <span class="badge badge-solid entity-badge" id="badge_affiliation_{{ key }}"></span>
+      <span class="badge badge-solid entity-badge" id="badge_requirements_{{ key }}"></span>
+    </div>
 
-              <div class="d-flex flex-wrap gap-2 req-wrap">
-                <span class="badge badge-solid req-badge" id="badge_lesson_{{ key }}"></span>
-                <span class="badge badge-solid req-badge" id="badge_external_{{ key }}"></span>
-                <span class="badge badge-solid req-badge" id="badge_self_{{ key }}"></span>
-                <span class="badge badge-solid req-badge" id="badge_db_{{ key }}"></span>
-                <span class="badge badge-solid req-badge" id="badge_elearn_{{ key }}"></span>
-              </div>
-            </div>
+  </div>
+
+  <!-- SUBTITLE -->
+  <div class="small text-muted entity-subtitle" id="subtitle_{{ key }}">
+    {{ row.Subtitle or '' }}
+  </div>
+
+  <!-- REQUIREMENT BADGES -->
+  <div class="req-wrap">
+    <span class="badge badge-outline req-badge" id="badge_lesson_{{ key }}"></span>
+    <span class="badge badge-outline req-badge" id="badge_external_{{ key }}"></span>
+    <span class="badge badge-outline req-badge" id="badge_self_{{ key }}"></span>
+    <span class="badge badge-outline req-badge" id="badge_db_{{ key }}"></span>
+    <span class="badge badge-outline req-badge" id="badge_elearn_{{ key }}"></span>
+  </div>
+
+</div>
 
             <!-- RIGHT -->
-            <div class="d-flex gap-2">
+            <div class="entity-card-actions">
             {% if can_edit %}
               <button
                 class="btn btn-outline-primary btn-sm details-toggle"
@@ -540,7 +451,7 @@
 
   </div>
 </div>
-
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -713,14 +624,14 @@ document.addEventListener("DOMContentLoaded", function () {
 
     const b = computeBadgesFromRow(row);
 
-    setOutlineBadge(document.getElementById(`badge_affiliation_${key}`), b.affiliation_class, b.affiliation_text);
-    setOutlineBadge(document.getElementById(`badge_requirements_${key}`), b.req_class, b.req_text);
+    setBadge(document.getElementById(`badge_affiliation_${key}`), b.affiliation_class, b.affiliation_text);
+    setBadge(document.getElementById(`badge_requirements_${key}`), b.req_class, b.req_text);
 
-    setBadge(document.getElementById(`badge_lesson_${key}`), b.lesson_badge, b.lesson_text);
-    setBadge(document.getElementById(`badge_external_${key}`), b.ext_badge, b.ext_text);
-    setBadge(document.getElementById(`badge_self_${key}`), b.self_badge, b.self_text);
-    setBadge(document.getElementById(`badge_db_${key}`), b.db_badge, b.db_text);
-    setBadge(document.getElementById(`badge_elearn_${key}`), b.elearn_badge, b.elearn_display);
+    setOutlineBadge(document.getElementById(`badge_lesson_${key}`), b.lesson_badge, b.lesson_text);
+    setOutlineBadge(document.getElementById(`badge_external_${key}`), b.ext_badge, b.ext_text);
+    setOutlineBadge(document.getElementById(`badge_self_${key}`), b.self_badge, b.self_text);
+    setOutlineBadge(document.getElementById(`badge_db_${key}`), b.db_badge, b.db_text);
+    setOutlineBadge(document.getElementById(`badge_elearn_${key}`), b.elearn_badge, b.elearn_display);
 
     const subtitleEl = document.getElementById(`subtitle_${key}`);
     if (subtitleEl) subtitleEl.textContent = row.Subtitle || "";

@@ -21,12 +21,19 @@
 {% set region_name_posted = request.form.get("region_name", "") %}
 {% set excel_type_posted = request.form.get("excel_report_option", "") %}
 
-<div class="container-fluid mt-4" style="max-width: 98%">
+<div class="container-fluid mt-2 reporting-page" style="max-width: 98%;">
+
+  <div class="text-center mb-4">
+    <h1 class="report-page-title mb-1">Reporting</h1>
+    <p class="report-page-subtitle mb-0">
+      Generate visual reports and export workbook summaries.
+    </p>
+  </div>
+
   <div class="row">
-    <!-- ===== Sidebar (controls) ===== -->
     <div class="col-lg-3 mb-4">
-      <div class="card sticky-top" style="top: 1rem">
-        <div class="card-header text-white" style="background: #1a427d">
+      <div class="card report-sidebar-card sticky-top" style="top: 1rem">
+        <div class="card-header report-card-header">
           Configure Report
         </div>
 
@@ -45,7 +52,6 @@
               <input type="hidden" name="report_category" value="visual" />
             {% endif %}
 
-            <!-- Year -->
             <div class="mb-3">
               <label for="year" class="form-label">Year</label>
               <select name="year" id="year" class="form-select">
@@ -54,7 +60,6 @@
               </select>
             </div>
 
-            <!-- Term -->
             <div class="mb-3">
               <label for="term" class="form-label">Term</label>
               <select name="term" id="term" class="form-select">
@@ -65,7 +70,6 @@
               </select>
             </div>
 
-            <!-- Report Category (ADM only) -->
             {% if role == "ADM" %}
             <div class="mb-3">
               <label for="report_category" class="form-label">Report Category</label>
@@ -80,7 +84,6 @@
             </div>
             {% endif %}
 
-            <!-- Visual Report Type -->
             <div class="mb-3" id="visualReportBlock">
               <label for="report_option" class="form-label">Report Type</label>
               <select name="report_option" id="report_option" class="form-select">
@@ -89,117 +92,51 @@
                 </option>
 
                 {% if role in ["ADM"] %}
-                  <option value="national_ly_vs_national_ytd_vs_target" {{ "selected" if sel_type == "national_ly_vs_national_ytd_vs_target" else "" }}>
-                    National YTD vs National LY vs WSNZ Target
-                  </option>
-
-                  <option value="national_ytd_vs_target" {{ "selected" if sel_type == "national_ytd_vs_target" else "" }}>
-                    National YTD vs WSNZ Target
-                  </option>
-                  <option value="national_ytd_kaiako" {{ "selected" if sel_type == "national_ytd_kaiako" else "" }}>
-                    National YTD (Kaiako vs Instructor)
-                  </option>
-                  <option value="national_competency_icons" {{ "selected" if sel_type == "national_competency_icons" else "" }}>
-                    National Competency Rates by Icon
-                  </option>
-                  <option value="funder_weighted_average" {{ "selected" if sel_type == "funder_weighted_average" else "" }}>
-                    Funder Weighted Achievement
-                  </option>
-                  <option value="funder_progress_summary" {{ "selected" if sel_type == "funder_progress_summary" else "" }}>
-                    Funder Summary
-                  </option>
-
-                  <option value="funder_teacher_review_summary" {{ "selected" if sel_type == "funder_teacher_review_summary" else "" }}>
-                    Teacher Assessment Summary (Kaiako-led)
-                  </option>
-
-                  <option value="funder_targets_counts" {{ "selected" if sel_type == "funder_targets_counts" else "" }}>
-                    Funder Targets vs Database Counts
-                  </option>
-
-                  <option value="region_ly_vs_target" {{ "selected" if sel_type == "region_ly_vs_target" else "" }}>
-                    Region LY vs WSNZ Target
-                  </option>
-
-                  <option value="region_ytd" {{ "selected" if sel_type == "region_ytd" else "" }}>
-                    Region YTD (Kaiako vs Funder)
-                  </option>
-
-                  <option value="region_coverage_report" {{ "selected" if sel_type == "region_coverage_report" else "" }}>
-                    Regional Coverage Report
-                  </option>
-
-                  <option value="funder_ytd_vs_funder_ly" {{ "selected" if sel_type == "funder_ytd_vs_funder_ly" else "" }}>
-                    Funder LY vs Funder YTD
-                  </option>
+                  <option value="national_ly_vs_national_ytd_vs_target" {{ "selected" if sel_type == "national_ly_vs_national_ytd_vs_target" else "" }}>National YTD vs National LY vs WSNZ Target</option>
+                  <option value="national_ytd_vs_target" {{ "selected" if sel_type == "national_ytd_vs_target" else "" }}>National YTD vs WSNZ Target</option>
+                  <option value="national_ytd_kaiako" {{ "selected" if sel_type == "national_ytd_kaiako" else "" }}>National YTD (Kaiako vs Instructor)</option>
+                  <option value="national_competency_icons" {{ "selected" if sel_type == "national_competency_icons" else "" }}>National Competency Rates by Icon</option>
+                  <option value="funder_weighted_average" {{ "selected" if sel_type == "funder_weighted_average" else "" }}>Funder Weighted Achievement</option>
+                  <option value="funder_progress_summary" {{ "selected" if sel_type == "funder_progress_summary" else "" }}>Funder Summary</option>
+                  <option value="funder_teacher_review_summary" {{ "selected" if sel_type == "funder_teacher_review_summary" else "" }}>Teacher Assessment Summary (Kaiako-led)</option>
+                  <option value="funder_targets_counts" {{ "selected" if sel_type == "funder_targets_counts" else "" }}>Funder Targets vs Database Counts</option>
+                  <option value="region_ly_vs_target" {{ "selected" if sel_type == "region_ly_vs_target" else "" }}>Region LY vs WSNZ Target</option>
+                  <option value="region_ytd" {{ "selected" if sel_type == "region_ytd" else "" }}>Region YTD (Kaiako vs Funder)</option>
+                  <option value="region_coverage_report" {{ "selected" if sel_type == "region_coverage_report" else "" }}>Regional Coverage Report</option>
+                  <option value="funder_ytd_vs_funder_ly" {{ "selected" if sel_type == "funder_ytd_vs_funder_ly" else "" }}>Funder LY vs Funder YTD</option>
                 {% endif %}
 
                 {% if role in ["ADM", "FUN"] %}
-                  <option value="funder_ytd_vs_target" {{ "selected" if sel_type == "funder_ytd_vs_target" else "" }}>
-                    YTD Funder Performance vs WSNZ Target
-                  </option>
-                  <option value="funder_competency_icons" {{ "selected" if sel_type == "funder_competency_icons" else "" }}>
-                    Funder Competency Rates by Icon
-                  </option>
-                  {% if role in ["FUN"] %}
-                    <option value="ly_funder_vs_ly_national_vs_target" {{ "selected" if sel_type == "ly_funder_vs_ly_national_vs_target" else "" }}>
-                      LY Funder Performance vs LY National vs WSNZ Target
-                    </option>
+                  <option value="funder_ytd_vs_target" {{ "selected" if sel_type == "funder_ytd_vs_target" else "" }}>YTD Funder Performance vs WSNZ Target</option>
+                  <option value="funder_competency_icons" {{ "selected" if sel_type == "funder_competency_icons" else "" }}>Funder Competency Rates by Icon</option>
 
-                    <option value="provider_ytd_vs_target_vs_funder" {{ "selected" if sel_type == "provider_ytd_vs_target_vs_funder" else "" }}>
-                      Provider YTD vs Funder YTD vs Target
-                    </option>
+                  {% if role in ["FUN"] %}
+                    <option value="ly_funder_vs_ly_national_vs_target" {{ "selected" if sel_type == "ly_funder_vs_ly_national_vs_target" else "" }}>LY Funder Performance vs LY National vs WSNZ Target</option>
+                    <option value="provider_ytd_vs_target_vs_funder" {{ "selected" if sel_type == "provider_ytd_vs_target_vs_funder" else "" }}>Provider YTD vs Funder YTD vs Target</option>
                   {% endif %}
 
-                  <option value="provider_ytd_vs_target" {{ "selected" if sel_type == "provider_ytd_vs_target" else "" }}>
-                    Provider YTD Performance vs WSNZ Target
-                  </option>
+                  <option value="provider_ytd_vs_target" {{ "selected" if sel_type == "provider_ytd_vs_target" else "" }}>Provider YTD Performance vs WSNZ Target</option>
+                  <option value="school_ytd_vs_target" {{ "selected" if sel_type == "school_ytd_vs_target" else "" }}>School YTD Performance vs WSNZ Target</option>
+                  <option value="funder_missing_data" {{ "selected" if sel_type == "funder_missing_data" else "" }}>Funder Missing Data</option>
+                  <option value="funder_student_count" {{ "selected" if sel_type == "funder_student_count" else "" }}>Funder Student Counts</option>
+                  <option value="funder_missing_classes" {{ "selected" if sel_type == "funder_missing_classes" else "" }}>Funder Missing Classes</option>
+                  <option value="provider_missing_classes" {{ "selected" if sel_type == "provider_missing_classes" else "" }}>Provider Missing Classes</option>
 
-                  <option value="school_ytd_vs_target" {{ "selected" if sel_type == "school_ytd_vs_target" else "" }}>
-                    School YTD Performance vs WSNZ Target
-                  </option>
-
-                  <option value="funder_missing_data" {{ "selected" if sel_type == "funder_missing_data" else "" }}>
-                    Funder Missing Data
-                  </option>
-
-                  <option value="funder_student_count" {{ "selected" if sel_type == "funder_student_count" else "" }}>
-                    Funder Student Counts
-                  </option>
-
-                  <option value="funder_missing_classes" {{ "selected" if sel_type == "funder_missing_classes" else "" }}>
-                    Funder Missing Classes
-                  </option>
-
-                  <option value="provider_missing_classes" {{ "selected" if sel_type == "provider_missing_classes" else "" }}>
-                    Provider Missing Classes
-                  </option>
                 {% elif role == "PRO" %}
-                  <option value="provider_ytd_vs_target" {{ "selected" if sel_type == "provider_ytd_vs_target" else "" }}>
-                    Provider YTD Performance vs WSNZ Target
-                  </option>
-                  <option value="school_ytd_vs_target" {{ "selected" if sel_type == "school_ytd_vs_target" else "" }}>
-                    School YTD Performance vs WSNZ Target
-                  </option>
-                  <option value="provider_missing_classes" {{ "selected" if sel_type == "provider_missing_classes" else "" }}>
-                    Provider Missing Classes
-                  </option>
+                  <option value="provider_ytd_vs_target" {{ "selected" if sel_type == "provider_ytd_vs_target" else "" }}>Provider YTD Performance vs WSNZ Target</option>
+                  <option value="school_ytd_vs_target" {{ "selected" if sel_type == "school_ytd_vs_target" else "" }}>School YTD Performance vs WSNZ Target</option>
+                  <option value="provider_missing_classes" {{ "selected" if sel_type == "provider_missing_classes" else "" }}>Provider Missing Classes</option>
+
                 {% elif role == "GRP" %}
-                  <option value="provider_ytd_vs_target" {{ "selected" if sel_type == "provider_ytd_vs_target" else "" }}>
-                    Provider YTD Performance vs WSNZ Target
-                  </option>
-                  <option value="school_ytd_vs_target" {{ "selected" if sel_type == "school_ytd_vs_target" else "" }}>
-                    School YTD Performance vs WSNZ Target
-                  </option>
+                  <option value="provider_ytd_vs_target" {{ "selected" if sel_type == "provider_ytd_vs_target" else "" }}>Provider YTD Performance vs WSNZ Target</option>
+                  <option value="school_ytd_vs_target" {{ "selected" if sel_type == "school_ytd_vs_target" else "" }}>School YTD Performance vs WSNZ Target</option>
+
                 {% elif role == "MOE" %}
-                  <option value="school_ytd_vs_target" {{ "selected" if sel_type == "school_ytd_vs_target" else "" }}>
-                    YTD Performance vs WSNZ Target
-                  </option>
+                  <option value="school_ytd_vs_target" {{ "selected" if sel_type == "school_ytd_vs_target" else "" }}>YTD Performance vs WSNZ Target</option>
                 {% endif %}
               </select>
             </div>
 
-            <!-- Excel Export Type (ADM only) -->
             {% if role == "ADM" %}
             <div class="mb-3" id="excelReportBlock" style="display:none;">
               <label for="excel_report_option" class="form-label">Excel Export Type</label>
@@ -210,46 +147,31 @@
                 <option value="all_changes" {{ "selected" if excel_type_posted == "all_changes" else "" }}>
                   Excel Changes by Funder
                 </option>
-                {# Add more Excel exports here #}
-                {# <option value="provider_summary" {{ "selected" if excel_type_posted == "provider_summary" else "" }}>Provider Summary Export</option> #}
               </select>
             </div>
             {% endif %}
 
-            <!-- Funder -->
             <div class="mb-3" id="funderBlock" style="display: none">
               {% if role == "ADM" %}
                 <label for="selected_funder" class="form-label">Funder</label>
                 <select name="selected_funder" id="selected_funder" class="form-select" disabled>
                   <option value="" disabled selected>Loading funders…</option>
                 </select>
-                <input
-                  type="hidden"
-                  name="funder_name"
-                  id="funder_name"
-                  value="{{ request.form.get('funder_name', '') }}"
-                />
+                <input type="hidden" name="funder_name" id="funder_name" value="{{ request.form.get('funder_name', '') }}" />
               {% elif role == "FUN" and funder_name %}
                 <label class="form-label">Funder</label>
                 <input class="form-control" value="{{ funder_name }}" readonly />
               {% endif %}
             </div>
 
-            <!-- Region -->
             <div class="mb-3" id="regionBlock" style="display: none">
               <label for="region_id" class="form-label">Region</label>
               <select name="region_id" id="region_id" class="form-select" disabled>
                 <option value="" disabled selected>Loading regions…</option>
               </select>
-              <input
-                type="hidden"
-                name="region_name"
-                id="region_name"
-                value="{{ request.form.get('region_name', '') }}"
-              />
+              <input type="hidden" name="region_name" id="region_name" value="{{ request.form.get('region_name', '') }}" />
             </div>
 
-            <!-- Provider -->
             <div class="mb-3" id="providerBlock" style="display: none">
               <label for="provider_id" class="form-label">Provider</label>
               <select name="provider_id" id="provider_id" class="form-select" disabled>
@@ -257,7 +179,6 @@
               </select>
             </div>
 
-            <!-- School -->
             <div class="mb-3" id="schoolBlock" style="display: none">
               <label for="school_id" class="form-label">School</label>
               <select name="school_id" id="school_id" class="form-select" disabled>
@@ -274,7 +195,7 @@
               </button>
 
               {% if role == "ADM" %}
-              <button type="submit" name="action" value="download_excel" class="btn btn-success d-none" id="downloadExcelBtn">
+              <button type="submit" name="action" value="download_excel" class="btn btn-accent d-none" id="downloadExcelBtn">
                 Download Excel
               </button>
               {% endif %}
@@ -284,17 +205,12 @@
       </div>
     </div>
 
-    <!-- ===== Main content ===== -->
     <div class="col-lg-9">
-      <div class="card">
-        <!-- ========================= -->
-        <!-- Visual preview section -->
-        <!-- ========================= -->
+      <div class="card report-preview-card">
         <div id="visualPreviewCard">
           <div
             id="report-header"
-            class="card-header text-white d-flex justify-content-between align-items-start"
-            style="background: #1a427d"
+            class="card-header report-card-header d-flex justify-content-between align-items-start"
           >
             <div id="report-header-left">
               {% if funder_name %}{{ funder_name }} • {% endif %}
@@ -310,12 +226,8 @@
           </div>
 
           <div class="card-body">
-            <div
-              id="chart-container"
-              class="position-relative text-center"
-              style="min-height: 220px; overflow: visible"
-            >
-              <div id="chart-message" style="color: #1a427d; font-weight: 600">
+            <div id="chart-container" class="position-relative text-center report-chart-container">
+              <div id="chart-message" class="report-chart-message">
                 {% if plot_png_b64 %}
                   <span style="display: none">Report will appear here once submitted.</span>
                 {% else %}
@@ -325,30 +237,22 @@
 
               <img
                 id="report-img"
-                class="img-fluid mx-auto fade-in {{ 'is-visible d-block' if plot_png_b64 else 'd-none' }}"
+                class="img-fluid mx-auto fade-in report-img {{ 'is-visible d-block' if plot_png_b64 else 'd-none' }}"
                 src="{{ ('data:image/png;base64,' ~ plot_png_b64) if plot_png_b64 else '' }}"
                 alt="Report chart"
-                style="
-                  max-width: 100%;
-                  height: auto;
-                  max-height: 70vh;
-                  object-fit: contain;
-                  border: 1px solid #eee;
-                  border-radius: 0.5rem;
-                "
               />
 
               <div
                 id="exportButtons"
                 class="justify-content-center gap-2 mt-3 {{ 'd-flex' if display else 'd-none' }}"
               >
-                <a class="btn btn-sm btn-outline-primary" href="{{ url_for('report_bp.download_pdf') }}">
+                <a class="btn btn-sm report-export-btn" href="{{ url_for('report_bp.download_pdf') }}">
                   Export PDF
                 </a>
 
                 <a
                   id="exportPngBtn"
-                  class="btn btn-sm btn-outline-primary {{ 'd-none' if disable_png else '' }}"
+                  class="btn btn-sm report-export-btn {{ 'd-none' if disable_png else '' }}"
                   href="{{ url_for('report_bp.download_png') }}"
                 >
                   Export PNG
@@ -358,47 +262,44 @@
           </div>
         </div>
 
-        <!-- ========================= -->
-        <!-- Excel preview section -->
-        <!-- ========================= -->
         <div id="excelPreviewCard" class="d-none">
-          <div class="card-header text-white" style="background: #1a427d">
+          <div class="card-header report-card-header">
             Excel Export Preview
           </div>
 
           <div class="card-body">
             <div class="row g-3">
               <div class="col-12 col-md-6">
-                <div class="border rounded p-3 bg-light h-100">
-                  <div class="text-muted small mb-1">Export</div>
+                <div class="report-preview-box h-100">
+                  <div class="report-preview-label">Export</div>
                   <div id="excel-preview-type" class="fw-bold">Excel export</div>
                 </div>
               </div>
 
               <div class="col-12 col-md-6">
-                <div class="border rounded p-3 bg-light h-100">
-                  <div class="text-muted small mb-1">Period</div>
+                <div class="report-preview-box h-100">
+                  <div class="report-preview-label">Period</div>
                   <div id="excel-preview-period" class="fw-bold">Term 1, 2025</div>
                 </div>
               </div>
             </div>
 
-            <div class="border rounded p-3 bg-light mt-3">
-              <div class="text-muted small mb-2">Summary</div>
+            <div class="report-preview-box mt-3">
+              <div class="report-preview-label">Summary</div>
               <p id="excel-preview-summary" class="mb-0">
                 Choose an Excel export to see what will be included in the workbook.
               </p>
             </div>
 
-            <div class="border rounded p-3 bg-light mt-3">
-              <div class="text-muted small mb-2">Included sheets</div>
+            <div class="report-preview-box mt-3">
+              <div class="report-preview-label">Included sheets</div>
               <ul id="excel-preview-sheets" class="mb-0 ps-3">
                 <li>Workbook sheets will be listed here once an export is selected.</li>
               </ul>
             </div>
 
-            <div class="border rounded p-3 bg-light mt-3">
-              <div class="text-muted small mb-2">Definitions</div>
+            <div class="report-preview-box mt-3">
+              <div class="report-preview-label">Definitions</div>
               <ul id="excel-preview-definitions" class="mb-0 ps-3">
                 <li><strong>No-change threshold:</strong> 5 percentage points</li>
                 <li><strong>DeltaYG:</strong> TY_YG_Rate minus LY_YG_Rate, displayed in percentage points</li>
@@ -407,16 +308,14 @@
             </div>
           </div>
         </div>
+
       </div>
     </div>
   </div>
 </div>
 
-<style>
-  .fade-in { opacity: 0; transition: opacity 0.25s ease; }
-  .fade-in.is-visible { opacity: 1; }
-</style>
-
+{% endblock %}
+{% block scripts %}
 <script>
   (function () {
     const ENTITIES_URL = "{{ entities_url }}";
@@ -504,7 +403,7 @@
     const prevSchoolId = "{{ request.form.get('school_id', '') }}";
     const prevRegionId = "{{ request.form.get('region_id', '') }}";
     const prevRegionName = "{{ request.form.get('region_name', '') }}";
-
+    
     if (form) {
       form.addEventListener("keydown", (e) => {
         if (e.key === "Enter") e.preventDefault();

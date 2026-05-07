@@ -281,7 +281,7 @@ def faq_page():
     """
     try:
         faq_groups = load_faq_rows()
-        current_app.logger.info("FAQ groups: %r", faq_groups)
+        #current_app.logger.info("FAQ groups: %r", faq_groups)
         return render_template("faq.html", faq_groups=faq_groups)
     except Exception as e:
         current_app.logger.exception("\n=== ERROR IN /FAQ ROUTE ===")

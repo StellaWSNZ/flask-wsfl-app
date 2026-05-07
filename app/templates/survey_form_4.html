@@ -1,28 +1,35 @@
 {% extends "header.html" %} {% block title %}WSNZ Extenal Review{% endblock %}
 {% block content %}
-<div class="container mt-5">
-  <h1 class="mb-4 text-center text-primary">WSNZ Extenal Review</h1>
+<div class="container mt-2 form-page" style="max-width: 80%;">
+  <div class="page-panel">
+     <h1 class="form-title text-center mb-1">
+      WSNZ External Review
+    </h1>
+
+    <p class="form-subtitle text-center mb-4">
+      Complete the external review questions below.
+    </p>
   <form
     action="{{ url_for('survey_bp.submit_survey', routename='ExternalReview') }}"
     method="post"
   >
-    <div class="p-3 mb-3 bg-white rounded">
-      <h3 class="mt-2">Instructor Information</h3>
+    <div class="form-section-compact">
+      <h3 class="form-section-title">Instructor Information</h3>
     </div>
 
-    <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
-      <legend class="h6"><strong>Q1:</strong> Instructor Email</legend>
+    <fieldset class="form-question">
+      <legend class="form-question-title"><strong>Q1:</strong> Instructor Email</legend>
       <select id="instructorEmail" name="q1" class="form-select" required>
         <option value="" selected disabled>Loading instructors…</option>
       </select>
-      <small class="form-text text-muted">
+      <div class="form-help-text mt-2">
         Start typing to jump to a match. If you can’t see a name, try scrolling.
       </small>
     </fieldset>
 
-    <div class="p-3 mb-3 bg-white rounded">
-      <h3 class="mt-2">Understanding Water Skills for Life</h3>
-      <p class="text-muted">
+    <div class="form-section">
+      <h3 class="form-section-title">Understanding Water Skills for Life</h3>
+      <p class="form-section-help">
         How well does the instructor grasp and deliver the Water Skills for Life
         content, focusing on its key competencies and instructional strategies?
         <br /><br />When evaluating your understanding consider the following
@@ -35,8 +42,8 @@
       </p>
     </div>
 
-    <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
-      <legend class="h6">
+    <fieldset class="form-question">
+      <legend class="form-question-title">
         <strong>Q2:</strong> On a scale of 1 to 5, how would you rate the
         instructor's understanding of the Water Skills for Life content?
       </legend>
@@ -125,8 +132,8 @@
       </div>
     </fieldset>
 
-    <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
-      <legend class="h6">
+    <fieldset class="form-question">
+      <legend class="form-question-title">
         <strong>Q3:</strong> If you did not rate the instructor as a 5, please
         specify one area where they need improvement to enhance their confidence
         in understanding Water Skills for Life content, including
@@ -141,9 +148,9 @@
       ></textarea>
     </fieldset>
 
-    <div class="p-3 mb-3 bg-white rounded">
-      <h3 class="mt-2">Poolside Strategies Support</h3>
-      <p class="text-muted">
+    <div class="form-section">
+      <h3 class="form-section-title">Poolside Strategies Support</h3>
+      <p class="form-section-help">
         To build their confidence in poolside instruction, they may need support
         in key strategies that ensure students effectively learn and apply Water
         Skills for Life. They should consider focusing on areas such as adapting
@@ -152,8 +159,8 @@
       </p>
     </div>
 
-    <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
-      <legend class="h6">
+    <fieldset class="form-question">
+      <legend class="form-question-title">
         <strong>Q4:</strong> On a scale of 1 to 5, how effective do you feel the
         instructor is in delivering Water Skills for Life lessons poolside,
         including managing instruction, engaging students, and ensuring
@@ -239,8 +246,8 @@
       </div>
     </fieldset>
 
-    <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
-      <legend class="h6">
+    <fieldset class="form-question">
+      <legend class="form-question-title">
         <strong>Q5:</strong> If you did not rate the instructor as a 5, please
         specify one area where they need improvement to increase their
         confidence in delivering Water Skills for Life lessons effectively
@@ -255,11 +262,11 @@
       ></textarea>
     </fieldset>
 
-    <div class="p-3 mb-3 bg-white rounded">
-      <h3 class="mt-2">
+    <div class="form-section">
+      <h3 class="form-section-title">
         Assessing Student Competence in Water Skills for Life
       </h3>
-      <p class="text-muted">
+      <p class="form-section-help">
         To build your confidence and understanding in assessing your students'
         skill and knowledge <br />competence during Water Skills for Life
         lessons, consider the following:<br />• Are you able to teach the skills
@@ -270,8 +277,8 @@
       </p>
     </div>
 
-    <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
-      <legend class="h6">
+    <fieldset class="form-question">
+      <legend class="form-question-title">
         <strong>Q6:</strong> On a scale of 1 to 5, how would you rate the
         instructor's ability to consistently assess students' skill and
         knowledge competence in Water Skills for Life?
@@ -363,8 +370,8 @@
       </div>
     </fieldset>
 
-    <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
-      <legend class="h6">
+    <fieldset class="form-question">
+      <legend class="form-question-title">
         <strong>Q7:</strong> If you did not rate the instructor as a 5, please
         specify one area where they need improvement to increase their
         confidence in assessing students' skill and knowledge competence in
@@ -378,12 +385,12 @@
       ></textarea>
     </fieldset>
 
-    <div class="p-3 mb-3 bg-white rounded">
-      <h3 class="mt-2">
+    <div class="form-section">
+      <h3 class="form-section-title">
         Assessing Creativity in Relating Water Skills for Life Activities to
         Real World Open Water Scenarios
       </h3>
-      <p class="text-muted">
+      <p class="form-section-help">
         Assessing creativity in a Water Skills for Life lesson involves
         evaluating how well the instructor helps students connect activities to
         real-world open water scenarios. Key criteria include clearly explaining
@@ -400,8 +407,8 @@
       </p>
     </div>
 
-    <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
-      <legend class="h6">
+    <fieldset class="form-question">
+      <legend class="form-question-title">
         <strong>Q8:</strong> On a scale of 1 to 5, how would you rate the
         instructor's ability to consistently connect students' skill and
         knowledge competencies in Water Skills for Life to real-world open water
@@ -489,8 +496,8 @@
       </div>
     </fieldset>
 
-    <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
-      <legend class="h6">
+    <fieldset class="form-question">
+      <legend class="form-question-title">
         <strong>Q9:</strong> If you did not rate the instructor as a 5, please
         specify one area where they could improve to better connect students'
         skill and knowledge competencies in Water Skills for Life to real-world
@@ -505,12 +512,12 @@
       ></textarea>
     </fieldset>
 
-    <div class="p-3 mb-3 bg-white rounded">
-      <h3 class="mt-2">General Comments</h3>
+    <div class="form-section-compact">
+      <h3 class="form-section-title">General Comments</h3>
     </div>
 
-    <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
-      <legend class="h6">
+    <fieldset class="form-question">
+      <legend class="form-question-title">
         <strong>Q10:</strong> Based on your observation and feedback from your
         review, what resources and support do you think the instructor needs to
         improve their performance and confidence in teaching Water Skills for
@@ -524,8 +531,8 @@
       ></textarea>
     </fieldset>
 
-    <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
-      <legend class="h6"><strong>Q11:</strong> Additional Comments:</legend>
+    <fieldset class="form-question">
+      <legend class="form-question-title"><strong>Q11:</strong> Additional Comments:</legend>
       <textarea
         name="q11"
         class="form-control"
@@ -534,10 +541,16 @@
       ></textarea>
     </fieldset>
 
-    <button type="submit" class="btn btn-primary">Submit Survey</button>
+    <div class="text-center mt-4">
+  <button type="submit" class="btn btn-primary px-4">
+    Submit Survey
+  </button>
+</div>
   </form>
 </div>
-
+</div>
+{%endblock%}
+{%block scripts%}
 <script>
   document.addEventListener("DOMContentLoaded", async () => {
     const sel = document.getElementById("instructorEmail");

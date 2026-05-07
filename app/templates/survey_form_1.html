@@ -1,395 +1,206 @@
 {% extends "header.html" %} {% block title %}Self Review{% endblock %} {% block
 content %}
 
-<div class="container mt-5">
-  <h1 class="mb-4 text-center text-primary">Self Review</h1>
+<div class="container mt-2 form-page" style="max-width: 80%;">
+  <div class="page-panel">
+    <h1 class="form-title text-center mb-1">
+      Self Review
+    </h1>
 
-  <form
-    action="{{ url_for('survey_bp.submit_survey', routename='SelfReview') }}"
-    method="post"
-    id="selfReviewForm"
-  >
-    <!-- Q1 -->
-    <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
-      <legend class="h6">
-        <strong>Q1:</strong> On a scale of 1–5, how would you rate your
-        understanding of the Water Skills for Life content?
-      </legend>
+    <p class="form-subtitle text-center mb-4">
+      Complete the self review questions below.
+    </p>
 
-      <div class="form-check">
-        <input
-          class="form-check-input"
-          type="radio"
-          name="q1"
-          id="q1-1"
-          value="1"
-          required
-        />
-        <label class="form-check-label" for="q1-1"
-          >1 - Not Confident: I have very little understanding...</label
-        >
-      </div>
-      <div class="form-check">
-        <input
-          class="form-check-input"
-          type="radio"
-          name="q1"
-          id="q1-2"
-          value="2"
-        />
-        <label class="form-check-label" for="q1-2"
-          >2 - Slightly Confident: I have some understanding...</label
-        >
-      </div>
-      <div class="form-check">
-        <input
-          class="form-check-input"
-          type="radio"
-          name="q1"
-          id="q1-3"
-          value="3"
-        />
-        <label class="form-check-label" for="q1-3"
-          >3 - Moderately Confident: I have a good grasp...</label
-        >
-      </div>
-      <div class="form-check">
-        <input
-          class="form-check-input"
-          type="radio"
-          name="q1"
-          id="q1-4"
-          value="4"
-        />
-        <label class="form-check-label" for="q1-4"
-          >4 - Confident: I have a strong understanding...</label
-        >
-      </div>
-      <div class="form-check">
-        <input
-          class="form-check-input"
-          type="radio"
-          name="q1"
-          id="q1-5"
-          value="5"
-        />
-        <label class="form-check-label" for="q1-5"
-          >5 - Extremely Confident: I have an excellent understanding...</label
-        >
-      </div>
-    </fieldset>
+    <form action="{{ url_for('survey_bp.submit_survey', routename='SelfReview') }}" method="post" id="selfReviewForm">
+      <!-- Q1 -->
+      <fieldset class="form-question">
+        <legend class="form-question-title">
+          <strong>Q1:</strong> On a scale of 1–5, how would you rate your
+          understanding of the Water Skills for Life content?
+        </legend>
 
-    <!-- Q2 -->
-    <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
-      <legend class="h6">
-        <strong>Q2:</strong> If you did not rate yourself as a 5, please
-        identify one area for improvement.
-      </legend>
-      <textarea
-        name="q2"
-        class="form-control"
-        rows="4"
-        placeholder="Your response..."
-      ></textarea>
-    </fieldset>
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="q1" id="q1-1" value="1" required />
+          <label class="form-check-label" for="q1-1">1 - Not Confident: I have very little understanding...</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="q1" id="q1-2" value="2" />
+          <label class="form-check-label" for="q1-2">2 - Slightly Confident: I have some understanding...</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="q1" id="q1-3" value="3" />
+          <label class="form-check-label" for="q1-3">3 - Moderately Confident: I have a good grasp...</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="q1" id="q1-4" value="4" />
+          <label class="form-check-label" for="q1-4">4 - Confident: I have a strong understanding...</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="q1" id="q1-5" value="5" />
+          <label class="form-check-label" for="q1-5">5 - Extremely Confident: I have an excellent understanding...</label>
+        </div>
+      </fieldset>
 
-    <!-- Q3 -->
-    <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
-      <legend class="h6">
-        <strong>Q3:</strong> On a scale of 1–5, how effective do you feel you
-        are in delivering lessons poolside?
-      </legend>
+      <!-- Q2 -->
+      <fieldset class="form-question">
+        <legend class="form-question-title">
+          <strong>Q2:</strong> If you did not rate yourself as a 5, please
+          identify one area for improvement.
+        </legend>
+        <textarea name="q2" class="form-control" rows="4" placeholder="Your response..."></textarea>
+      </fieldset>
 
-      <div class="form-check">
-        <input
-          class="form-check-input"
-          type="radio"
-          name="q3"
-          id="q3-1"
-          value="1"
-          required
-        />
-        <label class="form-check-label" for="q3-1"
-          >1 - Not Confident: I find it very difficult...</label
-        >
-      </div>
-      <div class="form-check">
-        <input
-          class="form-check-input"
-          type="radio"
-          name="q3"
-          id="q3-2"
-          value="2"
-        />
-        <label class="form-check-label" for="q3-2"
-          >2 - Slightly Confident: I can deliver lessons but struggle...</label
-        >
-      </div>
-      <div class="form-check">
-        <input
-          class="form-check-input"
-          type="radio"
-          name="q3"
-          id="q3-3"
-          value="3"
-        />
-        <label class="form-check-label" for="q3-3"
-          >3 - Moderately Confident: I can manage lessons fairly well...</label
-        >
-      </div>
-      <div class="form-check">
-        <input
-          class="form-check-input"
-          type="radio"
-          name="q3"
-          id="q3-4"
-          value="4"
-        />
-        <label class="form-check-label" for="q3-4"
-          >4 - Confident: I can confidently manage instruction...</label
-        >
-      </div>
-      <div class="form-check">
-        <input
-          class="form-check-input"
-          type="radio"
-          name="q3"
-          id="q3-5"
-          value="5"
-        />
-        <label class="form-check-label" for="q3-5"
-          >5 - Extremely Confident: I consistently deliver effective
-          lessons...</label
-        >
-      </div>
-    </fieldset>
+      <!-- Q3 -->
+      <fieldset class="form-question">
+        <legend class="form-question-title">
+          <strong>Q3:</strong> On a scale of 1–5, how effective do you feel you
+          are in delivering lessons poolside?
+        </legend>
 
-    <!-- Q4 -->
-    <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
-      <legend class="h6">
-        <strong>Q4:</strong> If not rated 5 above, what could increase your
-        confidence in delivery?
-      </legend>
-      <textarea
-        name="q4"
-        class="form-control"
-        rows="4"
-        placeholder="Your response..."
-      ></textarea>
-    </fieldset>
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="q3" id="q3-1" value="1" required />
+          <label class="form-check-label" for="q3-1">1 - Not Confident: I find it very difficult...</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="q3" id="q3-2" value="2" />
+          <label class="form-check-label" for="q3-2">2 - Slightly Confident: I can deliver lessons but struggle...</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="q3" id="q3-3" value="3" />
+          <label class="form-check-label" for="q3-3">3 - Moderately Confident: I can manage lessons fairly well...</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="q3" id="q3-4" value="4" />
+          <label class="form-check-label" for="q3-4">4 - Confident: I can confidently manage instruction...</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="q3" id="q3-5" value="5" />
+          <label class="form-check-label" for="q3-5">5 - Extremely Confident: I consistently deliver effective
+            lessons...</label>
+        </div>
+      </fieldset>
 
-    <!-- Q5 -->
-    <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
-      <legend class="h6">
-        <strong>Q5:</strong> How confident are you in assessing students’ skill
-        and knowledge competence?
-      </legend>
+      <!-- Q4 -->
+      <fieldset class="form-question">
+        <legend class="form-question-title">
+          <strong>Q4:</strong> If not rated 5 above, what could increase your
+          confidence in delivery?
+        </legend>
+        <textarea name="q4" class="form-control" rows="4" placeholder="Your response..."></textarea>
+      </fieldset>
 
-      <div class="form-check">
-        <input
-          class="form-check-input"
-          type="radio"
-          name="q5"
-          id="q5-1"
-          value="1"
-          required
-        />
-        <label class="form-check-label" for="q5-1"
-          >1 - Not Confident at All: I struggle with teaching and
-          feedback...</label
-        >
-      </div>
-      <div class="form-check">
-        <input
-          class="form-check-input"
-          type="radio"
-          name="q5"
-          id="q5-2"
-          value="2"
-        />
-        <label class="form-check-label" for="q5-2"
-          >2 - Somewhat Confident: I can occasionally teach...</label
-        >
-      </div>
-      <div class="form-check">
-        <input
-          class="form-check-input"
-          type="radio"
-          name="q5"
-          id="q5-3"
-          value="3"
-        />
-        <label class="form-check-label" for="q5-3"
-          >3 - Moderately Confident: I can teach and provide feedback...</label
-        >
-      </div>
-      <div class="form-check">
-        <input
-          class="form-check-input"
-          type="radio"
-          name="q5"
-          id="q5-4"
-          value="4"
-        />
-        <label class="form-check-label" for="q5-4"
-          >4 - Very Confident: I am generally confident with minor
-          issues...</label
-        >
-      </div>
-      <div class="form-check">
-        <input
-          class="form-check-input"
-          type="radio"
-          name="q5"
-          id="q5-5"
-          value="5"
-        />
-        <label class="form-check-label" for="q5-5"
-          >5 - Extremely Confident: I teach clearly, give effective
-          feedback...</label
-        >
-      </div>
-    </fieldset>
+      <!-- Q5 -->
+      <fieldset class="form-question">
+        <legend class="form-question-title">
+          <strong>Q5:</strong> How confident are you in assessing students’ skill
+          and knowledge competence?
+        </legend>
 
-    <!-- Q6 -->
-    <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
-      <legend class="h6">
-        <strong>Q6:</strong> What could help increase your confidence in
-        assessing students?
-      </legend>
-      <textarea
-        name="q6"
-        class="form-control"
-        rows="4"
-        placeholder="Your response..."
-      ></textarea>
-    </fieldset>
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="q5" id="q5-1" value="1" required />
+          <label class="form-check-label" for="q5-1">1 - Not Confident at All: I struggle with teaching and
+            feedback...</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="q5" id="q5-2" value="2" />
+          <label class="form-check-label" for="q5-2">2 - Somewhat Confident: I can occasionally teach...</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="q5" id="q5-3" value="3" />
+          <label class="form-check-label" for="q5-3">3 - Moderately Confident: I can teach and provide feedback...</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="q5" id="q5-4" value="4" />
+          <label class="form-check-label" for="q5-4">4 - Very Confident: I am generally confident with minor
+            issues...</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="q5" id="q5-5" value="5" />
+          <label class="form-check-label" for="q5-5">5 - Extremely Confident: I teach clearly, give effective
+            feedback...</label>
+        </div>
+      </fieldset>
 
-    <!-- Q7 -->
-    <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
-      <legend class="h6">
-        <strong>Q7:</strong> How well do you connect skills to real-world open
-        water scenarios?
-      </legend>
+      <!-- Q6 -->
+      <fieldset class="form-question">
+        <legend class="form-question-title">
+          <strong>Q6:</strong> What could help increase your confidence in
+          assessing students?
+        </legend>
+        <textarea name="q6" class="form-control" rows="4" placeholder="Your response..."></textarea>
+      </fieldset>
 
-      <div class="form-check">
-        <input
-          class="form-check-input"
-          type="radio"
-          name="q7"
-          id="q7-1"
-          value="1"
-          required
-        />
-        <label class="form-check-label" for="q7-1"
-          >1 - Poor: I do not connect activities to real-world
-          scenarios...</label
-        >
-      </div>
-      <div class="form-check">
-        <input
-          class="form-check-input"
-          type="radio"
-          name="q7"
-          id="q7-2"
-          value="2"
-        />
-        <label class="form-check-label" for="q7-2"
-          >2 - Fair: Minimal connection and explanation...</label
-        >
-      </div>
-      <div class="form-check">
-        <input
-          class="form-check-input"
-          type="radio"
-          name="q7"
-          id="q7-3"
-          value="3"
-        />
-        <label class="form-check-label" for="q7-3"
-          >3 - Good: I make some connections and explain the relevance...</label
-        >
-      </div>
-      <div class="form-check">
-        <input
-          class="form-check-input"
-          type="radio"
-          name="q7"
-          id="q7-4"
-          value="4"
-        />
-        <label class="form-check-label" for="q7-4"
-          >4 - Very Good: I effectively connect and explain the
-          importance...</label
-        >
-      </div>
-      <div class="form-check">
-        <input
-          class="form-check-input"
-          type="radio"
-          name="q7"
-          id="q7-5"
-          value="5"
-        />
-        <label class="form-check-label" for="q7-5"
-          >5 - Excellent: I skillfully integrate activities and explain
-          thoroughly...</label
-        >
-      </div>
-    </fieldset>
+      <!-- Q7 -->
+      <fieldset class="form-question">
+        <legend class="form-question-title">
+          <strong>Q7:</strong> How well do you connect skills to real-world open
+          water scenarios?
+        </legend>
 
-    <!-- Q8 -->
-    <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
-      <legend class="h6">
-        <strong>Q8:</strong> What could help you better connect skills to open
-        water?
-      </legend>
-      <textarea
-        name="q8"
-        class="form-control"
-        rows="4"
-        placeholder="Your response..."
-      ></textarea>
-    </fieldset>
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="q7" id="q7-1" value="1" required />
+          <label class="form-check-label" for="q7-1">1 - Poor: I do not connect activities to real-world
+            scenarios...</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="q7" id="q7-2" value="2" />
+          <label class="form-check-label" for="q7-2">2 - Fair: Minimal connection and explanation...</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="q7" id="q7-3" value="3" />
+          <label class="form-check-label" for="q7-3">3 - Good: I make some connections and explain the relevance...</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="q7" id="q7-4" value="4" />
+          <label class="form-check-label" for="q7-4">4 - Very Good: I effectively connect and explain the
+            importance...</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="q7" id="q7-5" value="5" />
+          <label class="form-check-label" for="q7-5">5 - Excellent: I skillfully integrate activities and explain
+            thoroughly...</label>
+        </div>
+      </fieldset>
 
-    <!-- Q9 -->
-    <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
-      <legend class="h6">
-        <strong>Q9:</strong> What resources/support would boost your confidence?
-      </legend>
-      <textarea
-        name="q9"
-        class="form-control"
-        rows="4"
-        placeholder="Your response..."
-      ></textarea>
-    </fieldset>
+      <!-- Q8 -->
+      <fieldset class="form-question">
+        <legend class="form-question-title">
+          <strong>Q8:</strong> What could help you better connect skills to open
+          water?
+        </legend>
+        <textarea name="q8" class="form-control" rows="4" placeholder="Your response..."></textarea>
+      </fieldset>
 
-    <div class="text-center">
-      <button type="submit" class="btn btn-primary" id="submitBtn">
-        Submit Survey
-      </button>
-    </div>
-  </form>
+      <!-- Q9 -->
+      <fieldset class="form-question">
+        <legend class="form-question-title">
+          <strong>Q9:</strong> What resources/support would boost your confidence?
+        </legend>
+        <textarea name="q9" class="form-control" rows="4" placeholder="Your response..."></textarea>
+      </fieldset>
+
+      <div class="text-center">
+        <button type="submit" class="btn btn-primary" id="submitBtn">
+          Submit Survey
+        </button>
+      </div>
+    </form>
+  </div>
 </div>
 
-<style>
-  .form-check-label {
-    cursor: pointer;
-  }
-</style>
-
+{% endblock %}
+{% block scripts %}
 <script>
-  document.addEventListener("DOMContentLoaded", function () {
-    const form = document.getElementById("selfReviewForm");
-    const submitBtn = document.getElementById("submitBtn");
-    if (!form || !submitBtn) return;
+document.addEventListener("DOMContentLoaded", function() {
+  const form = document.getElementById("selfReviewForm");
+  const submitBtn = document.getElementById("submitBtn");
+  if (!form || !submitBtn) return;
 
-    form.addEventListener("submit", function () {
-      submitBtn.disabled = true;
-      submitBtn.innerText = "Submitting...";
-    });
+  form.addEventListener("submit", function() {
+    submitBtn.disabled = true;
+    submitBtn.innerText = "Submitting...";
   });
+});
 </script>
 
 {% endblock %}

@@ -4,8 +4,14 @@
 {% block title %}Staff eLearning{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
-
+<div class="container mt-3 staff-page" style="max-width: 80%;">
+  <div class="page-panel">
+    {% if not name %}
+      <h2 class="mb-3 text-center staff-page-title">Staff eLearning</h2>
+      <p class="text-center text-muted mb-3">
+        Select an entity to view staff eLearning progress.
+      </p>
+    {% endif %}
   <!-- =========================
        Filters
   ========================== -->
@@ -14,13 +20,6 @@
       <form method="GET" id="filterForm" class="w-100">
         <div class="d-flex flex-wrap justify-content-center align-items-end gap-2">
 
-          {# ---------------------------
-             ENTITY TYPE
-             - GRP: fixed Group
-             - PRO: fixed Provider
-             - MOE: fixed School
-             - ADM/FUN: selectable
-          ---------------------------- #}
 
           {% if user_role == "GRP" %}
             <input type="hidden" name="entity_type" value="Group">
@@ -97,15 +96,19 @@
   {% set count = staff_eLearning_data|length %}
 
   {% if count > 0 %}
-    <h2 class="mb-4 text-primary text-center">{{ name }}</h2>
+        {% if name %}
+      <h2 class="mb-4 text-center staff-page-title">
+        {{ name }} – Staff eLearning
+      </h2>
+    {% endif %}
 
     <div class="row">
       {% for email, details in staff_eLearning_data.items() %}
         <div class="col-12 mb-4">
-          <div class="card shadow-sm border-2" style="border-color: #1a427d;">
+          <div class="card shadow-sm staff-card">
             <div class="card-body p-4">
 
-              <h4 class="text-uppercase text-primary fw-bold mb-3 text-center">
+              <h4 class="text-uppercase staff-card-title fw-bold mb-3 text-center">
                 {{ details.FirstName }} {{ details.Surname }}
               </h4>
 
@@ -119,14 +122,13 @@
                   {% set course = details.Courses.get(cid) %}
                   {% if course %}
                     <div class="col">
-                      <div class="border rounded p-2 bg-light d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-1">
-                        <small class="pe-sm-2">{{ course.CourseName }}</small>
+                      <div class="staff-elearning-item d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-1">                        <small class="pe-sm-2">{{ course.CourseName }}</small>
                         <span class="badge
-                          {% if course.Status == 'Passed' %}bg-success
-                          {% elif course.Status == 'In Progress' %}bg-warning text-dark
-                          {% elif course.Status == 'Cancelled' %}bg-danger
-                          {% elif course.Status == 'Not Started' %}bg-secondary
-                          {% else %}bg-light text-dark{% endif %}
+                          {% if course.Status == 'Passed' %}badge-status-passed
+                          {% elif course.Status == 'In Progress' %}badge-status-progress
+                          {% elif course.Status == 'Cancelled' %}badge-status-cancelled
+                          {% elif course.Status == 'Not Started' %}badge-status-not-started
+                          {% else %}badge-status-not-started{% endif %}
                           align-self-start align-self-sm-auto">
                           {{ course.Status }}
                         </span>
@@ -176,7 +178,7 @@
 
   {% elif count == 0 and name %}
     <div class="d-flex justify-content-center">
-      <div class="alert alert-warning text-center w-100" style="max-width: 600px;">
+      <div class="alert staff-empty-alert text-center w-100" style="max-width: 600px;">
         No eLearning data found for {{ name }} ({{ selected_entity_type }}).
       </div>
     </div>
@@ -184,6 +186,10 @@
 
 </div>
 
+</div>
+{% endblock %}
+
+{% block scripts %}
 <script>
 document.addEventListener("DOMContentLoaded", function () {
   const entityTypeSelect = document.getElementById("entity_type");

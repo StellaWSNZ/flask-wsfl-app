@@ -2,123 +2,231 @@
 {% block title %}Upload Student Achievements{% endblock %}
 
 {% block content %}
-<div class="container py-4">
-
+<div class="container py-3 workflow-page" style="max-width: 1100px;">
   <!-- Top-of-page banner (shown after reload) -->
   <div id="pageBanner" class="alert d-none" role="alert" aria-live="polite"></div>
 
   <div class="row justify-content-center">
     <div class="col-12 col-lg-10">
-      <div class="card shadow-sm">
-        <div class="card-header">
-          <div class="h5 mb-0">Upload Student Achievements</div>
-          <small class="text-muted">Choose a school, term, and year, pick a class, then upload a CSV or Excel file.</small>
+
+      <div class="card shadow-sm workflow-card">
+
+        <div class="workflow-header">
+          <h1 class="workflow-title mb-1">
+            Upload Student Achievements
+          </h1>
+
+          <p class="workflow-subtitle mb-0">
+            Choose a school, term, and year, pick a class, then upload a CSV or Excel file.
+          </p>
         </div>
 
-        <div class="card-body">
+        <div class="workflow-body">
+
           <!-- School / Term / Year -->
           <form id="filter-form" class="row g-3">
+
             <div class="col-12">
               <label for="schoolSelect" class="form-label">School</label>
+
               <select id="schoolSelect" class="form-select" required>
-                <option value="" selected disabled>Loading schools…</option>
+                <option value="" selected disabled>
+                  Loading schools…
+                </option>
               </select>
             </div>
 
-            <div class="col-6 col-md-4">
-  <label for="termSelect" class="form-label">Term</label>
-  <select id="termSelect" class="form-select" required>
-    {% for t in terms %}
-      <option value="{{ t }}"
-              {% if t == term %}selected{% endif %}>
-        Term {{ t }}
-      </option>
-    {% endfor %}
-  </select>
-</div>
+            <div class="col-6 col-md-3">
+              <label for="termSelect" class="form-label">Term</label>
 
-<div class="col-6 col-md-4">
-  <label for="yearSelect" class="form-label">Year</label>
-  <select id="yearSelect" class="form-select" required>
-    {% for y in years %}
-      <option value="{{ y }}"
-              {% if y == year %}selected{% endif %}>
-        {{ y }}
-      </option>
-    {% endfor %}
-  </select>
-</div>
+              <select id="termSelect" class="form-select" required>
+                {% for t in terms %}
+                  <option
+                    value="{{ t }}"
+                    {% if t == term %}selected{% endif %}
+                  >
+                    Term {{ t }}
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-6 col-md-3">
+              <label for="yearSelect" class="form-label">Year</label>
+
+              <select id="yearSelect" class="form-select" required>
+                {% for y in years %}
+                  <option
+                    value="{{ y }}"
+                    {% if y == year %}selected{% endif %}
+                  >
+                    {{ y }}
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+
           </form>
 
-          <hr class="my-4">
+          <div class="workflow-divider"></div>
 
           <!-- Class -->
-          <div id="class-section" class="d-none">
+          <div id="class-section" class="workflow-section d-none">
+
             <div class="d-flex gap-2 align-items-end">
+
               <div class="flex-grow-1">
                 <label for="classSelect" class="form-label">Class</label>
+
                 <select id="classSelect" class="form-select">
-                  <option value="" selected disabled>Select a class…</option>
+                  <option value="" selected disabled>
+                    Select a class…
+                  </option>
                 </select>
               </div>
 
-              <div class="text-end small text-muted d-none d-md-block" style="min-width: 220px;">
-                Can’t see your class? <a class="link-primary" href="{{ url_for('upload_bp.classlistupload') }}">Upload a class list</a>.
+              <div
+                class="text-end small text-muted d-none d-md-block"
+                style="min-width: 220px;"
+              >
+                Can’t see your class?
+
+                <a
+                  class="link-primary"
+                  href="{{ url_for('upload_bp.classlistupload') }}"
+                >
+                  Upload a class list
+                </a>.
               </div>
+
             </div>
+
             <div class="form-text mt-2 d-md-none">
-              Can’t see your class? <a class="link-primary" href="{{ url_for('upload_bp.classlistupload') }}">Upload a class list</a>.
+              Can’t see your class?
+
+              <a
+                class="link-primary"
+                href="{{ url_for('upload_bp.classlistupload') }}"
+              >
+                Upload a class list
+              </a>.
             </div>
+
           </div>
 
           <div id="no-classes" class="alert alert-info d-none mt-3">
             No classes found for this School / Term / Year.
-            <a class="btn btn-sm btn-outline-primary ms-2" href="{{ url_for('upload_bp.classlistupload') }}">
+
+            <a
+              class="btn btn-sm btn-outline-primary ms-2"
+              href="{{ url_for('upload_bp.classlistupload') }}"
+            >
               Upload a class list
             </a>
           </div>
 
-          <hr class="my-4">
+          <div class="workflow-divider"></div>
 
           <!-- Upload -->
-          <div>
-            <h6 class="mb-2">Upload Student Achievements (CSV or Excel)</h6>
-            <form id="upload-form" class="row g-3" enctype="multipart/form-data">
+          <div class="workflow-section">
+
+            <h3 class="workflow-section-title mb-2">
+              Upload Student Achievements (CSV or Excel)
+            </h3>
+
+            <form
+              id="upload-form"
+              class="row g-3"
+              enctype="multipart/form-data"
+            >
+
               <div class="col-12 col-md-8">
-                <input id="fileInput" name="file" type="file" class="form-control"
-                       accept=".csv, application/vnd.ms-excel, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, .xlsx, .xls, .xlsm" required>
-                <div class="form-text">We’ll parse and preview up to 200 rows below.</div>
+
+                <input
+                  id="fileInput"
+                  name="file"
+                  type="file"
+                  class="form-control"
+                  accept=".csv, application/vnd.ms-excel, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, .xlsx, .xls, .xlsm"
+                  required
+                >
+
+                <div class="form-text">
+                  We’ll parse and preview up to 200 rows below.
+                </div>
+
               </div>
-              <div class="col-12 col-md-4 d-grid d-md-flex gap-2">
-                <button class="btn btn-primary" type="submit">Preview file</button>
-                <button class="btn btn-light" type="button" id="clearPreviewBtn">Clear</button>
+
+              <div class="col-12 d-flex gap-3 workflow-actions" id="action-button-container">
+
+                <button
+                  class="btn workflow-btn-primary"
+                  type="submit"
+                >
+                  Preview file
+                </button>
+
+                <button
+                  class="btn workflow-btn-secondary"
+                  type="button"
+                  id="clearPreviewBtn"
+                >
+                  Clear
+                </button>
+
               </div>
+
             </form>
 
             <div id="uploadStatus" class="mt-3 d-none"></div>
 
             <!-- Preview table -->
-            <div id="previewContainer" class="table-responsive mt-3 d-none">
-              <table id="previewTable" class="table table-sm table-striped table-bordered align-middle">
+            <div id="previewContainer" class="workflow-preview-table-wrap table-responsive mt-3 d-none">
+  <table id="previewTable" class="table workflow-table table-sm align-middle">
                 <thead></thead>
                 <tbody></tbody>
               </table>
+
               <div id="previewMeta" class="text-muted small"></div>
+
             </div>
 
-            <!-- Brief info: canonical fields received + competency count -->
+            <!-- Brief info -->
             <div id="previewInfoBox" class="mt-3 d-none"></div>
+
           </div>
+
         </div>
 
-        <div class="card-footer d-flex flex-wrap justify-content-end align-items-center gap-2">
-          <button class="btn btn-light" type="button" onclick="window.history.back()">Cancel</button>
-          <button class="btn btn-primary" type="button" id="applyBtn" disabled>Upload to class</button>
+        <div class="workflow-footer d-flex flex-wrap justify-content-end align-items-center gap-2">
+
+          <button
+            class="btn workflow-btn-secondary"
+            type="button"
+            onclick="window.history.back()"
+          >
+            Cancel
+          </button>
+
+          <button
+            class="btn workflow-btn-primary"
+            type="button"
+            id="applyBtn"
+            disabled
+          >
+            Upload to class
+          </button>
+
         </div>
+
       </div>
+
     </div>
   </div>
 </div>
+
+{% endblock %}
+{% block scripts %}
 <script>
   // ---------- Utilities ----------
   function show(el) { el.classList.remove('d-none'); }
@@ -305,7 +413,7 @@
 
       renderPreviewTable(data.columns_combined || data.columns, data.rows);
       previewMeta.textContent =
-        `Showing ${data.sample_rows} of ${data.total_rows} row${plural(data.total_rows)}.`;
+        `Showing ${data.sample_rows} of ${data.total_rows-1} row${plural(data.total_rows-1)}.`; // - 1 for not counting header 
       uploadStatus.className = 'mt-3 alert alert-success';
       uploadStatus.textContent = 'Preview ready.';
       previewContainer.classList.remove('d-none');

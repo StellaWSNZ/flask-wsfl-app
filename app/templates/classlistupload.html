@@ -3,11 +3,26 @@
 {% block title %}Class Upload{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
-  <h2 class="text-center text-primary mb-4">Upload Class List</h2>
+<div class="container mt-3 workflow-page" style="max-width: 1600px;">
+<h2 class="workflow-page-title text-center mb-1">
+  Upload Class List
+</h2>
 
-  <form id="upload-form" action="{{ url_for('upload_bp.classlistupload') }}" method="post" enctype="multipart/form-data" class="row g-3">
-    <!-- Funder -->
+<p class="workflow-page-subtitle text-center mb-4">
+  Upload, preview, map, and validate a class list before submitting it.
+</p>
+<div class="card shadow-sm workflow-card mb-4">
+  <div class="workflow-header">
+    <h3 class="workflow-card-title mb-0">Class Details</h3>
+  </div>
+  <div class="workflow-body">
+  <form
+    id="upload-form"
+    action="{{ url_for('upload_bp.classlistupload') }}"
+    method="post"
+    enctype="multipart/form-data"
+    class="row g-3 mx-0"
+  >    <!-- Funder -->
     <div class="col-md-6">
       <label for="funder" class="form-label">Funder</label>
       <select id="funder" name="funder" class="form-select" required>
@@ -133,43 +148,102 @@
 
     <div class="col-12 d-flex gap-3" id="action-button-container">
       <div id="preview-button-container" style="display: none;">
-        <button type="submit" name="action" value="preview" class="btn btn-secondary">Preview File</button>
+        <button type="submit" name="action" value="preview" class="btn workflow-btn-secondary">Preview File</button>
       </div>
-      {% if preview_data and not validated %}
-        <button type="submit" name="action" value="validate" id="validate-button" class="btn btn-success">Validate Data</button>
-      {% endif %}
+
     </div>
   </form>
-
+  </div>
+</div>
   {% if preview_data %}
-    <div class="mt-5">
-      {% if not validated %}
-        <h4>Preview</h4>
-        <h5>Please assign a column name to each column of your sheet. </h5>
-        <p>Does your template have unnecessary columns? Don't assign a name and they will be ignored.</p>
+    <div class="workflow-section mt-5">
+      <div class="d-flex justify-content-between align-items-start mb-3">
+
+  <div>
+    {% if not validated %}
+      <h3 class="workflow-section-title mb-1">
+        Preview Data
+      </h3>
+
+      <p class="text-muted mb-0">
+        Assign a column name to each uploaded column before validating.
+      </p>
+    {% else %}
+        {% set critical_rows = preview_data | rejectattr("Match") | list %}
+        {% set warning_rows = preview_data
+          | selectattr("Match")
+          | rejectattr("ErrorFields", "none")
+          | rejectattr("ErrorFields", "equalto", "")
+          | list
+        %}
+      <h3 class="workflow-section-title mb-1">
+        Validated Data
+      </h3>
+
+      {% if critical_rows|length > 0 %}
+        <p class="text-muted mb-0">
+          Critical errors must be corrected before the class can be submitted.
+        </p>
+      {% elif warning_rows|length > 0 %}
+        <p class="text-muted mb-0">
+          Warnings were identified. Review them before submitting the class if desired.
+        </p>
       {% else %}
-        <h4>Validated Data</h4>
-        <h5>
-          <span class="badge bg-danger text-white">Critical Errors must be corrected before submission</span>
-          <span class="badge bg-warning text-dark">Warnings do not need correcting but will overwrite current record once submitted</span>
+        <p class="text-muted mb-0">
+          No validation issues were found. The class is ready to submit.
+        </p>
+      {% endif %}
+
+      {% if critical_rows|length > 0 or warning_rows|length > 0 %}
+        <h5 class="d-flex flex-wrap gap-2 mt-3">
+          {% if critical_rows|length > 0 %}
+            <span class="badge workflow-status-error">
+              Critical errors must be corrected
+            </span>
+          {% endif %}
+
+          {% if warning_rows|length > 0 %}
+            <span class="badge workflow-status-warning">
+              Warnings will overwrite existing records
+            </span>
+          {% endif %}
         </h5>
       {% endif %}
+    {% endif %}
+  </div>
+
+  {% if preview_data and not validated %}
+    <button
+      type="submit"
+      form="upload-form"
+      name="action"
+      value="validate"
+      id="validate-button"
+      class="btn workflow-btn-primary"
+    >
+      Validate Data
+    </button>
+  {% endif %}
+
+</div>
 
       {% if validated %}
         {% set all_matches = preview_data | selectattr("Match", "equalto", false) | list | length == 0 %}
         {% set has_errorfields = preview_data | map(attribute='ErrorFields') | reject("in", ["", none]) | list | length > 0 %}
+        {% set critical_rows = preview_data | selectattr("Match", "equalto", 0) | list %}
+        {% set warning_rows = preview_data | selectattr("Match", "equalto", 1) | selectattr("ErrorFields") | list %}
         <div class="col-12 d-flex gap-3 mt-3 mb-4" id="post-validate-buttons" style="display:none;">
           {% if has_errorfields %}
             <form action="/classlistdownload" method="post">
-              <button type="submit" class="btn btn-primary">Export Fixes to Excel</button>
+              <button type="submit" class="workflow-btn-primary">Export Fixes to Excel</button>
             </form>
             <form action="/classlistdownload_csv" method="post">
-              <button type="submit" class="btn btn-outline-primary">Export Fixes to CSV</button>
+              <button type="submit"  class="workflow-btn-primary">Export Fixes to CSV</button>
             </form>
           {% endif %}
           {% if all_matches %}
             <form action="/submitclass" method="post">
-              <button type="submit" class="btn btn-secondary"
+              <button type="submit" class="btn workflow-btn-secondary"
                       onclick="this.disabled=true; this.innerText='Submitting...'; this.form.submit();">
                 Submit Class
               </button>
@@ -178,8 +252,8 @@
         </div>
       {% endif %}
 
-      <div class="table-responsive">
-        <table class="table table-bordered table-striped">
+      <div class="workflow-preview-table-wrap table-responsive">
+        <table class="table workflow-table table-sm align-middle">
           <thead>
             <tr>
               {% for col in preview_data[0].keys() %}
@@ -217,9 +291,9 @@
                     {% set is_error = clean_key|lower in error_columns|map('lower') %}
                     {% set cell_class = '' %}
                     {% if is_error and row.Match == 1 %}
-                      {% set cell_class = 'bg-warning text-dark' %}
+                      {% set cell_class = 'workflow-status-warning' %}
                     {% elif is_error and row.Match == 0 %}
-                      {% set cell_class = 'bg-danger text-white' %}
+                      {% set cell_class = 'workflow-status-error' %}
                     {% endif %}
                     <td class="{{ cell_class }}">{{ '' if val is none or val|string == 'nan' else val }}</td>
                   {% endif %}
@@ -228,9 +302,9 @@
                   {% set match_status = row.Match|string|lower in ['1', 'true', 'yes'] %}
                   <td>
                     {% if match_status %}
-                      <span class="badge bg-success">Ready</span>
+                      <span class="badge workflow-status-success">Ready</span>
                     {% else %}
-                      <span class="badge bg-danger">Fix required</span>
+                      <span class="badge workflow-status-error">Fix required</span>
                     {% endif %}
                   </td>
                 {% endif %}
@@ -246,7 +320,7 @@
   <div class="modal fade" id="validationErrorModal" tabindex="-1" aria-labelledby="validationErrorModalLabel" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content border-danger">
-        <div class="modal-header bg-danger text-white">
+        <div class="modal-header workflow-modal-header">
           <h5 class="modal-title" id="validationErrorModalLabel">Missing Required Columns</h5>
           <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
@@ -260,7 +334,7 @@
           before validating the data.
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          <button type="button" class="btn workflow-btn-secondary" data-bs-dismiss="modal">Close</button>
         </div>
       </div>
     </div>

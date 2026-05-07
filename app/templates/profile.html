@@ -4,279 +4,327 @@
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 
-<div class="container">
-<form method="POST" action="{{ url_for('admin_bp.update_profile') }}">
+<div class="container mt-3 profile-page staff-page">
+  <form method="POST" action="{{ url_for('admin_bp.update_profile') }}">
     <input type="hidden" name="original_email" value="{{ user.email }}" />
 
     <div class="row justify-content-center g-4">
+
       <!-- USER PROFILE CARD -->
       <div class="col-md-6">
-        <div class="card shadow p-4 h-100" style="background-color: rgba(255, 255, 255, 0.95)">
-          <h4 class="mb-3 text-center">
-            <i class="bi bi-person-circle me-2"></i>Your Profile
-          </h4>
+        <div class="card profile-card h-100">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4 class="profile-card-title mb-0">
+              <i class="bi bi-person-circle me-2"></i>Your Profile
+            </h4>
+
+            <div class="d-flex gap-2">
+              <button type="button" class="btn btn-sm staff-action-btn" id="editUserBtn" onclick="toggleUserEdit(true)">
+                <i class="bi bi-pencil"></i>
+              </button>
+              <button type="submit" class="btn btn-sm btn-primary d-none" id="saveUserBtn">Save</button>
+              <button type="button" class="btn btn-sm btn-outline-secondary d-none" id="exitUserBtn" onclick="toggleUserEdit(false)">Cancel</button>
+            </div>
+          </div>
 
           <div class="row">
-  <div class="mb-3 col-md-6">
-    <label for="firstname_input" class="form-label">First Name</label>
-    <input type="text" class="form-control" id="firstname_input" name="firstname" value="{{ user.firstname }}" readonly />
-  </div>
-  <div class="mb-3 col-md-6">
-    <label for="surname_input" class="form-label">Last Name</label>
-    <input type="text" class="form-control" id="surname_input" name="surname" value="{{ user.surname }}" readonly />
-  </div>
-</div>
+            <div class="mb-3 col-md-6">
+              <label for="firstname_input" class="form-label">First Name</label>
+              <input type="text" class="form-control" id="firstname_input" name="firstname" value="{{ user.firstname }}" readonly />
+            </div>
 
-<div class="mb-3">
-  <label for="email_input" class="form-label">Email</label>
-  <input type="email" class="form-control" id="email_input" name="email" value="{{ user.email }}" readonly />
-</div>
-<div class="mb-3">
-  <label for="alt_email_input" class="form-label">
-    Alternate Email (if applicable)
-   <i class="bi bi-info-circle" 
-   data-bs-toggle="tooltip" 
-   data-bs-placement="right" 
-   title="Alternate email is applicable if the email you used for e-learning is not the one you registered with. Your main email will still be used to log in but this will be used to check for e-learning.">
-</i>
-  </label>
-  <input type="email" class="form-control" id="alt_email_input" name="alt_email" value="{{ user.email_alt or ''}}" readonly />
-</div>
-<div class="mb-3">
-  <label class="form-label">Role</label>
-  <input type="text" class="form-control" 
-         value="{% if user.role == 'FUN' %}Funder staff{% 
-                 elif user.role == 'PRO' %}Provider staff{% 
-                 elif user.role == 'ADM' %}Admin staff{% 
-                 elif user.role == 'GRP' %}Admin staff{% 
-                 elif user.role == 'MOE' %}School staff{% 
-                 else %}{{ user.role }}{% endif %}{% if user.admin == 1 %} (with administrator privileges){% endif %}" 
-         readonly disabled />
-</div>
-{% if user.role == "FUN" %}
-<div class="mb-3">
-  <label class="form-label">Funder</label>
-  <input type="text" class="form-control" value="{{ user.desc }}" readonly disabled />
-</div>
-{% elif user.role == "MOE" %}
-<div class="mb-3">
-  <label class="form-label">School</label>
-  <input type="text" class="form-control" value="{{ user.desc }}" readonly disabled />
-</div>
-{% endif %}
-{% if eLearning_status %}
-<div class="mb-3">
-  <label class="form-label">E-Learning Status</label>
-    <i class="bi bi-info-circle-fill text-muted ms-1"
-     data-bs-toggle="tooltip"
-     data-bs-placement="right"
-     title="This shows your progress in each e-learning course. 'Not Started' means you haven't enrolled yet.">
-  </i>
-  <ul class="list-group">
-    {% for course in eLearning_status %}
-    <li class="list-group-item d-flex justify-content-between align-items-center">
-      {{ course.ElearningCourseDesc }}
-      <span class="badge 
-    {% if course.ElearningStatusDesc == 'Passed' %}bg-success
-    {% elif course.ElearningStatusDesc == 'In Progress' %}bg-warning text-dark
-    {% elif course.ElearningStatusDesc == 'Cancelled' %}bg-danger
-    {% else %}bg-secondary
-    {% endif %}
-  ">{{ course.ElearningStatusDesc or "Not Started" }}</span>
-    </li>
-    {% endfor %}
-  </ul>
-</div>
-{% endif %}
+            <div class="mb-3 col-md-6">
+              <label for="surname_input" class="form-label">Last Name</label>
+              <input type="text" class="form-control" id="surname_input" name="surname" value="{{ user.surname }}" readonly />
+            </div>
 
-<div class="row align-items-end">
-  <div class="mb-3 col-md-8">
-  <label class="form-label">Last Self Review</label>
-  <div class="d-flex align-items-center">
-    <input type="text" class="form-control me-2" value="{{ user.last_self_review or 'None' }}" readonly disabled />
-     {% if user.last_self_review_overdue %}
-<span class="badge bg-danger" style="padding: 0.5em 0.75em; line-height: 1;">Overdue</span>
-  {% endif %}
-  </div>
-</div>
+            <div class="mb-3 col-md-6">
+              <label for="email_input" class="form-label">Email</label>
+              <input type="email" class="form-control" id="email_input" name="email" value="{{ user.email }}" readonly />
+            </div>
 
+            <div class="mb-3 col-md-6">
+              <label for="alt_email_input" class="form-label d-flex align-items-center gap-1">
+                Alternate Email
+                <i class="bi bi-info-circle"
+                   data-bs-toggle="tooltip"
+                   data-bs-placement="right"
+                   title="Alternate email is applicable if the email you used for e-learning is not the one you registered with. Your main email will still be used to log in but this will be used to check for e-learning."></i>
+              </label>
+              <input type="email" class="form-control" id="alt_email_input" name="alt_email" value="{{ user.email_alt or '' }}" readonly />
+            </div>
 
+            <div class="mb-3 col-12">
+              <label class="form-label">Role</label>
+              <input
+                type="text"
+                class="form-control"
+                value="{% if user.role == 'FUN' %}Funder staff{% elif user.role == 'PRO' %}Provider staff{% elif user.role == 'ADM' %}Admin staff{% elif user.role == 'GRP' %}Admin staff{% elif user.role == 'MOE' %}School staff{% else %}{{ user.role }}{% endif %}{% if user.admin == 1 %} (with administrator privileges){% endif %}"
+                readonly
+                disabled
+              />
+            </div>
 
-  <div class="mb-3 col-md-4 text-end d-flex justify-content-end gap-2">
-    <button type="button" class="btn btn-outline-primary" id="editUserBtn" onclick="toggleUserEdit(true)">Edit Profile</button>
-    <button type="submit" class="btn btn-success d-none" id="saveUserBtn">Save</button>
-    <button type="button" class="btn btn-secondary d-none" id="exitUserBtn" onclick="toggleUserEdit(false)">Cancel</button>
-  </div>
-</div>
+            {% if user.role == "FUN" %}
+              <div class="mb-3 col-md-6">
+                <label class="form-label">Funder</label>
+                <input type="text" class="form-control" value="{{ user.desc }}" readonly disabled />
+              </div>
+            {% elif user.role == "MOE" %}
+              <div class="mb-3 col-md-6">
+                <label class="form-label">School</label>
+                <input type="text" class="form-control" value="{{ user.desc }}" readonly disabled />
+              </div>
+            {% endif %}
+
+            <div class="mb-3 col-md-6">
+              <label class="form-label">Last Self Review</label>
+              <div class="d-flex align-items-center">
+                <input type="text" class="form-control me-2" value="{{ user.last_self_review or 'None' }}" readonly disabled />
+                {% if user.last_self_review_overdue %}
+                  <span class="badge bg-danger" style="padding: 0.5em 0.75em; line-height: 1;">Overdue</span>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+
+          {% if eLearning_status %}
+            <div class="mb-3">
+              <label class="form-label">
+                E-Learning Status
+                <i class="bi bi-info-circle-fill text-muted ms-1"
+                   data-bs-toggle="tooltip"
+                   data-bs-placement="right"
+                   title="This shows your progress in each e-learning course. 'Not Started' means you haven't enrolled yet."></i>
+              </label>
+
+              <ul class="list-group">
+                {% for course in eLearning_status %}
+                  <li class="list-group-item d-flex justify-content-between align-items-center">
+                    {{ course.ElearningCourseDesc }}
+                    <span class="badge
+                      {% if course.ElearningStatusDesc == 'Passed' %}bg-success
+                      {% elif course.ElearningStatusDesc == 'In Progress' %}bg-warning text-dark
+                      {% elif course.ElearningStatusDesc == 'Cancelled' %}bg-danger
+                      {% else %}bg-secondary
+                      {% endif %}
+                    ">
+                      {{ course.ElearningStatusDesc or "Not Started" }}
+                    </span>
+                  </li>
+                {% endfor %}
+              </ul>
+            </div>
+          {% endif %}
         </div>
       </div>
 
-      {% if user.role == "MOE" %}
+      {% if user.role == "MOE" and user.desc != "None" %}
       <!-- SCHOOL PROFILE CARD -->
       <div class="col-md-6">
-        <div class="card shadow p-4 h-100" style="background-color: rgba(255, 255, 255, 0.95)">
-          <h4 class="mb-3 text-center"><i class="bi bi-building me-2"></i>School Profile</h4>
+        <div class="card profile-card h-100">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4 class="profile-card-title mb-0">
+              <i class="bi bi-building me-2"></i>School Profile
+            </h4>
+
+            {% if user.admin == 1 %}
+              <div class="d-flex gap-2">
+                <button type="button" class="btn btn-sm staff-action-btn" id="editSchoolBtn" onclick="toggleSchoolEdit(true)">
+                  <i class="bi bi-pencil"></i>
+                </button>
+                <button type="submit" class="btn btn-sm btn-primary d-none" id="saveSchoolBtn">Save</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary d-none" id="exitSchoolBtn" onclick="toggleSchoolEdit(false)">Cancel</button>
+              </div>
+            {% endif %}
+          </div>
+
           <p><strong>School Name:</strong> {{ user.desc }}</p>
           <p><strong>MOE Number:</strong> {{ user.user_id }}</p>
-          {% if user.admin == 1 %}
-          <div>
-            <div class="row">
-  <div class="mb-3 col-md-6">
-    <label for="school_address_input" class="form-label">Address</label>
-    <input type="text" class="form-control" id="school_address_input" name="school_address" value="{{ user.school_address }}" readonly />
-  </div>
-  <div class="mb-3 col-md-6">
-    <label for="school_town_input" class="form-label">Town/City</label>
-    <input type="text" class="form-control" id="school_town_input" name="school_town" value="{{ user.school_town }}" readonly />
-  </div>
-</div>
 
-            <div class="mb-3">
-              <label for="school_type_input" class="form-label">School Type</label>
-              <select class="form-select" id="school_type_input" name="school_type" disabled>
-                {% for item in school_type_options %}
-                <option value="{{ item.SchoolTypeID }}" {% if item.SchoolTypeID|int == user.school_type|int %}selected{% endif %}>{{ item.Description }}</option>
-                {% endfor %}
-              </select>
-            </div>
-            <div class="row align-items-end">
-              <div class="mb-3 col-md-4">
+          {% if user.admin == 1 %}
+            <div class="row">
+              <div class="mb-3 col-md-6">
+                <label for="school_address_input" class="form-label">Address</label>
+                <input type="text" class="form-control" id="school_address_input" name="school_address" value="{{ user.school_address }}" readonly />
+              </div>
+
+              <div class="mb-3 col-md-6">
+                <label for="school_town_input" class="form-label">Town/City</label>
+                <input type="text" class="form-control" id="school_town_input" name="school_town" value="{{ user.school_town }}" readonly />
+              </div>
+
+              <div class="mb-3 col-12">
+                <label for="school_type_input" class="form-label">School Type</label>
+                <select class="form-select" id="school_type_input" name="school_type" disabled>
+                  {% for item in school_type_options %}
+                    <option value="{{ item.SchoolTypeID }}" {% if item.SchoolTypeID|int == user.school_type|int %}selected{% endif %}>
+                      {{ item.Description }}
+                    </option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <div class="mb-3 col-md-6">
                 <label for="school_lat_input" class="form-label">Latitude</label>
                 <input type="text" class="form-control" id="school_lat_input" name="school_lat" value="{{ user.school_lat }}" readonly oninput="updateMap('school')" />
               </div>
-              <div class="mb-3 col-md-4">
+
+              <div class="mb-3 col-md-6">
                 <label for="school_lon_input" class="form-label">Longitude</label>
                 <input type="text" class="form-control" id="school_lon_input" name="school_lon" value="{{ user.school_lon }}" readonly oninput="updateMap('school')" />
               </div>
-              <div class="mb-3 col-md-4 d-flex gap-2 justify-content-end">
-                <button type="button" class="btn btn-outline-primary" id="editSchoolBtn" onclick="toggleSchoolEdit(true)">Edit School</button>
-                <button type="submit" class="btn btn-success d-none" id="saveSchoolBtn">Save</button>
-                <button type="button" class="btn btn-secondary d-none" id="exitSchoolBtn" onclick="toggleSchoolEdit(false)">Cancel</button>
+            </div>
+          {% else %}
+            <p><strong>Address:</strong> {{ user.school_address }}</p>
+            <p><strong>Town/City:</strong> {{ user.school_town }}</p>
+            <p><strong>School Type:</strong> {{ user.school_type }}</p>
+            <p><strong>Latitude:</strong> {{ user.school_lat }}</p>
+            <p><strong>Longitude:</strong> {{ user.school_lon }}</p>
+          {% endif %}
+
+          {% if user.school_lat and user.school_lon %}
+            <div class="card profile-map-card mt-3">
+              <div class="card-header profile-map-header">School Location Map</div>
+              <div class="card-body p-0">
+                <div id="schoolMap" style="height: 200px; width: 100%"></div>
               </div>
             </div>
-
-          {% else %}
-          <p><strong>Address:</strong> {{ user.school_address }}</p>
-          <p><strong>Town/City:</strong> {{ user.school_town }}</p>
-          <p><strong>School Type:</strong> {{ user.school_type }}</p>
-          <p><strong>Latitude:</strong> {{ user.school_lat }}</p>
-          <p><strong>Longitude:</strong> {{ user.school_lon }}</p>
-          {% endif %}
-          {% if user.school_lat and user.school_lon %}
-          <div class="card mt-3">
-            <div class="card-header bg-primary text-white">School Location Map</div>
-            <div class="card-body p-0">
-              <div id="schoolMap" style="height: 200px; width: 100%"></div>
-            </div>
-          </div>
           {% endif %}
         </div>
       </div>
       {% endif %}
-{% if user.role == "PRO" %}
-<!-- PROVIDER PROFILE CARD -->
-<div class="col-md-6">
-  <div class="card shadow p-4 h-100" style="background-color: rgba(255, 255, 255, 0.95)">
-    <h4 class="mb-3 text-center"><i class="bi bi-building me-2"></i>Provider Profile</h4>
-    <p><strong>Provider Name:</strong> {{ user.desc }}</p>
 
-    {% if user.admin == 1 %}
-    <div class="mb-3">
-      <label for="provider_address_input" class="form-label">Address</label>
-      <input type="text" class="form-control" id="provider_address_input" name="provider_address" value="{{ user.provider_address }}" readonly oninput="updateMap('provider')" />
-    </div>
+      {% if user.role == "PRO" and user.desc != "None" %}
+      <!-- PROVIDER PROFILE CARD -->
+      <div class="col-md-6">
+        <div class="card profile-card h-100">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4 class="profile-card-title mb-0">
+              <i class="bi bi-building me-2"></i>Provider Profile
+            </h4>
 
-    <div class="row align-items-end">
-      <div class="mb-3 col-md-4">
-        <label for="provider_lat_input" class="form-label">Latitude</label>
-        <input type="text" class="form-control" id="provider_lat_input" name="provider_lat" value="{{ user.provider_lat }}" readonly oninput="updateMap('provider')" />
-      </div>
-      <div class="mb-3 col-md-4">
-        <label for="provider_lon_input" class="form-label">Longitude</label>
-        <input type="text" class="form-control" id="provider_lon_input" name="provider_lon" value="{{ user.provider_lon }}" readonly oninput="updateMap('provider')" />
-      </div>
-      <div class="mb-3 col-md-4 d-flex gap-2">
-        <button type="button" class="btn btn-outline-primary me-2" id="editProviderBtn" onclick="toggleProviderEdit(true)">Edit Provider</button>
-        <button type="submit" class="btn btn-success d-none" id="saveProviderBtn">Save</button>
-        <button type="button" class="btn btn-secondary d-none" id="exitProviderBtn" onclick="toggleProviderEdit(false)">Cancel</button>
-      </div>
-    </div>
-    {% else %}
-    <p><strong>Address:</strong> {{ user.provider_address }}</p>
-    <p><strong>Latitude:</strong> {{ user.provider_lat }}</p>
-    <p><strong>Longitude:</strong> {{ user.provider_lon }}</p>
-    {% endif %}
+            {% if user.admin == 1 %}
+              <div class="d-flex gap-2">
+                <button type="button" class="btn btn-sm staff-action-btn" id="editProviderBtn" onclick="toggleProviderEdit(true)">
+                  <i class="bi bi-pencil"></i>
+                </button>
+                <button type="submit" class="btn btn-sm btn-primary d-none" id="saveProviderBtn">Save</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary d-none" id="exitProviderBtn" onclick="toggleProviderEdit(false)">Cancel</button>
+              </div>
+            {% endif %}
+          </div>
 
-    {% if user.provider_lat and user.provider_lon %}
-    <div class="card mt-3">
-      <div class="card-header bg-primary text-white">Provider Location Map</div>
-      <div class="card-body p-0">
-        <div id="providerMap" style="height: 200px; width: 100%"></div>
-      </div>
-    </div>
-    {% endif %}
-  </div>
-</div>
-{% endif %}
+          <p><strong>Provider Name:</strong> {{ user.desc }}</p>
 
-      {% if user.role == "FUN" %}
+          {% if user.admin == 1 %}
+            <div class="mb-3">
+              <label for="provider_address_input" class="form-label">Address</label>
+              <input type="text" class="form-control" id="provider_address_input" name="provider_address" value="{{ user.provider_address }}" readonly oninput="updateMap('provider')" />
+            </div>
+
+            <div class="row">
+              <div class="mb-3 col-md-6">
+                <label for="provider_lat_input" class="form-label">Latitude</label>
+                <input type="text" class="form-control" id="provider_lat_input" name="provider_lat" value="{{ user.provider_lat }}" readonly oninput="updateMap('provider')" />
+              </div>
+
+              <div class="mb-3 col-md-6">
+                <label for="provider_lon_input" class="form-label">Longitude</label>
+                <input type="text" class="form-control" id="provider_lon_input" name="provider_lon" value="{{ user.provider_lon }}" readonly oninput="updateMap('provider')" />
+              </div>
+            </div>
+          {% else %}
+            <p><strong>Address:</strong> {{ user.provider_address }}</p>
+            <p><strong>Latitude:</strong> {{ user.provider_lat }}</p>
+            <p><strong>Longitude:</strong> {{ user.provider_lon }}</p>
+          {% endif %}
+
+          {% if user.provider_lat and user.provider_lon %}
+            <div class="card profile-map-card mt-3">
+              <div class="card-header profile-map-header">Provider Location Map</div>
+              <div class="card-body p-0">
+                <div id="providerMap" style="height: 200px; width: 100%"></div>
+              </div>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
+
+      {% if user.role == "FUN" and user.desc != "None" %}
       <!-- FUNDER PROFILE CARD -->
       <div class="col-md-6">
-        <div class="card shadow p-4 h-100" style="background-color: rgba(255, 255, 255, 0.95)">
+        <div class="card profile-card h-100">
           {% if user.role == "FUN" and user.user_id %}
-          <div class="text-center mb-3">
-            <img src="{{ url_for('admin_bp.serve_logo', logo_type='FUN', logo_id=user.user_id) }}"
-     alt="Funder Logo"
-     style="max-height: 100px; object-fit: contain;" />
-
-          </div>
+            <div class="text-center mb-3">
+              <img
+                src="{{ url_for('admin_bp.serve_logo', logo_type='FUN', logo_id=user.user_id) }}"
+                alt="Funder Logo"
+                style="max-height: 100px; object-fit: contain;"
+              />
+            </div>
           {% endif %}
-          <h4 class="mb-3 text-center"><i class="bi bi-building-gear me-2"></i>Funder Profile</h4>
+
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4 class="profile-card-title mb-0">
+              <i class="bi bi-building-gear me-2"></i>Funder Profile
+            </h4>
+
+            {% if user.admin == 1 %}
+              <div class="d-flex gap-2">
+                <button type="button" class="btn btn-sm staff-action-btn" id="editFunderBtn" onclick="toggleFunderEdit(true)">
+                  <i class="bi bi-pencil"></i>
+                </button>
+                <button type="submit" class="btn btn-sm btn-primary d-none" id="saveFunderBtn">Save</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary d-none" id="exitFunderBtn" onclick="toggleFunderEdit(false)">Cancel</button>
+              </div>
+            {% endif %}
+          </div>
+
           <p><strong>Funder Name:</strong> {{ user.desc }}</p>
 
           {% if user.admin == 1 %}
-          <div>
-  <div class="mb-3">
-    <label for="funder_address_input" class="form-label">Address</label>
-    <input type="text" class="form-control" id="funder_address_input" name="funder_address" value="{{ user.funder_address }}" readonly oninput="updateMap('funder')" />
-  </div>
-<div class="row align-items-end">
-  <div class="mb-3 col-md-4">
-    <label for="funder_lat_input" class="form-label">Latitude</label>
-    <input type="text" class="form-control" id="funder_lat_input" name="funder_lat" value="{{ user.funder_lat }}" readonly oninput="updateMap('funder')" />
-  </div>
-  <div class="mb-3 col-md-4">
-    <label for="funder_lon_input" class="form-label">Longitude</label>
-    <input type="text" class="form-control" id="funder_lon_input" name="funder_lon" value="{{ user.funder_lon }}" readonly oninput="updateMap('funder')" />
-  </div>
-  <div class="mb-3 col-md-4 d-flex gap-2">
-    <button type="button" class="btn btn-outline-primary me-2" id="editFunderBtn" onclick="toggleFunderEdit(true)">Edit Funder</button>
-    <button type="submit" class="btn btn-success d-none" id="saveFunderBtn">Save</button>
-    <button type="button" class="btn btn-secondary d-none" id="exitFunderBtn" onclick="toggleFunderEdit(false)">Cancel</button>
-  </div>
-</div>
+            <div class="mb-3">
+              <label for="funder_address_input" class="form-label">Address</label>
+              <input type="text" class="form-control" id="funder_address_input" name="funder_address" value="{{ user.funder_address }}" readonly oninput="updateMap('funder')" />
+            </div>
+
+            <div class="row">
+              <div class="mb-3 col-md-6">
+                <label for="funder_lat_input" class="form-label">Latitude</label>
+                <input type="text" class="form-control" id="funder_lat_input" name="funder_lat" value="{{ user.funder_lat }}" readonly oninput="updateMap('funder')" />
+              </div>
+
+              <div class="mb-3 col-md-6">
+                <label for="funder_lon_input" class="form-label">Longitude</label>
+                <input type="text" class="form-control" id="funder_lon_input" name="funder_lon" value="{{ user.funder_lon }}" readonly oninput="updateMap('funder')" />
+              </div>
+            </div>
           {% else %}
-          <p><strong>Address:</strong> {{ user.funder_address }}</p>
-          <p><strong>Latitude:</strong> {{ user.funder_lat }}</p>
-          <p><strong>Longitude:</strong> {{ user.funder_lon }}</p>
+            <p><strong>Address:</strong> {{ user.funder_address }}</p>
+            <p><strong>Latitude:</strong> {{ user.funder_lat }}</p>
+            <p><strong>Longitude:</strong> {{ user.funder_lon }}</p>
           {% endif %}
 
           {% if user.funder_lat and user.funder_lon %}
-          <div class="card mt-3">
-            <div class="card-header bg-primary text-white">Funder Location Map</div>
-            <div class="card-body p-0">
-              <div id="funderMap" style="height: 200px; width: 100%"></div>
+            <div class="card profile-map-card mt-3">
+              <div class="card-header profile-map-header">Funder Location Map</div>
+              <div class="card-body p-0">
+                <div id="funderMap" style="height: 200px; width: 100%"></div>
+              </div>
             </div>
-          </div>
           {% endif %}
         </div>
       </div>
       {% endif %}
+
     </div>
   </form>
 </div>
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
 <script>
 document.addEventListener('DOMContentLoaded', function () {
   const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));

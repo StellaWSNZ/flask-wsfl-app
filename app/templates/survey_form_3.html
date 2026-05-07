@@ -1,341 +1,269 @@
-{% extends "header.html" %} {% block title %}WSFL Teacher Assessment{% endblock
-%} {% block content %}
-<div class="container mt-5">
-  <h1 class="mb-4 text-center text-primary">WSFL Teacher Assessment</h1>
+{% extends "header.html" %}
+{% block title %}WSFL Teacher Assessment{% endblock %}
 
-  <!-- ===================== MAIN SURVEY FORM (single form on page) ===================== -->
-  <form
-    action="{{ url_for('survey_bp.submit_survey', routename='TeacherAssessment') }}"
-    method="post"
-  >
-    <div class="bg-light border rounded p-3 mb-4 small">
-      <strong>Rating Scale:</strong><br /><br />
-      <strong>1 = Needs Improvement:</strong> The teacher is having difficulty
-      delivering or assessing Water Skills for Life (WSFL) competencies. They
-      require additional training, guidance, and support to improve their
-      ability to teach these skills effectively and meet programme standards.<br /><br />
-      <strong>2 = Satisfactory:</strong> The teacher is able to deliver and
-      assess WSFL competencies at a basic level. While they meet expectations,
-      there are noticeable areas where improvement is needed to enhance their
-      teaching techniques and assessment methods.<br /><br />
-      <strong>3 = Proficient:</strong> The teacher demonstrates a high level of
-      competence in delivering and assessing WSFL competencies. They
-      consistently show expertise, engage students effectively, and serve as a
-      strong example for other educators.
-    </div>
+{% block content %}
+<div class="container mt-2 form-page" style="max-width: 80%;">
+  <div class="page-panel">
 
-    <div class="p-3 mb-3 bg-white rounded">
-      <h3 class="mt-2">Teacher Information</h3>
-    </div>
+    <h1 class="form-title text-center mb-1">
+      WSFL Teacher Assessment
+    </h1>
 
-    <!-- Q1 School (AJAX) -->
-    <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
-      <legend class="h6"><strong>Q1:</strong> Select the school</legend>
-      <select id="schoolSelect" name="q1" class="form-select" required>
-        <option value="" selected disabled>Loading schools…</option>
-      </select>
-      <input type="hidden" name="q1_id" id="schoolIdHidden" />
-    </fieldset>
+    <p class="form-subtitle text-center mb-4">
+      Complete the teacher assessment below.
+    </p>
 
-    <!-- Q2 Class (depends on school) -->
-    <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
-      <legend class="h6"><strong>Q2:</strong> Select the class</legend>
-      <select id="classSelect" name="q2" class="form-select" required disabled>
-        <option value="" selected disabled>Choose a class…</option>
-      </select>
-      <input type="hidden" name="q2_id" id="classIdHidden" />
-    </fieldset>
+    <form
+      action="{{ url_for('survey_bp.submit_survey', routename='TeacherAssessment') }}"
+      method="post"
+    >
 
-    <!-- Q3 Teacher (depends on school) — add-teacher trigger lives in script -->
-    <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
-      <legend class="h6"><strong>Q3:</strong> Select the teacher</legend>
-      <select
-        id="teacherSelect"
-        name="q3"
-        class="form-select"
-        required
-        disabled
-      >
-        <option value="" selected disabled>Choose a teacher…</option>
-      </select>
-      <input type="hidden" name="q3_id" id="teacherIdHidden" />
-    </fieldset>
+      <div class="form-info-box mb-4">
+        <strong>Rating Scale:</strong><br><br>
 
-    <!-- Q4 Role (AJAX from survey options) -->
-    <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
-      <legend class="h6"><strong>Q4:</strong> Teacher Role</legend>
-      <select id="roleSelect" name="q4" class="form-select" required disabled>
-        <option value="" selected disabled>Loading roles…</option>
-      </select>
-      <input type="hidden" name="q4_id" id="roleIdHidden" />
-    </fieldset>
+        <strong>1 = Needs Improvement:</strong>
+        The teacher is having difficulty delivering or assessing Water Skills for Life (WSFL) competencies.
+        They require additional training, guidance, and support to improve their ability to teach these skills effectively and meet programme standards.
+        <br><br>
 
-    <div class="p-3 mb-3 bg-white rounded">
-      <h3 class="mt-2">Delivery of WSFL Competencies and Student Engagement</h3>
-      <p class="text-muted">
-        What to look for:<br />• Clear and engaging delivery of WSFL
-        competencies.<br />• Use of real-world open water examples.<br />•
-        Active student participation in activities.<br />• Efficient use of the
-        majority of lesson time concentrating on WSFL competencies.
-      </p>
-    </div>
+        <strong>2 = Satisfactory:</strong>
+        The teacher is able to deliver and assess WSFL competencies at a basic level.
+        While they meet expectations, there are noticeable areas where improvement is needed to enhance their teaching techniques and assessment methods.
+        <br><br>
 
-    <!-- Q5 -->
-    <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
-      <legend class="h6">
-        <strong>Q5:</strong> The teacher effectively delivers appropriate WSFL
-        competencies, engages students actively, and integrates real-world
-        examples to enhance understanding
-      </legend>
-      <div class="form-check">
-        <input
-          class="form-check-input"
-          type="radio"
-          name="q5"
-          value="1"
-          id="q5-1"
-        />
-        <label class="form-check-label" for="q5-1">Needs Improvement</label>
-      </div>
-      <div class="form-check">
-        <input
-          class="form-check-input"
-          type="radio"
-          name="q5"
-          value="2"
-          id="q5-2"
-        />
-        <label class="form-check-label" for="q5-2">Satisfactory</label>
-      </div>
-      <div class="form-check">
-        <input
-          class="form-check-input"
-          type="radio"
-          name="q5"
-          value="3"
-          id="q5-3"
-        />
-        <label class="form-check-label" for="q5-3">Proficient</label>
-      </div>
-    </fieldset>
-
-    <div class="p-3 mb-3 bg-white rounded">
-      <h3 class="mt-2">Adaptation to Student Abilities and Needs</h3>
-      <p class="text-muted">
-        What to look for:<br />• Lessons are tailored to individual student
-        abilities.<br />• Flexibility in teaching methods based on student
-        needs.<br />• Effective management of class dynamics and pool safety.
-      </p>
-    </div>
-
-    <!-- Q6 -->
-    <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
-      <legend class="h6">
-        <strong>Q6:</strong> The teacher consistently links WSFL competencies to
-        students' abilities, adapts teaching methods accordingly, and manages
-        class/pool activities effectively.
-      </legend>
-      <div class="form-check">
-        <input
-          class="form-check-input"
-          type="radio"
-          name="q6"
-          value="1"
-          id="q6-1"
-        />
-        <label class="form-check-label" for="q6-1">Needs Improvement</label>
-      </div>
-      <div class="form-check">
-        <input
-          class="form-check-input"
-          type="radio"
-          name="q6"
-          value="2"
-          id="q6-2"
-        />
-        <label class="form-check-label" for="q6-2">Satisfactory</label>
-      </div>
-      <div class="form-check">
-        <input
-          class="form-check-input"
-          type="radio"
-          name="q6"
-          value="3"
-          id="q6-3"
-        />
-        <label class="form-check-label" for="q6-3">Proficient</label>
-      </div>
-    </fieldset>
-
-    <div class="p-3 mb-3 bg-white rounded">
-      <h3 class="mt-2">Assessment and Feedback on Student Performance</h3>
-      <p class="text-muted">
-        What to look for:<br />• Accurate and regular assessment of student
-        progress.<br />• Timely and specific feedback that helps students
-        improve.<br />• Can complete and update WSFL student achievement forms.
-      </p>
-    </div>
-
-    <!-- Q7 -->
-    <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
-      <legend class="h6">
-        <strong>Q7:</strong> The teacher accurately assesses student abilities
-        and provides clear, constructive feedback to support improvement and
-        skill development.
-      </legend>
-      <div class="form-check">
-        <input
-          class="form-check-input"
-          type="radio"
-          name="q7"
-          value="1"
-          id="q7-1"
-        />
-        <label class="form-check-label" for="q7-1">Needs Improvement</label>
-      </div>
-      <div class="form-check">
-        <input
-          class="form-check-input"
-          type="radio"
-          name="q7"
-          value="2"
-          id="q7-2"
-        />
-        <label class="form-check-label" for="q7-2">Satisfactory</label>
-      </div>
-      <div class="form-check">
-        <input
-          class="form-check-input"
-          type="radio"
-          name="q7"
-          value="3"
-          id="q7-3"
-        />
-        <label class="form-check-label" for="q7-3">Proficient</label>
-      </div>
-    </fieldset>
-
-    <div class="p-3 mb-3 bg-white rounded">
-      <h3 class="mt-2">
-        Relating WSFL Competencies to Open Water Environments
-      </h3>
-      <p class="text-muted">
-        What to look for:<br />• Integration of open water safety knowledge in
-        lessons.<br />• Relating pool-based activities to real-life open water
-        situations.
-      </p>
-    </div>
-
-    <!-- Q8 -->
-    <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
-      <legend class="h6">
-        <strong>Q8:</strong> The teacher demonstrates comprehensive knowledge of
-        open water safety and environments and relates WSFL competencies to
-        authentic scenarios.
-      </legend>
-      <div class="form-check">
-        <input
-          class="form-check-input"
-          type="radio"
-          name="q8"
-          value="1"
-          id="q8-1"
-        />
-        <label class="form-check-label" for="q8-1">Needs Improvement</label>
-      </div>
-      <div class="form-check">
-        <input
-          class="form-check-input"
-          type="radio"
-          name="q8"
-          value="2"
-          id="q8-2"
-        />
-        <label class="form-check-label" for="q8-2">Satisfactory</label>
-      </div>
-      <div class="form-check">
-        <input
-          class="form-check-input"
-          type="radio"
-          name="q8"
-          value="3"
-          id="q8-3"
-        />
-        <label class="form-check-label" for="q8-3">Proficient</label>
-      </div>
-    </fieldset>
-
-    <div class="p-3 mb-3 bg-white rounded">
-      <h3 class="mt-2">Determining the Appropriate Teacher Level</h3>
-      <p class="text-muted">
-        (Foundational, Intermediate, or Expert) for a teacher based on the
-        assessment criteria requires a systematic approach. Here are some steps
-        and a suggested system to facilitate this process:<br />
-        Foundational Level: Teachers scoring mostly 1’s (Needs Improvement)
-        across the criteria. <br />
-        Intermediate Level: Teachers scoring mostly 2’s (Satisfactory) with some
-        3’s. <br />
-        Expert Level: Teachers consistently scoring 3’s (Proficient) across all
-        or most criteria.
-      </p>
-    </div>
-
-    <!-- Q9 with recommendation -->
-    <fieldset class="mb-4 p-4 border rounded bg-white shadow-sm">
-      <legend class="h6">
-        <strong>Q9:</strong> What level would you rate this teacher?
-      </legend>
-
-      <div id="q9-reco" class="alert alert-info py-2 px-3 mb-3 d-none">
-        Recommended level: <strong id="q9-reco-text"></strong>
-        <span class="text-muted ms-2" id="q9-reco-reason"></span>
+        <strong>3 = Proficient:</strong>
+        The teacher demonstrates a high level of competence in delivering and assessing WSFL competencies.
+        They consistently show expertise, engage students effectively, and serve as a strong example for other educators.
       </div>
 
-      <div class="form-check">
-        <input
-          class="form-check-input"
-          type="radio"
-          name="q9"
-          value="1"
-          id="q9-1"
-        />
-        <label class="form-check-label" for="q9-1">Foundational Level</label>
-      </div>
-      <div class="form-check">
-        <input
-          class="form-check-input"
-          type="radio"
-          name="q9"
-          value="2"
-          id="q9-2"
-        />
-        <label class="form-check-label" for="q9-2">Intermediate Level</label>
-      </div>
-      <div class="form-check">
-        <input
-          class="form-check-input"
-          type="radio"
-          name="q9"
-          value="3"
-          id="q9-3"
-        />
-        <label class="form-check-label" for="q9-3">Expert Level</label>
-      </div>
-    </fieldset>
+      <h3 class="form-section-title">Teacher Information</h3>
 
-    <button type="submit" class="btn btn-primary">Submit Survey</button>
-  </form>
+      <fieldset class="form-question">
+        <legend class="form-question-title">
+          <strong>Q1:</strong> Select the school
+        </legend>
+        <select id="schoolSelect" name="q1" class="form-select" required>
+          <option value="" selected disabled>Loading schools…</option>
+        </select>
+        <input type="hidden" name="q1_id" id="schoolIdHidden">
+      </fieldset>
+
+      <fieldset class="form-question">
+        <legend class="form-question-title">
+          <strong>Q2:</strong> Select the class
+        </legend>
+        <select id="classSelect" name="q2" class="form-select" required disabled>
+          <option value="" selected disabled>Choose a class…</option>
+        </select>
+        <input type="hidden" name="q2_id" id="classIdHidden">
+      </fieldset>
+
+      <fieldset class="form-question">
+        <legend class="form-question-title">
+          <strong>Q3:</strong> Select the teacher
+        </legend>
+        <select id="teacherSelect" name="q3" class="form-select" required disabled>
+          <option value="" selected disabled>Choose a teacher…</option>
+        </select>
+        <input type="hidden" name="q3_id" id="teacherIdHidden">
+      </fieldset>
+
+      <fieldset class="form-question">
+        <legend class="form-question-title">
+          <strong>Q4:</strong> Teacher Role
+        </legend>
+        <select id="roleSelect" name="q4" class="form-select" required disabled>
+          <option value="" selected disabled>Loading roles…</option>
+        </select>
+        <input type="hidden" name="q4_id" id="roleIdHidden">
+      </fieldset>
+
+      <div class="form-section">
+        <h3 class="form-section-title">
+          Delivery of WSFL Competencies and Student Engagement
+        </h3>
+        <p class="form-section-help">
+          What to look for:<br>
+          • Clear and engaging delivery of WSFL competencies.<br>
+          • Use of real-world open water examples.<br>
+          • Active student participation in activities.<br>
+          • Efficient use of the majority of lesson time concentrating on WSFL competencies.
+        </p>
+      </div>
+
+      <fieldset class="form-question">
+        <legend class="form-question-title">
+          <strong>Q5:</strong> The teacher effectively delivers appropriate WSFL competencies, engages students actively, and integrates real-world examples to enhance understanding
+        </legend>
+
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="q5" value="1" id="q5-1">
+          <label class="form-check-label" for="q5-1">Needs Improvement</label>
+        </div>
+
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="q5" value="2" id="q5-2">
+          <label class="form-check-label" for="q5-2">Satisfactory</label>
+        </div>
+
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="q5" value="3" id="q5-3">
+          <label class="form-check-label" for="q5-3">Proficient</label>
+        </div>
+      </fieldset>
+
+      <div class="form-section">
+        <h3 class="form-section-title">
+          Adaptation to Student Abilities and Needs
+        </h3>
+        <p class="form-section-help">
+          What to look for:<br>
+          • Lessons are tailored to individual student abilities.<br>
+          • Flexibility in teaching methods based on student needs.<br>
+          • Effective management of class dynamics and pool safety.
+        </p>
+      </div>
+
+      <fieldset class="form-question">
+        <legend class="form-question-title">
+          <strong>Q6:</strong> The teacher consistently links WSFL competencies to students' abilities, adapts teaching methods accordingly, and manages class/pool activities effectively.
+        </legend>
+
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="q6" value="1" id="q6-1">
+          <label class="form-check-label" for="q6-1">Needs Improvement</label>
+        </div>
+
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="q6" value="2" id="q6-2">
+          <label class="form-check-label" for="q6-2">Satisfactory</label>
+        </div>
+
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="q6" value="3" id="q6-3">
+          <label class="form-check-label" for="q6-3">Proficient</label>
+        </div>
+      </fieldset>
+
+      <div class="form-section">
+        <h3 class="form-section-title">
+          Assessment and Feedback on Student Performance
+        </h3>
+        <p class="form-section-help">
+          What to look for:<br>
+          • Accurate and regular assessment of student progress.<br>
+          • Timely and specific feedback that helps students improve.<br>
+          • Can complete and update WSFL student achievement forms.
+        </p>
+      </div>
+
+      <fieldset class="form-question">
+        <legend class="form-question-title">
+          <strong>Q7:</strong> The teacher accurately assesses student abilities and provides clear, constructive feedback to support improvement and skill development.
+        </legend>
+
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="q7" value="1" id="q7-1">
+          <label class="form-check-label" for="q7-1">Needs Improvement</label>
+        </div>
+
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="q7" value="2" id="q7-2">
+          <label class="form-check-label" for="q7-2">Satisfactory</label>
+        </div>
+
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="q7" value="3" id="q7-3">
+          <label class="form-check-label" for="q7-3">Proficient</label>
+        </div>
+      </fieldset>
+
+      <div class="form-section">
+        <h3 class="form-section-title">
+          Relating WSFL Competencies to Open Water Environments
+        </h3>
+        <p class="form-section-help">
+          What to look for:<br>
+          • Integration of open water safety knowledge in lessons.<br>
+          • Relating pool-based activities to real-life open water situations.
+        </p>
+      </div>
+
+      <fieldset class="form-question">
+        <legend class="form-question-title">
+          <strong>Q8:</strong> The teacher demonstrates comprehensive knowledge of open water safety and environments and relates WSFL competencies to authentic scenarios.
+        </legend>
+
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="q8" value="1" id="q8-1">
+          <label class="form-check-label" for="q8-1">Needs Improvement</label>
+        </div>
+
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="q8" value="2" id="q8-2">
+          <label class="form-check-label" for="q8-2">Satisfactory</label>
+        </div>
+
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="q8" value="3" id="q8-3">
+          <label class="form-check-label" for="q8-3">Proficient</label>
+        </div>
+      </fieldset>
+
+      <div class="form-section">
+        <h3 class="form-section-title">
+          Determining the Appropriate Teacher Level
+        </h3>
+        <p class="form-section-help">
+          Foundational Level: Teachers scoring mostly 1’s (Needs Improvement) across the criteria.<br>
+          Intermediate Level: Teachers scoring mostly 2’s (Satisfactory) with some 3’s.<br>
+          Expert Level: Teachers consistently scoring 3’s (Proficient) across all or most criteria.
+        </p>
+      </div>
+
+      <fieldset class="form-question">
+        <legend class="form-question-title">
+          <strong>Q9:</strong> What level would you rate this teacher?
+        </legend>
+
+        <div id="q9-reco" class="form-info-box py-2 px-3 mb-3 d-none">
+          Recommended level: <strong id="q9-reco-text"></strong>
+          <span class="text-muted ms-2" id="q9-reco-reason"></span>
+        </div>
+
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="q9" value="1" id="q9-1">
+          <label class="form-check-label" for="q9-1">Foundational Level</label>
+        </div>
+
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="q9" value="2" id="q9-2">
+          <label class="form-check-label" for="q9-2">Intermediate Level</label>
+        </div>
+
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="q9" value="3" id="q9-3">
+          <label class="form-check-label" for="q9-3">Expert Level</label>
+        </div>
+      </fieldset>
+
+      <div class="text-center">
+        <button type="submit" class="btn btn-primary">Submit Survey</button>
+      </div>
+
+    </form>
+  </div>
 </div>
 
-<!-- ===================== ADD TEACHER MODAL (outside the form) ===================== -->
+<!-- Add Teacher Modal -->
 <div class="modal fade" id="addTeacherModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
-    <form id="addTeacherForm" class="modal-content">
-      <div class="modal-header">
+    <form id="addTeacherForm" class="modal-content border-0 shadow">
+      <div class="modal-header form-modal-header">
         <h5 class="modal-title">Add Teacher</h5>
         <button
           type="button"
-          class="btn-close"
+          class="btn-close btn-close-white"
           data-bs-dismiss="modal"
           aria-label="Close"
         ></button>
@@ -344,16 +272,19 @@
       <div class="modal-body">
         <div class="mb-3">
           <label class="form-label">First name</label>
-          <input type="text" class="form-control" name="firstName" required />
+          <input type="text" class="form-control" name="firstName" required>
         </div>
+
         <div class="mb-3">
           <label class="form-label">Surname</label>
-          <input type="text" class="form-control" name="surname" required />
+          <input type="text" class="form-control" name="surname" required>
         </div>
+
         <div class="mb-3">
           <label class="form-label">Email</label>
-          <input type="email" class="form-control" name="email" required />
+          <input type="email" class="form-control" name="email" required>
         </div>
+
         <div class="mb-3">
           <label class="form-label">MOE Number (School)</label>
           <input
@@ -363,8 +294,9 @@
             id="modalMoeNumber"
             required
             readonly
-          />
+          >
         </div>
+
         <div class="alert alert-warning d-none" id="addTeacherError"></div>
       </div>
 
@@ -381,15 +313,15 @@
     </form>
   </div>
 </div>
+{% endblock %}
 
+{% block scripts %}
 <script>
   (() => {
-    // ---- Config ----
     const SURVEY_ID = 3;
-    const ROLE_QID = 4; // Q4 = Teacher Role
+    const ROLE_QID = 4;
     const ADD_TEACHER_VALUE = "__add_teacher__";
 
-    // ---- Elements ----
     const roleSel = document.getElementById("roleSelect");
     const roleIdHidden = document.getElementById("roleIdHidden");
 
@@ -407,44 +339,56 @@
     const addTeacherError = document.getElementById("addTeacherError");
     const modalMoeNumber = document.getElementById("modalMoeNumber");
 
-    // Q9 recommendation bits
     const q9RecoBox = document.getElementById("q9-reco");
     const q9RecoText = document.getElementById("q9-reco-text");
     const q9RecoWhy = document.getElementById("q9-reco-reason");
-    const levelMap = { Foundational: 1, Intermediate: 2, Expert: 3 };
 
-    // ---- Helpers ----
+    const levelMap = {
+      Foundational: 1,
+      Intermediate: 2,
+      Expert: 3
+    };
+
     async function fetchJSON(url) {
       const res = await fetch(url, { credentials: "same-origin" });
       if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
       return res.json();
     }
+
     function setSelectLoading(select, msg = "Loading…") {
       if (!select) return;
       select.innerHTML = `<option value="" selected disabled>${msg}</option>`;
       select.disabled = true;
     }
+
     function setSelectEmpty(select, msg = "No results") {
       if (!select) return;
       select.innerHTML = `<option value="" selected disabled>${msg}</option>`;
       select.disabled = true;
     }
+
     function fillSelect(select, placeholder, rows, mapRow) {
       if (!select) return;
+
       let html = `<option value="" selected disabled>${placeholder}</option>`;
+
       for (const r of rows) {
         const { value, label, id } = mapRow(r);
         const safeValue = value ?? "";
         const safeLabel = label ?? value ?? "—";
         const safeId = id ?? value ?? "";
-        html += `<option value="${String(safeValue)}" data-id="${String(
-          safeId
-        )}">${safeLabel}</option>`;
+
+        html += `<option value="${String(safeValue)}" data-id="${String(safeId)}">${safeLabel}</option>`;
       }
+
       select.innerHTML = html;
       select.disabled = rows.length === 0;
-      if (rows.length === 0) setSelectEmpty(select, "No results");
+
+      if (rows.length === 0) {
+        setSelectEmpty(select, "No results");
+      }
     }
+
     function ensureAddTeacherOption() {
       if (!teacherSel.querySelector(`option[value="${ADD_TEACHER_VALUE}"]`)) {
         const opt = document.createElement("option");
@@ -456,18 +400,22 @@
 
     document.addEventListener("DOMContentLoaded", async () => {
       if (!schoolSel) return;
+
       setSelectLoading(schoolSel, "Loading schools…");
+
       try {
         const data = await fetchJSON(
           "{{ url_for('api_bp.get_entities') }}?entity_type=School"
         );
+
         const schools = Array.isArray(data.entities) ? data.entities : [];
 
         fillSelect(schoolSel, "Select a school…", schools, (s) => ({
-          value: s.id, // from get_entities: {id, description}
+          value: s.id,
           label: s.description,
-          id: s.id,
+          id: s.id
         }));
+
         schoolSel.disabled = false;
       } catch (e) {
         console.error("Failed to load schools", e);
@@ -475,84 +423,84 @@
       }
     });
 
-    // ---- Load Roles (Q4) ----
     document.addEventListener("DOMContentLoaded", async () => {
       try {
         const options = await fetchJSON(
           `/api/surveys/${SURVEY_ID}/questions/${ROLE_QID}/options`
         );
+
         fillSelect(roleSel, "Choose a role…", options, (o) => ({
           value: o.id ?? o.value,
           label: o.label ?? o.value,
-          id: o.id ?? o.value,
+          id: o.id ?? o.value
         }));
+
         roleSel.disabled = false;
       } catch (e) {
         console.error(e);
         setSelectEmpty(roleSel, "Failed to load roles");
       }
     });
+
     roleSel?.addEventListener("change", () => {
       roleIdHidden.value = roleSel.value || "";
     });
 
-    // ---- When school changes: load classes + teachers ----
     schoolSel?.addEventListener("change", async () => {
       const schoolId = schoolSel.value || "";
-      if (schoolIdHidden) schoolIdHidden.value = schoolId;
 
-      // Prefill modal MOE number from selected school
+      if (schoolIdHidden) schoolIdHidden.value = schoolId;
       if (modalMoeNumber) modalMoeNumber.value = schoolId || "";
 
-      // reset dependents
       setSelectLoading(classSel);
       classIdHidden.value = "";
+
       setSelectLoading(teacherSel);
       teacherIdHidden.value = "";
 
-      // Load classes (Q2)
       try {
         const classes = await fetchJSON(
           `/api/classes?school_id=${encodeURIComponent(schoolId)}`
         );
+
         fillSelect(classSel, "Choose a class…", classes, (c) => ({
           value: c.ClassID,
           label:
             (c.ClassName || c.Name || `Class ${c.ClassID}`) +
             (c.Term && c.CalendarYear ? ` (T${c.Term} ${c.CalendarYear})` : ""),
-          id: c.ClassID,
+          id: c.ClassID
         }));
       } catch (e) {
         console.error(e);
         setSelectEmpty(classSel, "Failed to load classes");
       }
 
-      // Load teachers (Q3) — display "First Last", submit email
       try {
         const teachers = await fetchJSON(
           `/api/teachers?school_id=${encodeURIComponent(schoolId)}`
         );
+
         fillSelect(teacherSel, "Choose a teacher…", teachers, (t) => {
           const email = (t.Email || "").toLowerCase();
           const display =
             (t.Name && t.Name.trim()) ||
-            `${(t.FirstName || "").trim()} ${(
-              t.Surname || ""
-            ).trim()}`.trim() ||
+            `${(t.FirstName || "").trim()} ${(t.Surname || "").trim()}`.trim() ||
             email ||
             "—";
+
           return {
-            value: email, // submit email as the value
-            label: display, // show only the name
-            id: t.TeacherID || email,
+            value: email,
+            label: display,
+            id: t.TeacherID || email
           };
         });
+
         teacherSel.disabled = false;
         ensureAddTeacherOption();
       } catch (e) {
         console.error(e);
         setSelectEmpty(teacherSel, "No Teachers Stored for Selected School");
-        teacherSel.disabled = false; // allow opening the modal anyway
+        teacherSel.disabled = false;
         ensureAddTeacherOption();
       }
     });
@@ -563,42 +511,42 @@
 
     teacherSel?.addEventListener("change", () => {
       const val = teacherSel.value || "";
+
       if (val === ADD_TEACHER_VALUE) {
         if (!schoolSel.value) {
           alert("Please select a school first.");
           teacherSel.value = "";
           return;
         }
+
         if (addTeacherError) addTeacherError.classList.add("d-none");
         if (addTeacherForm) addTeacherForm.reset();
         if (modalMoeNumber) modalMoeNumber.value = schoolSel.value || "";
 
         const modal = bootstrap.Modal.getOrCreateInstance(addTeacherModalEl);
         modal.show();
+
         return;
       }
+
       teacherIdHidden.value = val;
     });
 
-    // ---- Add Teacher submit (append to dropdown, no page reload) ----
     addTeacherForm?.addEventListener("submit", async (ev) => {
       ev.preventDefault();
+
       if (addTeacherError) addTeacherError.classList.add("d-none");
 
       const fd = new FormData(addTeacherForm);
+
       const payload = {
         firstName: (fd.get("firstName") || "").toString().trim(),
         surname: (fd.get("surname") || "").toString().trim(),
         email: (fd.get("email") || "").toString().trim().toLowerCase(),
-        moeNumber: (fd.get("moeNumber") || "").toString().trim(),
+        moeNumber: (fd.get("moeNumber") || "").toString().trim()
       };
 
-      if (
-        !payload.firstName ||
-        !payload.surname ||
-        !payload.email ||
-        !payload.moeNumber
-      ) {
+      if (!payload.firstName || !payload.surname || !payload.email || !payload.moeNumber) {
         if (addTeacherError) {
           addTeacherError.textContent = "All fields are required.";
           addTeacherError.classList.remove("d-none");
@@ -611,38 +559,42 @@
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Accept: "application/json",
+            Accept: "application/json"
           },
-          body: JSON.stringify(payload),
+          body: JSON.stringify(payload)
         });
+
         const data = await res.json();
+
         if (!res.ok || !data.ok) {
           throw new Error(data.message || `HTTP ${res.status}`);
         }
 
-        // Close modal
         bootstrap.Modal.getInstance(addTeacherModalEl)?.hide();
 
-        // Append teacher to Q3 if not already there
         const email = (data.user.Email || "").trim().toLowerCase();
-        const name = `${(data.user.FirstName || "").trim()} ${(
-          data.user.Surname || ""
-        ).trim()}`.trim();
-        const label = name || email; // show only name, fallback to email
+        const name = `${(data.user.FirstName || "").trim()} ${(data.user.Surname || "").trim()}`.trim();
+        const label = name || email;
+
         let opt = teacherSel.querySelector(`option[value="${email}"]`);
+
         if (!opt) {
           opt = document.createElement("option");
-          opt.value = email; // submit email
-          opt.textContent = label; // display name only
+          opt.value = email;
+          opt.textContent = label;
+
           const addOpt = teacherSel.querySelector(
             `option[value="${ADD_TEACHER_VALUE}"]`
           );
+
           teacherSel.insertBefore(opt, addOpt || null);
         }
+
         teacherSel.value = email;
         teacherIdHidden.value = email;
       } catch (err) {
         console.error(err);
+
         if (addTeacherError) {
           addTeacherError.textContent = err.message || "Failed to add teacher.";
           addTeacherError.classList.remove("d-none");
@@ -650,48 +602,61 @@
       }
     });
 
-    // ---- Q9 Recommendation logic (based on Q5–Q8) ----
     function getLikert(name) {
       const el = document.querySelector(`input[name="${name}"]:checked`);
       return el ? Number(el.value) : null;
     }
+
     function showPendingBanner() {
       if (!q9RecoBox) return;
+
       q9RecoText.textContent = "Pending";
       q9RecoWhy.textContent = "(Will be shown once you’ve rated Q5–Q8.)";
       q9RecoBox.classList.remove("d-none");
     }
+
     function showRecommendation(level, reason) {
       if (!q9RecoBox) return;
+
       q9RecoText.textContent = level;
       q9RecoWhy.textContent = `(${reason})`;
       q9RecoBox.classList.remove("d-none");
     }
+
     function applyQ9(value) {
       const radio = document.querySelector(
         `input[name="q9"][value="${value}"]`
       );
+
       if (radio) radio.checked = true;
     }
+
     function recommendLevel() {
       const vals = ["q5", "q6", "q7", "q8"]
         .map(getLikert)
         .filter((v) => v !== null);
+
       const n = vals.length;
+
       if (n < 4) {
         showPendingBanner();
         return;
       }
+
       const counts = { 1: 0, 2: 0, 3: 0 };
       let sum = 0;
+
       for (const v of vals) {
         counts[v]++;
         sum += v;
       }
+
       const avg = sum / n;
       const need = Math.ceil(n * 0.6);
 
-      let level, reason;
+      let level;
+      let reason;
+
       if (counts[3] >= need) {
         level = "Expert";
         reason = `mostly ${counts[3]}× “Proficient” across Q5–Q8`;
@@ -701,18 +666,17 @@
       } else if (counts[2] >= need && counts[3] < Math.ceil(n * 0.5)) {
         level = "Intermediate";
         reason = `mostly ${counts[2]}× “Satisfactory” across Q5–Q8`;
+      } else if (avg >= 2.5) {
+        level = "Expert";
+        reason = `average ${avg.toFixed(2)} (leaning Proficient)`;
+      } else if (avg >= 1.75) {
+        level = "Intermediate";
+        reason = `average ${avg.toFixed(2)} (mixed Satisfactory)`;
       } else {
-        if (avg >= 2.5) {
-          level = "Expert";
-          reason = `average ${avg.toFixed(2)} (leaning Proficient)`;
-        } else if (avg >= 1.75) {
-          level = "Intermediate";
-          reason = `average ${avg.toFixed(2)} (mixed Satisfactory)`;
-        } else {
-          level = "Foundational";
-          reason = `average ${avg.toFixed(2)} (leaning Needs Improvement)`;
-        }
+        level = "Foundational";
+        reason = `average ${avg.toFixed(2)} (leaning Needs Improvement)`;
       }
+
       showRecommendation(level, reason);
       applyQ9(levelMap[level]);
     }
@@ -721,19 +685,22 @@
       showPendingBanner();
       recommendLevel();
     });
+
     for (const q of ["q5", "q6", "q7", "q8"]) {
       document.querySelectorAll(`input[name="${q}"]`).forEach((inp) => {
         inp.addEventListener("change", recommendLevel);
       });
     }
 
-    // ---- Prevent double-submit ----
     document.addEventListener("DOMContentLoaded", () => {
       const form =
         document.querySelector('form[action*="TeacherAssessment"]') ||
         document.querySelector("form");
+
       const submitBtn = form?.querySelector('button[type="submit"]');
+
       if (!form || !submitBtn) return;
+
       form.addEventListener("submit", () => {
         submitBtn.disabled = true;
         submitBtn.innerText = "Submitting…";

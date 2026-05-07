@@ -1,44 +1,59 @@
-{% extends "header.html" %} {% block title %}My Forms{% endblock %} {% block
-content %}
-<div class="container my-5">
-  <h2 class="mb-4 text-primary text-centre">
-    {% if target_email != session['user_email'] and
-    session['survey_target_firstname'] and session['survey_target_lastname'] %}
-    Viewing Forms for {{ session['survey_target_firstname'] }} {{
-    session['survey_target_lastname'] }} {% elif target_email !=
-    session['user_email'] %} Viewing Forms for {{ target_email }} {% else %} My
-    Completed Forms {% endif %}
-  </h2>
-  {% if surveys %}
-  <div class="table-responsive">
-    <table class="table table-bordered align-middle shadow-sm bg-white rounded">
-      <thead>
-        <tr>
-          <th scope="col">Survey Title</th>
-          <th scope="col">Submitted Date</th>
-          <th scope="col" class="text-center">Action</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for survey in surveys %}
-        <tr>
-          <td>{{ survey.Title }}</td>
-          <td>{{ survey.SubmittedDate.strftime('%d %B %Y, %I:%M %p') }}</td>
-          <td class="text-center">
-            <a
-              href="{{ url_for('survey_bp.view_my_survey_response', respondent_id=survey.RespondentID) }}"
-              class="btn btn-outline-primary btn-sm"
-            >
-              View Response
-            </a>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+{% extends "header.html" %}
+{% block title %}My Forms{% endblock %}
+
+{% block content %}
+<div class="container mt-2 form-page" style="max-width: 80%;">
+  <div class="page-panel">
+
+    <h2 class="form-title text-center mb-1">
+      {% if target_email != session['user_email'] and session['survey_target_firstname'] and session['survey_target_lastname'] %}
+        Forms for {{ session['survey_target_firstname'] }} {{ session['survey_target_lastname'] }}
+      {% elif target_email != session['user_email'] %}
+        Forms for {{ target_email }}
+      {% else %}
+        My Completed Forms
+      {% endif %}
+    </h2>
+
+    <p class="form-subtitle text-center mb-4">
+      View completed survey and review responses.
+    </p>
+
+    {% if surveys %}
+      <div class="table-responsive">
+        <table class="table form-table align-middle">
+          <thead>
+            <tr>
+              <th scope="col">Survey Title</th>
+              <th scope="col">Submitted Date</th>
+              <th scope="col" class="text-center">Action</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {% for survey in surveys %}
+              <tr>
+                <td>{{ survey.Title }}</td>
+                <td>{{ survey.SubmittedDate.strftime('%d %B %Y, %I:%M %p') }}</td>
+                <td class="text-center">
+                  <a
+                    href="{{ url_for('survey_bp.view_my_survey_response', respondent_id=survey.RespondentID) }}"
+                    class="btn btn-outline-primary btn-sm form-action-btn"
+                  >
+                    View Response
+                  </a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="form-info-box text-center">
+        You haven’t submitted any surveys yet.
+      </div>
+    {% endif %}
+
   </div>
-  {% else %}
-  <div class="alert alert-info">You haven't submitted any surveys yet.</div>
-  {% endif %}
 </div>
 {% endblock %}

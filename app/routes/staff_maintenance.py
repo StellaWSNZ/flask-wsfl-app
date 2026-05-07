@@ -979,7 +979,7 @@ def staff_eLearning():
                 selected_entity_type="Funder",
                 selected_entity_id=None,
                 entity_list=[],
-                name="Staff eLearning",
+                name=None,
                 user_role=user_role,
             )
 
@@ -1001,7 +1001,7 @@ def staff_eLearning():
                 selected_entity_type=selected_entity_type,
                 selected_entity_id=None,
                 entity_list=entity_list,
-                name="Staff eLearning",
+                name=None,
                 user_role=user_role,
             )
 
@@ -1012,7 +1012,7 @@ def staff_eLearning():
             if selected_entity_id and entity_list:
                 allowed_ids = {str(e.get("id")) for e in entity_list if e.get("id") is not None}
                 if str(selected_entity_id) not in allowed_ids:
-                    flash("Invalid selection.", "warning")
+                   # flash("Invalid selection.", "warning")
                     return redirect(url_for("staff_bp.staff_eLearning"))
 
         # -----------------------------
