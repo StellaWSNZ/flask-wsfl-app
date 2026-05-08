@@ -1,29 +1,92 @@
-{% extends "header.html" %} {% block title %}{{ code }} Error{% endblock %} {%
-block content %}
+{% extends "header.html" %}
 
-<div class="text-center mt-5">
-  <h1 class="text-primary mb-4 text-center">Error {{ code or "" }}</h1>
+{% block title %}{{ code }} Error{% endblock %}
 
-  {% if code|int == 900 %}
-  <p>
-    Sorry, this page is not available on mobile devices. If this is critical
-    please contact support.
-  </p>
+{% block content %}
+<div class="container my-5" style="max-width: 760px">
+  <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
 
-  {% elif code|int >= 500 %}
-  <p>Oops! Something went wrong on our end. Please try again later.</p>
-  {% elif code|int == 404 %}
-  <p>The page you're looking for doesn't exist.</p>
-  {% elif code|int == 403 %}
-  <p>You're not authorized to access this page.</p>
-  {% elif code == "f405" %}
-  <p>Oops! A database related error occurred.</p>
-  {% else %}
-  <p>An unexpected error occurred.</p>
-  {% endif %}
+    <div
+      class="p-4 text-center"
+      style="
+        background: rgba(26, 66, 125, 0.08);
+        border-bottom: 2px solid var(--wsnz-dark-blue);
+      "
+    >
+      <h1
+        class="mb-2"
+        style="
+          color: var(--wsnz-dark-blue);
+          font-weight: 700;
+        "
+      >
+        {% if code|int >= 500 %}
+          ⚠️ Something Went Wrong
+        {% elif code|int == 404 %}
+          🔍 Page Not Found
+        {% elif code|int == 403 %}
+          🔒 Access Denied
+        {% elif code|int == 900 %}
+          📱 Mobile Device Not Supported
+        {% else %}
+          ⚠️ Error {{ code or "" }}
+        {% endif %}
+      </h1>
 
-  <a href="{{ url_for('home_bp.home') }}" class="btn btn-primary mt-3"
-    >Back to Home
-  </a>
+      <p class="mb-0 text-muted">
+        Error {{ code or "Unknown" }}
+      </p>
+    </div>
+
+    <div class="card-body text-center py-4 px-4">
+
+      {% if code|int == 900 %}
+        <p>
+          Sorry, this page is not available on mobile devices.
+          If this is critical please contact support.
+        </p>
+
+      {% elif code|int >= 500 %}
+        <p>
+          Oops! Something went wrong on our end.
+          Please try again later.
+        </p>
+
+      {% elif code|int == 404 %}
+        <p>
+          The page you're looking for doesn't exist.
+        </p>
+
+      {% elif code|int == 403 %}
+        <p>
+          You're not authorized to access this page.
+        </p>
+
+      {% elif code == "f405" %}
+        <p>
+          A database-related error occurred.
+        </p>
+
+      {% else %}
+        <p>
+          An unexpected error occurred.
+        </p>
+      {% endif %}
+
+      <a
+        href="{{ url_for('home_bp.home') }}"
+        class="btn mt-3"
+        style="
+          background: var(--wsnz-dark-blue);
+          color: white;
+          border: none;
+          font-weight: 600;
+        "
+      >
+        Back to Home
+      </a>
+
+    </div>
+  </div>
 </div>
 {% endblock %}

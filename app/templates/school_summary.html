@@ -1,60 +1,52 @@
 {% extends "header.html" %}
 {% block title %}School Summary{% endblock %}
-
 {% block head %}
 <style>
+  .school-page {
+    --school-main: var(--pal-5);
+    --school-soft: var(--pal-5-f);
+    --school-accent: var(--pal-6);
+  }
+
   .wsfl-page-title {
-    color: #1a427d;
+    color: var(--school-main);
     font-weight: 700;
   }
 
-  .wsfl-summary-card {
-    border: none;
+  .wsfl-summary-card,
+  .wsfl-class-card {
+    border: 1px solid var(--border-soft);
     border-radius: 1rem;
-    background: #ffffff;
-    box-shadow: 0 0.25rem 1rem rgba(26, 66, 125, 0.08);
+    background: var(--white);
+    box-shadow: 0 0.5rem 1.5rem rgba(0,0,0,0.06);
     overflow: hidden;
   }
 
-  .wsfl-summary-card .card-title {
-    background: #1a427d;
-    color: #ffffff;
+  .wsfl-summary-card .card-title,
+  .wsfl-class-header {
+    background: var(--school-soft);
+    color: var(--school-main);
+    border-bottom: 2px solid var(--school-main);
     font-weight: 700;
     margin: 0;
     padding: 0.9rem 1.1rem;
-    font-size: 1rem;
-  }
-
-  .wsfl-summary-card .card-body {
-    padding: 1rem 1.1rem 1.1rem 1.1rem;
-  }
-
-  .wsfl-class-card {
-    border: none;
-    border-radius: 1rem;
-    background: #ffffff;
-    box-shadow: 0 0.25rem 1rem rgba(26, 66, 125, 0.08);
-    overflow: hidden;
-  }
-
-  .wsfl-class-header {
-    background: #1a427d;
-    color: #ffffff;
-    border-top-left-radius: 1rem;
-    border-top-right-radius: 1rem;
-    padding: 1rem 1.25rem;
   }
 
   .wsfl-class-title {
-    color: #ffffff;
+    color: var(--school-main);
     font-weight: 700;
     margin-bottom: 0;
   }
 
+  .wsfl-summary-card .card-body {
+    padding: 1rem 1.1rem 1.1rem;
+  }
+
   .wsfl-metric-chip {
     display: inline-block;
-    background: #e9f0fa;
-    color: #1a427d;
+    background: var(--school-soft);
+    color: var(--school-main);
+    border: 1px solid var(--school-accent);
     border-radius: 999px;
     padding: 0.4rem 0.8rem;
     font-weight: 600;
@@ -64,7 +56,7 @@
 
   .wsfl-detail-row {
     margin-bottom: 0.45rem;
-    color: #2f3b52;
+    color: var(--dk-gray);
   }
 
   .wsfl-actions {
@@ -74,25 +66,31 @@
   }
 
   .wsfl-soft-box {
-    background: #f8fbff;
-    border: 1px solid #dbe7f5;
+    background: var(--school-soft);
+    border: 1px solid var(--school-accent);
     border-radius: 0.75rem;
     padding: 0.9rem 1rem;
   }
 
-  .wsfl-preview-title {
-    color: #1a427d;
-    font-weight: 600;
-    margin-bottom: 0.6rem;
+  .wsfl-preview-title,
+  .wsfl-helper-card-title {
+    color: var(--school-main);
+    font-weight: 700;
   }
 
-  .wsfl-muted {
-    color: #6c7a8c;
+  .wsfl-muted,
+  .wsfl-helper-card-text {
+    color: var(--dk-gray);
+  }
+
+  .wsfl-helper-card-text {
+    font-size: 0.92rem;
+    line-height: 1.45;
   }
 
   .copy-feedback {
     font-size: 0.88rem;
-    color: #198754;
+    color: var(--success-green);
     opacity: 0;
     transition: opacity 0.25s ease;
     min-height: 1.2rem;
@@ -103,70 +101,48 @@
   }
 
   .details-table thead th {
-    background: #e9f0fa;
-    color: #1a427d;
-    border-color: #dbe7f5;
+    background: var(--school-soft);
+    color: var(--school-main);
+    border-bottom: 2px solid var(--school-main);
     font-weight: 700;
   }
 
-  .details-table td {
-    border-color: #dbe7f5;
-  }
-
-  .btn-outline-primary {
-    border-color: #1a427d;
-    color: #1a427d;
-  }
-
-  .btn-outline-primary:hover,
-  .btn-outline-primary:focus {
-    background-color: #1a427d;
-    border-color: #1a427d;
-    color: #ffffff;
+  .details-table td,
+  .details-table th {
+    border-color: var(--border-soft);
   }
 
   .wsfl-summary-line-main {
     font-weight: 700;
     margin-bottom: 0.55rem;
-    color: #1f2d3d;
+    color: var(--text-main);
   }
 
   .wsfl-summary-line-sub {
     margin-bottom: 0.5rem;
-    color: #2f3b52;
-  }
-
-  .wsfl-helper-card-title {
-    color: #1a427d;
-    font-weight: 700;
-    font-size: 1.02rem;
-  }
-
-  .wsfl-helper-card-text {
-    color: #5c6b7c;
-    font-size: 0.92rem;
-    line-height: 1.45;
+    color: var(--dk-gray);
   }
 
   .wsfl-warning {
-  background: #fff4e5;
-  border: 1px solid #fcb35ad8;
-  color: #8a4b00;
-  border-radius: 0.6rem;
-  padding: 0.65rem 0.8rem;
-  font-size: 0.92rem;
-  margin-bottom: 0.6rem;
-}
+    background: var(--pal-2-f);
+    border: 1px solid var(--pal-2);
+    color: #7a5a12;
+    border-radius: 0.6rem;
+    padding: 0.65rem 0.8rem;
+    font-size: 0.92rem;
+    margin-bottom: 0.6rem;
+  }
 </style>
 {% endblock %}
+<div class="container py-4 school-page">
 
 {% block content %}
-<div class="container py-4">
+<div class="container py-4 school-page">
   <div class="d-flex justify-content-between align-items-center mb-3">
     <h3 class="wsfl-page-title mb-0">School Summary</h3>
   </div>
 
-  <div class="card shadow-sm mb-4">
+  <div class="card school-card mb-4">
     <div class="card-body d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
       <div>
         <div class="wsfl-helper-card-title mb-1">About this page</div>
@@ -183,13 +159,13 @@
       <div class="d-flex flex-column align-items-start align-items-md-end gap-1">
   <div class="d-flex flex-wrap gap-2">
     <button type="button"
-            class="btn btn-primary btn-sm"
+            class="btn school-type-primary-btn btn-sm"
             onclick="copyVisibleSummary()">
       Copy text report
     </button>
 
     <button type="button"
-            class="btn btn-outline-primary btn-sm"
+            class="btn school-type-action-btn btn-sm"
             onclick="copyVisibleSummaryRich()">
       Copy formatted report
     </button>
@@ -290,7 +266,7 @@
         </div>
 
         <div class="col-md-2 d-grid">
-          <button type="submit" class="btn btn-primary">Show</button>
+          <button type="submit" class="btn school-type-primary-btn">Show</button>
         </div>
 
       </div>
@@ -360,7 +336,7 @@
               <div class="wsfl-actions mt-3 no-copy">
                 
                 <button type="button"
-        class="btn btn-outline-primary btn-sm"
+        class="btn school-type-action-btn btn-sm"
         onclick="exportVisibleClassRecords()">
   Export visible class records
 </button>
@@ -398,7 +374,7 @@
                   {% set kaiako_more_id = "kaiakoMoreRows_" ~ row["SortOrder"] %}
 
                   <div class="wsfl-actions mt-2 mb-2 no-copy">
-                    <button class="btn btn-outline-primary btn-sm kaiako-details-toggle-btn"
+                    <button class="btn school-type-action-btn btn-sm kaiako-details-toggle-btn"
                             type="button"
                             data-bs-toggle="collapse"
                             data-bs-target="#{{ kaiako_id }}"
@@ -454,7 +430,7 @@
 </table>
 
 {% if row["HasMoreRows"] %}
-  <button class="btn btn-outline-secondary btn-sm no-copy kaiako-more-toggle-btn"
+  <button class="btn btn-outline-secondary-w-w btn-sm no-copy kaiako-more-toggle-btn"
           type="button"
           data-bs-toggle="collapse"
           data-bs-target="#{{ kaiako_more_id }}"
@@ -515,7 +491,7 @@
 
                     <!-- VIEW DETAILS -->
                     <div class="wsfl-actions mt-2 mb-2 no-copy">
-                      <button class="btn btn-outline-primary btn-sm class-summary-details-toggle-btn"
+                      <button class="btn school-type-action-btn btn-sm class-summary-details-toggle-btn"
                               type="button"
                               data-bs-toggle="collapse"
                               data-bs-target="#multiClassSummaryDetails"
@@ -570,7 +546,7 @@
                         </div>
 
                         {% if row["HasMoreRows"] %}
-                          <button class="btn btn-outline-secondary btn-sm"
+                          <button class="btn btn-outline-secondary-w-w btn-sm"
                                   type="button"
                                   data-bs-toggle="collapse"
                                   data-bs-target="#multiClassSummaryMoreRows"
@@ -632,7 +608,7 @@
               {% endfor %}
 
               <div class="wsfl-actions mt-3 no-copy">
-                <button class="btn btn-outline-primary btn-sm details-toggle-btn"
+                <button class="btn school-type-action-btn btn-sm details-toggle-btn"
                         type="button"
                         data-bs-toggle="collapse"
                         data-bs-target="#details{{ group.group_id }}"
@@ -642,7 +618,7 @@
                 </button>
 
                 <button type="button"
-                        class="btn btn-outline-secondary btn-sm"
+                        class="btn btn-outline-secondary-w btn-sm"
                         onclick="copyClassSummary('{{ group.group_id }}')">
                   Copy class summary
                 </button>
@@ -654,7 +630,7 @@
                       year=selected_year,
                       school=selected_school
                   ) }}"
-                  class="btn btn-outline-primary btn-sm">
+                  class="btn school-type-action-btn btn-sm">
                     Export achievements with changes
                   </a>
               </div>

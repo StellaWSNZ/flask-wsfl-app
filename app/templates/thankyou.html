@@ -1,7 +1,39 @@
-{% extends "header.html" %} {% block title %}Thank You{% endblock %} {% block
-content %}
-<div class="container my-5 text-center">
-  <h1 class="mb-4 text-centre text-primary">🎉 Thank You!</h1>
-  <p>Your response has been recorded.</p>
+{% extends "header.html" %}
+
+{% block title %}Thank You{% endblock %}
+
+{% block content %}
+<div class="container my-5" style="max-width: 700px">
+  <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
+
+    <div
+      class="p-4 text-center"
+      style="
+        background: var(--pal-5-f);
+        border-bottom: 2px solid var(--pal-5);
+      "
+    >
+      <h1
+        class="mb-2"
+        style="
+          color: var(--pal-5);
+          font-weight: 700;
+        "
+      >
+        🎉 Thank You!
+      </h1>
+
+      <p class="mb-0 text-muted">
+        Your response has been recorded successfully.
+      </p>
+    </div>
+
+    <div class="card-body text-center py-4">
+      <p class="mb-0">
+        You can now close this page.
+      </p>
+    </div>
+
+  </div>
 </div>
 {% endblock %}

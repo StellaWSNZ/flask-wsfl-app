@@ -221,6 +221,9 @@ def funder_dashboard():
                             "DistinctYearLevels",
                             "CalendarYear",
                             "Term",
+                            "EditedFlag",
+                            "StudentsEditedThisTerm",
+                            "PercentStudentsEdited",
                         ]
                     )
                 cols = {c.lower(): c for c in df.columns}

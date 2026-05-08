@@ -2,7 +2,7 @@
 {% block title %}Overview{% endblock %}
 
 {% block content %}
-<div class="container mt-5 entity-overview-page" style="max-width: 95%;">
+<div class="container mt-3 entity-overview-page" style="max-width: 95%;">
   <h2 class="text-center entity-overview-title mb-4">{{ title }}</h2>
   {% if user_role == "ADM" or (user_role in ["FUN","PRO","GRP"]) %}
   <form method="POST" class="mb-4 entity-overview-filter-card" id="entityForm">

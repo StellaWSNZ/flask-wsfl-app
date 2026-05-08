@@ -1,11 +1,9 @@
 {% extends "header.html" %}
 {% block title %}School Overview{% endblock %}
 {% block content %}
-<div class="container my-4">
-
+<div class="container my-4 entity-overview-page" style="max-width: 95%;">
   <!-- Page introduction -->
-  <div class="alert alert-info shadow-sm">
-    {% if is_admin %}
+<div class="entity-overview-filter-card mb-3">    {% if is_admin %}
       <strong>Overview:</strong>
       This page shows all schools currently or previously funded by the selected funder,
       including a summary of their registered staff and class lists by term and year.
@@ -15,7 +13,7 @@
       including a summary of their registered staff and class lists by term and year.
     {% endif %}
   </div>
-
+<div class="entity-overview-filter-card mb-4">
   {% if is_admin %}
   <!-- Funder dropdown (for admins) -->
   <form method="post" class="mb-3">
@@ -87,7 +85,7 @@
     </div>
 
   </div> <!-- End full-width form -->
-
+</div>
   {% if rows|length == 0 %}
     <div class="alert alert-info">No schools found.</div>
   {% else %}
@@ -100,7 +98,7 @@
           {% set has_selected = 1 if (r.SelectedYear and r.SelectedTerm) else 0 %}
           {% set total_classes = r.TotalClasses or 0 %}
 
-          <div class="card w-100 shadow-sm border-3 border-primary school-card rounded-3"
+          <div class="card w-100 entity-overview-card school-card"
                data-active-count="{{ active_cnt }}"
                data-inactive-count="{{ inactive_cnt }}"
                data-has-selected="{{ has_selected }}"
@@ -108,43 +106,48 @@
                data-total-classes="{{ total_classes }}"
                data-moe="{{ r.MOENumber }}"
                data-school="{{ r.SchoolName }}">
-            <div class="card-body bg-light bg-gradient">
-
-              <!-- School header -->
-              <div class="mb-2">
-                <div class="fs-5 fw-semibold text-dark">{{ r.SchoolName }}</div>
-                <div class="text-muted">MOE {{ r.MOENumber }}</div>
-              </div>
+            <div class="entity-overview-card-header px-3 py-3">
+  <div class="fs-5 fw-semibold">{{ r.SchoolName }}</div>
+  <div class="small opacity-75">MOE {{ r.MOENumber }}</div>
+</div>
+<div class="card-body">
 
               <!-- Summary badges -->
-              <div class="mb-3">
-                <span class="badge {{ 'bg-success' if r.HasActiveUsers else 'bg-secondary' }}">
-                  {{ r.ActiveUserCount }} active {{ 'user' if r.ActiveUserCount == 1 else 'users' }}
-                </span>
+              <div class="mb-3 d-flex flex-wrap gap-2">
 
-                {% if r.SelectedYear and r.SelectedTerm %}
-                  <span class="badge bg-primary ms-2">
-                    {{ r.SelectedClasses }} {{ 'class list' if r.SelectedClasses == 1 else 'class lists' }}
-                    in Term {{ r.SelectedTerm }}, {{ r.SelectedYear }}
-                  </span>
-                {% else %}
-                  <span class="badge bg-primary ms-2">
-                    {{ r.TotalClasses }} {{ 'class' if r.TotalClasses == 1 else 'classes' }} (all time)
-                  </span>
-                {% endif %}
-              </div>
+  <span class="badge overview-badge-success">
+    {{ r.ActiveUserCount }}
+    active
+    {{ 'user' if r.ActiveUserCount == 1 else 'users' }}
+  </span>
+
+  {% if r.SelectedYear and r.SelectedTerm %}
+    <span class="badge overview-badge-primary">
+      {{ r.SelectedClasses }}
+      {{ 'class list' if r.SelectedClasses == 1 else 'class lists' }}
+      in Term {{ r.SelectedTerm }}, {{ r.SelectedYear }}
+    </span>
+  {% else %}
+    <span class="badge overview-badge-primary">
+      {{ r.TotalClasses }}
+      {{ 'class' if r.TotalClasses == 1 else 'classes' }}
+      (all time)
+    </span>
+  {% endif %}
+
+</div>
 
               <div class="row g-3">
                 <!-- Left: Active & Inactive users -->
                 <div class="col-12 col-md-6">
-                  <div class="fw-semibold mb-2 text-dark">Active Users</div>
+                  <div class="school-section-title mb-2">Active Users</div>
                   {% if r.Contacts and r.Contacts|length > 0 %}
-                    <ul class="list-group mb-2">
+                    <ul class="list-group school-user-list mb-2">
                       {% for u in r.Contacts %}
                         <li class="list-group-item py-2 {% if loop.index > 5 %}d-none extra-active-{{ r.MOENumber }}{% endif %}">
                           {% set full = (u['FirstName'] ~ ' ' ~ u['Surname'])|trim %}
                           {% if full %}
-                            {{ full }}{% if u['Email'] %} <span class="text-muted">({{ u['Email'] }})</span>{% endif %}
+                            {{ full }}{% if u['Email'] %} <span class="school-user-email">({{ u['Email'] }})</span>{% endif %}
                           {% elif u['Email'] %}
                             {{ u['Email'] }}
                           {% else %}
@@ -155,7 +158,7 @@
                     </ul>
                     {% if r.Contacts|length > 5 %}
                       <button type="button"
-                              class="btn btn-outline-primary btn-sm mb-3 toggle-users"
+                              class="btn school-type-action-btn btn-sm"
                               data-target=".extra-active-{{ r.MOENumber }}"
                               data-show="Show all {{ r.Contacts|length }} users"
                               data-hide="Show less">
@@ -166,9 +169,9 @@
                     <div class="text-muted mb-3">No active users.</div>
                   {% endif %}
 
-                  <div class="fw-semibold mb-2 text-dark">Inactive Users</div>
+                  <div class="school-section-title mb-2">Inactive Users</div>
                   {% if r.InactiveContacts and r.InactiveContacts|length > 0 %}
-                    <ul class="list-group mb-2">
+                    <ul class="list-group school-user-list mb-2">
                       {% for u in r.InactiveContacts %}
                         <li class="list-group-item py-2 {% if loop.index > 5 %}d-none extra-inactive-{{ r.MOENumber }}{% endif %}">
                           {% set full = (u['FirstName'] ~ ' ' ~ u['Surname'])|trim %}
@@ -198,10 +201,10 @@
 
                 <!-- Right: Classes -->
                 <div class="col-12 col-md-6">
-                  <div class="fw-semibold mb-2 text-dark">Classes by Year &amp; Term</div>
+                  <div class="school-section-title mb-2">Classes by Year &amp; Term</div>
                   {% if r.ClassCounts and r.ClassCounts|length > 0 %}
                     <div class="table-responsive">
-                      <table class="table table-sm align-middle mb-0 table-hover border">
+                      <table class="table entity-overview-table table-sm align-middle mb-0">
                         <thead style="background-color: white;">
                           <tr>
                             <th>Year</th>
@@ -338,10 +341,4 @@ document.addEventListener("DOMContentLoaded", function() {
 });
 </script>
 
-<style>
-.school-card {
-  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-  border-color: #002b5c !important; /* navy blue */
-}
-</style>
 {% endblock %}

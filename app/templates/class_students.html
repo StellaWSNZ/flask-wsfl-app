@@ -19,35 +19,156 @@
 ></div>
 
 <style>
-  .info-pill {
-    --size: 1.25rem;
-    width: var(--size);
-    height: var(--size);
-    background: #fff;
-    color: var(--bs-primary);
-    border: 1px solid var(--bs-primary);
-    border-radius: 50%;
-    display: inline-grid;
-    place-items: center;
-    line-height: 1;
+  :root {
+    --workflow-main: var(--dk-teal);
+    --workflow-soft: rgba(0, 128, 141, 0.08);
+    --workflow-border: rgba(0, 128, 141, 0.16);
   }
-  .info-pill i {
-    font-size: 0.9rem;
+
+  .modal-content {
+    border-radius: 18px;
+    overflow: hidden;
+  }
+
+  .modal-body {
+    padding: 1.4rem;
+  }
+
+  .workflow-page-title {
+    color: var(--workflow-main);
+    font-weight: 700;
+  }
+
+  .workflow-panel {
+    background: #ffffff;
+    border: 1px solid var(--workflow-border);
+    border-radius: 16px;
+    box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.06);
+  }
+
+  .workflow-toolbar {
+    background: var(--workflow-soft);
+    border: 1px solid var(--workflow-border);
+    border-radius: 14px;
+    padding: 0.9rem 1rem;
+  }
+
+  .workflow-soft-box {
+    background: var(--workflow-soft);
+    border: 1px solid var(--workflow-border);
+    border-radius: 12px;
+  }
+
+  .workflow-label {
+    color: var(--workflow-main);
+    font-weight: 600;
+  }
+
+  .workflow-table th,
+  .workflow-table td {
+    border-color: rgba(0, 128, 141, 0.12);
+  }
+
+  .workflow-table thead th {
+    background: var(--workflow-soft);
+    color: var(--workflow-main);
+    border-bottom: 2px solid var(--workflow-main);
+    font-weight: 700;
+    vertical-align: middle;
+  }
+
+  .workflow-table tbody td {
+    vertical-align: middle;
+  }
+
+  .workflow-table tbody tr:hover {
+    background: rgba(0, 0, 0, 0.015);
+  }
+
+  .workflow-btn-primary,
+  .workflow-btn-outline {
+    transition: all 0.15s ease;
+  }
+
+  .workflow-btn-primary {
+    background: var(--workflow-main) !important;
+    border-color: var(--workflow-main) !important;
+    color: #ffffff !important;
+    font-weight: 600;
+  }
+
+  .workflow-btn-primary:hover,
+  .workflow-btn-primary:focus {
+    background: #006b75 !important;
+    border-color: #006b75 !important;
+    color: #ffffff !important;
+  }
+
+  .workflow-btn-outline {
+    border: 1px solid var(--workflow-main) !important;
+    color: var(--workflow-main) !important;
+    background: #ffffff !important;
+    font-weight: 600;
+  }
+
+  .workflow-btn-outline:hover,
+  .workflow-btn-outline:focus {
+    background: var(--workflow-main) !important;
+    border-color: var(--workflow-main) !important;
+    color: #ffffff !important;
+  }
+
+  .workflow-modal-header {
+    background: var(--workflow-main) !important;
+    color: #ffffff !important;
+    border-bottom: none !important;
+  }
+
+  .form-control:focus,
+  .form-select:focus {
+    border-color: var(--workflow-main);
+    box-shadow: 0 0 0 0.18rem rgba(0, 128, 141, 0.14);
+  }
+
+  .info-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 22px;
+    height: 22px;
+
+    border-radius: 50%;
+
+    background: #ffffff;
+    color: var(--workflow-main);
+
+    border: 1px solid var(--workflow-main);
+
+    font-size: 0.72rem;
+    font-weight: 700;
+
+    transition: all 0.15s ease;
+  }
+
+  .info-pill:hover {
+    background: var(--workflow-main);
+    color: #ffffff;
   }
 </style>
 
-<div class="container my-4">
-  <h2 class="text-center text-primary mb-4">Edit Class List</h2>
+<div class="container my-4 workflow-page"> <h2 class="text-center workflow-page-title mb-4">Edit Class List</h2>
 
   <!-- Filters -->
-  <div class="row g-3 mb-3">
+  <div class="workflow-panel p-3 mb-3">
+  <div class="row g-3">
     <div class="col-md-4">
-      <label class="form-label">School</label>
+      <label class="form-label workflow-label">School</label>
       <select id="school-select" class="form-select"></select>
     </div>
 
     <div class="col-md-2">
-      <label class="form-label">Term</label>
+      <label class="form-label workflow-label">Term</label>
       <select id="term-select" class="form-select">
         {% for t in terms %}
           <option value="{{ t }}" {{ "selected" if t == current_term else "" }}>Term {{ t }}</option>
@@ -56,7 +177,7 @@
     </div>
 
     <div class="col-md-2">
-      <label class="form-label">Year</label>
+      <label class="form-label workflow-label">Year</label>
       <select id="year-input" class="form-select">
         {% for y in years %}
           <option value="{{ y }}" {{ "selected" if y == current_year else "" }}>{{ y }}</option>
@@ -65,14 +186,14 @@
     </div>
 
     <div class="col-md-4">
-      <label class="form-label">Class</label>
+      <label class="form-label workflow-label">Class</label>
       <select id="class-select" class="form-select"></select>
     </div>
   </div>
-
+</div>
   <!-- Toolbar -->
-  <div class="d-flex justify-content-between align-items-center mb-2">
-    <h5 class="mb-0">Students</h5>
+  <div class="workflow-toolbar d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0 workflow-page-title">Students</h5>
     <div class="d-flex align-items-center gap-2">
       <label class="small text-muted mb-0 me-1">Sort:</label>
       <select id="sort-field" class="form-select form-select-sm w-auto">
@@ -89,7 +210,7 @@
 
       <button
         id="add-student-btn"
-        class="btn btn-sm btn-success"
+        class="btn btn-sm workflow-btn-primary"
         data-bs-toggle="modal"
         data-bs-target="#addStudentModal"
       >
@@ -99,7 +220,7 @@
   </div>
 
   <div class="table-responsive">
-    <table class="table table-bordered table-hover align-middle">
+    <table class="table table-bordered table-hover align-middle workflow-table">
       <thead class="custom-header">
         <tr>
           <th>NSN</th>
@@ -133,7 +254,7 @@
 <div class="modal fade" id="editStudentModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content border-0">
-      <div class="modal-header bg-primary text-white">
+      <div class="modal-header workflow-modal-header text-white">
         <h5 class="modal-title">Edit Student</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
@@ -142,22 +263,22 @@
         <form id="edit-student-form">
           <input type="hidden" id="edit-nsn" />
           <div class="mb-3">
-            <label class="form-label">First Name</label>
+            <label class="form-label workflow-label">First Name</label>
             <input type="text" class="form-control" id="edit-first-name" required />
           </div>
           <div class="mb-3">
-            <label class="form-label">Last Name</label>
+            <label class="form-label workflow-label">Last Name</label>
             <input type="text" class="form-control" id="edit-last-name" required />
           </div>
           <div class="mb-3">
-            <label class="form-label">Preferred Name</label>
+            <label class="form-label workflow-label">Preferred Name</label>
             <input type="text" class="form-control" id="edit-preferred-name" />
           </div>
           <div class="mb-3">
-            <label class="form-label">Ethnicity</label>
+            <label class="form-label workflow-label">Ethnicity</label>
             <select class="form-select" id="edit-ethnicity"></select>
           </div>
-          <button type="submit" class="btn btn-primary">Save Changes</button>
+          <button type="submit" class="btn workflow-btn-primary">Save Changes</button>
         </form>
       </div>
     </div>
@@ -177,7 +298,7 @@
         Are you sure you want to remove this student from this class?
       </div>
       <div class="modal-footer">
-        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn workflow-btn-outline" data-bs-dismiss="modal">Cancel</button>
         <button id="confirm-delete-btn" class="btn btn-danger">Remove</button>
       </div>
     </div>
@@ -188,7 +309,7 @@
 <div class="modal fade" id="addStudentModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg">
     <div class="modal-content border-0">
-      <div class="modal-header bg-success text-white">
+      <div class="modal-header workflow-modal-header">
         <h5 class="modal-title">Add Student to Class</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
@@ -196,50 +317,50 @@
         <div id="add-modal-alert-host" class="mb-2"></div>
 
         <div class="mb-3">
-          <label class="form-label">Search by NSN or name</label>
+          <label class="form-label workflow-label">Search by NSN or name</label>
           <div class="input-group">
             <input id="search-q" class="form-control" placeholder="NSN, first, last, or preferred name" />
-            <button id="search-btn" class="btn btn-outline-secondary" type="button">Search</button>
+            <button id="search-btn" class="btn workflow-btn-outline" type="button">Search</button>
           </div>
         </div>
         <div id="search-results" class="mb-4"></div>
 
         <hr class="my-3" />
 
-        <h6>Create New Student</h6>
+        <h6 class="workflow-page-title">Create New Student</h6>
         <div class="row g-3">
           <div class="col-md-4">
-            <label class="form-label">NSN (required)</label>
+            <label class="form-label workflow-label">NSN (required)</label>
             <input id="new-nsn" class="form-control" placeholder="numeric only" required />
           </div>
           <div class="col-md-4">
-            <label class="form-label">First Name</label>
+            <label class="form-label workflow-label">First Name</label>
             <input id="new-first" class="form-control" required />
           </div>
           <div class="col-md-4">
-            <label class="form-label">Last Name</label>
+            <label class="form-label workflow-label">Last Name</label>
             <input id="new-last" class="form-control" required />
           </div>
           <div class="col-md-4">
-            <label class="form-label">Preferred Name</label>
+            <label class="form-label workflow-label">Preferred Name</label>
             <input id="new-pref" class="form-control" />
           </div>
           <div class="col-md-4">
-            <label class="form-label">DOB</label>
+            <label class="form-label workflow-label">DOB</label>
             <input id="new-dob" type="date" class="form-control" />
           </div>
           <div class="col-md-4">
-            <label class="form-label">Ethnicity</label>
+            <label class="form-label workflow-label">Ethnicity</label>
             <select id="new-eth" class="form-select"></select>
           </div>
           <div class="col-md-4">
-            <label class="form-label">Year Level</label>
+            <label class="form-label workflow-label">Year Level</label>
             <input id="new-yearlevel" type="number" min="0" max="13" class="form-control" placeholder="e.g., 4" />
           </div>
         </div>
       </div>
       <div class="modal-footer">
-        <button id="create-and-add-btn" class="btn btn-success">Create & Add</button>
+        <button id="create-and-add-btn" class="btn workflow-btn-primary">Create & Add</button>
       </div>
     </div>
   </div>
@@ -249,21 +370,21 @@
 <div class="modal fade" id="yearLevelModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content border-0">
-      <div class="modal-header bg-info text-white">
+      <div class="modal-header workflow-modal-header">
         <h5 class="modal-title">Set Year Level</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
         <div id="yearlevel-modal-alert-host" class="mb-2"></div>
         <div class="mb-3">
-          <label class="form-label">Year level for this class</label>
+          <label class="form-label workflow-label">Year level for this class</label>
           <input id="yearlevel-input" type="number" min="0" max="13" class="form-control" placeholder="e.g., 4" required />
           <div class="form-text">Allowed: 0–13.</div>
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-        <button id="confirm-yearlevel-btn" class="btn btn-info">Add to Class</button>
+        <button class="btn workflow-btn-outline" data-bs-dismiss="modal">Cancel</button>
+        <button id="confirm-yearlevel-btn" class="btn workflow-btn-primary">Add to Class</button>
       </div>
     </div>
   </div>
@@ -573,7 +694,7 @@
         <td>${escapeHtml(eth)}</td>
         <td>${dob}</td>
         <td>
-          <button class="btn btn-sm btn-primary me-2"
+          <button class="btn btn-sm workflow-btn-primary me-2"
             onclick="openEdit('${s.NSN}',
               '${escapeAttr(s.FirstName || "")}',
               '${escapeAttr(s.LastName || "")}',
@@ -729,7 +850,7 @@
 
       showModalAlert("#addStudentModal", "info", `Found ${rows.length} result(s).`, { timeout: 2000, scroll: false });
       $results.innerHTML = `
-        <table class="table table-sm align-middle">
+        <table class="table table-sm align-middle workflow-table">
           <thead><tr><th>NSN</th><th>Name</th><th>DOB</th><th>Ethnicity</th><th></th></tr></thead>
           <tbody>
             ${rows.map((s) => `
@@ -742,7 +863,7 @@
                   ${
                     s.InClass
                       ? '<button class="btn btn-sm btn-secondary" disabled>Already in class</button>'
-                      : `<button class="btn btn-sm btn-success" onclick="openYearLevelModal('${s.NSN}')">Add</button>`
+                      : `<button class="btn btn-sm workflow-btn-primary" onclick="openYearLevelModal('${s.NSN}')">Add</button>`
                   }
                 </td>
               </tr>`).join("")}

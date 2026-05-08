@@ -1,11 +1,82 @@
 {% extends "header.html" %} {% block title %}Student Counts Variance{% endblock
-%} {% block content %}
-<div class="container mt-4" style="max-width: 980px">
-  <h2 class="text-center text-primary mb-3">
+%}
+{% block scripts%}
+<style>
+  .reporting-page {
+    --report-main: var(--wsnz-dark-blue);
+    --report-soft: rgba(26, 66, 125, 0.08);
+    --report-border: rgba(26, 66, 125, 0.16);
+  }
+
+  .reporting-title {
+    color: var(--report-main);
+    font-weight: 700;
+  }
+
+  .reporting-card {
+    border: 1px solid var(--report-border);
+    border-radius: 16px;
+    background: #ffffff;
+    box-shadow: 0 0.5rem 1.5rem rgba(0,0,0,0.06);
+  }
+
+  .reporting-card .card-title {
+    color: var(--report-main);
+    font-weight: 700;
+  }
+
+  .reporting-soft-box {
+    background: var(--report-soft);
+    border: 1px solid var(--report-border);
+    border-radius: 12px;
+  }
+
+  .reporting-table thead th {
+    background: var(--report-soft);
+    color: var(--report-main);
+    border-bottom: 2px solid var(--report-main);
+    font-weight: 700;
+  }
+
+  .reporting-table tbody td {
+    vertical-align: middle;
+  }
+
+  .reporting-table tbody tr:hover {
+    background: rgba(0,0,0,0.015);
+  }
+
+  .reporting-btn-primary {
+    background: var(--report-main) !important;
+    border-color: var(--report-main) !important;
+    color: #ffffff !important;
+    font-weight: 600;
+  }
+
+  .reporting-btn-primary:hover,
+  .reporting-btn-primary:focus {
+    background: #15345f !important;
+    border-color: #15345f !important;
+    color: #ffffff !important;
+  }
+
+  .reporting-note {
+    background: rgba(26, 66, 125, 0.08);
+    border: 1px solid rgba(26, 66, 125, 0.14);
+    color: #1a427d;
+    border-radius: 12px;
+  }
+</style>
+{% endblock
+%}
+ {% block content %}
+<div class="container mt-4 reporting-page" style="max-width: 980px">
+
+  <h2 class="text-center reporting-title mb-3">
     Reporting vs Database Student Counts
   </h2>
 
-  <form method="POST" class="card shadow-sm p-3">
+  <form method="POST" class="card reporting-card p-3">
     <div class="row g-3 align-items-end">
       <div class="col-md-6">
         <label class="form-label">Funder</label>
@@ -38,7 +109,7 @@
     </div>
 
     <div class="d-flex justify-content-end mt-3">
-      <button class="btn btn-primary" type="submit">Calculate</button>
+      <button class="btn reporting-btn-primary" type="submit">Calculate</button>
     </div>
   </form>
 
@@ -47,7 +118,7 @@
     <h5 class="mb-3">Expected vs received</h5>
 
     <div class="table-responsive">
-      <table class="table table-sm align-middle">
+      <table class="table table-sm align-middle reporting-table"">
         <thead>
           <tr>
             <th>Metric</th>
@@ -79,11 +150,7 @@
       </table>
     </div>
 
-    <div class="alert alert-info mt-2 mb-0">
-      Note: the term breakdown below uses <b>unique</b> counts
-      <b>within each term</b>. Summing term totals may not match a single unique
-      total across the whole funding year scope.
-    </div>
+    
   </div>
 
   <div class="card shadow-sm p-3 mt-3">
@@ -110,6 +177,11 @@
           {% endfor %}
         </tbody>
       </table>
+      <div class="reporting-note mt-2 mb-0 p-3">
+      Note: the term breakdown below uses <b>unique</b> counts
+      <b>within each term</b>. Summing term totals may not match a single unique
+      total across the whole funding year scope.
+    </div>
     </div>
   </div>
   {% endif %}

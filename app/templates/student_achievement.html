@@ -2,125 +2,427 @@
 {% block title %} Student Competencies {% endblock %}
 
 {% block content %}
+
 <style>
-/* ---------- Desktop layout (unchanged) ---------- */
 html, body {
   height: 100%;
   margin: 0;
   padding: 0;
   overflow: hidden;
 }
-.page-wrapper { display: flex; flex-direction: column; height: 100vh; overflow: auto; }
-#non-table-content { flex-shrink: 0; }
-.scroll-table-wrapper { flex-grow: 1; overflow: auto; min-height: 0; }
-.scroll-table-inner:not(.fullscreen) { max-height: calc(100vh - 250px); }
-body.fullscreen-mode nav.navbar, body.fullscreen-mode #non-table-content { display: none !important; }
-.scroll-table-inner.fullscreen { max-height: 95vh !important; }
-.scroll-table-inner { max-height: 100%; overflow: auto; }
-#studentsTable { border-collapse: collapse; width: max-content; table-layout: fixed; border: none; }
-#studentsTable th, #studentsTable td {
-  padding: 2px; text-align: center; vertical-align: top; background-color: white;
-  font-size: 0.85rem; white-space: normal; word-wrap: break-word; border: none;
+
+.page-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
 }
-thead th { position: sticky; top: 0; z-index: 10; background-color: white; }
-.mark-all-wrapper { display: flex; flex-direction: column; justify-content: space-between; align-items: center; height: 100%; min-height: 100px; }
-.header-label { margin-bottom: 2px; }
-#studentsTable th.col-0, #studentsTable td.col-0,
-#studentsTable th.col-1, #studentsTable td.col-1,
-#studentsTable th.col-2, #studentsTable td.col-2 {
-  background-color: #f8f9fa; position: sticky; z-index: 5; box-shadow: inset 3px 0 0 #F8F9FA, inset -3px 0 0 #F8F9FA; border: none;
+
+#non-table-content {
+  flex-shrink: 0;
 }
-#studentsTable th.col-0, #studentsTable td.col-0 { left: 0; width: 180px; }
-#studentsTable th.col-1, #studentsTable td.col-1 { left: 180px; width: 180px; }
-#studentsTable th.col-2, #studentsTable td.col-2 { left: 360px; width: 80px; }
-.btn-xs { padding: 0.15rem 0.3rem; font-size: 0.7rem; line-height: 1; border-radius: 0.15rem; }
-#studentsTable th.col-0, #studentsTable th.col-1, #studentsTable th.col-2 { z-index: 11; }
+
+.scroll-table-wrapper {
+  flex-grow: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.scroll-table-inner {
+  max-height: calc(100vh - 250px);
+  overflow: visible;
+}
+
+/* =====================================================
+   FULLSCREEN
+===================================================== */
+
+body.fullscreen-mode nav.navbar,
+body.fullscreen-mode #non-table-content {
+  display: none !important;
+}
+
+.scroll-table-inner.fullscreen {
+  max-height: 95vh !important;
+}
+
+/* =====================================================
+   TABLE
+===================================================== */
+
+#studentsTable {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: max-content;
+  table-layout: fixed;
+  border: none;
+}
+
+#studentsTable th,
+#studentsTable td {
+  padding: 2px;
+  text-align: center;
+  background-color: white;
+  font-size: 0.85rem;
+  white-space: normal;
+  word-wrap: break-word;
+  border: 1px solid #e9ecef;
+}
+#studentsTable th {
+  vertical-align: top;
+}
+
+#studentsTable td {
+  vertical-align: middle;
+}
+
+/* =====================================================
+   STICKY HEADER
+===================================================== */
+
+#studentsTable thead th {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+
+  background-color: white;
+  background-clip: padding-box;
+
+  color: var(--dk-gray);
+  font-weight: 700;
+
+  border-bottom: 2px solid #dee2e6;
+
+  box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+}
+
+/* =====================================================
+   STICKY LEFT COLUMNS
+===================================================== */
+
+#studentsTable th.col-0,
+#studentsTable td.col-0,
+#studentsTable th.col-1,
+#studentsTable td.col-1,
+#studentsTable th.col-2,
+#studentsTable td.col-2 {
+  position: sticky;
+  background: #f8f9fa !important;
+  background-clip: border-box;
+  z-index: 20;
+  vertical-align: bottom;
+  border-color: #dee2e6 !important;
+
+  box-shadow:
+    inset 0 1px 0 #f8f9fa,
+    inset 0 -1px 0 #dee2e6,
+    inset -1px 0 0 #dee2e6;
+}
+
+/* Last Name */
+#studentsTable th.col-0,
+#studentsTable td.col-0 {
+  left: 0;
+  width: 180px;
+  min-width: 180px;
+}
+
+/* Preferred Name */
+#studentsTable th.col-1,
+#studentsTable td.col-1 {
+  left: 180px;
+  width: 180px;
+  min-width: 180px;
+}
+
+/* Year Level */
+#studentsTable th.col-2,
+#studentsTable td.col-2 {
+  left: 360px;
+  width: 80px;
+  min-width: 80px;
+}
+
+/* =====================================================
+   TOP-LEFT STICKY HEADER CELLS
+===================================================== */
+
+#studentsTable thead th.col-0,
+#studentsTable thead th.col-1,
+#studentsTable thead th.col-2 {
+  z-index: 50;
+
+  background: #f8f9fa !important;
+  color: var(--workflow-main);
+
+  border-bottom: 2px solid #dee2e6;
+
+  box-shadow:
+    inset 0 1px 0 #f8f9fa,
+    inset 0 -1px 0 #dee2e6,
+    inset -1px 0 0 #dee2e6,
+    0 2px 4px rgba(0,0,0,0.04);
+}
+
+/* =====================================================
+   COMPETENCY COLUMNS
+===================================================== */
+
 #studentsTable th:not(.col-0):not(.col-1):not(.col-2),
-#studentsTable td:not(.col-0):not(.col-1):not(.col-2) { width: 175px; }
-input[type="checkbox"] { transform: scale(1.1); margin: 0; }
-#studentsTable select.form-control { padding: 2px 4px; font-size: 0.85rem; height: auto; margin: 0; line-height: 1; }
-select option { white-space: normal; word-break: break-word; }
-.list-group-item { border: none; }
-.sticky-horizontal-scroll { position: sticky; bottom: 0; z-index: 20; overflow-x: auto; background: white; border-top: 1px solid #dee2e6; }
-.scroll-inner-x { width: max-content; }
-
-/* ---------- Mobile layer (new) ---------- */
-#mobile-views { display: none; }
-#desktop-table { display: block; }
-
-@media (max-width: 767.98px) {
-  /* Hide desktop grid, show mobile UI */
-  #desktop-table { display: none !important; }
-  #mobile-views { display: block; }
-
-  /* Let the page scroll normally on phones */
-  html, body { overflow: auto; height: auto; }
-  .page-wrapper { height: auto; }
+#studentsTable td:not(.col-0):not(.col-1):not(.col-2) {
+  width: 175px;
+  min-width: 175px;
 }
 
-/* Mobile cards/rows */
-.mob-card { border:1px solid #e9ecef; border-radius:.75rem; background:#fff; box-shadow:0 1px 2px rgba(0,0,0,.04); }
-.mob-row { display:flex; justify-content:space-between; align-items:center; padding:.5rem .75rem; border-bottom:1px dashed #eef2f6; gap:.75rem; }
-.mob-row:last-child{ border-bottom:none; }
-.mob-label { font-size:.95rem; }
-.mob-subtle { color:#6c757d; font-size:.875rem; }
+/* =====================================================
+   HEADER CONTENT
+===================================================== */
 
-/* Sticky toggle at top of phone view */
-.mob-stuck { position: sticky; top: calc(var(--navbar-h, 56px) + 8px); z-index: 5; }
+.mark-all-wrapper {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  height: 100%;
+  min-height: 100px;
+}
+
+.header-label {
+  margin-bottom: 2px;
+}
+
+/* =====================================================
+   FORM CONTROLS
+===================================================== */
+
+.btn-xs {
+  padding: 0.15rem 0.3rem;
+  font-size: 0.7rem;
+  line-height: 1;
+  border-radius: 0.15rem;
+}
+
+input[type="checkbox"] {
+  transform: scale(1.1);
+  margin: 0;
+}
+
+#studentsTable input:focus,
+#studentsTable select:focus {
+  outline: none;
+  box-shadow: 0 0 0 0.15rem rgba(31, 83, 98, 0.2);
+}
+
+#studentsTable select.form-control {
+  padding: 2px 4px;
+  font-size: 0.85rem;
+  height: auto;
+  margin: 0;
+  line-height: 1;
+}
+
+select option {
+  white-space: normal;
+  word-break: break-word;
+}
+
+/* =====================================================
+   LIST GROUPS
+===================================================== */
+
+.list-group-item {
+  border: none;
+}
+
+/* =====================================================
+   STICKY HORIZONTAL SCROLLBAR
+===================================================== */
+
+.sticky-horizontal-scroll {
+  position: sticky;
+  bottom: 0;
+  z-index: 60;
+  overflow-x: auto;
+  background: white;
+  border-top: 1px solid #dee2e6;
+}
+
+.scroll-inner-x {
+  width: max-content;
+}
+
+/* =====================================================
+   MOBILE LAYER
+===================================================== */
+
+#mobile-views {
+  display: none;
+}
+
+#desktop-table {
+  display: block;
+}
 
 @media (max-width: 767.98px) {
+
+  #desktop-table {
+    display: none !important;
+  }
+
+  #mobile-views {
+    display: block;
+  }
+
+  html,
+  body {
+    overflow: auto;
+    height: auto;
+  }
+
+  .page-wrapper {
+    height: auto;
+    overflow: visible;
+  }
+}
+
+/* =====================================================
+   MOBILE CARDS
+===================================================== */
+
+.mob-card {
+  border: 1px solid #e9ecef;
+  border-radius: 0.75rem;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+
+.mob-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px dashed #eef2f6;
+  gap: 0.75rem;
+}
+
+.mob-row:last-child {
+  border-bottom: none;
+}
+
+.mob-label {
+  font-size: 0.95rem;
+}
+
+.mob-subtle {
+  color: #6c757d;
+  font-size: 0.875rem;
+}
+
+.mob-stuck {
+  position: sticky;
+  top: calc(var(--navbar-h, 56px) + 8px);
+  z-index: 5;
+}
+
+/* =====================================================
+   MOBILE RESPONSIVE
+===================================================== */
+
+@media (max-width: 767.98px) {
+
   .mob-row {
     display: flex;
-    flex-direction: column;     /* label on top, control below */
+    flex-direction: column;
     align-items: stretch;
-    gap: .35rem;
-    padding: .6rem .75rem;
+    gap: 0.35rem;
+    padding: 0.6rem 0.75rem;
     border-bottom: 1px dashed #eef2f6;
   }
+
   .mob-row .mob-label {
     line-height: 1.25;
     word-break: break-word;
   }
+
   .mob-row .form-select {
     display: block;
     width: 100%;
     max-width: 100%;
     min-width: 0;
     box-sizing: border-box;
-    padding: .4rem .6rem;
-    font-size: .95rem;
+    padding: 0.4rem 0.6rem;
+    font-size: 0.95rem;
     line-height: 1.2;
   }
-  /* iOS Safari quirk: ensure full width */
+
   @supports (-webkit-touch-callout: none) {
-    .mob-row .form-select { width: -webkit-fill-available; }
+    .mob-row .form-select {
+      width: -webkit-fill-available;
+    }
   }
-  /* Optional: compact buttons in mobile competency header */
-  #mob-competency-view .btn { padding: .25rem .5rem; }
+
+  #mob-competency-view .btn {
+    padding: 0.25rem 0.5rem;
+  }
+}
+/* =====================================================
+   OPTIONAL ROW LINES
+===================================================== */
+
+/* default = lines visible */
+#studentsTable tbody td {
+  border-top: 1px solid #e9ecef;
+  border-bottom: 1px solid #e9ecef;
+}
+
+/* hidden row lines mode */
+.hide-row-lines #studentsTable tbody td {
+  border-top-color: transparent !important;
+  border-bottom-color: transparent !important;
+}
+
+/* keep sticky column separators visible */
+.hide-row-lines #studentsTable td.col-0,
+.hide-row-lines #studentsTable td.col-1,
+.hide-row-lines #studentsTable td.col-2 {
+  box-shadow:
+    inset 0 1px 0 #f8f9fa,
+    inset -1px 0 0 #dee2e6;
+}
+.mark-all-btn {
+  background: var(--workflow-soft) !important;
+  border: 1px solid var(--workflow-accent) !important;
+  color: var(--workflow-accent) !important;
+  font-weight: 600;
+}
+
+.mark-all-btn:hover,
+.mark-all-btn:focus {
+  background: var(--workflow-accent) !important;
+  border-color: var(--workflow-accent) !important;
+  color: var(--white) !important;
 }
 </style>
-
-<div class="page-wrapper d-flex flex-column">
-
+<div class="page-wrapper workflow-page d-flex flex-column">
   <!-- Non-table content (header, buttons) -->
   <div id="non-table-content">
     <div class="container text-center mb-4" style="position: relative;">
-      <div id="update-success" class="alert alert-success d-none mx-auto mb-3" style="max-width: 600px;" role="alert">
+      <div id="update-success" class="alert workflow-success-banner d-none mx-auto mb-3" style="max-width: 600px;" role="alert">
         ✅ Class info updated successfully.
       </div>
 
       <!-- View Mode -->
-      <div class="alert alert-secondary d-inline-block px-4 py-3" id="class-info-display">
+      <div class="alert workflow-info-banner d-inline-block px-4 py-3" id="class-info-display">
         <strong>Class Name:</strong> <span id="class-name-text">{{ class_name }}</span> |
         <strong>Teacher:</strong> <span id="teacher-name-text">{{ teacher_name }}</span> |
         <strong>School:</strong> {{ school_name }}
         {% if edit == 1 %}
-        <button type="button" class="btn btn-sm btn-outline-primary ms-2" onclick="toggleEditMode(true)">Edit</button>
+        <button type="button" class="btn btn-sm workflow-btn-outline ms-2" onclick="toggleEditMode(true)">Edit</button>
         {% endif %}
       </div>
 
       <!-- Edit Mode -->
-      <div class="alert alert-secondary d-none px-4 py-3" id="class-info-edit">
+      <div class="alert workflow-info-banner d-none px-4 py-3" id="class-info-edit">
         <strong>Class Name:</strong>
         <input id="edit-class-name" type="text" value="{{ class_name }}"
                class="form-control form-control-sm d-inline-block" style="width: 200px;" />
@@ -128,25 +430,32 @@ select option { white-space: normal; word-break: break-word; }
         <input id="edit-teacher-name" type="text" value="{{ teacher_name }}"
                class="form-control form-control-sm d-inline-block" style="width: 200px;" />
         <strong>School:</strong> {{ school_name }}
-        <button class="btn btn-sm btn-success ms-2" onclick="submitClassInfo({{ class_id | tojson }})">Save</button>
+        <button class="btn btn-sm workflow-btn-primary ms-2" onclick="submitClassInfo({{ class_id | tojson }})">Save</button>
         <button class="btn btn-sm btn-secondary" onclick="toggleEditMode(false)">Cancel</button>
       </div>
 
       <!-- Sorting + actions -->
       <div class="d-flex justify-content-center flex-wrap gap-2 mb-3">
         <a href="{{ url_for('class_bp.view_class',moe_number = moe_number, class_id=class_id, term=term, year=year, filter=filter_type, order_by='first') }}"
-           class="btn btn-sm btn-outline-secondary {% if order_by == 'first' %}active{% endif %}">Sort by First Name</a>
+           class="btn btn-sm workflow-btn-outline {% if order_by == 'first' %}active{% endif %}">Sort by First Name</a>
         <a href="{{ url_for('class_bp.view_class', moe_number = moe_number, class_id=class_id, term=term, year=year, filter=filter_type, order_by='last') }}"
-           class="btn btn-sm btn-outline-secondary {% if order_by ==  'last' %}active{% endif %}">Sort by Last Name</a>
-
+           class="btn btn-sm workflow-btn-outline {% if order_by ==  'last' %}active{% endif %}">Sort by Last Name</a>
+        <button
+          id="toggle-row-lines-btn"
+          class="btn btn-sm workflow-btn-outline"
+          type="button">
+          Remove Row Lines
+        </button>
         <!-- Hidden on phones, shown on md+ -->
-        <button id="fullscreen-btn" class="btn btn-sm btn-outline-secondary d-none d-md-inline-flex" onclick="toggleFullScreen()">🖥️ Full Screen</button>
+        <button id="fullscreen-btn" class="btn btn-sm workflow-btn-outline" onclick="toggleFullScreen()">🖥️ Full Screen</button>
+        
+        <a class="btn btn-sm workflow-btn-outline"
 
-        <a class="btn btn-sm btn-outline-secondary"
            href="{{ url_for('class_bp.print_class_view',moe_number=moe_number, class_id=class_id, term=term, year=year, filter=filter_type, order_by=order_by) }}"
            target="_blank">🖨️ Print</a>
-        <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#exportModal">📤 Export</button>
-        <button class="btn btn-sm btn-secondary fw-bold d-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#helpModal">
+        <button  class="btn btn-sm workflow-btn-outline" data-bs-toggle="modal" data-bs-target="#exportModal">📤 Export</button>
+        
+        <button class="btn btn-sm workflow-btn-accent" data-bs-toggle="modal" data-bs-target="#helpModal">
           <span class="text-white">?</span> Help
         </button>
       </div>
@@ -157,15 +466,17 @@ select option { white-space: normal; word-break: break-word; }
   <div class="modal fade" id="exportModal" tabindex="-1" aria-labelledby="exportModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content text-center">
-        <div class="modal-header">
-          <h5 class="modal-title" id="exportModalLabel">Export Options</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-        </div>
+  <div class="modal-header workflow-modal-header">
+    <h5 class="modal-title" id="exportModalLabel">Export Options</h5>
+    <button type="button"
+            class="btn-close btn-close-white"
+            data-bs-dismiss="modal"></button>
+  </div>
         <div class="modal-body">
           <p>You can export the class list or student achievements as an Excel file.</p>
           <div class="d-grid gap-2">
             <a href="{{ url_for('class_bp.export_class_excel', class_id=class_id, term=term, year=year) }}"
-               class="btn btn-outline-primary">📄 Class List (Excel)</a>
+               class="btn workflow-btn-outline">📄 Class List (Excel)</a>
 
             <!-- POST JSON export for achievements -->
             <button id="export-achievements-btn" type="button" class="btn btn-outline-success">
@@ -198,7 +509,7 @@ select option { white-space: normal; word-break: break-word; }
                       {% if "Scenario" not in col %}
                         <br>
                         <button type="button"
-                                class="btn btn-xs btn-outline-success mt-1 mark-all-btn"
+                                class="btn btn-xs mark-all-btn"
                                 data-colraw="{{ col }}"
                                 data-competencyid="{{ competency_id_map.get(normalized_col, '') }}">
                           Mark All
@@ -271,10 +582,10 @@ select option { white-space: normal; word-break: break-word; }
     <div class="mob-stuck bg-transparent mb-3">
       <div class="btn-group w-100" role="group" aria-label="Mobile view switch">
         <input type="radio" class="btn-check" name="mobView" id="viewByStudent" autocomplete="off" checked>
-        <label class="btn btn-outline-primary" for="viewByStudent">By Student</label>
+        <label class="btn workflow-btn-outline" for="viewByStudent">By Student</label>
 
         <input type="radio" class="btn-check" name="mobView" id="viewByCompetency" autocomplete="off">
-        <label class="btn btn-outline-primary" for="viewByCompetency">By Competency</label>
+        <label class="btn workflow-btn-outline" for="viewByCompetency">By Competency</label>
       </div>
     </div>
 
@@ -327,7 +638,7 @@ select option { white-space: normal; word-break: break-word; }
         </p>
       </div>
       <div class="modal-footer justify-content-center">
-        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Stay on this page</button>
+        <button type="button" class="btn workflow-btn-outline btn-sm" data-bs-dismiss="modal">Stay on this page</button>
         <button type="button" id="unsaved-leave-btn" class="btn btn-danger btn-sm">Leave anyway</button>
       </div>
     </div>
@@ -348,8 +659,8 @@ select option { white-space: normal; word-break: break-word; }
         Are you sure you want to continue?
       </div>
       <div class="modal-footer justify-content-center">
-        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
-        <button id="confirm-mark-all-btn" type="button" class="btn btn-success btn-sm">Yes, mark all</button>
+        <button type="button" class="btn workflow-btn-outline btn-sm" data-bs-dismiss="modal">Cancel</button>
+        <button id="confirm-mark-all-btn" type="button" class="btn workflow-btn-primary btn-sm">Yes, mark all</button>
       </div>
     </div>
   </div>
@@ -589,6 +900,23 @@ function submitClassInfo(classId) {
 }
 
 document.addEventListener("DOMContentLoaded", function () {
+
+    const btn = document.getElementById("toggle-row-lines-btn");
+  const wrapper = document.querySelector(".page-wrapper");
+
+  if (!btn || !wrapper) return;
+
+  btn.addEventListener("click", function () {
+
+    wrapper.classList.toggle("hide-row-lines");
+
+    const hidden = wrapper.classList.contains("hide-row-lines");
+
+    btn.textContent = hidden
+      ? "Show Row Lines"
+      : "Remove Row Lines";
+  });
+
   // Checkbox updates + autofill
   document.querySelectorAll('input[type="checkbox"][name="competency"]').forEach(cb => {
     cb.addEventListener("change", function () {

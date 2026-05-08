@@ -377,3 +377,16 @@ def home():
             pass
         current_app.logger.exception("Home route failed")
         return "Internal Server Error", 500
+    
+@home_bp.route("/test-error/<code>")
+def test_error(code):
+
+    try:
+        code_int = int(code)
+    except:
+        code_int = code
+
+    return render_template(
+        "error.html",
+        code=code_int
+    )

@@ -2,32 +2,21 @@
 {% block title %}School Overview{% endblock %}
 
 {% block content %}
-<style>
-  thead.custom-header th {
-    background-color: #004080 !important;
-    color: white !important;
-    border-color: #004080 !important;
-    text-align: center;
-  }
-  .inline-filter .form-select {
-    min-width: 140px;
-  }
-</style>
 
-<div class="container mt-5" style="max-width: 95%;">
-  <h2 class="text-center text-primary mb-4">{{ title }}</h2>
+<div class="container mt-4 school-page" style="max-width: 95%;"> 
+<h2 class="text-center school-page-title mb-4">{{ title }}</h2>
 
   <div class="row g-4">
     <!-- Left: Class Summary -->
     <div class="col-md-6">
-      <div class="card shadow-sm">
-        <div class="card-header bg-primary text-white">
+      <div class="card school-card">
+        <div class="card-header">
           <h5 class="mb-0">Class Summary</h5>
         </div>
         <div class="card-body">
           {% if available_years and available_terms %}
           <!-- Dropdowns INSIDE the card body, above the table -->
-          <form method="POST" class="inline-filter row g-2 align-items-end mb-3">
+          <form method="POST" class="school-filter-panel inline-filter row g-2 align-items-end mb-3">
             <div class="col-md-5">
               <label for="term" class="form-label mb-1">Term</label>
               <select name="term" id="term" class="form-select" onchange="this.form.submit()">
@@ -54,23 +43,38 @@
   <!-- Desktop / tablet -->
   <div class="d-none d-sm-block">
     <div class="table-responsive">
-      <table class="table table-bordered text-center align-middle">
+      <table class="table school-table text-center align-middle">
         <thead class="custom-header">
           <tr>
             <th>Class Name</th>
             <th>Teacher</th>
             <th>Class Size</th>
             <th>Year Levels</th>
+            <th>Students Edited</th>
           </tr>
         </thead>
         <tbody>
           {% for row in classes %}
           <tr>
-            <td>{{ row["Class Name"] }}</td>
-            <td>{{ row["Teacher"] }}</td>
-            <td>{{ row["ClassSize"] }}</td>
-            <td>{{ row["DistinctYearLevels"] }}</td>
-          </tr>
+  <td>{{ row["Class Name"] }}</td>
+  <td>{{ row["Teacher"] }}</td>
+  <td>{{ row["ClassSize"] }}</td>
+  <td>{{ row["DistinctYearLevels"] }}</td>
+
+  <td>
+    {% if row["EditedFlag"] == 1 %}
+  <span class="badge school-status-edited">
+    {{ row["StudentsEditedThisTerm"] }}/{{ row["ClassSize"] }}
+    ({{ row["PercentStudentsEdited"] }}%)
+  </span>
+{% else %}
+  <span class="badge school-status-not-edited">
+    {{ row["StudentsEditedThisTerm"] }}/{{ row["ClassSize"] }}
+    ({{ row["PercentStudentsEdited"] }}%)
+  </span>
+{% endif %}
+  </td>
+</tr>
           {% endfor %}
         </tbody>
       </table>
@@ -81,7 +85,7 @@
   {% set title_key = 'Class Name' %}
   <div class="d-sm-none" id="classCards">
     {% for row in classes %}
-      <div class="card shadow-sm mb-2">
+      <div class="card school-mobile-card mb-2">
         <div class="card-body">
           <strong class="d-block mb-2">{{ row[title_key] }}</strong>
           <div class="mobile-grid">
@@ -114,8 +118,8 @@
     <!-- Right: School Staff -->
     <!-- Right: School Staff -->
 <div class="col-md-6">
-  <div class="card shadow-sm">
-    <div class="card-header bg-primary text-white">
+  <div class="card school-card">
+    <div class="card-header">
       <h5 class="mb-0">School Staff</h5>
     </div>
     <div class="card-body">
@@ -124,13 +128,14 @@
         {# Desktop / tablet table #}
         <div class="d-none d-sm-block">
           <div class="table-responsive">
-            <table class="table table-bordered text-center align-middle">
+            <table class="table school-table text-center align-middle">
               <thead class="custom-header">
                 <tr>
                   <th>Name</th>
                   <th>Email</th>
                   <th>Admin</th>
                   <th>Active</th>
+                  <th>eLearning</th>
                 </tr>
               </thead>
               <tbody>
@@ -147,16 +152,27 @@
                   </td>
                   <td>
                     {% if person["Access"] == "Administrator privileges" %}
-                      <span class="badge bg-success">Yes</span>
+                      <span class="badge school-admin-yes">Yes</span>
                     {% else %}
-                      <span class="badge bg-secondary">No</span>
+                      <span class="badge school-admin-no">No</span>
                     {% endif %}
                   </td>
                   <td>
                     {% if person["Status"] == "Active" %}
-                      <span class="badge bg-success">Active</span>
+                      <span class="badge school-status-active">Active</span>
                     {% else %}
-                      <span class="badge bg-danger">Inactive</span>
+                      <span class="badge school-status-inactive">Inactive</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if person["ElearningStatusDesc"] %}
+                      <span class="badge school-elearning-status">
+                        {{ person["ElearningStatusDesc"] }}
+                      </span>
+                    {% else %}
+                      <span class="badge school-status-not-edited">
+                        Not found
+                      </span>
                     {% endif %}
                   </td>
                 </tr>
@@ -174,7 +190,7 @@
             {% set is_admin = (person["Access"] == "Administrator privileges") %}
             {% set is_active = (person["Status"] == "Active") %}
 
-            <div class="card shadow-sm mb-2">
+            <div class="card school-mobile-card mb-2">
               <div class="card-body">
                 <strong class="d-block mb-1">{{ full_name }}</strong>
 
