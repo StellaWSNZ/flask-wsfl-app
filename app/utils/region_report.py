@@ -1087,6 +1087,34 @@ def get_region_school_summary(conn, region, funding_year_start=2025, funding_yea
         params=(region, funding_year_start, funding_year_end),
     )
 
+def _make_preview_figure(region_name, term, calendar_year, meta=None):
+    fig, ax = plt.subplots(figsize=(8.27, 11.69), dpi=100)
+
+    ax.set_axis_off()
+
+    pages = meta.get("pages") if meta else None
+
+    text = (
+        f"{region_name} Region Coverage Report\n"
+        f"Term {term}, {calendar_year}"
+    )
+
+    if pages:
+        text += f"\n\n{pages} pages generated"
+
+    ax.text(
+        0.5,
+        0.55,
+        text,
+        ha="center",
+        va="center",
+        fontsize=20,
+        fontweight="semibold",
+        color=C_MASTER,
+        transform=ax.transAxes,
+    )
+
+    return fig
 
 # =============================================================================
 # Public builder: 2-page region PDF
@@ -1117,7 +1145,7 @@ def build_region_report_pdf(
     prefer_local_water: bool = True,
     draw_key: bool = True,
     draw_context_councils: bool = True,
-    map_axes_rect: AxesRect =  (0.05, 0.13, 0.90, 0.62),
+    map_axes_rect: AxesRect = (0.05, 0.13, 0.90, 0.62),
     map_bbox: Optional[MapBBox] = None,
     map_pad_frac: float = 0.0,
     fill_map_axes_box: bool = True,
@@ -1135,6 +1163,7 @@ def build_region_report_pdf(
         "pages": 4,
         "schools": 0,
     }
+
     """
     schools = _load_school_points_by_region(conn, region=region_name, eqi_filter=eqi_filter)
     schools = ensure_bucket_column(schools)
@@ -1153,12 +1182,19 @@ def build_region_report_pdf(
     )
     """
 
-    rates_df = _load_region_rates(conn, year=calendar_year, term=term, region_name=region_name)
+    rates_df = _load_region_rates(
+        conn,
+        year=calendar_year,
+        term=term,
+        region_name=region_name,
+    )
+
     comparison_df = make_difference_df(
         rates_df,
         left_result="Region Rate (YTD)",
         right_result="National Rate (YTD)",
     )
+
     pdf, w, h, _dpi = open_pdf(
         filename=str(out_pdf_path),
         page_size=page_size,
@@ -1179,6 +1215,7 @@ def build_region_report_pdf(
     ax_master.set_axis_off()
 
     df_summary = get_region_school_summary(conn, region_name)
+
     stats = stats_from_summary_row(
         df_summary,
         bucket_map={
@@ -1187,7 +1224,7 @@ def build_region_report_pdf(
             "Supported 24/25": "TotalSchoolsSupportedLY",
             "Supported 25/26": "TotalSchoolsSupportedTY",
         },
-        colours = {
+        colours={
             "All schools": "#1a427d",
             "Equity Index 446+": "#3C7EBD",
             "Supported 24/25": "#24ABE2",
@@ -1206,6 +1243,7 @@ def build_region_report_pdf(
 
     title1 = f"{region_name} – School Coverage"
     _draw_header(ax_master, family=family, title=title1)
+
     add_footer_behind(
         fig1,
         footer_svg_path,
@@ -1305,25 +1343,70 @@ def build_region_report_pdf(
     """
 
     fig1.canvas.draw()
-    preview_fig = fig1
+
+    # Small preview copy of page 1
+    preview_buf = io.BytesIO()
+    fig1.savefig(
+        preview_buf,
+        format="png",
+        dpi=80,              # small preview only
+        bbox_inches=None,
+        pad_inches=0,
+        transparent=False,
+    )
+    preview_buf.seek(0)
+
+    preview_img = mpimg.imread(preview_buf)
+    preview_buf.close()
+
+    preview_fig, preview_ax = plt.subplots(figsize=(8.27, 11.69), dpi=100)
+    preview_fig.subplots_adjust(left=0, right=1, bottom=0, top=1)
+    preview_ax.set_axis_off()
+
+    preview_ax.imshow(
+        preview_img,
+        extent=(0, 1, 0, 1),
+        transform=preview_ax.transAxes,
+        aspect="auto",
+    )
+
     if rasterize_page1:
         buf1 = io.BytesIO()
-        fig1.savefig(buf1, format="png", dpi=dpi, bbox_inches=None, pad_inches=0, transparent=False)
-        png1 = buf1.getvalue()
+        fig1.savefig(
+            buf1,
+            format="png",
+            dpi=dpi,
+            bbox_inches=None,
+            pad_inches=0,
+            transparent=False,
+        )
+        buf1.seek(0)
+
+        img1 = mpimg.imread(buf1)
+        buf1.close()
+
         fig1b, ax1b = new_page(w, h, dpi)
         ax1b.set_axis_off()
         ax1b.set_position([0, 0, 1, 1])
+
         try:
             fig1b.subplots_adjust(left=0, right=1, bottom=0, top=1)
         except Exception:
             pass
-        img1 = mpimg.imread(io.BytesIO(png1))
-        ax1b.imshow(img1, extent=(0, 1, 0, 1), transform=ax1b.transAxes, aspect="auto")
+
+        ax1b.imshow(
+            img1,
+            extent=(0, 1, 0, 1),
+            transform=ax1b.transAxes,
+            aspect="auto",
+        )
+
         fig1b.canvas.draw()
         save_page(pdf, fig1b, full_bleed=True)
         plt.close(fig1b)
     else:
         save_page(pdf, fig1, full_bleed=True)
+
     plt.close(fig1)
 
     remaining_school_gap_df = school_gap_df.iloc[rows_drawn_on_page1:].reset_index(drop=True)
@@ -1428,26 +1511,27 @@ def build_region_report_pdf(
         conn,
         year=calendar_year,
         term=term,
-        region_name=region_name
+        region_name=region_name,
     )
+
     if kaiako_rates_df is not None:
-    # Which series to draw
+        # Which series to draw
         vars_to_plot = [
             "Region Instructor-Led Rate (YTD)",
-            "Region Kaiako-Led Rate (YTD)"
+            "Region Kaiako-Led Rate (YTD)",
         ]
 
         colors_dict = {
             "Region Instructor-Led Rate (YTD)": "#2EBDC2",
-            "Region Kaiako-Led Rate (YTD)": "#BBE6E9"
+            "Region Kaiako-Led Rate (YTD)": "#BBE6E9",
         }
 
         # Compute row heights per year group (required by make_figure)
-        df2 = kaiako_rates_df[['CompetencyDesc', 'YearGroupDesc']].drop_duplicates()
+        df2 = kaiako_rates_df[["CompetencyDesc", "YearGroupDesc"]].drop_duplicates()
 
         row_heights = (
-            df2['YearGroupDesc'].value_counts().sort_index()
-            / (df2['YearGroupDesc'].value_counts().sum())
+            df2["YearGroupDesc"].value_counts().sort_index()
+            / df2["YearGroupDesc"].value_counts().sum()
         )
 
         # Create the chart figure
@@ -1461,7 +1545,7 @@ def build_region_report_pdf(
             row_heights=row_heights,
             BUFFER=0.0,
             vars_to_plot=vars_to_plot,
-            colors_dict=colors_dict
+            colors_dict=colors_dict,
         )
 
         # Add header overlay
@@ -1487,14 +1571,13 @@ def build_region_report_pdf(
         save_page(pdf, fig4, full_bleed=True)
         plt.close(fig4)
 
-        
         meta["pages"] = 4 + gap_pages
     else:
         meta["pages"] = 3 + gap_pages
+
     close_pdf(pdf)
+
     return preview_fig, meta
-
-
 # =============================================================================
 # Local run harness (optional)
 # =============================================================================
