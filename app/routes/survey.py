@@ -30,6 +30,7 @@ from sqlalchemy.exc import DBAPIError
 # Local
 from app.extensions import mail
 from app.routes.auth import login_required
+from app.utils.anonymise import anonymise_bulk_email_entities, anonymise_bulk_email_rows, demo_mode_on
 from app.utils.custom_email import (
     send_elearning_reminder_email,
     send_survey_invitation_email,
@@ -1831,7 +1832,8 @@ def bulk_emails():
                         "Description": row.Description,
                     }
                 )
-
+        if demo_mode_on():
+            entities = anonymise_bulk_email_entities(entities)
     except Exception:
         # This logs full traceback into your Flask logs
         current_app.logger.exception("Error loading entities for BulkEmails")
@@ -1936,7 +1938,8 @@ def bulk_emails_preview():
                         "UserID":             getattr(row, "UserID", None),
                     }
                 )
-
+        if demo_mode_on():
+            rows = anonymise_bulk_email_rows(rows)
     except Exception:
         current_app.logger.exception("FlaskBulkEmailPreview failed")
         return (

@@ -7,6 +7,7 @@ import json
 import pandas as pd
 from sqlalchemy import text
 
+from app.utils.anonymise import anonymise_df, anonymise_staff_df, demo_mode_on
 from app.utils.database import get_db_engine
 
 apr_bp = Blueprint("apr_bp", __name__)
@@ -243,7 +244,49 @@ def apr_page():
             default=[]
         )
         row["SelectedContactEmails"] = normalize_email_list(selected_raw)
+    print(df_approved)
+    print(df_approved.columns)
+    if demo_mode_on():
 
+        df_approved = df_approved.copy()
+
+        for i, idx in enumerate(df_approved.index, start=1):
+
+            df_approved.at[idx, "EntityName"] = f"Entity {i}"
+
+            subtitle = str(
+                df_approved.at[idx, "Subtitle"] or ""
+            )
+
+            subtitle_lower = subtitle.lower()
+
+            if "provider" in subtitle_lower:
+                df_approved.at[idx, "Subtitle"] = (
+                    "Providers: Provider entities"
+                )
+
+            elif "funded by" in subtitle_lower:
+                df_approved.at[idx, "Subtitle"] = (
+                    "Funded by Funder entity"
+                )
+
+            else:
+                df_approved.at[idx, "Subtitle"] = (
+                    "Demo entity"
+                )
+
+            # wipe reviewer/contact-ish fields
+            for col in [
+                "ExternalReviewer",
+                "ContactDefaultEmail",
+                "ContactDefaultName",
+                "Note"
+            ]:
+                if col in df_approved.columns:
+                    df_approved[col] = None
+        df_approved_records = df_approved.to_dict("records")
+
+    
     APPROVED_SET_TODAY_ID = 1
     LESSON_SET_TODAY_ID = 2
     EXTERNAL_SET_TODAY_ID = 3

@@ -3,17 +3,15 @@
 {% block title %}Staff Maintenance{% endblock %}
 {% block content %}
 
-<div class="container mt-2 staff-page" style="max-width: 80%;">
-  <div class="page-panel">  {% if user_role in ["ADM", "FUN", "GRP", "PRO"] %}
-    {% if not selected_entity_name %}
-  <h2 class="mb-3 text-center staff-page-title">Staff Maintenance</h2>
-  <p class="text-center text-muted mb-3">
-    Select an entity to view and manage staff.
-  </p>
-{% endif %}
-  <form method="POST"  id="entityForm">
-    <div class="row g-2 align-items-end justify-content-center">
+<div class="container mt-5" style="max-width: 80%;">
 
+{% if user_role in ["ADM", "FUN", "GRP", "PRO", "MOE"] %}
+  <form method="POST" class="mb-4" id="entityForm">
+    <div class="row g-2 align-items-end justify-content-center">
+        {% if user_role == "MOE" %}
+    <input type="hidden" name="entity_type" value="School">
+    <input type="hidden" name="entity_id" value="{{ session['user_id'] }}">
+  {% else %}
       <!-- Entity Type -->
       <div class="col-md-3">
         <label for="entity_type" class="form-label">Entity Type</label>
@@ -44,10 +42,13 @@
         </select>
       </div>
 
-      <!-- Submit -->
-      <div class="col-md-2">
-        <button type="submit" class="btn btn-primary w-100">Submit</button>
-      </div>
+     {% endif %}
+
+  <div class="col-md-2">
+    <button type="submit" class="btn btn-primary w-100">
+      {% if user_role == "MOE" %}View Staff{% else %}Submit{% endif %}
+    </button>
+  </div>
 
     </div>
   </form>

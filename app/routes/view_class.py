@@ -14,11 +14,13 @@ from urllib.parse import urlencode
 import qrcode
 import csv
 import xlrd
-
+import os
 # ---------------------------
 # Third-party
 # ---------------------------
 import matplotlib
+
+from app.utils.anonymise import * 
 matplotlib.use("Agg")  # Prevent GUI backend errors on servers
 import pandas as pd
 import pyodbc
@@ -660,7 +662,32 @@ def view_class(moe_number,class_id, term, year):
             ordered_cols = fixed_cols_present + full_comp_cols + existing_scenario_cols
             ordered_cols = [c for c in ordered_cols if c in pivot_df.columns]  # safety
             pivot_df = pivot_df[ordered_cols]
+            import os
+            DEMO_MODE = os.getenv("DEMO_MODE", "0") == "1"
+            print(DEMO_MODE)
+            if DEMO_MODE:
+                pivot_df = anonymise_students_df(pivot_df)
+                key_col = "PreferredName" if order_by == "first" else "LastName"
+                if key_col in pivot_df.columns:
+                    pivot_df = pivot_df.sort_values(
+                        by=key_col,
+                        key=lambda col: col.fillna("").astype(str).str.lower()
 
+                    )
+                #teacher_name = anonymise_value(teacher_name, value_type="staff_name")
+                #title_string = f"Class Name: {class_name} | Teacher Name: {teacher_name} | School Name: {school_name}"
+                class_name, teacher_name = anonymise_class_details(
+                    class_id = class_id,
+                    moe_number = moe_number,
+                    class_name=class_name,
+                    teacher_name=teacher_name
+                )
+                school_name = get_fake_school_name(moe_number)
+                title_string = (
+                    f"Class Name: {class_name} | "
+                    f"Teacher Name: {teacher_name} | "
+                    f"School Name: {school_name}"
+                )
             # Build competency_id_map for template
             competency_id_map = {}
             if not comp_df_sorted.empty and {"label","CompetencyID"} <= set(comp_df_sorted.columns):
@@ -848,7 +875,14 @@ def filter_classes():
 
             if user_role != "MOE":
                 moe_number = target_moe
-
+            print(classes)
+            if os.getenv("DEMO_MODE", False) and classes:
+                
+                classes_df = pd.DataFrame(classes)
+                classes_df['MOENumber'] = moe_number
+                classes_df = anonymise_class_dataframe(classes_df)
+                classes = classes_df.to_dict(orient="records")
+            print(classes)
         except Exception:
             current_app.logger.exception("Error loading classes")
             flash("Could not load classes. You may have moved the last one to another term!", "danger")
@@ -1766,6 +1800,7 @@ def get_schools_by_group():
             return jsonify([])
 
         schools = [{"MOENumber": row.MOENumber, "School": row.School} for row in result]
+        schools = anonymise_school_list(schools, id_col="MOENumber", name_col="School")
         return jsonify(schools)
 
 @class_bp.route("/get_schools_for_term_year")
@@ -1814,10 +1849,18 @@ def get_schools_for_term_year():
 
         rows = result.fetchall()
 
-        return jsonify([
+        schools = [
             {"MOENumber": row.MOENumber, "School": row.SchoolName}
             for row in rows
-        ])
+        ]
+
+        schools = anonymise_school_list(
+            schools,
+            id_col="MOENumber",
+            name_col="School"
+        )
+
+        return jsonify(schools)
 
 @class_bp.route('/get_schools_by_provider')
 @login_required
@@ -1845,6 +1888,14 @@ def get_schools_by_provider():
             }
         )
         schools = [dict(row._mapping) for row in result]
+
+        schools = anonymise_school_list(
+            schools,
+            id_col="MOENumber",
+            name_col="School"
+        )
+
+        return jsonify(schools)
     return jsonify(schools)
 
 @class_bp.route('/get_schools_by_funder')
@@ -1887,6 +1938,15 @@ def get_schools_by_funder():
                 }
             )
         schools = [dict(row._mapping) for row in result]
+
+
+        schools = anonymise_school_list(
+            schools,
+            id_col="MOENumber",
+            name_col="School"
+        )
+
+        
     return jsonify(schools)
 
 @class_bp.route("/class_bp/get_classes_by_school")
@@ -1918,17 +1978,32 @@ def get_classes_by_school():
             rows = conn.execute(stmt, {"r":"AllClassesBySchoolTermYear","moe": moe, "term": term, "year": year}).fetchall()
         out = [
             {
-                "id": r._mapping["ClassID"],
-                "name": r._mapping["ClassName"],
-                "teacher": r._mapping.get("TeacherName")
+                "ClassID": r._mapping["ClassID"],
+                "ClassName": r._mapping["ClassName"],
+                "TeacherName": r._mapping.get("TeacherName"),
+                "MOENumber": moe
             }
             for r in rows
         ]
-        print(out)
+
+        if demo_mode_on():
+            out = anonymise_class_list(out, moe_number=moe)
+
+        out = [
+            {
+                "id": r["ClassID"],
+                "name": r["ClassName"],
+                "teacher": r.get("TeacherName")
+            }
+            for r in out
+        ]
+
         return jsonify(out)
+  
     except SQLAlchemyError as e:
         return _json_error(f"Database error loading classes: {str(e)}", 500)
 
+# ---- API: classes for a school/term/year ----
 # ---- API: classes for a school/term/year ----
 @class_bp.route("/classes_for_term")
 @login_required
@@ -1937,7 +2012,7 @@ def classes_for_term():
         return _json_error("Forbidden", 403)
 
     try:
-        moe = int(request.args["moe"])       # MOENumber (School ID)
+        moe = int(request.args["moe"])
         term = request.args["term"]
         year = int(request.args["year"])
     except Exception:
@@ -1945,15 +2020,37 @@ def classes_for_term():
 
     engine = get_db_engine()
     with engine.begin() as conn:
-        # You create this proc to list classes by school/term/year
         rows = conn.execute(
-            text("EXEC FlaskGetClassesForTerm @MOENumber=:m, @Term=:t, @CalendarYear=:y"),
+            text("""
+                EXEC FlaskGetClassesForTerm
+                    @MOENumber=:m,
+                    @Term=:t,
+                    @CalendarYear=:y
+            """),
             {"m": moe, "t": term, "y": year}
         ).fetchall()
 
-    out = [{"id": r._mapping["ClassID"], "name": r._mapping["ClassName"]} for r in rows]
-    return jsonify(out)
+    out = [
+        {
+            "id": r._mapping["ClassID"],
+            "name": r._mapping["ClassName"],
+        }
+        for r in rows
+    ]
 
+    if demo_mode_on():
+        for row in out:
+            row["name"] = fake_class_name(
+                class_id=row["id"],
+                moe_number=moe
+            )
+
+        out = sorted(
+            out,
+            key=lambda row: str(row.get("name", "")).lower()
+        )
+
+    return jsonify(out)
 
 @class_bp.route("/students/<int:class_id>")
 @login_required

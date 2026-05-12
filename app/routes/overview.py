@@ -2,6 +2,7 @@ import traceback
 from flask import Blueprint, current_app, render_template, request, session, redirect, jsonify, abort, url_for
 from sqlalchemy import text
 from app.routes.auth import login_required
+from app.utils.anonymise import anonymise_df, anonymise_entities, anonymise_funder_school_rows, anonymise_staff_df, demo_mode_on
 from app.utils.database import get_db_engine, log_alert, get_terms, get_years
 import pandas as pd
 from collections import defaultdict
@@ -13,6 +14,7 @@ from sqlalchemy.exc import SQLAlchemyError, OperationalError
 from werkzeug.exceptions import HTTPException
 from app.utils.database import get_db_engine, log_alert  # if you have log_alert, great; else comment out
 from app.routes.auth import login_required
+import os
 # add this import near the top of the file
 import json
 overview_bp = Blueprint("overview_bp", __name__)
@@ -505,11 +507,14 @@ def funder_dashboard():
                 "TotalStudentsUnedited": "Total Students Unedited",
             }
         )
-
+        school_df = anonymise_df(school_df)
+        eLearning_df = anonymise_staff_df(eLearning_df)
         summary_string = None
         ethnicity_table = None
-
         page_title = f"{(entity_desc or session.get('desc') or '').strip()} Overview".strip() or "Overview"
+        if(os.getenv("DEMO_MODE")=="1"):
+            
+            page_title = "Overview"
 
         return render_template(
             "overview.html",
@@ -1077,6 +1082,36 @@ def _parse_json_maybe(val):
         current_app.logger.warning("JSON parse failed: %r", s, exc_info=True)
         return []
 
+def fetch_entities(entity_type, include_inactive=1):
+    engine = get_db_engine()
+
+    with engine.begin() as conn:
+        rows = conn.execute(
+            text("""
+                EXEC dbo.FlaskGetEntities
+                    @EntityType = :EntityType,
+                    @Role = :Role,
+                    @ID = :ID,
+                    @IncludeInactive = :IncludeInactive
+            """),
+            {
+                "EntityType": entity_type,
+                "Role": session.get("user_role"),
+                "ID": session.get("user_id"),
+                "IncludeInactive": include_inactive,
+            }
+        ).mappings().all()
+
+    entities = [
+        {
+            "id": int(r["ID"]) if r["ID"] is not None else None,
+            "description": str(r["Description"]),
+        }
+        for r in rows
+    ]
+
+    return anonymise_entities(entities, entity_type)
+
 @overview_bp.route("/Schools", methods=["GET", "POST"])
 @login_required
 def funder_schools():
@@ -1114,14 +1149,24 @@ def funder_schools():
             # Resolve funder for ADM vs FUN
             # ----------------------------
             if user_role == "ADM":
-                funders = conn.execute(
-                    text("EXEC FlaskHelperFunctions @Request = :r"),
-                    {"r": "FunderDropdown"}
-                ).mappings().all()
+
+                funders = fetch_entities(
+                    entity_type="Funder"
+                )
+
+                funders = [
+                    {
+                        "FunderID": f["id"],
+                        "Description": f["description"],
+                    }
+                    for f in funders
+                ]
 
                 fid_raw = (request.form.get("FunderID") or "").strip()
+
                 if fid_raw.isdigit():
                     selected_funder = int(fid_raw)
+
                 elif funders:
                     selected_funder = int(funders[0]["FunderID"])
             else:
@@ -1205,7 +1250,8 @@ def funder_schools():
                 r["SelectedProviders"] = str(prov).strip() if prov is not None and str(prov).strip() else "Unassigned"
 
                 rows.append(r)
-        
+            
+            rows = anonymise_funder_school_rows(rows)
         return render_template(
             "funder_schools.html",
             rows=rows,
@@ -1214,6 +1260,7 @@ def funder_schools():
             is_admin=(user_role == "ADM"),
             selected_year=sel_year,
             selected_term=sel_term,
+            demo = demo_mode_on()
         )
 
     except Exception:
@@ -1233,3 +1280,4 @@ def funder_schools():
 
         flash(f"Unexpected error (ID {err_id}). Please try again.", "danger")
         return redirect(url_for("home_bp.home"))
+    

@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from math import ceil
 import traceback
 import uuid
+from app.utils.anonymise import anonymise_df, anonymise_entities, anonymise_entity_name, anonymise_named_list, anonymise_staff_df, anonymise_staff_list, demo_mode_on
 from app.utils.wsfl_email import send_account_invites
 import pandas as pd
 import math
@@ -717,8 +718,31 @@ def api_clm_facilities():
             """), {"fid": funder_id, "term": term, "year": year}).fetchall()
 
         facilities = [dict(r._mapping) for r in rows]
-        # Expected rows: { "FacilityID": <int>, "FacilityName": <str> }
+
+        if demo_mode_on():
+            for f in facilities:
+                original = (
+                    f.get("FacilityName")
+                    or f.get("Facility")
+                    or f.get("Description")
+                    or f.get("Name")
+                )
+
+                fake_name = anonymise_entity_name(
+                    f.get("FacilityID")
+                    or f.get("ProviderID")
+                    or f.get("ID")
+                    or original,
+                    "Provider",
+                    original_value=original
+                )
+
+                for col in ["FacilityName", "Facility", "Description", "Name"]:
+                    if col in f:
+                        f[col] = fake_name
+
         return jsonify({"success": True, "facilities": facilities})
+        # Expected rows: { "FacilityID": <int>, "FacilityName": <str> }
     except Exception as e:
         current_app.logger.exception("❌ /api/clm_facilities failed")
         return jsonify({"success": False, "message": str(e)}), 500
@@ -750,7 +774,12 @@ def api_clm_facility_staff():
             """), {"pid": facility_id}).fetchall()
 
         staff = [dict(r._mapping) for r in rows]
-        # Expected rows: { "Email": <str>, "Name": <str> } (or FirstName/Surname)
+
+        if demo_mode_on():
+            staff = anonymise_staff_df(
+                pd.DataFrame(staff)
+            ).to_dict("records")
+
         return jsonify({"success": True, "staff": staff})
     except Exception as e:
         current_app.logger.exception("❌ /api/clm_facility_staff failed")
@@ -936,7 +965,30 @@ def manage_providers():
 
         flash("An error occurred while loading providers. The issue has been logged.", "danger")
         return redirect(url_for("admin_bp.provider_maintenance"))
+    
+    if demo_mode_on():
+        providers = anonymise_df(
+            pd.DataFrame(providers),
+            Provider_desc="ProviderDesc",
+            Provider_id="ProviderID",
+            Funder_desc="Funder",
+            Funder_id="FunderID"
+        ).to_dict("records")
 
+        funder_name = anonymise_entity_name(
+            funder_id,
+            "Funder",
+            original_value=funder_name
+        )
+
+        DEMO_ADDRESS = "Level 6, 5 Willeston Street, Wellington"
+        DEMO_LAT = -41.2849
+        DEMO_LON = 174.7753
+
+        for p in providers:
+            p["Address"] = DEMO_ADDRESS
+            p["Latitude"] = DEMO_LAT
+            p["Longitude"] = DEMO_LON
     # --- render (own guard so template errors are also logged) ---
     try:
         return render_template(
@@ -1519,7 +1571,18 @@ def provider_maintenance():
             current_app.logger.exception(f"⚠️ Failed to log alert in ProviderMaintenance.")
 
         flash("Couldn’t load some data for provider maintenance. The issue has been logged.", "warning")
-    
+    if demo_mode_on():
+        funders = anonymise_entities(funders, "Funder")
+        providers = anonymise_entities(providers, "Provider")
+        schools = anonymise_entities(schools,"School")
+        staff_list = anonymise_staff_df(
+            pd.DataFrame(staff_list)
+        ).to_dict("records")
+        selected_funder_name = anonymise_entity_name(
+            selected_funder_i,
+            "Funder",
+            original_value=selected_funder_name
+        )
     # ---------- Render ----------
     try:
         return render_template(

@@ -192,6 +192,14 @@ def draw_graph(
         else:
             s_pos = x_coords.iloc[s_idx[0]]
 
+        if e_idx[0] == df.index[-1]:
+            e_pos = x_right
+        else:
+            e_pos = x_coords.iloc[e_idx[0]]
+
+        if e_pos <= s_pos:
+            continue
+
         e_pos = x_coords.iloc[e_idx[0]]
 
         if e_pos <= s_pos:

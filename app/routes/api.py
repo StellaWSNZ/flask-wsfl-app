@@ -3,6 +3,7 @@ from app.routes.auth import login_required
 from sqlalchemy import text
 
 from app.routes.overview import get_funders_by_provider
+from app.utils.anonymise import anonymise_entities, anonymise_entity_name, anonymise_school_entities
 from app.utils.database import get_db_engine, log_alert
 
 api_bp = Blueprint("api_bp", __name__)
@@ -119,7 +120,17 @@ def get_entities():
             }
             for r in rows
         ]
+        import os
+        if os.getenv("DEMO_MODE", "0") == "1":
+            if entity_type == "School":
+                entities = anonymise_school_entities(entities)
 
+            elif entity_type in ["Provider", "Funder", "Group"]:
+                for entity in entities:
+                    entity["description"] = anonymise_entity_name(
+                        entity["id"],
+                        entity_type
+                    )
         if debug:
             current_app.logger.info(f"✅ Entities formatted: {len(entities)} items")
             if entities:
@@ -149,7 +160,6 @@ def get_entities():
             "ok": False,
             "error": "Failed to load entities"
         }), 500
-
 
 # ---- API: ethnicity dropdown for edit modal ----
 @api_bp.route("/ethnicities")

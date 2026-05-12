@@ -1,0 +1,2608 @@
+MOENumber,SchoolType,SchoolName
+1,Composite,Penguin Weka Area School
+2,Composite,Rising Whale Area School
+3,Secondary (Year 9-15),Seastar Korora College
+4,Secondary (Year 7-15),Wai Kingfisher College
+5,Secondary (Year 7-15),Pacific Nautilus College
+6,Composite,Kowhai Korora Area School
+7,Secondary (Year 7-15),Coastal Koura College
+8,Secondary (Year 9-15),Rising Piper College
+9,Secondary (Year 9-15),Harbour Anemone College
+10,Composite,Seabreeze Penguin Area School
+11,Composite,Mussel Kakapo Area School
+12,Composite,Paua Octopus Area School
+13,Secondary (Year 9-15),Rockpool Orca College
+14,Secondary (Year 7-15),Turtle Moana College
+15,Secondary (Year 9-15),Paua Paua College
+16,Secondary (Year 9-15),Snapper Jellyfish College
+17,Secondary (Year 7-15),Pounamu Hapuku College
+18,Composite,Rockpool Kahawai Area School
+19,Secondary (Year 9-15),Kowhai Kingfisher College
+20,Secondary (Year 7-15),Current Tern College
+21,Secondary (Year 7-15),Eastern Sponge College
+22,Secondary (Year 7-15),Penguin Coral College
+23,Secondary (Year 9-15),Clearwater Octopus College
+24,Secondary (Year 7-15),Pebble Seal College
+25,Secondary (Year 7-15),Kina Moana College
+26,Secondary (Year 9-15),Anchor Hoiho College
+27,Secondary (Year 9-15),Kowhai Fantail College
+28,Secondary (Year 9-15),Seastar Cockle College
+29,Composite,Ocean Snapper Area School
+30,Secondary (Year 9-15),Foam Tern College
+31,Secondary (Year 9-15),Pohutukawa Kereru College
+32,Secondary (Year 9-15),Tern Skink College
+35,Secondary (Year 7-15),Western Dotterel College
+36,Secondary (Year 9-15),Seastar Skink College
+37,Secondary (Year 9-15),Kauri Hoiho College
+38,Secondary (Year 9-15),Silver Mussel College
+39,Secondary (Year 7-15),Island Piwakawaka College
+40,Secondary (Year 9-15),Sunny Barracuda College
+41,Secondary (Year 9-15),Aqua Pufferfish College
+42,Secondary (Year 9-15),Kelp Ruru College
+43,Secondary (Year 9-15),Reef Tern College
+44,Secondary (Year 9-15),Anchor Rockpool College
+45,Secondary (Year 9-15),Paua Kakariki College
+46,Secondary (Year 7-15),Seashell Seaweed College
+47,Secondary (Year 7-15),Southern Shark College
+48,Secondary (Year 9-15),Pacific Ruru College
+49,Secondary (Year 9-15),Misty Moki College
+50,Secondary (Year 7-15),Saltwater Petrel College
+51,Secondary (Year 7-15),Marina Piper College
+52,Composite,Bright Mussel Area School
+53,Secondary (Year 9-15),Harbour Oystercatcher College
+54,Secondary (Year 9-15),Korora Manta College
+57,Secondary (Year 9-15),Reef Paua College
+58,Secondary (Year 9-15),Kauri Dolphin College
+59,Secondary (Year 7-15),Kelp Piwakawaka College
+60,Full Primary,Kelp Kakariki Primary School
+61,Secondary (Year 7-15),Sandy Weka College
+62,Secondary (Year 7-15),Ocean Piwakawaka College
+63,Secondary (Year 7-15),Current Wrasse College
+64,Secondary (Year 9-15),Deepwater Piper College
+65,Secondary (Year 9-15),Wave Tuna College
+66,Composite,Dolphin Barracuda Area School
+67,Composite,Kauri Tuna Area School
+68,Composite,Silver Stingray Area School
+69,Secondary (Year 9-15),Kina Tern College
+70,Secondary (Year 7-15),Mussel Pufferfish College
+74,Secondary (Year 9-15),Rimu Tui College
+75,Secondary (Year 9-15),Saltwater Snapper College
+77,Composite,Marina Flounder Area School
+78,Secondary (Year 9-15),Seagrass Stingray College
+79,Secondary (Year 9-15),Driftwood Heron College
+80,Secondary (Year 9-15),Sunny Eel College
+81,Secondary (Year 7-15),Pacific Orca College
+82,Composite,Cove Marlin Area School
+83,Secondary (Year 9-15),Southern Rockpool College
+84,Secondary (Year 9-15),Pacific Jellyfish College
+85,Secondary (Year 9-15),Kelp Whale College
+86,Secondary (Year 9-15),Paua Dotterel College
+87,Secondary (Year 9-15),Kowhai Dotterel College
+88,Secondary (Year 9-15),Current Octopus College
+89,Secondary (Year 9-15),Kina Flounder College
+90,Secondary (Year 9-15),Moana Starfish College
+91,Secondary (Year 9-15),Blue Seaweed College
+93,Secondary (Year 9-15),Rockpool Piper College
+94,Secondary (Year 7-15),Sunny Rockpool College
+95,Secondary (Year 9-15),Harakeke Tarakihi College
+96,Secondary (Year 9-15),Saltwater Whale College
+97,Secondary (Year 9-15),Blue Oystercatcher College
+99,Secondary (Year 9-15),Kelp Pipit College
+100,Secondary (Year 9-15),Blue Skink College
+101,Secondary (Year 9-15),Pounamu Seal College
+102,Secondary (Year 9-15),Current Prawn College
+103,Secondary (Year 9-15),Snapper Anemone College
+104,Secondary (Year 7-15),Reef Shrimp College
+105,Secondary (Year 9-15),Foam Piper College
+106,Secondary (Year 7-15),Seabreeze Orca College
+108,Composite,Cove Hoiho Area School
+109,Composite,Aqua Kea Area School
+110,Composite,Aqua Kelp Area School
+111,Secondary (Year 9-15),Kauri Cockle College
+112,Secondary (Year 9-15),Kowhai Turtle College
+113,Secondary (Year 9-15),Whale Marlin College
+114,Secondary (Year 7-15),Eastern Eel College
+115,Secondary (Year 7-15),Rimu Ruru College
+116,Secondary (Year 9-15),Tern Manta College
+117,Secondary (Year 7-15),Pounamu Shark College
+118,Secondary (Year 9-15),Deepwater Sealion College
+119,Secondary (Year 9-15),Kelp Petrel College
+120,Secondary (Year 9-15),Kina Hapuku College
+121,Secondary (Year 9-15),Marina Jellyfish College
+122,Secondary (Year 9-15),Rising Anemone College
+123,Secondary (Year 9-15),Koru Trevally College
+124,Secondary (Year 9-15),Wave Swordfish College
+125,Composite,Kina Stingray Area School
+126,Secondary (Year 9-15),Current Kea College
+127,Secondary (Year 9-15),Pohutukawa Octopus College
+129,Secondary (Year 9-15),Harakeke Turtle College
+130,Secondary (Year 9-15),Driftwood Shrimp College
+131,Secondary (Year 9-15),Blue Kea College
+132,Secondary (Year 9-15),Rangitahi Stingray College
+133,Composite,Island Shark Area School
+134,Secondary (Year 7-15),Bright Kingfisher College
+135,Secondary (Year 9-15),Turtle Stingray College
+136,Secondary (Year 9-15),Mangrove Wrasse College
+137,Secondary (Year 9-15),Rangitahi Weka College
+138,Secondary (Year 9-15),Anchor Weka College
+139,Secondary (Year 9-15),Seahorse Pipit College
+140,Secondary (Year 9-15),Shore Weka College
+141,Secondary (Year 7-15),Pebble Orca College
+142,Secondary (Year 9-15),Blue Dolphin College
+143,Secondary (Year 9-15),Ocean Mussel College
+144,Secondary (Year 9-15),Foam Octopus College
+145,Secondary (Year 9-15),Driftwood Flounder College
+146,Secondary (Year 9-15),Marina Petrel College
+148,Secondary (Year 9-15),Koru Snapper College
+151,Secondary (Year 9-15),Turtle Weka College
+152,Secondary (Year 9-15),Coral Rockpool College
+153,Secondary (Year 9-15),Marina Skink College
+154,Secondary (Year 9-15),Shore Moki College
+157,Secondary (Year 9-15),Snapper Kea College
+158,Secondary (Year 9-15),Tui Kereru College
+159,Secondary (Year 9-15),Kauri Marlin College
+160,Secondary (Year 9-15),Kowhai Bluefish College
+161,Full Primary,Rockpool Prawn Primary School
+162,Secondary (Year 7-15),Shell Limpet College
+164,Secondary (Year 7-15),Tui Skink College
+166,Secondary (Year 9-15),Current Flounder College
+167,Secondary (Year 9-15),Pebble Manta College
+169,Secondary (Year 9-15),Penguin Anemone College
+170,Secondary (Year 9-15),Seahorse Trevally College
+171,Secondary (Year 9-15),Pacific Koura College
+172,Secondary (Year 9-15),Ocean Scallop College
+173,Secondary (Year 9-15),Koru Jellyfish College
+174,Secondary (Year 7-15),Tidal Limpet College
+175,Secondary (Year 7-15),Silver Dolphin College
+176,Full Primary,Foam Nautilus Primary School
+177,Secondary (Year 9-15),Pounamu Octopus College
+179,Secondary (Year 9-15),Pebble Ruru College
+180,Secondary (Year 9-15),Bright Tuna College
+181,Secondary (Year 9-15),Saltwater Korora College
+183,Secondary (Year 9-15),Bright Kakariki College
+185,Composite,Moana Paua Area School
+187,Secondary (Year 9-15),Tui Tern College
+188,Secondary (Year 9-15),Wave Cockle College
+189,Secondary (Year 9-15),Paua Eel College
+190,Secondary (Year 9-15),Misty Sponge College
+191,Secondary (Year 7-15),Current Heron College
+192,Secondary (Year 9-15),Bright Kelp College
+195,Secondary (Year 9-15),Misty Marlin College
+196,Secondary (Year 9-15),Sunny Korora College
+197,Secondary (Year 9-15),Sunny Pipit College
+198,Secondary (Year 9-15),Western Barracuda College
+199,Secondary (Year 9-15),Silver Kakapo College
+200,Secondary (Year 9-15),Turtle Korora College
+201,Secondary (Year 7-15),Hidden Piwakawaka College
+202,Secondary (Year 9-15),Kina Shellfish College
+203,Secondary (Year 9-15),Deepwater Pipit College
+204,Secondary (Year 7-15),Moana Oystercatcher College
+205,Secondary (Year 9-15),Western Seaweed College
+206,Composite,Seahorse Orca Area School
+208,Secondary (Year 9-15),Harbour Koura College
+209,Secondary (Year 9-15),Shell Hoiho College
+210,Secondary (Year 9-15),Bay Nautilus College
+211,Secondary (Year 7-15),Moana Penguin College
+212,Composite,Seabreeze Kina Area School
+214,Secondary (Year 7-15),Western Ruru College
+215,Secondary (Year 9-15),Ocean Kelp College
+216,Secondary (Year 9-15),Rimu Tarakihi College
+217,Secondary (Year 9-15),Wai Shark College
+218,Secondary (Year 9-15),Misty Seahorse College
+219,Secondary (Year 9-15),Wave Dolphin College
+220,Secondary (Year 7-15),Harbour Pufferfish College
+221,Composite,Foam Moki Area School
+222,Secondary (Year 7-15),Wai Shellfish College
+223,Secondary (Year 9-15),Reef Orca College
+224,Secondary (Year 7-15),Tern Koura College
+225,Secondary (Year 7-15),Nikau Hapuku College
+226,Secondary (Year 9-15),Rimu Shellfish College
+227,Secondary (Year 9-15),Cove Tarakihi College
+228,Secondary (Year 9-15),Rising Kea College
+229,Secondary (Year 9-15),Ocean Pufferfish College
+230,Secondary (Year 7-15),Misty Bluefish College
+231,Composite,Bay Jellyfish Area School
+232,Secondary (Year 9-15),Coastal Heron College
+233,Secondary (Year 9-15),Northern Mussel College
+234,Secondary (Year 9-15),Kowhai Prawn College
+235,Secondary (Year 9-15),Pohutukawa Pipit College
+236,Secondary (Year 9-15),Kauri Swordfish College
+237,Secondary (Year 9-15),Turtle Moki College
+240,Secondary (Year 7-15),Northern Seaweed College
+241,Secondary (Year 9-15),Golden Trevally College
+242,Secondary (Year 7-15),Snapper Pufferfish College
+243,Secondary (Year 9-15),Driftwood Turtle College
+244,Secondary (Year 7-15),Pounamu Prawn College
+245,Secondary (Year 9-15),Paua Coral College
+246,Secondary (Year 7-15),Coastal Limpet College
+247,Secondary (Year 9-15),Blue Octopus College
+248,Secondary (Year 9-15),Mussel Tui College
+249,Secondary (Year 9-15),TotaraCoastal Tarakihi College
+250,Secondary (Year 9-15),Whale College
+251,Secondary (Year 9-15),Dolphin Anemone College
+252,Secondary (Year 9-15),Estuary Trevally College
+253,Secondary (Year 9-15),Current Paua College
+254,Secondary (Year 9-15),Pounamu Starfish College
+255,Secondary (Year 9-15),Island Swordfish College
+256,Secondary (Year 7-15),Kauri Piper College
+257,Secondary (Year 9-15),Korora Korora College
+258,Secondary (Year 9-15),Kina Seaweed College
+259,Secondary (Year 9-15),Seabreeze Limpet College
+260,Secondary (Year 7-15),Rangitahi Nautilus College
+261,Secondary (Year 9-15),Sunny Marlin College
+262,Secondary (Year 9-15),Paua Barracuda College
+263,Composite,Manuka Manta Area School
+265,Secondary (Year 7-15),Coral Kea College
+266,Composite,Sandy Bluefish Area School
+268,Secondary (Year 9-15),Kelp Eel College
+269,Secondary (Year 9-15),Foam Seahorse College
+272,Secondary (Year 9-15),Koru Kelp College
+273,Secondary (Year 9-15),Misty Ruru College
+274,Secondary (Year 9-15),Estuary Coral College
+275,Secondary (Year 9-15),Harakeke Kingfisher College
+276,Secondary (Year 9-15),Mussel Hoiho College
+277,Secondary (Year 9-15),Moana Kelp College
+278,Composite,Pohutukawa Swordfish Area School
+279,Composite,Shell Manta Area School
+280,Composite,Kowhai Stingray Area School
+281,Composite,Foam Eel Area School
+282,Full Primary,Silver Kingfisher Primary School
+283,Composite,Snapper Turtle Area School
+284,Secondary (Year 9-15),Ocean Moana College
+286,Secondary (Year 9-15),Estuary Bluefish College
+287,Secondary (Year 7-15),Harbour Manta College
+288,Secondary (Year 9-15),Koru Tuna College
+289,Secondary (Year 9-15),Mussel Rockpool College
+290,Composite,Hidden Kahawai Area School
+291,Composite,Nikau Jellyfish Area School
+292,Secondary (Year 7-15),Korora Limpet College
+293,Secondary (Year 9-15),Coral Ruru College
+294,Secondary (Year 9-15),Totara Seahorse College
+295,Secondary (Year 9-15),Reef Wrasse College
+296,Secondary (Year 9-15),Whale Sponge College
+297,Composite,Kelp Sponge Area School
+298,Secondary (Year 9-15),Island Cockle College
+299,Composite,Wai Orca Area School
+300,Composite,Northern Prawn Area School
+301,Secondary (Year 9-15),Tern Dolphin College
+303,Secondary (Year 9-15),Kelp Starfish College
+304,Secondary (Year 9-15),Mangrove Heron College
+305,Secondary (Year 7-15),Totara Skink College
+306,Composite,Dolphin Jellyfish Area School
+307,Secondary (Year 7-15),Tern Shark College
+308,Composite,Golden Barracuda Area School
+309,Composite,Saltwater Ruru Area School
+310,Composite,Southern Mussel Area School
+311,Composite,Tern Tuna Area School
+312,Secondary (Year 9-15),Snapper Kina College
+314,Secondary (Year 9-15),Anchor Swordfish College
+315,Secondary (Year 9-15),Seastar Kakapo College
+316,Secondary (Year 9-15),Mangrove Marlin College
+317,Composite,Moana Snapper Area School
+318,Composite,Reef Gannet Area School
+319,Secondary (Year 9-15),Sunny Paua College
+320,Secondary (Year 9-15),Kauri Moki College
+321,Secondary (Year 9-15),Paua Kingfisher College
+324,Secondary (Year 9-15),Kauri Sealion College
+325,Secondary (Year 7-15),Seashell Shrimp College
+326,Secondary (Year 7-15),Golden Anemone College
+327,Secondary (Year 9-15),Driftwood Barracuda College
+328,Secondary (Year 9-15),Seagrass Skink College
+329,Full Primary,Tui Manta Primary School
+330,Secondary (Year 9-15),Mangrove Skink College
+331,Secondary (Year 7-15),Reef Kelp College
+333,Composite,Kowhai Orca Area School
+334,Secondary (Year 9-15),Driftwood Piper College
+335,Composite,Sunny Bluefish Area School
+336,Secondary (Year 9-15),Lagoon Scallop College
+337,Secondary (Year 7-15),Tidal Sealion College
+338,Secondary (Year 7-15),Estuary Rockpool College
+339,Secondary (Year 7-15),Sandy Shellfish College
+340,Secondary (Year 9-15),Driftwood Petrel College
+341,Composite,Tidal Starfish Area School
+343,Secondary (Year 9-15),Island Kelp College
+344,Full Primary,Paua Kina Primary School
+346,Secondary (Year 7-15),Rimu Cockle College
+347,Secondary (Year 9-15),Paua Pipit College
+348,Secondary (Year 7-15),Cove Swordfish College
+349,Secondary (Year 7-15),Tern Nautilus College
+350,Composite,Pounamu Ruru Area School
+351,Secondary (Year 9-15),Tidal Moki College
+352,Secondary (Year 7-15),Snapper Orca College
+353,Secondary (Year 7-15),Seagrass Flounder College
+354,Secondary (Year 7-15),Northern Turtle College
+357,Secondary (Year 7-15),Penguin Marlin College
+358,Secondary (Year 9-15),Current Shrimp College
+359,Secondary (Year 9-15),Wave Dotterel College
+360,Secondary (Year 9-15),Kina Anemone College
+361,Secondary (Year 9-15),Mussel Kina College
+362,Secondary (Year 7-15),Seagrass Kea College
+363,Full Primary,Wai Cockle Primary School
+365,Secondary (Year 9-15),Wai Kina College
+366,Secondary (Year 9-15),Western Paua College
+368,Full Primary,Koru Sealion Primary School
+369,Secondary (Year 9-15),Tern Flounder College
+370,Composite,Seagrass Weka Area School
+371,Secondary (Year 7-15),Blue Piper College
+372,Secondary (Year 9-15),Seabreeze Bluefish College
+373,Secondary (Year 7-15),Dolphin Seal College
+374,Secondary (Year 9-15),Kowhai Kahawai College
+375,Composite,Wave Albatross Area School
+376,Secondary (Year 9-15),Manuka Bluefish College
+377,Secondary (Year 9-15),Deepwater Tuna College
+378,Secondary (Year 9-15),Pohutukawa Seaweed College
+380,Secondary (Year 7-15),Shell Turtle College
+381,Secondary (Year 7-15),Paua Gannet College
+382,Secondary (Year 9-15),Southern Jellyfish College
+383,Secondary (Year 9-15),Deepwater Prawn College
+384,Secondary (Year 9-15),Paua Trevally College
+386,Composite,Manuka Skink Area School
+387,Secondary (Year 7-15),Estuary Pufferfish College
+390,Composite,Ocean Fantail Area School
+391,Secondary (Year 7-15),Sandy Pufferfish College
+392,Secondary (Year 7-15),Kauri Barracuda College
+393,Secondary (Year 9-15),Dolphin Tarakihi College
+394,Composite,Seahorse Rockpool Area School
+395,Secondary (Year 7-15),Deepwater Cockle College
+396,Secondary (Year 9-15),Nikau Seaweed College
+397,Secondary (Year 7-15),Bay Sealion College
+398,Full Primary,Eastern Prawn Primary School
+399,Secondary (Year 9-15),Kauri Pufferfish College
+400,Secondary (Year 7-15),Harakeke Crab College
+401,Secondary (Year 7-15),Tidal Prawn College
+402,Composite,Blue Jellyfish Area School
+404,Secondary (Year 7-15),Driftwood Seal College
+405,Secondary (Year 7-15),Coral Nautilus College
+408,Secondary (Year 7-15),Misty Scallop College
+409,Secondary (Year 7-15),Manuka Shrimp College
+418,Composite,Marina Cockle Area School
+419,Composite,Northern Octopus Area School
+421,Composite,Bright Marlin Area School
+422,Full Primary,Rimu Tuna Primary School
+424,Composite,Bay Kahawai Area School
+425,Secondary (Year 9-15),Pebble Dotterel College
+428,Composite,Ocean Paua Area School
+429,Composite,Pacific Pipit Area School
+432,Composite,Tui Kina Area School
+435,Secondary (Year 9-15),Kauri Bluefish College
+436,Composite,Turtle Kelp Area School
+439,Composite,Rockpool Kea Area School
+440,Composite,Seastar Dotterel Area School
+441,Composite,Seashell Cockle Area School
+443,Composite,Sandy Piwakawaka Area School
+451,Composite,Current Barracuda Area School
+452,Composite,Reef Kereru Area School
+453,Full Primary,Wave Koura Primary School
+454,Secondary (Year 7-15),Blue Stingray College
+456,Composite,Pounamu Moki Area School
+460,Composite,Korora Shark Area School
+462,Secondary (Year 9-15),Mangrove Gannet College
+463,Composite,Marina Korora Area School
+465,Composite,Eastern Starfish Area School
+466,Composite,Blue Rockpool Area School
+471,Secondary (Year 7-15),Pacific Shellfish College
+472,Composite,Current Seaweed Area School
+476,Composite,Tui Stingray Area School
+478,Secondary (Year 9-15),Rockpool Weka College
+481,Composite,Coral Petrel Area School
+482,Secondary (Year 7-15),Whale Gannet College
+484,Secondary (Year 7-15),Hidden Moki College
+485,Full Primary,Seagrass Shrimp Primary School
+487,Composite,Moana Pipit Area School
+488,Secondary (Year 9-15),Dolphin Turtle College
+491,Secondary (Year 7-15),Mangrove Crab College
+494,Secondary (Year 7-15),Tui Jellyfish College
+495,Secondary (Year 7-15),Eastern Hapuku College
+496,Composite,Island Tuna Area School
+497,Composite,Korora Kakapo Area School
+498,Correspondence School,Cove Nautilus Correspondence School
+506,Composite,Aqua Flounder Area School
+514,Specialist School,Kelp Fantail Specialist School
+518,Specialist School,Tern Stingray Specialist School
+522,Specialist School,Current Kakapo Specialist School
+525,Specialist School,Sunny Gannet Specialist School
+527,Composite,Sandy Kingfisher Area School
+528,Composite,Mussel Wrasse Area School
+530,Secondary (Year 7-15),Golden Penguin College
+531,Secondary (Year 7-15),Nikau Albatross College
+532,Secondary (Year 7-15),Rising Skink College
+533,Secondary (Year 7-15),Kina Snapper College
+536,Secondary (Year 7-15),Sandy Ruru College
+539,Composite (Year 1-10),Snapper Swordfish Area School
+544,Composite,Wai Kelp Area School
+545,Composite (Year 1-10),Kauri Starfish Area School
+546,Secondary (Year 7-15),Totara Wrasse College
+548,Secondary (Year 7-15),Rockpool Shellfish College
+549,Composite,Mussel Nautilus Area School
+550,Composite,Aqua Orca Area School
+551,Composite,Blue Turtle Area School
+552,Secondary (Year 7-15),Current Hoiho College
+553,Secondary (Year 7-10),Seahorse Moana College
+554,Full Primary,Cove Coral Primary School
+555,Teen Parent Unit,Nikau Snapper Learning Centre
+557,Full Primary,Marina Seal Primary School
+558,Composite,Snapper Dotterel Area School
+559,Composite,Seahorse Koura Area School
+563,Secondary (Year 11-15),Island Hoiho College
+564,Secondary (Year 11-15),Pohutukawa Coral College
+565,Full Primary,Misty Orca Primary School
+566,Full Primary,Tern Octopus Primary School
+567,Composite,Totara Tern Area School
+570,Contributing,Rockpool Hapuku Primary School
+571,Composite,Coral Seal Area School
+572,Full Primary,Bay Petrel Primary School
+577,Contributing,Saltwater Cockle Primary School
+579,Full Primary,Moana Crab Primary School
+584,Full Primary,Kowhai Shellfish Primary School
+585,Full Primary,Totara Orca Primary School
+586,Full Primary,Snapper Cockle Primary School
+588,Full Primary,Estuary Hapuku Primary School
+589,Composite,Tern Moki Area School
+593,Contributing,Koru Weka Primary School
+594,Contributing,Blue Orca Primary School
+595,Full Primary,Pounamu Snapper Primary School
+600,Composite,Marina Kelp Area School
+601,Full Primary,Anchor Starfish Primary School
+603,Composite,Ocean Shellfish Area School
+604,Full Primary,Seashell Shellfish Primary School
+605,Full Primary,Korora Koura Primary School
+607,Full Primary,Tern Ruru Primary School
+608,Composite (Year 1-10),Misty Cockle Area School
+610,Full Primary,Seashell Coral Primary School
+612,Teen Parent Unit,Sunny Starfish Learning Centre
+614,Contributing,Bay Pipit Primary School
+615,Secondary (Year 11-15),Reef Sealion College
+616,Teen Parent Unit,Lagoon Eel Learning Centre
+618,Contributing,Rangitahi Sealion Primary School
+620,Secondary (Year 7-15),Sandy Seahorse College
+622,Composite,Tern Kakariki Area School
+624,Composite,Western Rockpool Area School
+625,Contributing,Bay Stingray Primary School
+628,Composite,Korora Weka Area School
+630,Composite,Kelp Turtle Area School
+631,Composite,Saltwater Mussel Area School
+632,Secondary (Year 9-15),Seashell Trevally College
+633,Full Primary,Harakeke Seaweed Primary School
+639,Teen Parent Unit,Bay Orca Learning Centre
+641,Composite,Sandy Kakariki Area School
+647,Full Primary,Hidden Fantail Primary School
+648,Full Primary,Penguin Kingfisher Primary School
+651,Composite,Bright Tern Area School
+654,Secondary (Year 9-15),Penguin Trevally College
+655,Contributing,Deepwater Barracuda Primary School
+658,Composite,Southern Moana Area School
+660,Full Primary,Aqua Scallop Primary School
+661,Secondary (Year 7-15),Clearwater Shellfish College
+670,Teen Parent Unit,Shell Orca Learning Centre
+671,Full Primary,Clearwater Penguin Primary School
+674,Teen Parent Unit,Sunny Piper Learning Centre
+682,Composite,Nikau Starfish Area School
+683,Composite,Wave Seahorse Area School
+684,Full Primary,Kelp Trevally Primary School
+685,Contributing,Pohutukawa Seal Primary School
+686,Full Primary,Mangrove Pipit Primary School
+688,Contributing,Paua Manta Primary School
+695,Secondary (Year 9-15),Nikau Stingray College
+696,Full Primary,Totara Oystercatcher Primary School
+704,Composite,Coral Kingfisher Area School
+705,Teen Parent Unit,Pounamu Skink Learning Centre
+706,Composite,Northern Kahawai Area School
+707,Composite,Rockpool Coral Area School
+708,Secondary (Year 7-10),Mangrove Coral College
+709,Secondary (Year 7-10),Island Pipit College
+710,Full Primary,Moana Seal Primary School
+712,Full Primary,Snapper Ruru Primary School
+717,Teen Parent Unit,Saltwater Piwakawaka Learning Centre
+719,Composite,Deepwater Shrimp Area School
+723,Full Primary,Pohutukawa Skink Primary School
+724,Contributing,Paua Prawn Primary School
+725,Full Primary,Tui Limpet Primary School
+728,Full Primary,Ocean Piper Primary School
+729,Teen Parent Unit,Cove Manta Learning Centre
+730,Full Primary,Rimu Flounder Primary School
+737,Composite,Golden Shellfish Area School
+738,Full Primary,Dolphin Ruru Primary School
+739,Secondary (Year 9-15),Reef Flounder College
+742,Composite,Turtle Albatross Area School
+743,Contributing,Driftwood Moana Primary School
+746,Full Primary,Whale Seaweed Primary School
+747,Contributing,Rangitahi Piper Primary School
+748,Full Primary,Pohutukawa Shark Primary School
+752,Full Primary,Aqua Korora Primary School
+764,Contributing,Pounamu Crab Primary School
+767,Contributing,Paua Flounder Primary School
+774,Full Primary,Western Stingray Primary School
+778,Composite,Tidal Scallop Area School
+779,Full Primary,Nikau Orca Primary School
+780,Contributing,Golden Dotterel Primary School
+781,Full Primary,Dolphin Koura Primary School
+787,Secondary (Year 7-15),Seabreeze Moana College
+834,Composite,Pebble Wrasse Area School
+840,Specialist School,Seagrass Sponge Specialist School
+846,Contributing,Lagoon Starfish Primary School
+847,Composite,Aqua Seaweed Area School
+849,Full Primary,Seabreeze Scallop Primary School
+854,Secondary (Year 9-15),Shell Scallop College
+858,Contributing,Tui Piwakawaka Primary School
+871,Composite (Year 1-10),Cove Rockpool Area School
+872,Secondary (Year 7-15),Sandy Trevally College
+873,Secondary (Year 9-15),Pacific Albatross College
+874,Secondary (Year 9-15),Wave Snapper College
+876,Restricted Composite (Year 7-10),Rangitahi Petrel Area School
+877,Restricted Composite (Year 7-10),Seahorse Shark Area School
+878,Composite,Wave Tui Area School
+879,Full Primary,Golden Kahawai Primary School
+880,Full Primary,Tidal Manta Primary School
+881,Secondary (Year 9-15),Current Piper College
+896,Secondary (Year 7-15),Foam Snapper College
+900,Composite,Seahorse Whale Area School
+902,Secondary (Year 9-15),Rising Tern College
+903,Specialist School,Current Rockpool Specialist School
+904,Composite,Penguin Kina Area School
+921,Secondary (Year 9-15),Wave Kakapo College
+932,Full Primary,Paua Bluefish Primary School
+941,Composite,Paua Dolphin Area School
+946,Full Primary,Tidal Shrimp Primary School
+949,Secondary (Year 7-15),Western Kahawai College
+955,Full Primary,Tui Octopus Primary School
+956,Full Primary,Misty Korora Primary School
+958,Composite,Ocean Kina Area School
+959,Full Primary,Harbour Prawn Primary School
+960,Full Primary,Northern Tui Primary School
+961,Secondary (Year 7-15),Snapper Eel College
+962,Full Primary,Deepwater Ruru Primary School
+967,Composite,Seashell Rockpool Area School
+968,Composite,Korora Kakariki Area School
+1000,Full Primary,Kina Penguin Primary School
+1001,Full Primary,Misty Tarakihi Primary School
+1002,Full Primary,Tui Hoiho Primary School
+1004,Contributing,Driftwood Orca Primary School
+1007,Specialist School,Harakeke Petrel Specialist School
+1008,Intermediate,Paua Wrasse Intermediate School
+1009,Contributing,Southern Fantail Primary School
+1011,Contributing,Silver Manta Primary School
+1013,Full Primary,Tidal Paua Primary School
+1014,Full Primary,Western Dolphin Primary School
+1015,Contributing,Seastar Stingray Primary School
+1016,Contributing,Moana Limpet Primary School
+1017,Full Primary,Penguin Tarakihi Primary School
+1018,Contributing,Manuka Heron Primary School
+1019,Contributing,Marina Kingfisher Primary School
+1020,Full Primary,Ocean Tarakihi Primary School
+1021,Contributing,Golden Pufferfish Primary School
+1022,Intermediate,Rising Cockle Intermediate School
+1023,Contributing,Western Marlin Primary School
+1024,Full Primary,Shell Dolphin Primary School
+1025,Intermediate,Dolphin Korora Intermediate School
+1026,Contributing,Manuka Stingray Primary School
+1027,Contributing,Blue Tui Primary School
+1028,Contributing,Reef Kahawai Primary School
+1029,Intermediate,Pounamu Pufferfish Intermediate School
+1030,Contributing,Southern Trevally Primary School
+1031,Full Primary,Totara Penguin Primary School
+1032,Contributing,Deepwater Anemone Primary School
+1033,Full Primary,Nikau Nautilus Primary School
+1034,Contributing,Estuary Pipit Primary School
+1035,Full Primary,Mangrove Moana Primary School
+1036,Full Primary,Driftwood Bluefish Primary School
+1037,Contributing,Rockpool Crab Primary School
+1038,Full Primary,Saltwater Kakariki Primary School
+1039,Contributing,Seashell Tui Primary School
+1042,Full Primary,Harbour Kahawai Primary School
+1043,Full Primary,Anchor Limpet Primary School
+1044,Full Primary,Manuka Octopus Primary School
+1046,Composite,Rangitahi Orca Area School
+1047,Full Primary,Tern Whale Primary School
+1048,Full Primary,Cove Seahorse Primary School
+1049,Contributing,Sunny Penguin Primary School
+1050,Contributing,Rimu Korora Primary School
+1052,Contributing,Reef Rockpool Primary School
+1053,Full Primary,Shore Seal Primary School
+1055,Composite (Year 1-10),Tui Turtle Area School
+1056,Full Primary,Lagoon Kelp Primary School
+1058,Contributing,Blue Whale Primary School
+1059,Contributing,Shell Heron Primary School
+1060,Full Primary,Silver Skink Primary School
+1061,Contributing,Pebble Marlin Primary School
+1062,Contributing,Shore Pufferfish Primary School
+1063,Full Primary,Wai Rockpool Primary School
+1065,Full Primary,Totara Rockpool Primary School
+1066,Full Primary,Shore Petrel Primary School
+1068,Full Primary,Cove Weka Primary School
+1069,Full Primary,Anchor Pufferfish Primary School
+1071,Full Primary,Rangitahi Kakapo Primary School
+1072,Full Primary,Marina Shark Primary School
+1073,Full Primary,Harakeke Penguin Primary School
+1074,Full Primary,Nikau Shellfish Primary School
+1075,Full Primary,Foam Shark Primary School
+1076,Full Primary,Harakeke Shellfish Primary School
+1077,Contributing,Moana Kingfisher Primary School
+1078,Contributing,Snapper Moki Primary School
+1080,Full Primary,Blue Limpet Primary School
+1081,Full Primary,Rising Oystercatcher Primary School
+1082,Full Primary,Wave Flounder Primary School
+1083,Full Primary,Golden Prawn Primary School
+1084,Contributing,Golden Dolphin Primary School
+1085,Full Primary,Silver Penguin Primary School
+1086,Full Primary,Whale Flounder Primary School
+1087,Contributing,Sunny Ruru Primary School
+1089,Full Primary,Estuary Petrel Primary School
+1092,Full Primary,Moana Anemone Primary School
+1093,Full Primary,Dolphin Penguin Primary School
+1094,Contributing,Tui Moana Primary School
+1095,Contributing,Tui Seahorse Primary School
+1096,Full Primary,Whale Stingray Primary School
+1097,Contributing,Tidal Whale Primary School
+1098,Full Primary,Seastar Kakariki Primary School
+1100,Full Primary,Tui Fantail Primary School
+1104,Full Primary,Seastar Orca Primary School
+1105,Full Primary,Koru Mussel Primary School
+1106,Full Primary,Nikau Turtle Primary School
+1107,Full Primary,Sunny Turtle Primary School
+1109,Full Primary,Rimu Penguin Primary School
+1110,Full Primary,Cove Penguin Primary School
+1111,Full Primary,Rising Sealion Primary School
+1112,Full Primary,Tidal Weka Primary School
+1113,Contributing,Seashell Flounder Primary School
+1114,Full Primary,Rockpool Flounder Primary School
+1115,Full Primary,Dolphin Gannet Primary School
+1116,Contributing,Current Nautilus Primary School
+1119,Contributing,Dolphin Pipit Primary School
+1120,Full Primary,Rimu Limpet Primary School
+1122,Full Primary,Island Crab Primary School
+1124,Contributing,Moana Eel Primary School
+1125,Contributing,Pebble Whale Primary School
+1126,Full Primary,Kauri Heron Primary School
+1127,Full Primary,Rangitahi Kingfisher Primary School
+1128,Full Primary,Rangitahi Coral Primary School
+1129,Intermediate,Kelp Tuna Intermediate School
+1130,Contributing,Tui Seal Primary School
+1131,Contributing,Shore Kakapo Primary School
+1138,Composite,Hidden Korora Area School
+1139,Composite,Ocean Eel Area School
+1142,Full Primary,Marina Tuna Primary School
+1143,Composite,Deepwater Whale Area School
+1147,Composite,Seahorse Korora Area School
+1148,Full Primary,Aqua Sealion Primary School
+1149,Composite,Current Shellfish Area School
+1151,Full Primary,Cove Kakariki Primary School
+1153,Composite,Snapper Kereru Area School
+1154,Composite,Koru Shrimp Area School
+1156,Composite,Koru Kina Area School
+1164,Contributing,Western Eel Primary School
+1165,Composite,Eastern Piwakawaka Area School
+1167,Contributing,Harbour Shrimp Primary School
+1168,Composite (Year 1-10),Lagoon Albatross Area School
+1169,Full Primary,Current Mussel Primary School
+1170,Full Primary,Ocean Octopus Primary School
+1172,Composite,Saltwater Shark Area School
+1175,Composite,Saltwater Seahorse Area School
+1177,Contributing,Harakeke Wrasse Primary School
+1178,Full Primary,Mussel Fantail Primary School
+1179,Full Primary,Tidal Ruru Primary School
+1184,Full Primary,Cove Starfish Primary School
+1185,Full Primary,Manuka Seaweed Primary School
+1186,Composite,Wai Prawn Area School
+1187,Full Primary,Mangrove Barracuda Primary School
+1189,Composite,Totara Kahawai Area School
+1190,Composite,Estuary Cockle Area School
+1192,Full Primary,Tui Kahawai Primary School
+1194,Contributing,Anchor Albatross Primary School
+1195,Full Primary,Tui Flounder Primary School
+1200,Full Primary,Kina Seahorse Primary School
+1201,Full Primary,Ocean Flounder Primary School
+1202,Contributing,Estuary Weka Primary School
+1203,Full Primary,Coastal Wrasse Primary School
+1204,Contributing,Coral Kelp Primary School
+1206,Contributing,Wave Turtle Primary School
+1207,Full Primary,Seashell Skink Primary School
+1208,Full Primary,Ocean Moki Primary School
+1209,Specialist School,Silver Marlin Specialist School
+1210,Specialist School,Dolphin Dotterel Specialist School
+1211,Intermediate,Estuary Kakariki Intermediate School
+1212,Intermediate,Driftwood Sponge Intermediate School
+1213,Contributing,Rockpool Petrel Primary School
+1214,Full Primary,Pohutukawa Stingray Primary School
+1215,Intermediate,Bay Mussel Intermediate School
+1216,Full Primary,Anchor Orca Primary School
+1217,Intermediate,Seahorse Shrimp Intermediate School
+1218,Contributing,Rangitahi Kelp Primary School
+1219,Full Primary,Deepwater Heron Primary School
+1220,Contributing,Aqua Fantail Primary School
+1221,Contributing,Kowhai Oystercatcher Primary School
+1222,Contributing,Koru Piwakawaka Primary School
+1223,Contributing,Marina Eel Primary School
+1224,Full Primary,Dolphin Tuna Primary School
+1225,Intermediate,Golden Orca Intermediate School
+1226,Contributing,Aqua Bluefish Primary School
+1227,Full Primary,Deepwater Jellyfish Primary School
+1228,Intermediate,Blue Fantail Intermediate School
+1229,Contributing,Rangitahi Tui Primary School
+1230,Contributing,Cove Bluefish Primary School
+1231,Contributing,Turtle Kereru Primary School
+1232,Intermediate,Pebble Stingray Intermediate School
+1233,Contributing,Silver Shellfish Primary School
+1234,Full Primary,Kina Oystercatcher Primary School
+1235,Contributing,Southern Flounder Primary School
+1236,Full Primary,Mangrove Kakariki Primary School
+1237,Contributing,Deepwater Wrasse Primary School
+1238,Intermediate,Snapper Paua Intermediate School
+1239,Full Primary,Harbour Fantail Primary School
+1240,Intermediate,Anchor Shellfish Intermediate School
+1241,Contributing,Snapper Weka Primary School
+1242,Contributing,Dolphin Eel Primary School
+1243,Contributing,Harbour Piper Primary School
+1244,Contributing,Marina Pipit Primary School
+1245,Full Primary,Bright Coral Primary School
+1246,Full Primary,Coastal Gannet Primary School
+1247,Full Primary,Tidal Kakapo Primary School
+1248,Contributing,Aqua Octopus Primary School
+1249,Full Primary,Bay Crab Primary School
+1251,Contributing,Driftwood Gannet Primary School
+1252,Contributing,Eastern Trevally Primary School
+1253,Contributing,Deepwater Rockpool Primary School
+1254,Full Primary,Kelp Pufferfish Primary School
+1255,Full Primary,Island Whale Primary School
+1256,Contributing,Marina Crab Primary School
+1257,Contributing,Totara Kelp Primary School
+1258,Contributing,Manuka Moana Primary School
+1259,Contributing,Tern Cockle Primary School
+1260,Contributing,Pohutukawa Kina Primary School
+1261,Contributing,Island Fantail Primary School
+1262,Full Primary,Tui Pufferfish Primary School
+1263,Full Primary,Seagrass Manta Primary School
+1264,Contributing,Rangitahi Barracuda Primary School
+1265,Contributing,Hidden Coral Primary School
+1266,Contributing,Southern Wrasse Primary School
+1267,Full Primary,Pacific Kina Primary School
+1268,Full Primary,Sunny Kakariki Primary School
+1269,Contributing,Mussel Seahorse Primary School
+1270,Contributing,Rising Crab Primary School
+1271,Contributing,Golden Skink Primary School
+1272,Intermediate,Sandy Nautilus Intermediate School
+1273,Contributing,Harbour Moki Primary School
+1274,Intermediate,Current Snapper Intermediate School
+1275,Full Primary,Seastar Hoiho Primary School
+1276,Contributing,Seabreeze Turtle Primary School
+1277,Contributing,Pacific Turtle Primary School
+1278,Contributing,Korora Oystercatcher Primary School
+1279,Contributing,Shell Koura Primary School
+1280,Contributing,Saltwater Tern Primary School
+1281,Contributing,Current Manta Primary School
+1282,Contributing,Ocean Anemone Primary School
+1283,Contributing,Nikau Heron Primary School
+1284,Intermediate,Driftwood Wrasse Intermediate School
+1285,Contributing,Golden Oystercatcher Primary School
+1287,Full Primary,Nikau Wrasse Primary School
+1289,Full Primary,Pohutukawa Limpet Primary School
+1290,Full Primary,Rockpool Piwakawaka Primary School
+1291,Full Primary,Wai Snapper Primary School
+1292,Full Primary,Pacific Shark Primary School
+1293,Contributing,Tern Wrasse Primary School
+1294,Full Primary,Rising Orca Primary School
+1295,Intermediate,Seastar Shellfish Intermediate School
+1296,Contributing,Pacific Hoiho Primary School
+1297,Contributing,Pebble Sealion Primary School
+1298,Full Primary,Seagrass Turtle Primary School
+1299,Contributing,Pounamu Weka Primary School
+1300,Intermediate,Golden Ruru Intermediate School
+1301,Contributing,Rangitahi Snapper Primary School
+1302,Contributing,Kina Coral Primary School
+1303,Contributing,Sunny Shark Primary School
+1304,Contributing,Marina Starfish Primary School
+1305,Contributing,Eastern Kakariki Primary School
+1306,Full Primary,Shore Piwakawaka Primary School
+1307,Intermediate,Manuka Cockle Intermediate School
+1308,Contributing,Pohutukawa Orca Primary School
+1309,Contributing,Rimu Crab Primary School
+1310,Contributing,Kina Turtle Primary School
+1311,Contributing,Sandy Seaweed Primary School
+1312,Contributing,Pounamu Flounder Primary School
+1313,Contributing,Tidal Cockle Primary School
+1314,Full Primary,Cove Moana Primary School
+1315,Full Primary,Seabreeze Hoiho Primary School
+1316,Full Primary,Aqua Weka Primary School
+1317,Contributing,Kelp Hoiho Primary School
+1318,Intermediate,Whale Kingfisher Intermediate School
+1319,Contributing,Cove Cockle Primary School
+1320,Full Primary,Shell Sponge Primary School
+1321,Full Primary,Nikau Kelp Primary School
+1322,Contributing,Coral Piper Primary School
+1323,Full Primary,Western Kakariki Primary School
+1324,Contributing,Tidal Kereru Primary School
+1325,Full Primary,Harakeke Barracuda Primary School
+1326,Full Primary,Wai Paua Primary School
+1327,Contributing,Koru Tui Primary School
+1328,Contributing,Mussel Tuna Primary School
+1329,Intermediate,Sandy Dolphin Intermediate School
+1330,Intermediate,Rimu Kelp Intermediate School
+1331,Contributing,Blue Cockle Primary School
+1332,Contributing,Tui Sealion Primary School
+1333,Contributing,Current Anemone Primary School
+1334,Full Primary,Ocean Ruru Primary School
+1335,Contributing,Wai Moki Primary School
+1336,Full Primary,Driftwood Manta Primary School
+1337,Intermediate,Seashell Dolphin Intermediate School
+1338,Contributing,Western Limpet Primary School
+1339,Contributing,Marina Pufferfish Primary School
+1340,Contributing,Saltwater Penguin Primary School
+1341,Full Primary,Saltwater Marlin Primary School
+1342,Contributing,Sandy Crab Primary School
+1343,Contributing,Seashell Moki Primary School
+1344,Full Primary,Bright Oystercatcher Primary School
+1345,Full Primary,Lagoon Gannet Primary School
+1346,Contributing,Kauri Moana Primary School
+1347,Full Primary,Northern Kakapo Primary School
+1348,Full Primary,Estuary Albatross Primary School
+1350,Contributing,Harakeke Kelp Primary School
+1351,Intermediate,Penguin Bluefish Intermediate School
+1352,Contributing,Hidden Scallop Primary School
+1353,Intermediate,Kauri Prawn Intermediate School
+1354,Contributing,Reef Bluefish Primary School
+1355,Contributing,Aqua Shark Primary School
+1356,Contributing,Coral Flounder Primary School
+1357,Full Primary,Nikau Octopus Primary School
+1358,Full Primary,Eastern Octopus Primary School
+1359,Contributing,Driftwood Hoiho Primary School
+1360,Contributing,Rising Prawn Primary School
+1361,Contributing,Western Mussel Primary School
+1362,Contributing,Paua Rockpool Primary School
+1363,Full Primary,Seahorse Penguin Primary School
+1364,Contributing,Silver Korora Primary School
+1365,Contributing,Dolphin Petrel Primary School
+1366,Contributing,Seashell Jellyfish Primary School
+1367,Contributing,Tern Gannet Primary School
+1368,Contributing,Paua Petrel Primary School
+1369,Contributing,Anchor Eel Primary School
+1370,Contributing,Shell Oystercatcher Primary School
+1371,Contributing,Misty Fantail Primary School
+1372,Full Primary,Koru Hoiho Primary School
+1373,Full Primary,Bay Ruru Primary School
+1375,Contributing,Rangitahi Kereru Primary School
+1376,Contributing,Turtle Starfish Primary School
+1378,Contributing,Harakeke Nautilus Primary School
+1379,Specialist School,Eastern Dotterel Specialist School
+1380,Contributing,Harbour Swordfish Primary School
+1381,Contributing,Harbour Piwakawaka Primary School
+1382,Contributing,Misty Swordfish Primary School
+1383,Intermediate,Reef Skink Intermediate School
+1384,Contributing,Mussel Dotterel Primary School
+1385,Full Primary,Pebble Albatross Primary School
+1386,Intermediate,Golden Flounder Intermediate School
+1387,Contributing,Seabreeze Eel Primary School
+1388,Contributing,Lagoon Barracuda Primary School
+1389,Contributing,Island Kingfisher Primary School
+1390,Contributing,Whale Pipit Primary School
+1391,Contributing,Seagrass Eel Primary School
+1392,Contributing,Aqua Kereru Primary School
+1393,Contributing,Seabreeze Tui Primary School
+1394,Intermediate,Whale Piwakawaka Intermediate School
+1395,Contributing,Dolphin Piper Primary School
+1396,Intermediate,Eastern Anemone Intermediate School
+1397,Specialist School,Nikau Dolphin Specialist School
+1398,Full Primary,Wai Whale Primary School
+1399,Contributing,Current Albatross Primary School
+1400,Contributing,Kina Kea Primary School
+1401,Full Primary,Southern Shellfish Primary School
+1402,Full Primary,Saltwater Kelp Primary School
+1403,Contributing,Rangitahi Pipit Primary School
+1404,Contributing,Turtle Sealion Primary School
+1405,Full Primary,Lagoon Tui Primary School
+1406,Contributing,Rockpool Octopus Primary School
+1407,Contributing,Paua Orca Primary School
+1408,Intermediate,Kowhai Snapper Intermediate School
+1409,Contributing,Penguin Moki Primary School
+1410,Full Primary,Korora Flounder Primary School
+1411,Contributing,Harakeke Eel Primary School
+1412,Contributing,Koru Marlin Primary School
+1413,Contributing,Saltwater Eel Primary School
+1414,Full Primary,Rising Kakariki Primary School
+1416,Contributing,Reef Prawn Primary School
+1417,Intermediate,Shell Whale Intermediate School
+1418,Full Primary,Koru Pipit Primary School
+1419,Full Primary,Lagoon Shark Primary School
+1420,Full Primary,Ocean Rockpool Primary School
+1421,Contributing,Manuka Orca Primary School
+1422,Intermediate,Southern Whale Intermediate School
+1423,Full Primary,Totara Fantail Primary School
+1424,Full Primary,Silver Kelp Primary School
+1425,Full Primary,Totara Shark Primary School
+1426,Contributing,Island Kereru Primary School
+1427,Contributing,Northern Skink Primary School
+1428,Intermediate,Kina Sealion Intermediate School
+1429,Contributing,Wave Fantail Primary School
+1430,Contributing,Nikau Piper Primary School
+1431,Contributing,Ocean Marlin Primary School
+1432,Full Primary,Snapper Wrasse Primary School
+1433,Contributing,Seabreeze Stingray Primary School
+1434,Contributing,Pebble Prawn Primary School
+1435,Specialist School,Sandy Snapper Specialist School
+1436,Full Primary,Rimu Coral Primary School
+1437,Intermediate,Southern Barracuda Intermediate School
+1438,Contributing,Mangrove Hapuku Primary School
+1439,Contributing,Estuary Tuna Primary School
+1440,Contributing,Pohutukawa Sponge Primary School
+1441,Full Primary,Snapper Whale Primary School
+1442,Full Primary,Clearwater Piper Primary School
+1444,Contributing,Nikau Crab Primary School
+1445,Intermediate,Moana Sealion Intermediate School
+1446,Contributing,Estuary Barracuda Primary School
+1447,Contributing,Kina Prawn Primary School
+1448,Contributing,Penguin Shrimp Primary School
+1449,Contributing,Estuary Marlin Primary School
+1450,Contributing,Manuka Piwakawaka Primary School
+1451,Contributing,Pacific Kereru Primary School
+1452,Intermediate,Koru Tern Intermediate School
+1453,Full Primary,Harbour Kelp Primary School
+1454,Full Primary,Driftwood Coral Primary School
+1455,Contributing,Manuka Ruru Primary School
+1456,Full Primary,Estuary Fantail Primary School
+1457,Intermediate,Seabreeze Piper Intermediate School
+1458,Contributing,Western Shrimp Primary School
+1459,Full Primary,Island Penguin Primary School
+1460,Full Primary,Foam Starfish Primary School
+1461,Intermediate,Rockpool Oystercatcher Intermediate School
+1462,Contributing,Paua Kahawai Primary School
+1463,Contributing,Mussel Shrimp Primary School
+1464,Full Primary,Estuary Kereru Primary School
+1465,Contributing,Rockpool Kina Primary School
+1466,Contributing,Golden Limpet Primary School
+1467,Full Primary,Penguin Hoiho Primary School
+1468,Contributing,Seashell Marlin Primary School
+1470,Contributing,Pebble Coral Primary School
+1471,Contributing,Mangrove Petrel Primary School
+1472,Specialist School,Aqua Sponge Specialist School
+1473,Intermediate,Tidal Hoiho Intermediate School
+1474,Contributing,Eastern Moana Primary School
+1475,Contributing,Estuary Dotterel Primary School
+1476,Full Primary,Harbour Barracuda Primary School
+1477,Full Primary,Mangrove Anemone Primary School
+1478,Contributing,Blue Mussel Primary School
+1479,Full Primary,Tui Moki Primary School
+1480,Contributing,Wave Anemone Primary School
+1481,Contributing,Lagoon Koura Primary School
+1482,Contributing,Seagrass Scallop Primary School
+1483,Specialist School,Bay Turtle Specialist School
+1484,Specialist School,Aqua Ruru Specialist School
+1486,Full Primary,Foam Petrel Primary School
+1487,Contributing,Shell Korora Primary School
+1488,Contributing,Sunny Whale Primary School
+1489,Full Primary,Dolphin Shellfish Primary School
+1490,Contributing,Shore Oystercatcher Primary School
+1491,Full Primary,Misty Kahawai Primary School
+1492,Contributing,Kowhai Weka Primary School
+1493,Full Primary,Seabreeze Whale Primary School
+1494,Full Primary,Rockpool Kingfisher Primary School
+1495,Contributing,Nikau Prawn Primary School
+1496,Full Primary,Coral Turtle Primary School
+1497,Contributing,Mussel Jellyfish Primary School
+1498,Contributing,Blue Swordfish Primary School
+1499,Contributing,Manuka Petrel Primary School
+1500,Contributing,Misty Tern Primary School
+1501,Contributing,Paua Tern Primary School
+1502,Contributing,Tern Kina Primary School
+1503,Full Primary,Tern Scallop Primary School
+1504,Contributing,Deepwater Octopus Primary School
+1505,Contributing,Tidal Stingray Primary School
+1506,Contributing,Misty Crab Primary School
+1507,Full Primary,Tern Weka Primary School
+1508,Full Primary,Penguin Moana Primary School
+1509,Full Primary,Dolphin Starfish Primary School
+1510,Full Primary,Western Kea Primary School
+1511,Full Primary,Estuary Tarakihi Primary School
+1512,Contributing,Coastal Kingfisher Primary School
+1513,Contributing,Shell Flounder Primary School
+1514,Contributing,Seagrass Hapuku Primary School
+1515,Contributing,Current Kelp Primary School
+1516,Contributing,Southern Moki Primary School
+1518,Contributing,Coastal Octopus Primary School
+1519,Contributing,Tui Ruru Primary School
+1520,Full Primary,Driftwood Kea Primary School
+1521,Full Primary,Sandy Swordfish Primary School
+1522,Full Primary,Seabreeze Anemone Primary School
+1523,Full Primary,Seashell Weka Primary School
+1524,Intermediate,Rimu Barracuda Intermediate School
+1525,Contributing,Kelp Seal Primary School
+1526,Full Primary,Shell Pufferfish Primary School
+1528,Contributing,Wave Hoiho Primary School
+1529,Full Primary,Misty Shellfish Primary School
+1530,Intermediate,Wai Hoiho Intermediate School
+1531,Contributing,Deepwater Trevally Primary School
+1532,Full Primary,Shell Gannet Primary School
+1533,Contributing,Bay Seal Primary School
+1534,Contributing,Wai Marlin Primary School
+1535,Contributing,Moana Scallop Primary School
+1536,Contributing,Northern Pufferfish Primary School
+1537,Contributing,Rising Bluefish Primary School
+1538,Contributing,Seastar Albatross Primary School
+1539,Contributing,Seashell Kahawai Primary School
+1540,Contributing,Anchor Marlin Primary School
+1541,Contributing,Pohutukawa Koura Primary School
+1543,Contributing,Penguin Piper Primary School
+1544,Contributing,Wai Heron Primary School
+1545,Full Primary,Seastar Heron Primary School
+1546,Full Primary,Silver Whale Primary School
+1547,Full Primary,Harakeke Seahorse Primary School
+1548,Intermediate,Seagrass Nautilus Intermediate School
+1549,Contributing,Island Stingray Primary School
+1550,Full Primary,Reef Kingfisher Primary School
+1552,Full Primary,Mangrove Nautilus Primary School
+1553,Full Primary,Pounamu Marlin Primary School
+1554,Full Primary,Turtle Crab Primary School
+1555,Intermediate,Golden Pipit Intermediate School
+1556,Specialist School,Korora Kereru Specialist School
+1557,Full Primary,Rockpool Seahorse Primary School
+1558,Full Primary,Hidden Dolphin Primary School
+1559,Full Primary,Nikau Swordfish Primary School
+1560,Contributing,Rising Pufferfish Primary School
+1561,Contributing,Totara Starfish Primary School
+1562,Contributing,Anchor Kakariki Primary School
+1563,Contributing,Kina Albatross Primary School
+1564,Intermediate,Tidal Wrasse Intermediate School
+1565,Contributing,Wai Weka Primary School
+1566,Full Primary,Cove Tern Primary School
+1567,Contributing,Wai Wrasse Primary School
+1568,Contributing,Penguin Ruru Primary School
+1569,Intermediate,Kina Ruru Intermediate School
+1570,Contributing,Cove Korora Primary School
+1571,Contributing,Seahorse Nautilus Primary School
+1572,Full Primary,Wave Wrasse Primary School
+1573,Contributing,Hidden Anemone Primary School
+1574,Specialist School,Western Moana Specialist School
+1575,Contributing,Clearwater Seal Primary School
+1576,Full Primary,Southern Albatross Primary School
+1577,Full Primary,Rising Moana Primary School
+1578,Contributing,Pebble Kelp Primary School
+1579,Contributing,Nikau Kakapo Primary School
+1580,Contributing,Mangrove Oystercatcher Primary School
+1581,Contributing,Clearwater Barracuda Primary School
+1582,Full Primary,Seahorse Stingray Primary School
+1584,Composite,Wai Coral Area School
+1585,Composite,Deepwater Tern Area School
+1587,Composite,Marina Limpet Area School
+1588,Contributing,Rangitahi Tarakihi Primary School
+1589,Full Primary,Seahorse Kelp Primary School
+1592,Full Primary,Island Turtle Primary School
+1593,Full Primary,Rising Gannet Primary School
+1594,Contributing,Northern Hoiho Primary School
+1595,Composite,Manuka Kakapo Area School
+1606,Secondary (Year 9-15),Foam Wrasse College
+1607,Full Primary,Tern Orca Primary School
+1608,Full Primary,Estuary Octopus Primary School
+1611,Composite (Year 1-10),Golden Tarakihi Area School
+1613,Full Primary,Marina Nautilus Primary School
+1616,Composite,Island Rockpool Area School
+1617,Full Primary,Harakeke Pufferfish Primary School
+1618,Composite,Sunny Octopus Area School
+1619,Full Primary,Hidden Heron Primary School
+1625,Full Primary,Seastar Jellyfish Primary School
+1627,Full Primary,Coastal Crab Primary School
+1630,Specialist School,Rangitahi Kahawai Specialist School
+1631,Specialist School,Lagoon Heron Specialist School
+1633,Full Primary,Rockpool Paua Primary School
+1634,Composite,Lagoon Swordfish Area School
+1636,Contributing,Foam Piwakawaka Primary School
+1641,Composite,Harbour Wrasse Area School
+1643,Contributing,Korora Jellyfish Primary School
+1645,Full Primary,Misty Shrimp Primary School
+1646,Intermediate,Manuka Korora Intermediate School
+1647,Contributing,Pounamu Eel Primary School
+1648,Full Primary,Penguin Heron Primary School
+1650,Full Primary,Mangrove Flounder Primary School
+1651,Composite,Tidal Marlin Area School
+1655,Composite,Rangitahi Gannet Area School
+1657,Contributing,Seastar Trevally Primary School
+1658,Contributing,Pacific Rockpool Primary School
+1659,Full Primary,Island Moana Primary School
+1660,Contributing,Wave Sealion Primary School
+1661,Contributing,Tern Paua Primary School
+1662,Full Primary,Northern Heron Primary School
+1663,Contributing,Deepwater Tui Primary School
+1666,Composite,Seashell Penguin Area School
+1667,Full Primary,Penguin Kahawai Primary School
+1668,Full Primary,Dolphin Crab Primary School
+1669,Full Primary,Sandy Kina Primary School
+1670,Composite,Western Pufferfish Area School
+1672,Composite,Moana Jellyfish Area School
+1673,Composite,Blue Starfish Area School
+1674,Composite,Sandy Hoiho Area School
+1675,Full Primary,Hidden Weka Primary School
+1676,Full Primary,Dolphin Trevally Primary School
+1677,Full Primary,Eastern Skink Primary School
+1678,Full Primary,Turtle Flounder Primary School
+1679,Full Primary,Harbour Tui Primary School
+1680,Contributing,Anchor Mussel Primary School
+1681,Contributing,Northern Marlin Primary School
+1682,Full Primary,Shore Snapper Primary School
+1683,Contributing,Totara Seaweed Primary School
+1684,Contributing,Korora Snapper Primary School
+1686,Contributing,Seahorse Oystercatcher Primary School
+1687,Contributing,Clearwater Pipit Primary School
+1688,Full Primary,Wai Koura Primary School
+1689,Full Primary,Kauri Seahorse Primary School
+1691,Full Primary,Seashell Octopus Primary School
+1693,Contributing,Blue Dotterel Primary School
+1694,Contributing,Snapper Mussel Primary School
+1695,Restricted Composite (Year 7-10),Seahorse Marlin Area School
+1696,Full Primary,Coral Cockle Primary School
+1697,Contributing,Mangrove Kereru Primary School
+1698,Contributing,Driftwood Sealion Primary School
+1699,Contributing,Tui Eel Primary School
+1700,Contributing,Totara Crab Primary School
+1701,Restricted Composite (Year 7-10),Island Wrasse Area School
+1702,Contributing,Coral Moana Primary School
+1704,Contributing,Deepwater Skink Primary School
+1705,Full Primary,Blue Scallop Primary School
+1706,Full Primary,Clearwater Piwakawaka Primary School
+1707,Full Primary,Totara Shrimp Primary School
+1708,Contributing,Bay Piper Primary School
+1709,Contributing,Eastern Kahawai Primary School
+1710,Contributing,Pacific Prawn Primary School
+1711,Full Primary,Rimu Dotterel Primary School
+1713,Full Primary,Nikau Tuna Primary School
+1715,Intermediate,Bay Sponge Intermediate School
+1716,Contributing,Paua Kelp Primary School
+1717,Contributing,Sunny Dolphin Primary School
+1718,Composite,Coastal Weka Area School
+1719,Contributing,Driftwood Seaweed Primary School
+1720,Contributing,Clearwater Kingfisher Primary School
+1721,Contributing,Tui Koura Primary School
+1722,Full Primary,Kelp Barracuda Primary School
+1723,Full Primary,Misty Octopus Primary School
+1724,Contributing,Rising Heron Primary School
+1725,Contributing,Golden Moki Primary School
+1726,Specialist School,Nikau Tui Specialist School
+1727,Contributing,Eastern Petrel Primary School
+1728,Full Primary,Wai Scallop Primary School
+1729,Contributing,Kelp Paua Primary School
+1730,Contributing,Dolphin Kelp Primary School
+1731,Contributing,Silver Rockpool Primary School
+1732,Specialist School,Golden Paua Specialist School
+1733,Full Primary,Whale Tern Primary School
+1735,Full Primary,Pounamu Sealion Primary School
+1736,Full Primary,Sunny Pufferfish Primary School
+1737,Full Primary,Mangrove Kahawai Primary School
+1738,Full Primary,Tui Coral Primary School
+1739,Contributing,Seashell Kea Primary School
+1740,Full Primary,Ocean Tern Primary School
+1741,Contributing,Reef Snapper Primary School
+1744,Full Primary,Whale Scallop Primary School
+1745,Full Primary,Western Crab Primary School
+1746,Full Primary,Hidden Swordfish Primary School
+1747,Full Primary,Seahorse Prawn Primary School
+1748,Composite,Sandy Penguin Area School
+1749,Contributing,Penguin Turtle Primary School
+1750,Full Primary,Hidden Koura Primary School
+1751,Full Primary,Bright Kahawai Primary School
+1752,Full Primary,Whale Kereru Primary School
+1753,Contributing,Blue Crab Primary School
+1754,Full Primary,Eastern Whale Primary School
+1755,Contributing,Bay Shellfish Primary School
+1756,Full Primary,Seahorse Swordfish Primary School
+1757,Full Primary,Bay Coral Primary School
+1758,Full Primary,Kauri Kakapo Primary School
+1759,Full Primary,Aqua Whale Primary School
+1760,Full Primary,Foam Pufferfish Primary School
+1761,Intermediate,Cove Dolphin Intermediate School
+1762,Specialist School,Wai Albatross Specialist School
+1763,Full Primary,Harakeke Skink Primary School
+1764,Contributing,Manuka Hapuku Primary School
+1765,Contributing,Harakeke Weka Primary School
+1766,Contributing,Snapper Manta Primary School
+1770,Contributing,Seabreeze Dolphin Primary School
+1771,Full Primary,Coastal Jellyfish Primary School
+1772,Specialist School,Rimu Moki Specialist School
+1773,Full Primary,Harbour Penguin Primary School
+1775,Full Primary,Tidal Kina Primary School
+1776,Full Primary,Snapper Sponge Primary School
+1777,Full Primary,Lagoon Trevally Primary School
+1778,Full Primary,Western Koura Primary School
+1779,Full Primary,Blue Shark Primary School
+1780,Contributing,Paua Piwakawaka Primary School
+1781,Contributing,Saltwater Sealion Primary School
+1782,Full Primary,Hidden Tarakihi Primary School
+1783,Full Primary,Silver Orca Primary School
+1784,Full Primary,Saltwater Weka Primary School
+1785,Full Primary,Rockpool Scallop Primary School
+1786,Full Primary,Driftwood Octopus Primary School
+1787,Full Primary,Eastern Cockle Primary School
+1788,Full Primary,Kauri Anemone Primary School
+1789,Contributing,Kauri Paua Primary School
+1790,Contributing,Pacific Heron Primary School
+1791,Contributing,Silver Anemone Primary School
+1792,Intermediate,Nikau Weka Intermediate School
+1793,Full Primary,Northern Piwakawaka Primary School
+1794,Contributing,Pacific Skink Primary School
+1796,Full Primary,Coastal Piwakawaka Primary School
+1797,Full Primary,Bay Trevally Primary School
+1798,Composite,Tern Korora Area School
+1800,Full Primary,Rimu Jellyfish Primary School
+1806,Full Primary,Coral Sponge Primary School
+1808,Full Primary,Clearwater Stingray Primary School
+1809,Full Primary,Manuka Eel Primary School
+1811,Composite,Coastal Paua Area School
+1812,Intermediate,Pohutukawa Kakariki Intermediate School
+1813,Contributing,Bright Kereru Primary School
+1814,Contributing,Seabreeze Shark Primary School
+1815,Full Primary,Shore Wrasse Primary School
+1818,Full Primary,Southern Cockle Primary School
+1819,Full Primary,Blue Hoiho Primary School
+1820,Contributing,Rising Jellyfish Primary School
+1821,Contributing,Turtle Dotterel Primary School
+1823,Intermediate,Shell Jellyfish Intermediate School
+1824,Contributing,Shell Pipit Primary School
+1825,Contributing,Manuka Kereru Primary School
+1826,Contributing,Aqua Marlin Primary School
+1827,Full Primary,Lagoon Turtle Primary School
+1829,Full Primary,Rimu Dolphin Primary School
+1832,Intermediate,Marina Paua Intermediate School
+1833,Intermediate,Sandy Prawn Intermediate School
+1834,Contributing,Bay Dolphin Primary School
+1835,Contributing,Tui Crab Primary School
+1836,Full Primary,Sandy Rockpool Primary School
+1837,Intermediate,Pebble Weka Intermediate School
+1838,Contributing,Sunny Albatross Primary School
+1841,Contributing,Coastal Penguin Primary School
+1842,Full Primary,Seahorse Mussel Primary School
+1843,Contributing,Estuary Hoiho Primary School
+1844,Full Primary,Aqua Heron Primary School
+1845,Full Primary,Whale Kahawai Primary School
+1846,Full Primary,Golden Rockpool Primary School
+1847,Full Primary,Cove Pufferfish Primary School
+1849,Full Primary,Sandy Hapuku Primary School
+1850,Full Primary,Misty Oystercatcher Primary School
+1851,Full Primary,Kauri Petrel Primary School
+1852,Contributing,Pohutukawa Paua Primary School
+1853,Full Primary,Moana Kakariki Primary School
+1854,Full Primary,Dolphin Kereru Primary School
+1855,Full Primary,Western Weka Primary School
+1856,Full Primary,Eastern Tern Primary School
+1857,Contributing,Bright Tarakihi Primary School
+1858,Contributing,Hidden Mussel Primary School
+1860,Contributing,Pebble Shark Primary School
+1861,Full Primary,Pebble Tui Primary School
+1862,Full Primary,Bay Seahorse Primary School
+1863,Full Primary,Sandy Shark Primary School
+1865,Composite,Pacific Stingray Area School
+1866,Full Primary,Cove Octopus Primary School
+1867,Full Primary,Driftwood Nautilus Primary School
+1869,Full Primary,Ocean Bluefish Primary School
+1870,Full Primary,Kowhai Whale Primary School
+1871,Full Primary,Korora Kingfisher Primary School
+1872,Full Primary,Driftwood Mussel Primary School
+1873,Full Primary,Hidden Bluefish Primary School
+1874,Full Primary,Seabreeze Seahorse Primary School
+1875,Contributing,Whale Oystercatcher Primary School
+1876,Full Primary,Korora Seahorse Primary School
+1877,Full Primary,Deepwater Shark Primary School
+1878,Intermediate,Harbour Jellyfish Intermediate School
+1879,Contributing,Marina Seahorse Primary School
+1880,Full Primary,Golden Kea Primary School
+1881,Contributing,Coral Barracuda Primary School
+1882,Contributing,Manuka Seal Primary School
+1883,Full Primary,Estuary Kingfisher Primary School
+1884,Contributing,Anchor Prawn Primary School
+1885,Contributing,Seastar Piper Primary School
+1886,Full Primary,Seahorse Kingfisher Primary School
+1888,Full Primary,Wave Tarakihi Primary School
+1889,Full Primary,Golden Moana Primary School
+1891,Specialist School,Misty Hoiho Specialist School
+1892,Intermediate,Anchor Stingray Intermediate School
+1893,Contributing,Rising Hapuku Primary School
+1894,Contributing,Totara Tuna Primary School
+1895,Contributing,Seastar Flounder Primary School
+1896,Full Primary,Penguin Seaweed Primary School
+1897,Full Primary,Rimu Whale Primary School
+1898,Contributing,Seabreeze Sponge Primary School
+1899,Full Primary,Seahorse Kina Primary School
+1902,Contributing,Kina Tuna Primary School
+1903,Full Primary,Cove Shellfish Primary School
+1904,Full Primary,Driftwood Ruru Primary School
+1906,Full Primary,Rimu Kea Primary School
+1907,Full Primary,Bright Piwakawaka Primary School
+1908,Contributing,Dolphin Sponge Primary School
+1911,Full Primary,Seahorse Gannet Primary School
+1912,Full Primary,Island Koura Primary School
+1916,Full Primary,Marina Shellfish Primary School
+1917,Composite,Turtle Kakapo Area School
+1919,Full Primary,Lagoon Mussel Primary School
+1920,Full Primary,Coral Prawn Primary School
+1921,Full Primary,Ocean Sealion Primary School
+1923,Contributing,Sandy Pipit Primary School
+1924,Full Primary,Pacific Bluefish Primary School
+1927,Contributing,Wai Petrel Primary School
+1929,Full Primary,Ocean Coral Primary School
+1930,Full Primary,Tern Hapuku Primary School
+1931,Contributing,Sandy Eel Primary School
+1933,Intermediate,Coastal Seahorse Intermediate School
+1934,Full Primary,Kauri Kakariki Primary School
+1935,Full Primary,Shell Shellfish Primary School
+1937,Full Primary,Pohutukawa Gannet Primary School
+1938,Full Primary,Seastar Pipit Primary School
+1939,Contributing,Coral Seahorse Primary School
+1940,Contributing,Pounamu Kereru Primary School
+1941,Full Primary,Snapper Skink Primary School
+1942,Restricted Composite (Year 7-10),Bright Turtle Area School
+1943,Full Primary,Driftwood Jellyfish Primary School
+1944,Full Primary,Current Jellyfish Primary School
+1945,Full Primary,Estuary Piper Primary School
+1946,Full Primary,Ocean Turtle Primary School
+1947,Full Primary,Foam Ruru Primary School
+1948,Full Primary,Totara Bluefish Primary School
+1949,Full Primary,Tern Trevally Primary School
+1950,Full Primary,Anchor Dolphin Primary School
+1951,Full Primary,Kauri Weka Primary School
+1952,Full Primary,Ocean Shark Primary School
+1953,Full Primary,Blue Tern Primary School
+1954,Full Primary,Estuary Paua Primary School
+1955,Full Primary,Kauri Orca Primary School
+1957,Full Primary,Cove Trevally Primary School
+1958,Contributing,Manuka Dotterel Primary School
+1959,Contributing,Moana Mussel Primary School
+1960,Contributing,Seastar Wrasse Primary School
+1961,Full Primary,Kauri Trevally Primary School
+1962,Full Primary,Mangrove Korora Primary School
+1963,Full Primary,Dolphin Tern Primary School
+1964,Full Primary,Harbour Shellfish Primary School
+1965,Full Primary,Seashell Anemone Primary School
+1966,Full Primary,Seagrass Rockpool Primary School
+1967,Full Primary,Tern Tarakihi Primary School
+1968,Contributing,Aqua Crab Primary School
+1970,Contributing,Lagoon Sealion Primary School
+1971,Full Primary,Korora Scallop Primary School
+1972,Contributing,Seashell Moana Primary School
+1974,Full Primary,Korora Ruru Primary School
+1975,Full Primary,Eastern Gannet Primary School
+1976,Contributing,Rising Barracuda Primary School
+1978,Full Primary,Bay Kea Primary School
+1980,Full Primary,Totara Weka Primary School
+1982,Full Primary,Turtle Tern Primary School
+1983,Contributing,Shore Shrimp Primary School
+1984,Contributing,Wai Seaweed Primary School
+1985,Contributing,Tidal Kingfisher Primary School
+1986,Full Primary,Turtle Piwakawaka Primary School
+1987,Full Primary,Lagoon Kereru Primary School
+1988,Intermediate,Western Kelp Intermediate School
+1989,Contributing,Pacific Kelp Primary School
+1990,Intermediate,Cove Pipit Intermediate School
+1991,Contributing,Seastar Oystercatcher Primary School
+1992,Contributing,Korora Kina Primary School
+1994,Full Primary,Southern Turtle Primary School
+1995,Contributing,Cove Crab Primary School
+1996,Full Primary,Blue Kakariki Primary School
+1998,Full Primary,Harakeke Shark Primary School
+1999,Full Primary,Golden Weka Primary School
+2001,Intermediate,Rising Shark Intermediate School
+2002,Contributing,Driftwood Stingray Primary School
+2005,Contributing,Kowhai Shark Primary School
+2007,Full Primary,Seahorse Tern Primary School
+2008,Full Primary,Marina Penguin Primary School
+2009,Full Primary,Mangrove Ruru Primary School
+2010,Full Primary,Tui Seaweed Primary School
+2011,Full Primary,Bright Paua Primary School
+2012,Full Primary,Pacific Starfish Primary School
+2013,Full Primary,Rising Piwakawaka Primary School
+2014,Contributing,Pebble Paua Primary School
+2015,Intermediate,Foam Kakapo Intermediate School
+2016,Contributing,Golden Petrel Primary School
+2017,Full Primary,Blue Weka Primary School
+2019,Full Primary,Seastar Sealion Primary School
+2020,Full Primary,Anchor Coral Primary School
+2021,Full Primary,Misty Kakapo Primary School
+2023,Full Primary,Estuary Shrimp Primary School
+2024,Full Primary,Whale Petrel Primary School
+2025,Full Primary,Pebble Starfish Primary School
+2027,Full Primary,Rockpool Sealion Primary School
+2028,Full Primary,Nikau Coral Primary School
+2031,Contributing,Island Scallop Primary School
+2032,Full Primary,Deepwater Kereru Primary School
+2033,Full Primary,Dolphin Tui Primary School
+2035,Contributing,Estuary Starfish Primary School
+2037,Intermediate,Deepwater Kea Intermediate School
+2038,Contributing,Wai Piper Primary School
+2040,Full Primary,Marina Dotterel Primary School
+2043,Full Primary,Penguin Jellyfish Primary School
+2044,Full Primary,Reef Oystercatcher Primary School
+2045,Contributing,Eastern Mussel Primary School
+2046,Full Primary,Pacific Cockle Primary School
+2047,Full Primary,Harbour Snapper Primary School
+2048,Contributing,Ocean Kahawai Primary School
+2049,Contributing,Pebble Kereru Primary School
+2050,Contributing,Kowhai Jellyfish Primary School
+2052,Full Primary,Golden Scallop Primary School
+2054,Contributing,Lagoon Kakariki Primary School
+2055,Full Primary,Pohutukawa Shellfish Primary School
+2057,Full Primary,Deepwater Sponge Primary School
+2058,Contributing,Korora Hapuku Primary School
+2060,Full Primary,Clearwater Prawn Primary School
+2061,Full Primary,Estuary Moki Primary School
+2062,Composite,Dolphin Weka Area School
+2063,Full Primary,Penguin Paua Primary School
+2064,Full Primary,Pacific Barracuda Primary School
+2065,Contributing,Blue Kina Primary School
+2066,Contributing,Snapper Korora Primary School
+2068,Composite,Rangitahi Dotterel Area School
+2069,Full Primary,Harakeke Trevally Primary School
+2071,Full Primary,Shell Piwakawaka Primary School
+2073,Full Primary,Wai Octopus Primary School
+2074,Contributing,Pounamu Barracuda Primary School
+2075,Contributing,Turtle Jellyfish Primary School
+2076,Contributing,Sunny Tuna Primary School
+2077,Contributing,Penguin Snapper Primary School
+2078,Contributing,Aqua Gannet Primary School
+2079,Full Primary,Western Korora Primary School
+2080,Full Primary,Whale Ruru Primary School
+2081,Full Primary,Whale Anemone Primary School
+2082,Intermediate,Kowhai Marlin Intermediate School
+2083,Full Primary,Penguin Albatross Primary School
+2084,Composite,Driftwood Dotterel Area School
+2085,Composite,Cove Barracuda Area School
+2086,Full Primary,Manuka Kina Primary School
+2087,Full Primary,Pacific Manta Primary School
+2088,Full Primary,Southern Seaweed Primary School
+2090,Full Primary,Seastar Shark Primary School
+2091,Full Primary,Shore Seahorse Primary School
+2092,Full Primary,Manuka Tern Primary School
+2093,Contributing,Sunny Kelp Primary School
+2094,Full Primary,Pounamu Scallop Primary School
+2095,Full Primary,Kina Kakapo Primary School
+2096,Full Primary,Mangrove Kelp Primary School
+2097,Full Primary,Kina Petrel Primary School
+2098,Full Primary,Marina Piwakawaka Primary School
+2099,Contributing,Bay Kelp Primary School
+2100,Contributing,Dolphin Kea Primary School
+2101,Full Primary,Silver Paua Primary School
+2102,Full Primary,Clearwater Heron Primary School
+2103,Composite (Year 1-10),Kina Starfish Area School
+2104,Composite,Misty Penguin Area School
+2105,Full Primary,Koru Moki Primary School
+2106,Full Primary,Coral Snapper Primary School
+2107,Contributing,Marina Manta Primary School
+2108,Contributing,Rangitahi Rockpool Primary School
+2109,Contributing,Southern Manta Primary School
+2110,Full Primary,Totara Moki Primary School
+2111,Full Primary,Eastern Barracuda Primary School
+2112,Full Primary,Seastar Anemone Primary School
+2113,Full Primary,Harbour Nautilus Primary School
+2114,Full Primary,Silver Tui Primary School
+2115,Full Primary,Seastar Tarakihi Primary School
+2116,Contributing,Mussel Shark Primary School
+2117,Contributing,Current Piwakawaka Primary School
+2118,Contributing,Seashell Kakapo Primary School
+2119,Contributing,Eastern Seaweed Primary School
+2120,Full Primary,Rising Kingfisher Primary School
+2123,Full Primary,Misty Dotterel Primary School
+2150,Full Primary,Sandy Dotterel Primary School
+2152,Full Primary,Wai Jellyfish Primary School
+2153,Full Primary,Seashell Bluefish Primary School
+2157,Full Primary,Koru Kingfisher Primary School
+2160,Contributing,Clearwater Sponge Primary School
+2161,Intermediate,Wai Kereru Intermediate School
+2164,Full Primary,Pebble Scallop Primary School
+2165,Full Primary,Rockpool Anemone Primary School
+2167,Contributing,Silver Gannet Primary School
+2168,Contributing,Seagrass Kakariki Primary School
+2171,Contributing,Reef Nautilus Primary School
+2172,Intermediate,Marina Gannet Intermediate School
+2173,Full Primary,Lagoon Coral Primary School
+2175,Contributing,Bay Eel Primary School
+2177,Full Primary,Seashell Crab Primary School
+2178,Full Primary,Seagrass Marlin Primary School
+2182,Full Primary,Silver Turtle Primary School
+2185,Full Primary,Anchor Kakapo Primary School
+2189,Full Primary,Hidden Sealion Primary School
+2190,Intermediate,Seastar Kina Intermediate School
+2191,Full Primary,Current Fantail Primary School
+2192,Contributing,Western Gannet Primary School
+2195,Full Primary,Island Shrimp Primary School
+2197,Contributing,Penguin Barracuda Primary School
+2198,Full Primary,Seashell Seahorse Primary School
+2199,Contributing,Kina Jellyfish Primary School
+2200,Full Primary,Nikau Limpet Primary School
+2201,Contributing,Seahorse Kea Primary School
+2203,Contributing,Seabreeze Pufferfish Primary School
+2205,Full Primary,Rimu Prawn Primary School
+2206,Full Primary,Bay Manta Primary School
+2207,Contributing,Coral Piwakawaka Primary School
+2208,Full Primary,Totara Manta Primary School
+2214,Full Primary,Totara Petrel Primary School
+2215,Full Primary,Sunny Koura Primary School
+2216,Full Primary,Shore Marlin Primary School
+2220,Full Primary,Seagrass Snapper Primary School
+2223,Full Primary,Kelp Swordfish Primary School
+2226,Contributing,Seashell Koura Primary School
+2227,Full Primary,Kina Kereru Primary School
+2228,Full Primary,Misty Whale Primary School
+2232,Contributing,Bay Shark Primary School
+2233,Contributing,Koru Turtle Primary School
+2235,Full Primary,Snapper Heron Primary School
+2236,Contributing,Wave Whale Primary School
+2237,Full Primary,Harakeke Dolphin Primary School
+2238,Full Primary,Turtle Sponge Primary School
+2239,Full Primary,Shell Ruru Primary School
+2240,Full Primary,Hidden Petrel Primary School
+2241,Full Primary,Eastern Koura Primary School
+2242,Contributing,Coastal Kereru Primary School
+2244,Full Primary,Whale Eel Primary School
+2248,Contributing,Mangrove Koura Primary School
+2251,Contributing,Bright Dolphin Primary School
+2253,Full Primary,Hidden Kina Primary School
+2254,Full Primary,Hidden Marlin Primary School
+2255,Contributing,Moana Skink Primary School
+2256,Contributing,Snapper Octopus Primary School
+2257,Full Primary,Seabreeze Wrasse Primary School
+2258,Contributing,Seahorse Kereru Primary School
+2260,Contributing,Seastar Penguin Primary School
+2261,Contributing,Eastern Manta Primary School
+2262,Full Primary,Ocean Starfish Primary School
+2264,Contributing,Shore Coral Primary School
+2265,Contributing,Ocean Korora Primary School
+2266,Contributing,Shore Sponge Primary School
+2267,Full Primary,Harbour Shark Primary School
+2268,Contributing,Silver Shark Primary School
+2330,Full Primary,Wai Tarakihi Primary School
+2332,Contributing,Tidal Kahawai Primary School
+2333,Full Primary,Wai Shrimp Primary School
+2334,Specialist School,Kelp Gannet Specialist School
+2336,Contributing,Bay Wrasse Primary School
+2337,Full Primary,Wave Prawn Primary School
+2338,Full Primary,Deepwater Penguin Primary School
+2339,Contributing,Whale Seal Primary School
+2341,Full Primary,Kowhai Skink Primary School
+2342,Full Primary,Rising Mussel Primary School
+2343,Full Primary,Rimu Wrasse Primary School
+2344,Full Primary,Totara Kakapo Primary School
+2345,Contributing,Lagoon Sponge Primary School
+2346,Contributing,Mussel Anemone Primary School
+2348,Contributing,Kauri Rockpool Primary School
+2349,Full Primary,Moana Barracuda Primary School
+2350,Contributing,Manuka Weka Primary School
+2351,Composite,Blue Anemone Area School
+2352,Full Primary,Penguin Stingray Primary School
+2353,Contributing,Aqua Tui Primary School
+2354,Full Primary,Whale Orca Primary School
+2355,Contributing,Driftwood Kereru Primary School
+2356,Intermediate,Shore Kina Intermediate School
+2357,Full Primary,Anchor Koura Primary School
+2358,Full Primary,Western Flounder Primary School
+2359,Full Primary,Rangitahi Kina Primary School
+2360,Full Primary,Sunny Sealion Primary School
+2361,Contributing,Koru Seaweed Primary School
+2362,Full Primary,Harbour Mussel Primary School
+2363,Contributing,Seabreeze Tarakihi Primary School
+2364,Full Primary,Harbour Crab Primary School
+2365,Contributing,Mussel Kakariki Primary School
+2366,Full Primary,Sunny Kina Primary School
+2368,Full Primary,Nikau Seal Primary School
+2369,Full Primary,Western Shellfish Primary School
+2370,Full Primary,Coral Orca Primary School
+2371,Full Primary,Reef Seaweed Primary School
+2372,Full Primary,Hidden Kakariki Primary School
+2374,Contributing,Kowhai Pufferfish Primary School
+2375,Full Primary,Golden Coral Primary School
+2377,Composite,Seabreeze Shrimp Area School
+2378,Contributing,Pebble Skink Primary School
+2379,Full Primary,Harakeke Moki Primary School
+2382,Full Primary,Wave Kereru Primary School
+2383,Composite,Driftwood Kina Area School
+2384,Composite,Nikau Fantail Area School
+2385,Full Primary,Tui Paua Primary School
+2386,Full Primary,Korora Seaweed Primary School
+2388,Full Primary,Tidal Rockpool Primary School
+2389,Contributing,Rising Swordfish Primary School
+2390,Contributing,Korora Kahawai Primary School
+2391,Full Primary,Seastar Sponge Primary School
+2392,Full Primary,Lagoon Weka Primary School
+2393,Full Primary,Rangitahi Marlin Primary School
+2395,Full Primary,Rockpool Bluefish Primary School
+2396,Full Primary,Tern Albatross Primary School
+2397,Full Primary,Coastal Seal Primary School
+2398,Full Primary,Bay Dotterel Primary School
+2400,Contributing,Tidal Koura Primary School
+2401,Full Primary,Anchor Hapuku Primary School
+2402,Intermediate,Ocean Shrimp Intermediate School
+2403,Contributing,Bright Whale Primary School
+2404,Full Primary,Hidden Kereru Primary School
+2405,Full Primary,Eastern Pipit Primary School
+2406,Full Primary,Northern Sponge Primary School
+2407,Full Primary,Tidal Hapuku Primary School
+2409,Full Primary,Northern Kea Primary School
+2410,Full Primary,Rimu Marlin Primary School
+2412,Full Primary,Seabreeze Kingfisher Primary School
+2413,Full Primary,Saltwater Octopus Primary School
+2414,Full Primary,Whale Barracuda Primary School
+2416,Contributing,Tern Kereru Primary School
+2417,Full Primary,Seashell Kakariki Primary School
+2418,Contributing,Estuary Kahawai Primary School
+2419,Intermediate,Seashell Heron Intermediate School
+2420,Full Primary,Cove Petrel Primary School
+2424,Contributing,Island Kakapo Primary School
+2428,Full Primary,Misty Paua Primary School
+2429,Full Primary,Foam Manta Primary School
+2436,Composite,Wai Trevally Area School
+2437,Contributing,Coastal Skink Primary School
+2438,Full Primary,Deepwater Snapper Primary School
+2439,Full Primary,Ocean Pipit Primary School
+2440,Intermediate,Island Nautilus Intermediate School
+2441,Contributing,Clearwater Limpet Primary School
+2442,Intermediate,Golden Seahorse Intermediate School
+2443,Full Primary,Rising Stingray Primary School
+2445,Composite,Pacific Piper Area School
+2446,Full Primary,Lagoon Wrasse Primary School
+2447,Full Primary,Seastar Tuna Primary School
+2449,Contributing,Southern Piwakawaka Primary School
+2450,Contributing,Southern Tuna Primary School
+2451,Full Primary,Bright Cockle Primary School
+2452,Contributing,Driftwood Trevally Primary School
+2453,Full Primary,Moana Tuna Primary School
+2454,Full Primary,Wai Sealion Primary School
+2455,Full Primary,Sunny Moana Primary School
+2456,Full Primary,Ocean Skink Primary School
+2457,Contributing,Sandy Petrel Primary School
+2460,Full Primary,Bright Heron Primary School
+2461,Full Primary,Bright Pufferfish Primary School
+2462,Full Primary,Deepwater Korora Primary School
+2463,Full Primary,Foam Rockpool Primary School
+2465,Contributing,Coastal Swordfish Primary School
+2466,Contributing,Rangitahi Eel Primary School
+2467,Contributing,Whale Octopus Primary School
+2468,Full Primary,Silver Moki Primary School
+2469,Full Primary,Anchor Kingfisher Primary School
+2472,Full Primary,Kina Kelp Primary School
+2474,Full Primary,Pebble Koura Primary School
+2475,Full Primary,Western Whale Primary School
+2476,Contributing,Koru Wrasse Primary School
+2477,Intermediate,Hidden Eel Intermediate School
+2478,Full Primary,Coastal Ruru Primary School
+2479,Contributing,Koru Kereru Primary School
+2480,Full Primary,Golden Sealion Primary School
+2481,Full Primary,Sandy Moki Primary School
+2482,Full Primary,Marina Octopus Primary School
+2483,Contributing,Kina Scallop Primary School
+2484,Contributing,Tidal Coral Primary School
+2542,Full Primary,Koru Albatross Primary School
+2543,Contributing,Mussel Flounder Primary School
+2544,Contributing,Manuka Wrasse Primary School
+2546,Contributing,Wave Stingray Primary School
+2547,Full Primary,Kina Barracuda Primary School
+2548,Contributing,Kina Marlin Primary School
+2549,Contributing,Korora Cockle Primary School
+2550,Contributing,Coral Albatross Primary School
+2553,Full Primary,Rising Albatross Primary School
+2554,Contributing,Tidal Albatross Primary School
+2555,Contributing,Bright Sealion Primary School
+2556,Full Primary,Wai Kakapo Primary School
+2557,Full Primary,Seashell Eel Primary School
+2558,Specialist School,Pohutukawa Eel Specialist School
+2560,Full Primary,Tui Swordfish Primary School
+2561,Full Primary,Anchor Shrimp Primary School
+2562,Full Primary,Mussel Petrel Primary School
+2563,Contributing,Saltwater Stingray Primary School
+2564,Contributing,Southern Paua Primary School
+2566,Intermediate,Sandy Barracuda Intermediate School
+2567,Contributing,Deepwater Albatross Primary School
+2569,Contributing,Western Turtle Primary School
+2570,Intermediate,Hidden Trevally Intermediate School
+2571,Contributing,Turtle Octopus Primary School
+2572,Intermediate,Eastern Oystercatcher Intermediate School
+2573,Contributing,Manuka Limpet Primary School
+2574,Contributing,Pohutukawa Cockle Primary School
+2575,Intermediate,Silver Cockle Intermediate School
+2578,Full Primary,Shore Cockle Primary School
+2581,Intermediate,Northern Hapuku Intermediate School
+2582,Full Primary,Kelp Flounder Primary School
+2584,Contributing,Ocean Prawn Primary School
+2585,Full Primary,Seashell Fantail Primary School
+2587,Full Primary,Totara Sealion Primary School
+2588,Specialist School,Current Moki Specialist School
+2590,Contributing,Seastar Hapuku Primary School
+2592,Contributing,Kina Pipit Primary School
+2593,Contributing,Nikau Kereru Primary School
+2594,Full Primary,Western Sponge Primary School
+2595,Contributing,Misty Seaweed Primary School
+2597,Contributing,Turtle Cockle Primary School
+2599,Full Primary,Marina Tui Primary School
+2600,Full Primary,Tui Orca Primary School
+2602,Composite,Kelp Moana Area School
+2604,Full Primary,Koru Kahawai Primary School
+2606,Contributing,Rockpool Tuna Primary School
+2609,Full Primary,Silver Sealion Primary School
+2611,Full Primary,Rimu Oystercatcher Primary School
+2612,Contributing,Nikau Kina Primary School
+2613,Full Primary,Pounamu Pipit Primary School
+2616,Full Primary,Snapper Piwakawaka Primary School
+2617,Full Primary,Misty Starfish Primary School
+2618,Contributing,Southern Hoiho Primary School
+2619,Intermediate,Wai Penguin Intermediate School
+2620,Contributing,Estuary Turtle Primary School
+2621,Full Primary,Hidden Limpet Primary School
+2622,Full Primary,Marina Kakapo Primary School
+2624,Full Primary,Current Hapuku Primary School
+2625,Full Primary,Estuary Wrasse Primary School
+2626,Full Primary,Foam Mussel Primary School
+2627,Full Primary,Wai Kakariki Primary School
+2628,Contributing,Shore Piper Primary School
+2629,Full Primary,Seagrass Kahawai Primary School
+2631,Contributing,Clearwater Korora Primary School
+2634,Full Primary,Clearwater Shrimp Primary School
+2637,Full Primary,Saltwater Oystercatcher Primary School
+2638,Contributing,Island Sponge Primary School
+2641,Contributing,Misty Rockpool Primary School
+2642,Full Primary,Pacific Hapuku Primary School
+2643,Full Primary,Penguin Prawn Primary School
+2644,Full Primary,Kauri Snapper Primary School
+2647,Contributing,Estuary Sealion Primary School
+2648,Contributing,Bright Moana Primary School
+2649,Full Primary,Kelp Rockpool Primary School
+2650,Full Primary,Saltwater Orca Primary School
+2651,Full Primary,Kelp Heron Primary School
+2652,Full Primary,Rangitahi Kakariki Primary School
+2654,Full Primary,Current Tarakihi Primary School
+2657,Full Primary,Tern Piper Primary School
+2658,Full Primary,Southern Sponge Primary School
+2659,Full Primary,Manuka Fantail Primary School
+2662,Contributing,Western Wrasse Primary School
+2663,Full Primary,Kauri Limpet Primary School
+2664,Full Primary,Pacific Whale Primary School
+2665,Contributing,Snapper Starfish Primary School
+2667,Contributing,Seagrass Hoiho Primary School
+2669,Full Primary,Kina Eel Primary School
+2672,Full Primary,Clearwater Eel Primary School
+2673,Full Primary,Pohutukawa Ruru Primary School
+2676,Full Primary,Kauri Seal Primary School
+2677,Full Primary,Sandy Sealion Primary School
+2678,Full Primary,Pounamu Jellyfish Primary School
+2679,Full Primary,Current Tuna Primary School
+2680,Contributing,Rangitahi Seaweed Primary School
+2681,Full Primary,Kina Shark Primary School
+2684,Full Primary,Anchor Piper Primary School
+2685,Intermediate,Reef Seahorse Intermediate School
+2686,Contributing,Mussel Pipit Primary School
+2687,Intermediate,Shell Mussel Intermediate School
+2688,Contributing,Kina Seal Primary School
+2691,Contributing,Foam Marlin Primary School
+2692,Contributing,Silver Eel Primary School
+2697,Contributing,Shore Flounder Primary School
+2698,Full Primary,Pounamu Kina Primary School
+2701,Contributing,Seastar Seahorse Primary School
+2702,Full Primary,Pebble Hoiho Primary School
+2703,Full Primary,Southern Pufferfish Primary School
+2704,Full Primary,Pebble Tuna Primary School
+2705,Full Primary,Penguin Starfish Primary School
+2706,Full Primary,Southern Weka Primary School
+2710,Full Primary,Southern Kereru Primary School
+2711,Full Primary,Rising Scallop Primary School
+2712,Full Primary,Kelp Dotterel Primary School
+2715,Full Primary,Driftwood Crab Primary School
+2718,Contributing,Pebble Shellfish Primary School
+2721,Contributing,Ocean Heron Primary School
+2723,Full Primary,Dolphin Stingray Primary School
+2725,Full Primary,Driftwood Kakapo Primary School
+2732,Full Primary,Pounamu Stingray Primary School
+2733,Contributing,Seagrass Mussel Primary School
+2736,Full Primary,Harakeke Dotterel Primary School
+2739,Full Primary,Clearwater Seahorse Primary School
+2742,Full Primary,Manuka Gannet Primary School
+2745,Full Primary,Mussel Koura Primary School
+2746,Full Primary,Tern Starfish Primary School
+2747,Teen Parent Unit,Harakeke Tui Learning Centre
+2748,Teen Parent Unit,Kowhai Anemone Learning Centre
+2749,Teen Parent Unit,Kelp Cockle Learning Centre
+2750,Teen Parent Unit,Southern Skink Learning Centre
+2751,Teen Parent Unit,Tui Albatross Learning Centre
+2752,Teen Parent Unit,Southern Orca Learning Centre
+2753,Teen Parent Unit,Pounamu Tuna Learning Centre
+2754,Teen Parent Unit,Saltwater Limpet Learning Centre
+2755,Teen Parent Unit,Hidden Shrimp Learning Centre
+2756,Teen Parent Unit,Seashell Tarakihi Learning Centre
+2757,Teen Parent Unit,Deepwater Shellfish Learning Centre
+2758,Teen Parent Unit,Harakeke Kahawai Learning Centre
+2759,Teen Parent Unit,Eastern Jellyfish Learning Centre
+2760,Teen Parent Unit,Manuka Kea Learning Centre
+2761,Teen Parent Unit,Shell Shrimp Learning Centre
+2762,Teen Parent Unit,Anchor Tui Learning Centre
+2801,Full Primary,Pounamu Dotterel Primary School
+2802,Contributing,Moana Koura Primary School
+2803,Contributing,Hidden Gannet Primary School
+2805,Full Primary,Driftwood Hapuku Primary School
+2806,Contributing,Harakeke Ruru Primary School
+2807,Contributing,Marina Tarakihi Primary School
+2808,Contributing,Kelp Oystercatcher Primary School
+2810,Contributing,Tui Marlin Primary School
+2811,Contributing,Estuary Dolphin Primary School
+2812,Intermediate,Korora Gannet Intermediate School
+2813,Contributing,Pohutukawa Jellyfish Primary School
+2814,Intermediate,Kina Heron Intermediate School
+2816,Full Primary,Moana Prawn Primary School
+2818,Contributing,Reef Korora Primary School
+2819,Full Primary,Northern Dolphin Primary School
+2820,Full Primary,Rockpool Tern Primary School
+2821,Contributing,Pohutukawa Dolphin Primary School
+2823,Contributing,Harbour Kina Primary School
+2824,Contributing,Moana Wrasse Primary School
+2826,Full Primary,Kowhai Tern Primary School
+2827,Full Primary,Harakeke Heron Primary School
+2828,Full Primary,Seastar Kea Primary School
+2831,Full Primary,Saltwater Turtle Primary School
+2832,Full Primary,Coastal Kea Primary School
+2833,Contributing,Ocean Whale Primary School
+2834,Contributing,Manuka Starfish Primary School
+2835,Full Primary,Sunny Dotterel Primary School
+2836,Contributing,Aqua Anemone Primary School
+2837,Intermediate,Bright Moki Intermediate School
+2838,Full Primary,Pebble Barracuda Primary School
+2839,Full Primary,Tidal Tarakihi Primary School
+2840,Full Primary,Ocean Limpet Primary School
+2841,Intermediate,Pacific Sponge Intermediate School
+2842,Contributing,Harbour Eel Primary School
+2843,Contributing,Sunny Coral Primary School
+2844,Contributing,Golden Seaweed Primary School
+2845,Full Primary,Tern Tui Primary School
+2846,Full Primary,Seagrass Tarakihi Primary School
+2847,Contributing,Penguin Kakapo Primary School
+2848,Contributing,Rising Starfish Primary School
+2849,Contributing,Rising Rockpool Primary School
+2850,Full Primary,Rising Kahawai Primary School
+2851,Contributing,Cove Oystercatcher Primary School
+2852,Contributing,Manuka Kingfisher Primary School
+2854,Full Primary,Silver Petrel Primary School
+2855,Full Primary,Sunny Sponge Primary School
+2859,Contributing,Aqua Kakariki Primary School
+2861,Contributing,Current Coral Primary School
+2862,Contributing,Whale Limpet Primary School
+2863,Intermediate,Shore Shellfish Intermediate School
+2865,Contributing,Koru Scallop Primary School
+2866,Contributing,Korora Barracuda Primary School
+2867,Contributing,Pohutukawa Rockpool Primary School
+2868,Full Primary,Deepwater Eel Primary School
+2871,Full Primary,Southern Pipit Primary School
+2872,Specialist School,Sunny Piwakawaka Specialist School
+2873,Full Primary,Clearwater Kina Primary School
+2874,Full Primary,Northern Starfish Primary School
+2875,Full Primary,Deepwater Flounder Primary School
+2876,Full Primary,Cove Kingfisher Primary School
+2877,Contributing,Kauri Piwakawaka Primary School
+2878,Full Primary,Wave Crab Primary School
+2879,Contributing,Kina Tarakihi Primary School
+2880,Contributing,Kauri Hapuku Primary School
+2882,Full Primary,Bright Wrasse Primary School
+2883,Full Primary,Estuary Manta Primary School
+2886,Contributing,Korora Trevally Primary School
+2887,Intermediate,Mussel Ruru Intermediate School
+2888,Contributing,Turtle Shrimp Primary School
+2889,Contributing,Rockpool Koura Primary School
+2890,Contributing,Wai Crab Primary School
+2891,Full Primary,Harbour Tern Primary School
+2892,Contributing,Bright Dotterel Primary School
+2893,Intermediate,Island Mussel Intermediate School
+2894,Full Primary,Penguin Tern Primary School
+2895,Full Primary,Seagrass Kingfisher Primary School
+2896,Full Primary,Shell Sealion Primary School
+2899,Contributing,Pacific Octopus Primary School
+2900,Full Primary,Reef Pipit Primary School
+2902,Contributing,Totara Piwakawaka Primary School
+2903,Contributing,Totara Gannet Primary School
+2904,Full Primary,Tern Barracuda Primary School
+2906,Full Primary,Snapper Seaweed Primary School
+2909,Intermediate,Seagrass Shellfish Intermediate School
+2911,Full Primary,Mangrove Dotterel Primary School
+2912,Contributing,Coral Tuna Primary School
+2915,Contributing,Mangrove Octopus Primary School
+2916,Contributing,Kowhai Rockpool Primary School
+2918,Full Primary,Sandy Kea Primary School
+2920,Full Primary,Kauri Octopus Primary School
+2921,Intermediate,Wai Bluefish Intermediate School
+2922,Contributing,Tidal Turtle Primary School
+2923,Full Primary,Bright Eel Primary School
+2924,Intermediate,Seagrass Penguin Intermediate School
+2925,Contributing,Whale Hoiho Primary School
+2926,Contributing,Foam Albatross Primary School
+2927,Contributing,Southern Petrel Primary School
+2928,Full Primary,Totara Scallop Primary School
+2930,Contributing,Moana Piper Primary School
+2931,Full Primary,Pohutukawa Nautilus Primary School
+2933,Full Primary,Anchor Seahorse Primary School
+2936,Full Primary,Saltwater Skink Primary School
+2937,Full Primary,Mangrove Stingray Primary School
+2939,Contributing,Lagoon Kingfisher Primary School
+2941,Full Primary,Shell Snapper Primary School
+2942,Contributing,Koru Kakariki Primary School
+2943,Contributing,Island Barracuda Primary School
+2944,Full Primary,Turtle Penguin Primary School
+2945,Full Primary,Totara Heron Primary School
+2946,Full Primary,Misty Heron Primary School
+2947,Contributing,Estuary Skink Primary School
+2948,Full Primary,Seabreeze Swordfish Primary School
+2949,Full Primary,Marina Albatross Primary School
+2950,Full Primary,Golden Fantail Primary School
+2953,Full Primary,Bay Penguin Primary School
+2955,Full Primary,Eastern Sealion Primary School
+2956,Contributing,Aqua Eel Primary School
+2957,Contributing,Driftwood Moki Primary School
+2958,Full Primary,Current Trevally Primary School
+2959,Contributing,Pebble Moana Primary School
+2960,Full Primary,Reef Koura Primary School
+2961,Contributing,Dolphin Limpet Primary School
+2962,Full Primary,Mussel Dolphin Primary School
+2963,Contributing,Kowhai Kereru Primary School
+2964,Contributing,Reef Heron Primary School
+2965,Full Primary,Lagoon Dotterel Primary School
+2966,Full Primary,Dolphin Fantail Primary School
+2967,Full Primary,Cove Dotterel Primary School
+2968,Full Primary,Silver Flounder Primary School
+2969,Full Primary,Kowhai Flounder Primary School
+2970,Full Primary,Moana Manta Primary School
+2971,Full Primary,Rangitahi Trevally Primary School
+2972,Intermediate,Estuary Gannet Intermediate School
+2973,Contributing,Bay Albatross Primary School
+2974,Full Primary,Sunny Prawn Primary School
+2975,Full Primary,Anchor Skink Primary School
+2976,Contributing,Seabreeze Kahawai Primary School
+2977,Full Primary,Estuary Limpet Primary School
+2978,Full Primary,Western Jellyfish Primary School
+2979,Contributing,Kelp Anemone Primary School
+2980,Full Primary,Anchor Heron Primary School
+2981,Full Primary,Northern Kelp Primary School
+2982,Full Primary,Deepwater Fantail Primary School
+2983,Contributing,Anchor Fantail Primary School
+2984,Full Primary,Anchor Wrasse Primary School
+2985,Full Primary,Turtle Whale Primary School
+2987,Full Primary,Seagrass Pipit Primary School
+2988,Full Primary,Coastal Stingray Primary School
+2989,Full Primary,Turtle Tuna Primary School
+2990,Contributing,Bright Scallop Primary School
+2991,Contributing,Mangrove Shark Primary School
+2992,Full Primary,Bay Swordfish Primary School
+2993,Full Primary,Western Moki Primary School
+2994,Intermediate,Saltwater Moana Intermediate School
+2995,Contributing,Coastal Dotterel Primary School
+2996,Contributing,Seastar Eel Primary School
+2997,Full Primary,Driftwood Swordfish Primary School
+2998,Full Primary,Shore Kakariki Primary School
+2999,Full Primary,Pebble Kakapo Primary School
+3000,Full Primary,Rockpool Stingray Primary School
+3001,Full Primary,Bright Nautilus Primary School
+3002,Full Primary,Deepwater Orca Primary School
+3004,Full Primary,Hidden Penguin Primary School
+3005,Full Primary,Bright Shark Primary School
+3006,Full Primary,Moana Hoiho Primary School
+3007,Contributing,Pounamu Seaweed Primary School
+3008,Full Primary,Misty Kelp Primary School
+3011,Full Primary,Rangitahi Hapuku Primary School
+3012,Full Primary,Tidal Shark Primary School
+3013,Full Primary,Marina Kina Primary School
+3015,Full Primary,Reef Shellfish Primary School
+3016,Contributing,Tidal Kakariki Primary School
+3017,Full Primary,Nikau Sponge Primary School
+3018,Full Primary,Saltwater Fantail Primary School
+3019,Full Primary,Mussel Orca Primary School
+3020,Full Primary,Seastar Kelp Primary School
+3021,Full Primary,Seashell Barracuda Primary School
+3022,Contributing,Northern Kakariki Primary School
+3023,Full Primary,Deepwater Coral Primary School
+3024,Full Primary,Wave Starfish Primary School
+3025,Contributing,Penguin Fantail Primary School
+3029,Full Primary,Coral Shellfish Primary School
+3030,Contributing,Turtle Shark Primary School
+3031,Intermediate,Sandy Tui Intermediate School
+3032,Full Primary,Clearwater Weka Primary School
+3034,Intermediate,Misty Kea Intermediate School
+3035,Full Primary,Deepwater Piwakawaka Primary School
+3036,Contributing,Whale Manta Primary School
+3037,Full Primary,Mussel Kereru Primary School
+3038,Full Primary,Anchor Shark Primary School
+3040,Full Primary,Shore Orca Primary School
+3041,Full Primary,Whale Seahorse Primary School
+3043,Intermediate,Pounamu Shellfish Intermediate School
+3044,Full Primary,Rockpool Penguin Primary School
+3045,Contributing,Snapper Tarakihi Primary School
+3046,Full Primary,Pohutukawa Albatross Primary School
+3048,Contributing,Manuka Shellfish Primary School
+3050,Full Primary,Kelp Nautilus Primary School
+3051,Full Primary,Driftwood Starfish Primary School
+3053,Contributing,Koru Flounder Primary School
+3055,Full Primary,Penguin Seahorse Primary School
+3056,Full Primary,Mangrove Trevally Primary School
+3057,Contributing,Deepwater Bluefish Primary School
+3059,Contributing,Totara Flounder Primary School
+3060,Full Primary,Nikau Ruru Primary School
+3062,Full Primary,Rangitahi Kea Primary School
+3064,Full Primary,Bright Trevally Primary School
+3065,Contributing,Kauri Tarakihi Primary School
+3067,Full Primary,Pebble Cockle Primary School
+3068,Contributing,Silver Tuna Primary School
+3070,Full Primary,Clearwater Seaweed Primary School
+3071,Contributing,Eastern Kakapo Primary School
+3072,Full Primary,Misty Flounder Primary School
+3073,Full Primary,Kelp Sealion Primary School
+3074,Full Primary,Misty Turtle Primary School
+3075,Contributing,Shore Fantail Primary School
+3077,Contributing,Misty Kingfisher Primary School
+3100,Composite,Penguin Eel Area School
+3101,Composite,Clearwater Wrasse Area School
+3102,Full Primary,Bay Scallop Primary School
+3103,Composite,Whale Tui Area School
+3104,Full Primary,Mangrove Piwakawaka Primary School
+3106,Composite,Rimu Piper Area School
+3107,Composite,Northern Coral Area School
+3113,Secondary (Year 9-15),Mussel Crab College
+3114,Composite,Coastal Flounder Area School
+3115,Composite,Pacific Shrimp Area School
+3117,Composite,Mussel Moana Area School
+3118,Composite,Bay Korora Area School
+3119,Composite,Rangitahi Bluefish Area School
+3180,Full Primary,Rockpool Jellyfish Primary School
+3181,Contributing,Seahorse Eel Primary School
+3182,Contributing,Kauri Kereru Primary School
+3183,Contributing,Clearwater Albatross Primary School
+3184,Intermediate,Coastal Sponge Intermediate School
+3185,Full Primary,Northern Dotterel Primary School
+3186,Full Primary,Snapper Shark Primary School
+3187,Contributing,Paua Tui Primary School
+3188,Full Primary,Rangitahi Shellfish Primary School
+3189,Contributing,Pacific Limpet Primary School
+3192,Full Primary,Korora Tarakihi Primary School
+3193,Contributing,Paua Seaweed Primary School
+3194,Contributing,Kina Manta Primary School
+3195,Contributing,Kelp Shrimp Primary School
+3196,Contributing,Pacific Seal Primary School
+3199,Full Primary,Driftwood Scallop Primary School
+3200,Full Primary,Pebble Shrimp Primary School
+3201,Full Primary,Lagoon Hoiho Primary School
+3202,Specialist School,Lagoon Shrimp Specialist School
+3203,Full Primary,Cove Piper Primary School
+3204,Full Primary,Clearwater Kakariki Primary School
+3206,Full Primary,Whale Crab Primary School
+3207,Contributing,Aqua Seal Primary School
+3208,Contributing,Reef Dotterel Primary School
+3209,Contributing,Southern Gannet Primary School
+3210,Intermediate,Seastar Kahawai Intermediate School
+3212,Full Primary,Coastal Turtle Primary School
+3213,Full Primary,Seabreeze Kakariki Primary School
+3214,Contributing,Turtle Pufferfish Primary School
+3216,Contributing,Harbour Weka Primary School
+3217,Full Primary,Coastal Scallop Primary School
+3219,Full Primary,Pebble Kahawai Primary School
+3220,Full Primary,Mangrove Piper Primary School
+3221,Full Primary,Korora Skink Primary School
+3222,Full Primary,Rising Seahorse Primary School
+3223,Contributing,Reef Mussel Primary School
+3224,Contributing,Wave Sponge Primary School
+3225,Contributing,Southern Octopus Primary School
+3226,Contributing,Pacific Swordfish Primary School
+3228,Full Primary,Mussel Heron Primary School
+3229,Full Primary,Bay Tern Primary School
+3231,Contributing,Dolphin Albatross Primary School
+3233,Intermediate,Rimu Trevally Intermediate School
+3234,Full Primary,Seastar Gannet Primary School
+3235,Full Primary,Moana Gannet Primary School
+3236,Full Primary,Pacific Fantail Primary School
+3270,Full Primary,Clearwater Koura Primary School
+3271,Contributing,Estuary Kina Primary School
+3273,Contributing,Misty Shark Primary School
+3274,Contributing,Tui Kakariki Primary School
+3275,Specialist School,Ocean Dolphin Specialist School
+3276,Full Primary,Harbour Seal Primary School
+3280,Full Primary,Current Swordfish Primary School
+3281,Full Primary,Clearwater Starfish Primary School
+3282,Intermediate,Seashell Limpet Intermediate School
+3283,Contributing,Seastar Shrimp Primary School
+3284,Full Primary,Northern Jellyfish Primary School
+3285,Full Primary,Seagrass Orca Primary School
+3287,Full Primary,Rimu Stingray Primary School
+3288,Full Primary,Hidden Wrasse Primary School
+3289,Contributing,Moana Weka Primary School
+3290,Full Primary,Whale Pufferfish Primary School
+3291,Full Primary,Kina Weka Primary School
+3292,Full Primary,Seastar Prawn Primary School
+3293,Contributing,Seagrass Gannet Primary School
+3295,Full Primary,Wave Shrimp Primary School
+3299,Intermediate,Harakeke Kina Intermediate School
+3301,Full Primary,Seastar Ruru Primary School
+3302,Contributing,Southern Kingfisher Primary School
+3303,Full Primary,Manuka Prawn Primary School
+3304,Full Primary,Korora Petrel Primary School
+3305,Contributing,Seahorse Tarakihi Primary School
+3307,Full Primary,Sandy Kelp Primary School
+3308,Contributing,Foam Gannet Primary School
+3309,Intermediate,Coral Stingray Intermediate School
+3310,Full Primary,Totara Kingfisher Primary School
+3313,Contributing,Coastal Kahawai Primary School
+3314,Intermediate,Hidden Tui Intermediate School
+3316,Full Primary,Snapper Prawn Primary School
+3317,Full Primary,Kowhai Cockle Primary School
+3318,Intermediate,Whale Swordfish Intermediate School
+3321,Full Primary,Totara Pipit Primary School
+3322,Full Primary,Whale Tuna Primary School
+3323,Intermediate,Wave Manta Intermediate School
+3324,Contributing,Western Kakapo Primary School
+3325,Full Primary,Shell Hapuku Primary School
+3326,Contributing,Pounamu Turtle Primary School
+3327,Full Primary,Wai Swordfish Primary School
+3329,Full Primary,Coral Dotterel Primary School
+3331,Contributing,Sandy Jellyfish Primary School
+3332,Contributing,Harakeke Paua Primary School
+3334,Contributing,Paua Hapuku Primary School
+3335,Contributing,Snapper Seahorse Primary School
+3336,Contributing,Sandy Limpet Primary School
+3338,Contributing,Seabreeze Moki Primary School
+3339,Specialist School,Pohutukawa Kelp Specialist School
+3340,Full Primary,Lagoon Oystercatcher Primary School
+3342,Full Primary,Kelp Shellfish Primary School
+3343,Full Primary,Rangitahi Mussel Primary School
+3346,Contributing,Harbour Rockpool Primary School
+3347,Full Primary,Reef Piper Primary School
+3348,Full Primary,Harbour Kereru Primary School
+3352,Contributing,Ocean Kakariki Primary School
+3354,Full Primary,Seashell Pipit Primary School
+3357,Contributing,Aqua Paua Primary School
+3359,Full Primary,Eastern Wrasse Primary School
+3361,Full Primary,Bright Snapper Primary School
+3363,Full Primary,Island Eel Primary School
+3366,Full Primary,Saltwater Tarakihi Primary School
+3367,Contributing,Seashell Swordfish Primary School
+3368,Full Primary,Golden Nautilus Primary School
+3369,Full Primary,Foam Kereru Primary School
+3370,Contributing,Turtle Prawn Primary School
+3371,Full Primary,Coral Hapuku Primary School
+3372,Intermediate,Pounamu Nautilus Intermediate School
+3373,Full Primary,Anchor Manta Primary School
+3375,Full Primary,Snapper Rockpool Primary School
+3376,Contributing,Reef Stingray Primary School
+3379,Contributing,Harbour Petrel Primary School
+3380,Contributing,Tidal Flounder Primary School
+3381,Contributing,Turtle Kea Primary School
+3384,Contributing,Mussel Penguin Primary School
+3385,Contributing,Marina Coral Primary School
+3387,Full Primary,Foam Tuna Primary School
+3388,Full Primary,Coral Kina Primary School
+3389,Full Primary,Seastar Moki Primary School
+3391,Contributing,Marina Prawn Primary School
+3392,Contributing,Kowhai Seahorse Primary School
+3393,Contributing,Seagrass Octopus Primary School
+3394,Full Primary,Seastar Seaweed Primary School
+3396,Intermediate,Whale Koura Intermediate School
+3397,Contributing,Sunny Crab Primary School
+3398,Contributing,Northern Wrasse Primary School
+3401,Full Primary,Nikau Moana Primary School
+3402,Full Primary,Moana Marlin Primary School
+3406,Contributing,Cove Mussel Primary School
+3407,Contributing,Driftwood Korora Primary School
+3410,Contributing,Wai Piwakawaka Primary School
+3411,Full Primary,Estuary Kea Primary School
+3412,Full Primary,Island Orca Primary School
+3413,Contributing,Island Anemone Primary School
+3415,Contributing,Reef Moana Primary School
+3418,Full Primary,Kina Cockle Primary School
+3419,Full Primary,Seashell Kingfisher Primary School
+3425,Full Primary,Shell Coral Primary School
+3426,Full Primary,Pohutukawa Sealion Primary School
+3429,Full Primary,Lagoon Petrel Primary School
+3432,Full Primary,Harbour Dotterel Primary School
+3434,Full Primary,Kina Trevally Primary School
+3436,Contributing,Harakeke Manta Primary School
+3441,Full Primary,Seahorse Paua Primary School
+3442,Full Primary,Lagoon Korora Primary School
+3443,Full Primary,Moana Piwakawaka Primary School
+3445,Full Primary,Aqua Moana Primary School
+3447,Full Primary,Pohutukawa Manta Primary School
+3449,Contributing,Rimu Snapper Primary School
+3450,Full Primary,Golden Snapper Primary School
+3451,Full Primary,Eastern Crab Primary School
+3452,Full Primary,Northern Snapper Primary School
+3454,Full Primary,Estuary Anemone Primary School
+3455,Full Primary,Ocean Wrasse Primary School
+3461,Full Primary,Rising Shellfish Primary School
+3462,Full Primary,Coral Gannet Primary School
+3463,Full Primary,Rockpool Kereru Primary School
+3464,Full Primary,Seastar Pufferfish Primary School
+3466,Contributing,Saltwater Shellfish Primary School
+3467,Contributing,Sunny Hapuku Primary School
+3470,Full Primary,Paua Sealion Primary School
+3472,Full Primary,Penguin Octopus Primary School
+3476,Full Primary,Harakeke Mussel Primary School
+3477,Full Primary,Korora Kelp Primary School
+3478,Full Primary,Eastern Kereru Primary School
+3479,Full Primary,Hidden Whale Primary School
+3480,Full Primary,Rimu Hapuku Primary School
+3481,Full Primary,Harakeke Moana Primary School
+3483,Full Primary,Tern Snapper Primary School
+3484,Contributing,Rangitahi Swordfish Primary School
+3485,Full Primary,Rimu Fantail Primary School
+3488,Full Primary,Nikau Dotterel Primary School
+3489,Contributing,Seastar Starfish Primary School
+3490,Contributing,Seagrass Swordfish Primary School
+3492,Contributing,Harbour Hapuku Primary School
+3493,Contributing,Anchor Kelp Primary School
+3495,Full Primary,Bay Hapuku Primary School
+3496,Full Primary,Golden Manta Primary School
+3498,Full Primary,Tidal Barracuda Primary School
+3501,Full Primary,Bright Jellyfish Primary School
+3502,Contributing,Island Gannet Primary School
+3503,Intermediate,Kina Fantail Intermediate School
+3504,Contributing,Kelp Dolphin Primary School
+3505,Contributing,Seastar Kingfisher Primary School
+3506,Contributing,Harakeke Piwakawaka Primary School
+3507,Contributing,Coastal Pufferfish Primary School
+3508,Full Primary,Turtle Rockpool Primary School
+3509,Contributing,Paua Snapper Primary School
+3510,Full Primary,Seashell Wrasse Primary School
+3512,Contributing,Hidden Sponge Primary School
+3515,Contributing,Marina Tern Primary School
+3516,Full Primary,Manuka Snapper Primary School
+3517,Contributing,Seashell Prawn Primary School
+3518,Contributing,Pounamu Petrel Primary School
+3519,Full Primary,Moana Ruru Primary School
+3520,Full Primary,Current Eel Primary School
+3521,Full Primary,Korora Tern Primary School
+3523,Contributing,Hidden Ruru Primary School
+3527,Full Primary,Current Seahorse Primary School
+3528,Full Primary,Korora Orca Primary School
+3529,Full Primary,Coral Koura Primary School
+3530,Full Primary,Deepwater Mussel Primary School
+3531,Full Primary,Koru Anemone Primary School
+3532,Full Primary,Seabreeze Barracuda Primary School
+3533,Full Primary,Island Trevally Primary School
+3534,Full Primary,Western Pipit Primary School
+3535,Full Primary,Rising Sponge Primary School
+3536,Full Primary,Deepwater Oystercatcher Primary School
+3537,Full Primary,Tidal Skink Primary School
+3538,Full Primary,Estuary Ruru Primary School
+3539,Full Primary,Western Starfish Primary School
+3540,Full Primary,Rising Tarakihi Primary School
+3542,Full Primary,Seastar Scallop Primary School
+3543,Full Primary,Manuka Turtle Primary School
+3544,Full Primary,Seashell Turtle Primary School
+3546,Full Primary,Aqua Nautilus Primary School
+3547,Full Primary,Shore Swordfish Primary School
+3549,Full Primary,Blue Bluefish Primary School
+3553,Full Primary,Pebble Oystercatcher Primary School
+3554,Specialist School,Seabreeze Nautilus Specialist School
+3555,Full Primary,Seahorse Sealion Primary School
+3557,Contributing,Seabreeze Petrel Primary School
+3561,Contributing,Coral Tui Primary School
+3563,Full Primary,Rockpool Seaweed Primary School
+3565,Full Primary,Coral Fantail Primary School
+3566,Contributing,Sandy Moana Primary School
+3567,Full Primary,Pohutukawa Kahawai Primary School
+3569,Full Primary,Anchor Gannet Primary School
+3570,Full Primary,Kauri Kahawai Primary School
+3571,Contributing,Golden Swordfish Primary School
+3572,Full Primary,Seahorse Bluefish Primary School
+3573,Contributing,Golden Kereru Primary School
+3574,Contributing,Coral Dolphin Primary School
+3576,Full Primary,Coastal Anemone Primary School
+3577,Contributing,Island Ruru Primary School
+3579,Full Primary,Western Hoiho Primary School
+3580,Full Primary,Mussel Paua Primary School
+3581,Full Primary,Rangitahi Anemone Primary School
+3585,Full Primary,Rising Limpet Primary School
+3586,Full Primary,Golden Kakapo Primary School
+3587,Full Primary,Northern Limpet Primary School
+3588,Contributing,Marina Kakariki Primary School
+3589,Full Primary,Pacific Trevally Primary School
+3591,Full Primary,Misty Piwakawaka Primary School
+3592,Full Primary,Coral Kereru Primary School
+3594,Full Primary,Harakeke Starfish Primary School
+3597,Contributing,Blue Penguin Primary School
+3599,Contributing,Penguin Skink Primary School
+3600,Full Primary,Pacific Paua Primary School
+3602,Full Primary,Blue Kakapo Primary School
+3612,Secondary (Year 7-15),Wai Korora College
+3614,Restricted Composite (Year 7-10),Shell Dotterel Area School
+3617,Full Primary,Mussel Scallop Primary School
+3618,Composite,Tern Seaweed Area School
+3619,Composite,Snapper Kakariki Area School
+3620,Composite,Aqua Oystercatcher Area School
+3622,Contributing,Sandy Wrasse Primary School
+3623,Full Primary,Foam Limpet Primary School
+3625,Secondary (Year 7-15),Coral Kakapo College
+3628,Full Primary,Rimu Mussel Primary School
+3630,Composite,Sandy Turtle Area School
+3631,Full Primary,Shore Octopus Primary School
+3641,Full Primary,Eastern Shark Primary School
+3645,Composite,Shore Jellyfish Area School
+3657,Contributing,Mangrove Seaweed Primary School
+3659,Full Primary,Sandy Scallop Primary School
+3665,Full Primary,Western Kereru Primary School
+3679,Composite,Whale Prawn Area School
+3680,Full Primary,Harakeke Shrimp Primary School
+3681,Secondary (Year 9-15),Coastal Shark College
+3682,Contributing,Driftwood Pipit Primary School
+3683,Composite,Dolphin Kingfisher Area School
+3684,Secondary (Year 7-15),Paua Weka College
+3685,Secondary (Year 9-15),Clearwater Petrel College
+3686,Secondary (Year 7-15),Pounamu Kakariki College
+3687,Secondary (Year 9-15),Bay Seaweed College
+3688,Full Primary,Shore Dolphin Primary School
+3689,Activity Centre,Moana Turtle Activity Centre
+3690,Full Primary,Manuka Kakariki Primary School
+3691,Composite,Current Turtle Area School
+3698,Composite,Harakeke Marlin Area School
+3699,Contributing,Cove Anemone Primary School
+3700,Full Primary,Tui Starfish Primary School
+3701,Full Primary,Koru Seal Primary School
+3703,Contributing,Whale Nautilus Primary School
+3704,Full Primary,Bay Moana Primary School
+3706,Full Primary,Cove Skink Primary School
+3707,Contributing,Blue Petrel Primary School
+3709,Contributing,Deepwater Petrel Primary School
+3710,Full Primary,Tidal Kelp Primary School
+3711,Intermediate,Marina Wrasse Intermediate School
+3716,Contributing,Shell Cockle Primary School
+3718,Full Primary,Golden Sponge Primary School
+3719,Full Primary,Golden Kingfisher Primary School
+3723,Full Primary,Pounamu Tern Primary School
+3724,Full Primary,Koru Swordfish Primary School
+3725,Full Primary,Foam Turtle Primary School
+3727,Contributing,Rimu Seal Primary School
+3729,Contributing,Nikau Marlin Primary School
+3731,Intermediate,Deepwater Gannet Intermediate School
+3732,Full Primary,Kelp Weka Primary School
+3733,Contributing,Coastal Trevally Primary School
+3736,Full Primary,Estuary Korora Primary School
+3737,Contributing,Seastar Kereru Primary School
+3738,Full Primary,Totara Trevally Primary School
+3740,Contributing,Sandy Coral Primary School
+3741,Contributing,Blue Gannet Primary School
+3742,Contributing,Kauri Kelp Primary School
+3743,Full Primary,Reef Piwakawaka Primary School
+3745,Contributing,Shell Kereru Primary School
+3746,Full Primary,Sunny Shellfish Primary School
+3747,Contributing,Mussel Seaweed Primary School
+3749,Contributing,Seahorse Pufferfish Primary School
+3753,Contributing,Hidden Shellfish Primary School
+3754,Full Primary,Paua Seahorse Primary School
+3755,Full Primary,Shore Turtle Primary School
+3756,Contributing,Turtle Bluefish Primary School
+3761,Full Primary,Foam Kelp Primary School
+3762,Contributing,Cove Seal Primary School
+3764,Full Primary,Sandy Kakapo Primary School
+3765,Full Primary,Coastal Eel Primary School
+3767,Full Primary,Shell Fantail Primary School
+3768,Contributing,Island Tui Primary School
+3771,Full Primary,Foam Tui Primary School
+3772,Contributing,Harakeke Korora Primary School
+3776,Contributing,Ocean Crab Primary School
+3778,Contributing,Tui Kingfisher Primary School
+3779,Contributing,Pounamu Koura Primary School
+3783,Contributing,Western Penguin Primary School
+3784,Intermediate,Island Piper Intermediate School
+3785,Contributing,Korora Piwakawaka Primary School
+3788,Full Primary,Rimu Rockpool Primary School
+3789,Full Primary,Seagrass Dolphin Primary School
+3790,Contributing,Dolphin Scallop Primary School
+3795,Full Primary,Anchor Jellyfish Primary School
+3797,Contributing,Ocean Manta Primary School
+3798,Full Primary,Hidden Kingfisher Primary School
+3801,Contributing,Wave Limpet Primary School
+3802,Full Primary,Turtle Seaweed Primary School
+3803,Full Primary,Bright Piper Primary School
+3805,Full Primary,Saltwater Kina Primary School
+3807,Full Primary,Korora Octopus Primary School
+3808,Contributing,Saltwater Heron Primary School
+3811,Full Primary,Bay Kakariki Primary School
+3812,Full Primary,Seahorse Tuna Primary School
+3815,Contributing,Tui Penguin Primary School
+3816,Specialist School,Kowhai Gannet Specialist School
+3817,Contributing,Shore Kingfisher Primary School
+3819,Contributing,Snapper Hapuku Primary School
+3820,Contributing,Nikau Cockle Primary School
+3822,Contributing,Saltwater Gannet Primary School
+3823,Full Primary,Northern Flounder Primary School
+3824,Full Primary,Island Heron Primary School
+3825,Full Primary,Mussel Albatross Primary School
+3826,Full Primary,Aqua Shrimp Primary School
+3827,Contributing,Tern Eel Primary School
+3829,Contributing,Moana Sponge Primary School
+3830,Contributing,Moana Kahawai Primary School
+3831,Contributing,Paua Seal Primary School
+3832,Full Primary,Seashell Piper Primary School
+3834,Full Primary,Mussel Gannet Primary School
+3835,Contributing,Koru Starfish Primary School
+3836,Full Primary,Hidden Jellyfish Primary School
+3837,Full Primary,Snapper Penguin Primary School
+3838,Full Primary,Tui Weka Primary School
+3839,Intermediate,Foam Stingray Intermediate School
+3840,Full Primary,Sunny Seal Primary School
+3841,Contributing,Nikau Kingfisher Primary School
+3842,Contributing,Pounamu Whale Primary School
+3843,Full Primary,Pohutukawa Starfish Primary School
+3844,Full Primary,Kelp Prawn Primary School
+3845,Contributing,Hidden Moana Primary School
+3847,Full Primary,Deepwater Pufferfish Primary School
+3850,Full Primary,Cove Kahawai Primary School
+3851,Contributing,Nikau Kea Primary School
+3852,Contributing,Penguin Sponge Primary School
+3855,Contributing,Korora Piper Primary School
+3857,Full Primary,Clearwater Pufferfish Primary School
+3858,Full Primary,Wai Skink Primary School
+3859,Contributing,Dolphin Shrimp Primary School
+3861,Full Primary,Golden Piper Primary School
+3862,Full Primary,Bright Seaweed Primary School
+3864,Full Primary,Saltwater Kingfisher Primary School
+3930,Full Primary,Cove Kereru Primary School
+3932,Contributing,Seabreeze Gannet Primary School
+3935,Full Primary,Seabreeze Heron Primary School
+3938,Full Primary,Shore Starfish Primary School
+3943,Full Primary,Penguin Kereru Primary School
+3946,Contributing,Pohutukawa Heron Primary School
+3947,Contributing,Moana Kina Primary School
+3953,Full Primary,Totara Coral Primary School
+3955,Full Primary,Wave Kingfisher Primary School
+3956,Contributing,Pohutukawa Crab Primary School
+3957,Full Primary,Pacific Dolphin Primary School
+3961,Full Primary,Rising Kelp Primary School
+3963,Full Primary,Kina Hoiho Primary School
+3964,Full Primary,Snapper Flounder Primary School
+3966,Contributing,Bright Swordfish Primary School
+3967,Contributing,Silver Bluefish Primary School
+3973,Full Primary,Golden Seal Primary School
+3975,Full Primary,Moana Moki Primary School
+3977,Full Primary,Foam Fantail Primary School
+3979,Intermediate,Rockpool Barracuda Intermediate School
+3980,Contributing,Tidal Gannet Primary School
+3982,Contributing,Aqua Hapuku Primary School
+3984,Full Primary,Sunny Snapper Primary School
+3986,Contributing,Manuka Nautilus Primary School
+3990,Contributing,Island Prawn Primary School
+3991,Contributing,Estuary Mussel Primary School
+3997,Full Primary,Misty Wrasse Primary School
+4000,Contributing,Anchor Trevally Primary School
+4001,Full Primary,Pebble Seahorse Primary School
+4003,Contributing,Turtle Pipit Primary School
+4005,Full Primary,Eastern Ruru Primary School
+4006,Full Primary,Seabreeze Ruru Primary School
+4007,Full Primary,Kina Kahawai Primary School
+4008,Contributing,Tern Heron Primary School
+4011,Specialist School,Tern Fantail Specialist School
+4013,Contributing,Ocean Kea Primary School
+4014,Contributing,Estuary Sponge Primary School
+4016,Full Primary,Manuka Tarakihi Primary School
+4017,Full Primary,Cove Albatross Primary School
+4018,Contributing,Seabreeze Shellfish Primary School
+4019,Full Primary,Shell Stingray Primary School
+4020,Contributing,Western Bluefish Primary School
+4021,Full Primary,Blue Eel Primary School
+4022,Contributing,Kowhai Pipit Primary School
+4023,Full Primary,Dolphin Kakariki Primary School
+4026,Contributing,Turtle Ruru Primary School
+4027,Full Primary,Lagoon Crab Primary School
+4028,Contributing,Pacific Tui Primary School
+4029,Contributing,Rimu Pipit Primary School
+4030,Full Primary,Current Orca Primary School
+4032,Contributing,Saltwater Sponge Primary School
+4034,Full Primary,Pacific Moki Primary School
+4035,Contributing,Lagoon Moana Primary School
+4036,Full Primary,Harbour Limpet Primary School
+4037,Full Primary,Foam Swordfish Primary School
+4046,Contributing,Koru Barracuda Primary School
+4047,Contributing,Kowhai Tui Primary School
+4050,Contributing,Seastar Octopus Primary School
+4052,Full Primary,Tidal Shellfish Primary School
+4053,Contributing,Wave Eel Primary School
+4054,Contributing,Driftwood Tui Primary School
+4100,Full Primary,Totara Anemone Primary School
+4101,Full Primary,Coral Starfish Primary School
+4104,Full Primary,Wai Starfish Primary School
+4105,Full Primary,Harbour Cockle Primary School
+4107,Full Primary,Golden Marlin Primary School
+4108,Full Primary,Seabreeze Kakapo Primary School
+4109,Composite,Dolphin Cockle Area School
+4111,Full Primary,Tidal Bluefish Primary School
+4112,Full Primary,Mangrove Bluefish Primary School
+4116,Full Primary,Misty Anemone Primary School
+4117,Full Primary,Rising Manta Primary School
+4118,Full Primary,Totara Moana Primary School
+4119,Composite,Marina Swordfish Area School
+4121,Intermediate,Bright Gannet Intermediate School
+4122,Intermediate,Misty Albatross Intermediate School
+4123,Full Primary,Reef Penguin Primary School
+4125,Full Primary,Pohutukawa Pufferfish Primary School
+4126,Contributing,Wave Gannet Primary School
+4129,Full Primary,Golden Cockle Primary School
+4130,Full Primary,Pounamu Penguin Primary School
+4131,Full Primary,Cove Koura Primary School
+4132,Full Primary,Moana Korora Primary School
+4133,Full Primary,Harakeke Sponge Primary School
+4134,Full Primary,Driftwood Shellfish Primary School
+4135,Full Primary,Korora Wrasse Primary School
+4136,Full Primary,Cove Piwakawaka Primary School
+4138,Full Primary,Pohutukawa Scallop Primary School
+4140,Full Primary,Deepwater Seahorse Primary School
+4141,Full Primary,Kowhai Hapuku Primary School
+4143,Full Primary,Hidden Hapuku Primary School
+4144,Full Primary,Northern Korora Primary School
+4145,Composite,Misty Barracuda Area School
+4146,Full Primary,Pounamu Mussel Primary School
+4147,Full Primary,Wai Nautilus Primary School
+4149,Full Primary,Northern Shrimp Primary School
+4150,Full Primary,Foam Kina Primary School
+4151,Full Primary,Totara Kina Primary School
+4154,Full Primary,Pebble Tarakihi Primary School
+4156,Specialist School,Estuary Prawn Specialist School
+4157,Specialist School,Sandy Albatross Specialist School
+4158,Secondary (Year 7-15),Rimu Moana College
+4160,Full Primary,Current Whale Primary School
+4204,Composite,Tui Shark Area School
+4205,Full Primary,Clearwater Dolphin Primary School
+4207,Composite,Ocean Orca Area School
+4208,Composite,Blue Barracuda Area School
+4209,Full Primary,Golden Wrasse Primary School
+4211,Composite,Korora Pufferfish Area School
+4212,Composite,Kelp Octopus Area School
+4217,Composite,Penguin Gannet Area School
+4218,Full Primary,Kelp Coral Primary School
+4223,Full Primary,Bay Octopus Primary School
+4226,Composite,Deepwater Turtle Area School
+4227,Composite,Penguin Oystercatcher Area School
+4228,Composite,Snapper Kelp Area School
+4229,Full Primary,Tidal Heron Primary School
+4230,Composite,Seagrass Bluefish Area School
+4535,Composite,Seashell Kelp Area School
+4539,Secondary (Year 9-15),Silver Koura College
+4541,Full Primary,Eastern Fantail Primary School
+4543,Secondary (Year 9-15),Saltwater Trevally College
+4545,Secondary (Year 7-15),Tern Kelp College
+4546,Secondary (Year 9-15),Hidden Starfish College
+4547,Secondary (Year 7-15),Harakeke Hapuku College
+4548,Secondary (Year 9-15),Seagrass Piper College
+4549,Secondary (Year 9-15),Bright Albatross College
+4550,Composite,Western Petrel Area School
+4551,Secondary (Year 9-15),Bright Bluefish College
+4552,Composite,Pacific Kahawai Area School
+4556,Specialist School,Korora Paua Specialist School
+4559,Secondary (Year 7-15),Rockpool Hoiho College
+4560,Composite,Korora Kea Area School
+4566,Secondary (Year 9-15),Seagrass Pufferfish College
+6070,Contributing,Kelp Kina Primary School
+6109,Activity Centre,Pohutukawa Bluefish Activity Centre
+6110,Activity Centre,Saltwater Shrimp Activity Centre
+6111,Activity Centre,Northern Tuna Activity Centre
+6113,Activity Centre,Cove Jellyfish Activity Centre
+6116,Activity Centre,Seashell Tern Activity Centre
+6117,Activity Centre,Seagrass Prawn Activity Centre
+6118,Activity Centre,Paua Kea Activity Centre
+6119,Activity Centre,Silver Nautilus Activity Centre
+6124,Activity Centre,Korora Penguin Activity Centre
+6125,Activity Centre,Pebble Moki Activity Centre
+6126,Activity Centre,Manuka Whale Activity Centre
+6127,Activity Centre,Rising Kakapo Activity Centre
+6128,Activity Centre,Harakeke Tuna Activity Centre
+6741,Contributing,Shell Moana Primary School
+6742,Contributing,Seahorse Petrel Primary School
+6759,Contributing,Shell Tuna Primary School
+6760,Intermediate,Harakeke Swordfish Intermediate School
+6763,Secondary (Year 7-15),Pebble Turtle College
+6783,Full Primary,Pounamu Piwakawaka Primary School
+6788,Full Primary,Seahorse Jellyfish Primary School
+6920,Contributing,Southern Piper Primary School
+6921,Contributing,Golden Hoiho Primary School
+6922,Full Primary,Saltwater Kakapo Primary School
+6929,Secondary (Year 9-15),Wave Ruru College
+6930,Secondary (Year 9-15),Pacific Crab College
+6932,Contributing,Wave Oystercatcher Primary School
+6937,Contributing,Saltwater Tui Primary School
+6939,Full Primary,Silver Tarakihi Primary School
+6940,Contributing,Sandy Anemone Primary School
+6941,Contributing,Blue Hapuku Primary School
+6944,Full Primary,Blue Albatross Primary School
+6945,Contributing,Bay Rockpool Primary School
+6946,Contributing,Saltwater Hapuku Primary School
+6947,Full Primary,Harakeke Octopus Primary School
+6948,Secondary (Year 7-10),Manuka Barracuda College
+6955,Contributing,Harbour Kingfisher Primary School
+6959,Contributing,Shore Moana Primary School
+6960,Contributing,Foam Crab Primary School
+6962,Secondary (Year 7-15),Silver Seal College
+6963,Secondary (Year 7-15),Silver Kina College
+6967,Full Primary,Bright Skink Primary School
+6975,Secondary (Year 9-15),Reef Ruru College
+6976,Contributing,Mangrove Fantail Primary School
+6977,Secondary (Year 9-15),Wave Pipit College
+6978,Full Primary,Coastal Piper Primary School
+6980,Full Primary,Misty Pipit Primary School
+10000,Composite,Dolphin Shark Area School
+10001,Composite,Shore Kahawai Area School
+10002,Full Primary,Wave Rockpool Primary School
+10003,Composite,Foam Cockle Area School

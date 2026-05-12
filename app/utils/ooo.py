@@ -163,6 +163,7 @@ def load_weekly_stats(as_of_date: str | None = None):
     return summary_df, users_by_role_df, respondents_by_survey_df
 
 def trim_graph_df(df: pd.DataFrame, week_ending_date) -> pd.DataFrame:
+    import numpy as np
     df = df.copy().sort_values("AuditDay").reset_index(drop=True)
 
     df["AuditDay"] = pd.to_datetime(df["AuditDay"])
@@ -173,7 +174,18 @@ def trim_graph_df(df: pd.DataFrame, week_ending_date) -> pd.DataFrame:
     idx = df.index[df["CumulativeTotal"] != 0].tolist()
     if len(idx) > 0:
         df = df.iloc[idx[0]:].reset_index(drop=True)
+    
+    last_string = df["KeyDates"][
+        df["KeyDates"].apply(lambda x: isinstance(x, str))
+    ].iloc[-1]
+    last_string_label = df["KeyDatesDescription"][
+        df["KeyDatesDescription"].apply(lambda x: isinstance(x, str))
+    ].iloc[-1]
+    if(last_string == "START DATE"):
+        df.loc[df.index[-1], "KeyDates"] = "END DATE"
+        df.loc[df.index[-1], "KeyDatesDescription"] = last_string_label
 
+        #df.loc[df.index[-1], ["KeyDates", "KeyDates"]] = ["Value1", "Value2"]
     return df
 # =========================================================
 # Outlook email helpers
@@ -1910,8 +1922,12 @@ def build_weekly_stats_pdf(
     )
 
     user_lines = [
-        f"{num} {role} logins activated"
-        for num, role in zip(users_by_role_df["NewUsersThisWeek"], users_by_role_df["RoleTitle"])
+        f"{num} {role} login activated" if num == 1
+        else f"{num} {role} logins activated"
+        for num, role in zip(
+            users_by_role_df["NewUsersThisWeek"],
+            users_by_role_df["RoleTitle"]
+        )
     ]
     survey_lines = [
         f"{num} new {survey_title}s Recorded"
@@ -2131,7 +2147,7 @@ def build_weekly_stats_pdf(
 
 if __name__ == "__main__":
     load_dotenv()
-    as_of = '2026-05-11' 
+    as_of = "2026-05-11"
     out_dir = Path("out")
     out_dir.mkdir(exist_ok=True)
 

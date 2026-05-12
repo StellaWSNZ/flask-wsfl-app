@@ -108,7 +108,7 @@
                data-school="{{ r.SchoolName }}">
             <div class="entity-overview-card-header px-3 py-3">
   <div class="fs-5 fw-semibold">{{ r.SchoolName }}</div>
-  <div class="small opacity-75">MOE {{ r.MOENumber }}</div>
+  <div class="small opacity-75">MOE Number{% if not demo %} r.MOENumber{%endif%}</div>
 </div>
 <div class="card-body">
 
@@ -158,12 +158,13 @@
                     </ul>
                     {% if r.Contacts|length > 5 %}
                       <button type="button"
-                              class="btn school-type-action-btn btn-sm"
+                              class="btn  btn-outline-secondary btn-sm toggle-users"
                               data-target=".extra-active-{{ r.MOENumber }}"
                               data-show="Show all {{ r.Contacts|length }} users"
                               data-hide="Show less">
                         Show all {{ r.Contacts|length }} users
                       </button>
+
                     {% endif %}
                   {% else %}
                     <div class="text-muted mb-3">No active users.</div>
@@ -216,10 +217,10 @@
                         <tbody>
                           {% for c in r.ClassCounts %}
                             <tr>
-                              <td>{{ c['CalendarYear'] }}</td>
-                              <td>Term {{ c['Term'] }}</td>
-                              <td >{{ c['Count'] }}</td>
-                              <td>{{ c.get('Providers', 'Unassigned') }}</td>
+                              <td style="text-align: center;">{{ c['CalendarYear'] }}</td>
+                              <td style="text-align: center;">Term {{ c['Term'] }}</td>
+                              <td style="text-align: center;">{{ c['Count'] }}</td>
+                              <td style="text-align: center;">{{ c.get('Providers', 'Unassigned') }}</td>
 
                             </tr>
                           {% endfor %}
