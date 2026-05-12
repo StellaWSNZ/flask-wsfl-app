@@ -30,7 +30,7 @@ from sqlalchemy.exc import DBAPIError
 # Local
 from app.extensions import mail
 from app.routes.auth import login_required
-from app.utils.anonymise import anonymise_bulk_email_entities, anonymise_bulk_email_rows, demo_mode_on
+from app.utils.anonymise import anonymise_bulk_email_entities, anonymise_bulk_email_rows, demo_mode_on, get_fake_school_name, load_alt_names
 from app.utils.custom_email import (
     send_elearning_reminder_email,
     send_survey_invitation_email,
@@ -1014,10 +1014,43 @@ def view_my_survey_response(respondent_id):
             role = role_mapping.get(role_code, role_code)
 
             entity = first_row.get("EntityDescription")
+
             if role == "WSNZ Admin":
                 entity = "WSNZ"
 
-            fullname = f"{first_row.get('FirstName') or ''} {first_row.get('Surname') or ''}".strip() or None
+            fullname = (
+                f"{first_row.get('FirstName') or ''} "
+                f"{first_row.get('Surname') or ''}"
+            ).strip() or None
+
+            # -------------------------------------------------
+            # DEMO MODE ANONYMISATION
+            # -------------------------------------------------
+            if demo_mode_on():
+
+                teacher_names = load_alt_names("teacher")
+                fake = teacher_names.iloc[respondent_id % len(teacher_names)]
+
+                fake_first = fake.get("FirstName", "Demo")
+                fake_last = fake.get("LastName", "Teacher")
+
+                fullname = f"{fake_first} {fake_last}"
+                email = f"{str(fake_first).lower()}.{str(fake_last).lower()}@example.com"
+
+                if entity_id:
+                    try:
+                        entity = get_fake_school_name(entity_id)
+                    except Exception:
+                        entity = "Demo School"
+
+                # wipe free-text responses
+                for q in questions.values():
+
+                    if q["type"] not in ("LIK", "T/F"):
+                        q["answer_text"] = "Demo response"
+
+                    # optional:
+                    # q["answer_tf_value"] = None
 
             current_app.logger.info(
                 "📄 Render survey_view | respondent_id=%s | email=%s | title=%s | role=%s | entity=%s",
@@ -1443,7 +1476,6 @@ def staff_survey_admin():
     user_role = session.get("user_role")
     user_id   = session.get("user_id")
 
-    # ---- Read query params (GET form) ----
     requested_entity_type = request.args.get("entity_type") or "Funder"
     selected_entity_id    = request.args.get("entity_id", type=int)
 
@@ -1454,11 +1486,9 @@ def staff_survey_admin():
     try:
         engine = get_db_engine()
 
-        # ---- Determine allowed entity types for this user ----
         allowed_entity_types = _allowed_entity_types(user_role, engine, user_id)
         entity_type = _coerce_entity_type(requested_entity_type, allowed_entity_types)
 
-        # ---- 🔐 Guard: prevent URL tampering ----
         if selected_entity_id:
             allowed_ids = _allowed_entity_ids(
                 entity_type=entity_type,
@@ -1468,12 +1498,43 @@ def staff_survey_admin():
             )
 
             if selected_entity_id not in allowed_ids:
-                flash("Invalid selection! You are unable to acess this entity.", "warning")
+                flash("Invalid selection! You are unable to access this entity.", "warning")
                 return redirect(
                     url_for("survey_bp.staff_survey_admin", entity_type=entity_type)
                 )
 
-        # ---- Fetch survey responses only if entity is valid ----
+        teacher_names = load_alt_names("teacher") if demo_mode_on() else None
+
+        def get_fake_teacher(index):
+            fake = teacher_names.iloc[index % len(teacher_names)]
+
+            first = fake.get("FirstName", f"Teacher{index + 1}")
+            last = fake.get("LastName", "User")
+
+            full_name = f"{first} {last}".strip()
+            email = f"{str(first).lower()}.{str(last).lower()}@example.com"
+
+            return {
+                "first": first,
+                "last": last,
+                "name": full_name,
+                "email": email,
+            }
+
+        def anonymise_details(title, subject_fake, reviewer_fake):
+            title = title or ""
+
+            if title == "Self Review":
+                return f"Self Review by {reviewer_fake['name']}"
+
+            if "Teacher Assessment" in title:
+                return f"{title} about {subject_fake['name']} by {reviewer_fake['name']}"
+
+            if "External Review" in title or "Extenal Review" in title:
+                return f"{title} about {subject_fake['name']} by {reviewer_fake['name']}"
+
+            return title
+
         if selected_entity_id:
             et_code = ET_CODE.get(entity_type, entity_type[:3].upper())
 
@@ -1483,29 +1544,49 @@ def staff_survey_admin():
                     (et_code, selected_entity_id),
                 ).mappings()
 
-                for row in result:
-                    first = row.get("FirstName") or ""
-                    last  = row.get("Surname") or ""
-                    name  = f"{first} {last}".strip()
+                for i, row in enumerate(result):
+                    title = row.get("Title") or ""
+
+                    if demo_mode_on():
+                        subject_fake = get_fake_teacher(i)
+                        reviewer_fake = get_fake_teacher(i + 7)
+
+                        first = subject_fake["first"]
+                        last = subject_fake["last"]
+                        name = subject_fake["name"]
+                        email = subject_fake["email"]
+                        subject_email = subject_fake["email"]
+
+                        details = anonymise_details(
+                            title,
+                            subject_fake=subject_fake,
+                            reviewer_fake=reviewer_fake,
+                        )
+                    else:
+                        first = row.get("FirstName") or ""
+                        last  = row.get("Surname") or ""
+                        name  = f"{first} {last}".strip()
+                        email = row.get("Email") or ""
+                        subject_email = row.get("SubjectEmail") or row.get("Email")
+                        details = row.get("Details")
 
                     staff_surveys.append({
                         "FirstName": first,
                         "Surname": last,
                         "Name": name,
-                        "Email": row.get("Email") or "",
-                        "Title": row.get("Title") or "",
+                        "Email": email,
+                        "Title": title,
                         "SubmittedDate": row.get("SubmittedDate"),
-                        "Details": row.get("Details"),
-                        "SubjectEmail": row.get("SubjectEmail") or row.get("Email"),
+                        "Details": details,
+                        "SubjectEmail": subject_email,
                         "RespondentID": row.get("RespondentID"),
-                        "BadgeClass": _badge_class(row.get("Title") or ""),
+                        "BadgeClass": _badge_class(title),
                     })
 
     except Exception as e:
         traceback.print_exc()
         flash("An error occurred while loading survey data.", "danger")
 
-        # ---- Log but never break the response ----
         try:
             log_alert(
                 email=session.get("user_email"),
@@ -1522,7 +1603,6 @@ def staff_survey_admin():
         except Exception:
             pass
 
-    # ---- Precompute titles for filter dropdown ----
     form_titles = sorted({s["Title"] for s in staff_surveys if s.get("Title")})
 
     return render_template(
@@ -1533,6 +1613,7 @@ def staff_survey_admin():
         staff_surveys=staff_surveys,
         form_titles=form_titles,
     )
+
 # ---------- API: all users for instructor dropdown ----------
 @survey_bp.get("/api/FlaskGetAllUsers")
 def api_flask_get_all_users():

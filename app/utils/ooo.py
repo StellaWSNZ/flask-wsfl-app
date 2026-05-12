@@ -2147,7 +2147,7 @@ def build_weekly_stats_pdf(
 
 if __name__ == "__main__":
     load_dotenv()
-    as_of = "2026-05-11"
+    as_of = "2026-05-18"
     out_dir = Path("out")
     out_dir.mkdir(exist_ok=True)
 

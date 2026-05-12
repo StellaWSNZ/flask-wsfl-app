@@ -3,8 +3,7 @@
 {% block title %}Staff Maintenance{% endblock %}
 {% block content %}
 
-<div class="container mt-5" style="max-width: 80%;">
-
+<div class="container mt-5 staff-page" style="max-width: 80%;">
 {% if user_role in ["ADM", "FUN", "GRP", "PRO", "MOE"] %}
   <form method="POST" class="mb-4" id="entityForm">
     <div class="row g-2 align-items-end justify-content-center">
@@ -44,11 +43,11 @@
 
      {% endif %}
 
-  <div class="col-md-2">
-    <button type="submit" class="btn btn-primary w-100">
-      {% if user_role == "MOE" %}View Staff{% else %}Submit{% endif %}
-    </button>
-  </div>
+    <div class="col-md-2">
+      <button type="submit" class="btn btn-primary w-100">
+        {% if user_role == "MOE" %}View Staff{% else %}Submit{% endif %}
+      </button>
+    </div>
 
     </div>
   </form>

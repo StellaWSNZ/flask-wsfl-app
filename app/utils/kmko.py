@@ -101,8 +101,10 @@ def tidy_kmko_counts_df(df: pd.DataFrame) -> pd.DataFrame:
     for c in ["ParticipantCount", "NewParticipantsThisMonth"]:
         out[c] = pd.to_numeric(out[c], errors="coerce").fillna(0).astype(int)
 
-    out["LatestDateTimeStampNZ"] = pd.to_datetime(out["LatestDateTimeStampNZ"], errors="coerce")
-    out["Latest update"] = out["LatestDateTimeStampNZ"].dt.strftime("%d %b %Y")
+    out["Latest update"] = out["LatestDateTimeStampNZ"].apply(
+        lambda x: pd.to_datetime(x, errors="coerce").strftime("%d %b %Y")
+        if pd.notna(x) else "—"
+    )
 
     out = out.rename(
         columns={

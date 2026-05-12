@@ -28,7 +28,8 @@ from app.utils.custom_email import  send_class_list_reminder_email, send_elearni
 
 from app.utils.database import get_db_engine, log_alert, get_years, get_terms
 from app.utils.wsfl_email import send_account_invites
-
+from app.utils.anonymise import anonymise_entity_name, anonymise_staff_df, anonymise_staff_list, demo_mode_on, get_fake_school_name
+import pandas as pd
 # Blueprint
 staff_bp = Blueprint("staff_bp", __name__)
 @staff_bp.route("/Staff", methods=["GET", "POST"])
@@ -187,7 +188,19 @@ def staff_maintenance():
                     message=f"Staff: data fetch failed for {selected_entity_type} {selected_entity_id}: {e}\n{traceback.format_exc()}"[:4000],
                 )
         provider_add_school_allowed = 1 if (("CLM" in (session.get("desc") or "").upper()) and user_role!="FUN") or (session.get("desc")=="Example Provider #1") else 0
+        if not (staff_data.empty):
+            print(staff_data.columns)
+            staff_data2 = anonymise_staff_list(staff_data.where(pd.notnull(staff_data), None).to_dict(orient="records"))
+        if demo_mode_on() and selected_entity_name:
+            if selected_entity_type == "School":
+                selected_entity_name = get_fake_school_name(selected_entity_id)
 
+            elif selected_entity_type in ("Funder", "Provider", "Group"):
+                selected_entity_name = anonymise_entity_name(
+                    selected_entity_id,
+                    selected_entity_type,
+                    original_value=selected_entity_name
+                )
         return render_template(
             "staff_maintenance.html",
             entity_type=selected_entity_type,
@@ -200,7 +213,7 @@ def staff_maintenance():
             funder_list=[],
             allowed_popup=funder_popup_allowed,
             funder_popup_allowed=funder_popup_allowed,  # ✅ IMPORTANT for the JS
-            data = staff_data.where(pd.notnull(staff_data), None).to_dict(orient="records"),
+            data =staff_data2 or staff_data.where(pd.notnull(staff_data), None).to_dict(orient="records"),
             columns=columns,
             name=None,
             user_role=user_role,
@@ -371,7 +384,13 @@ def schools_by_funder_region():
         ).fetchall()
 
     # rows contain "id" and "name"
-    schools = [{"id": int(r.id), "name": r.name} for r in rows]
+    schools = [
+        {
+            "id": int(r.id),
+            "name": get_fake_school_name(r.id) if demo_mode_on() else r.name
+        }
+        for r in rows
+    ]
     return jsonify({"ok": True, "schools": schools})
 @staff_bp.get("/helper")
 @login_required
@@ -398,21 +417,31 @@ def helper():
 
             elif req == "ProvidersByFunderID":
                 # Returns providers for a given funder
-                
+
                 result = conn.execute(
                     text("EXEC FlaskHelperFunctions @Request = :req, @Number = :num"),
                     {"req": "ProvidersByFunderID", "num": int(number)}
                 )
+
                 for row in result:
                     # prefer strongly-typed column names if present
-                    pid  = (
+                    pid = (
                         getattr(row, "ProviderID", None)
                         if hasattr(row, "ProviderID") else
                         getattr(row, "id", None)
                     )
+
                     desc = getattr(row, "Description", getattr(row, "Name", None))
+
                     if pid is not None and desc:
-                        out.append({"id": int(pid), "name": desc})
+                        out.append({
+                            "id": int(pid),
+                            "name": (
+                                anonymise_entity_name(pid,"Provider")
+                                if demo_mode_on()
+                                else desc
+                            )
+                        })
                     
             else:
                 return jsonify([]), 400
@@ -1044,9 +1073,13 @@ def staff_eLearning():
 
         course_ids = [str(r.ELearningCourseID) for r in active_courses]
 
+        course_ids = [str(r.ELearningCourseID) for r in active_courses]
+
         grouped = {}
+
         for r in el_rows:
             em = r.Email
+
             if em not in grouped:
                 grouped[em] = {
                     "Email": em,
@@ -1054,10 +1087,43 @@ def staff_eLearning():
                     "Surname": r.Surname,
                     "Courses": {},
                 }
+
             grouped[em]["Courses"][str(r.CourseID)] = {
                 "CourseName": r.CourseName,
                 "Status": r.Status,
             }
+
+        # anonymise here
+        if grouped:
+            staff_rows = []
+
+            for email, person in grouped.items():
+                staff_rows.append({
+                    "OriginalEmail": email,
+                    "Email": person.get("Email"),
+                    "FirstName": person.get("FirstName"),
+                    "Surname": person.get("Surname"),
+                })
+
+            staff_df = pd.DataFrame(staff_rows)
+            staff_df = anonymise_staff_df(staff_df)
+
+            anonymised_grouped = {}
+
+            for _, row in staff_df.iterrows():
+                original_email = row["OriginalEmail"]
+                fake_email = row["Email"]
+
+                old_person = grouped[original_email]
+
+                anonymised_grouped[fake_email] = {
+                    "Email": fake_email,
+                    "FirstName": row["FirstName"],
+                    "Surname": row["Surname"],
+                    "Courses": old_person["Courses"],
+                }
+
+            grouped = anonymised_grouped
 
         # nice title
         if user_role in ("PRO", "MOE", "GRP"):
@@ -1067,7 +1133,16 @@ def staff_eLearning():
                 (e["name"] for e in entity_list if str(e["id"]) == str(selected_entity_id)),
                 "Selected",
             )
+        if demo_mode_on() and selected_name:
+            if selected_entity_type == "School":
+                selected_name = get_fake_school_name(selected_entity_id)
 
+            elif selected_entity_type in ("Funder", "Provider", "Group"):
+                selected_name = anonymise_entity_name(
+                    selected_entity_id,
+                    selected_entity_type,
+                    original_value=selected_name
+                )
         return render_template(
             "staff_elearning.html",
             staff_eLearning_data=grouped,

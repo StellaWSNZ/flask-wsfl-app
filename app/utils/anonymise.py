@@ -120,6 +120,8 @@ def fake_class_name(class_id, moe_number=None) -> str:
 
 
 def get_fake_school_name(moe_number):
+    if not demo_mode_on:
+        return moe_number
     if pd.isna(moe_number):
         return moe_number
 
@@ -556,33 +558,43 @@ def anonymise_named_list(rows, name_cols):
 
     return out
 
-
 def anonymise_staff_list(rows):
     if not rows or not demo_mode_on():
         return rows
 
     out = []
 
-    for i, row in enumerate(rows, start=1):
+    teacher_names = load_alt_names("teacher")
+
+    for i, row in enumerate(rows):
         row = dict(row)
 
+        fake = teacher_names.iloc[i % len(teacher_names)]
+
+        first = fake["FirstName"]
+        last = fake["LastName"]
+
         if "FirstName" in row:
-            row["FirstName"] = f"Staff{i}"
+            row["FirstName"] = first
 
         if "LastName" in row:
-            row["LastName"] = "User"
+            row["LastName"] = last
+
+        if "Surname" in row:
+            row["Surname"] = last
 
         if "Name" in row:
-            row["Name"] = f"Staff {i}"
+            row["Name"] = f"{first} {last}"
 
         if "Email" in row:
-            row["Email"] = f"staff{i}@demo.school.nz"
+            row["Email"] = f"{first.lower()}.{last.lower()}@example.com"
+
+        if "AlternateEmail" in row:
+            row["AlternateEmail"] = f"{first.lower()}.{last.lower()}2@example.co.nz"
 
         out.append(row)
 
     return out
-
-
 
 def fake_bulk_entity_label(entity_id, entity_type=None):
     prefix = "Entity"
@@ -636,3 +648,28 @@ def anonymise_bulk_email_rows(rows):
             )
 
     return df.to_dict("records")
+
+def anonymise_survey_details(title, details, subject_first, subject_last, reviewer_first, reviewer_last):
+
+    if not demo_mode_on():
+        return details
+
+    title = title or ""
+    details = details or ""
+
+    subject_name = f"{subject_first} {subject_last}".strip()
+    reviewer_name = f"{reviewer_first} {reviewer_last}".strip()
+
+    fake_subject = "Teacher A"
+    fake_reviewer = "Teacher B"
+
+    if title == "Self Review":
+        return f"Self Review by {fake_reviewer}"
+
+    if "Teacher Assessment" in title:
+        return f"{title} about {fake_subject} by {fake_reviewer}"
+
+    if "External Review" in title or "Extenal Review" in title:
+        return f"{title} about {fake_subject} by {fake_reviewer}"
+
+    return details

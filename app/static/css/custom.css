@@ -560,8 +560,9 @@ thead.custom-header th {
 .staff-empty-alert {
   background-color: var(--staff-soft);
   border: 1px solid var(--staff-main);
-  color: var(--dk-gray);
+  color: var(--staff-main);
   border-radius: 10px;
+  font-weight: 600;
 }
 
 /* Action row */
