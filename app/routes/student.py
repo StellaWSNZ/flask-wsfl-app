@@ -1,10 +1,13 @@
 # app/routes/student.py
+import math
 import traceback
 from flask import Blueprint, render_template, request, jsonify, session, current_app
+import pandas as pd
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.routes.auth import login_required
+from app.utils.anonymise import anonymise_student_rows, anonymise_student_search_rows, demo_mode_on
 from app.utils.database import get_db_engine, log_alert
 
 students_bp = Blueprint("students_bp", __name__)
@@ -65,7 +68,48 @@ def student_search_page():
 
         current_app.logger.exception("/Students failed")
         return _json_error("Unexpected error occurred", 500)
+def clean_for_json(rows):
+    if not rows:
+        return rows
 
+    cleaned = []
+
+    int_cols = {
+        "CalendarYear",
+        "Term",
+        "YearLevelID",
+        "EthnicityID",
+        "LatestMOENumber",
+        "LatestClassID",
+        "LatestClassTerm",
+        "LatestClassYear",
+    }
+
+    for row in rows:
+        new_row = {}
+
+        for key, value in row.items():
+            if value is None:
+                new_row[key] = None
+
+            elif pd.isna(value):
+                new_row[key] = None
+
+            elif isinstance(value, float) and math.isnan(value):
+                new_row[key] = None
+
+            elif key in int_cols and value is not None:
+                try:
+                    new_row[key] = int(value)
+                except Exception:
+                    new_row[key] = value
+
+            else:
+                new_row[key] = value
+
+        cleaned.append(new_row)
+
+    return cleaned
 @students_bp.route("/Students/search")
 @login_required
 def live_student_search():
@@ -82,30 +126,45 @@ def live_student_search():
 
         engine = get_db_engine()
 
-        # IMPORTANT: don't pass query into 3 params if the SQL uses AND logic
-        params = {
-            "FirstName": query,        # use this as the general "name/fragment" input
-            "LastName": None,
-            "PreferredName": None,
-            "DateOfBirth": None,
-            "MOENumber": moe_number
-        }
+        def run_search(search_text):
+            params = {
+                "FirstName": search_text,
+                "LastName": None,
+                "PreferredName": None,
+                "DateOfBirth": None,
+                "MOENumber": moe_number,
+            }
 
-        with engine.connect() as conn:
-            result = conn.execute(
-                text("""
-                    EXEC dbo.FlaskStudentSearch
-                        @FirstName      = :FirstName,
-                        @LastName       = :LastName,
-                        @PreferredName  = :PreferredName,
-                        @DateOfBirth    = :DateOfBirth,
-                        @MOENumber      = :MOENumber
-                """),
-                params
-            )
-            rows = result.fetchall()
+            with engine.connect() as conn:
+                result = conn.execute(
+                    text("""
+                        EXEC dbo.FlaskStudentSearch
+                            @FirstName      = :FirstName,
+                            @LastName       = :LastName,
+                            @PreferredName  = :PreferredName,
+                            @DateOfBirth    = :DateOfBirth,
+                            @MOENumber      = :MOENumber
+                    """),
+                    params,
+                )
 
-        return jsonify([dict(r._mapping) for r in rows])
+                return [dict(r._mapping) for r in result.fetchall()]
+
+        rows = run_search(query)
+
+        # Optional demo-mode fallback:
+        # lets fake/demo names still show results even when the typed name
+        # does not exist in the real database.
+        if demo_mode_on() and not rows:
+            for fallback in ["a", "e", "i", "o", "s", "m"]:
+                rows = run_search(fallback)
+                if rows:
+                    break
+
+        rows = anonymise_student_search_rows(rows, query=query)
+        rows = clean_for_json(rows)
+
+        return jsonify(rows)
 
     except Exception as e:
         try:

@@ -220,8 +220,8 @@ document.addEventListener("DOMContentLoaded", function() {
   // --- Helper: build <option> element
   function opt(v, t, selValue) {
     const o = document.createElement("option");
-    o.value = String(v ? ? "");
-    o.textContent = String(t ? ? "");
+    o.value = String(v ?? "");
+    o.textContent = String(t ?? "");
     if (selValue != null && String(selValue) === String(v)) o.selected = true;
     return o;
   }

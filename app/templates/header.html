@@ -42,6 +42,20 @@
       color: white !important;
       font-weight: 600;
     }
+
+    .demo-pill {
+  background: #f59e0b;
+  color: white;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 0.28rem 0.7rem;
+  border-radius: 999px;
+  text-transform: uppercase;
+  line-height: 1;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+  white-space: nowrap;
+}
   </style>
 
   {% block head %}{% endblock %}
@@ -90,11 +104,32 @@
   {% set active_bulk_emails = ep == "survey_bp.bulk_emails" %}
 
   <nav class="navbar navbar-expand-lg navbar-dark custom-navbar py-2 fixed-top">
-    <div class="container-fluid px-2 px-sm-3">
-      <a class="navbar-brand d-flex align-items-center" href="{{ url_for('home_bp.home') }}" aria-label="Home">
-        <img src="{{ url_for('static', filename='LightLogo.png') }}" alt="Water Skills for Life — Home" class="img-fluid" style="height: 40px; margin-right: 12px" />
-      </a>
+  <div class="container-fluid px-2 px-sm-3">
 
+    <a
+      class="navbar-brand d-flex align-items-center gap-2"
+      href="{{ url_for('home_bp.home') }}"
+      aria-label="Home"
+    >
+
+      <img
+        src="{{ url_for(
+            'static',
+            filename='OrangeLogo.png' if config.get("DEMO_MODE")
+            else 'LightLogo.png'
+        ) }}"
+        alt="Water Skills for Life — Home"
+        class="img-fluid"
+        style="height: 42px;"
+      />
+
+      {% if config.get("DEMO_MODE") %}
+      <span class="demo-pill">
+        Demo Database
+      </span>
+      {% endif %}
+
+    </a>
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
         <span class="navbar-toggler-icon"></span>
       </button>

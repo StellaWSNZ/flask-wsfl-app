@@ -118,6 +118,7 @@ block content %}
   const sortSelect = document.getElementById("sort-select");
 
   let debounceTimer;
+  let latestStudents = [];
 
   function showNotification(message, type = "success") {
     const notif = document.getElementById("notification");
@@ -140,11 +141,41 @@ block content %}
     notif.textContent = "";
   }
 
+  function escapeHtml(value) {
+    return String(value ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  function normaliseStudent(student) {
+    return {
+      ...student,
+      NSN: student.NSN ?? "",
+      FirstName: student.FirstName ?? "",
+      LastName: student.LastName ?? "",
+      PreferredName: student.PreferredName ?? "",
+      DateOfBirth: student.DateOfBirth ?? "",
+      EthnicityID: student.EthnicityID ?? "",
+      EthnicityDesc: student.EthnicityDesc ?? "",
+      YearLevelID: student.YearLevelID ?? "",
+      Term: student.Term ?? "",
+      CalendarYear: student.CalendarYear ?? "",
+      LatestSchoolName: student.LatestSchoolName ?? "",
+    };
+  }
+
   function sortStudents(data, sortOption) {
     const [key, direction] = sortOption.split("_");
-    return data.sort((a, b) => {
-      if (a[key] < b[key]) return direction === "asc" ? -1 : 1;
-      if (a[key] > b[key]) return direction === "asc" ? 1 : -1;
+
+    return [...data].sort((a, b) => {
+      const av = String(a[key] ?? "").toLowerCase();
+      const bv = String(b[key] ?? "").toLowerCase();
+
+      if (av < bv) return direction === "asc" ? -1 : 1;
+      if (av > bv) return direction === "asc" ? 1 : -1;
       return 0;
     });
   }
@@ -158,47 +189,53 @@ block content %}
       return;
     }
 
-    const sorted = sortStudents(data, sortSelect.value);
+    const safeData = data.map(normaliseStudent);
+    const sorted = sortStudents(safeData, sortSelect.value);
 
     sorted.forEach((student) => {
       const col = document.createElement("div");
       col.className = "col-md-6 col-lg-4";
 
+      const firstName = escapeHtml(student.FirstName);
+      const lastName = escapeHtml(student.LastName);
+      const preferredName = escapeHtml(student.PreferredName);
+      const dateOfBirth = escapeHtml(student.DateOfBirth);
+      const ethnicityDesc = escapeHtml(student.EthnicityDesc);
+      const yearLevel = escapeHtml(student.YearLevelID);
+      const term = escapeHtml(student.Term);
+      const year = escapeHtml(student.CalendarYear);
+      const nsn = escapeHtml(student.NSN);
+      const latestSchool = escapeHtml(student.LatestSchoolName);
+      const ethnicityID = escapeHtml(student.EthnicityID);
+
       col.innerHTML = `
         <div class="card student-search-card h-100">
           <div class="card-body d-flex flex-column">
             <h5 class="card-title">
-              ${student.FirstName} ${student.LastName}
+              ${firstName} ${lastName}
               ${
-                student.PreferredName
-                  ? `<small class="text-muted">(${student.PreferredName})</small>`
+                preferredName
+                  ? `<small class="text-muted">(${preferredName})</small>`
                   : ""
               }
             </h5>
-            <p class="card-text mb-1"><strong>DOB:</strong> ${
-              student.DateOfBirth ?? ""
-            }</p>
-            <p class="card-text mb-1"><strong>Ethnicity:</strong> ${
-              student.EthnicityDesc ?? ""
-            }</p>
-            <p class="card-text mb-1"><strong>Year Level:</strong> ${
-              student.YearLevelID ?? ""
-            }
-              (Term ${student.Term ?? ""}, ${student.CalendarYear ?? ""})
+
+            <p class="card-text mb-1"><strong>DOB:</strong> ${dateOfBirth}</p>
+            <p class="card-text mb-1"><strong>Ethnicity:</strong> ${ethnicityDesc}</p>
+            <p class="card-text mb-1">
+              <strong>Year Level:</strong> ${yearLevel}
+              (Term ${term}, ${year})
             </p>
-            <p class="card-text mb-1"><strong>NSN:</strong> ${
-              student.NSN ?? ""
-            }</p>
-            <p class="card-text mb-1"><strong>Latest School:</strong> ${
-              student.LatestSchoolName ?? ""
-            }</p>
+            <p class="card-text mb-1"><strong>NSN:</strong> ${nsn}</p>
+            <p class="card-text mb-1"><strong>Latest School:</strong> ${latestSchool}</p>
+
             <div class="mt-auto d-flex justify-content-end">
               <button class="btn btn-sm student-search-action-btn edit-btn"
-                      data-nsn="${student.NSN ?? ""}"
-                      data-first="${student.FirstName ?? ""}"
-                      data-last="${student.LastName ?? ""}"
-                      data-pref="${student.PreferredName ?? ""}"
-                      data-ethnicity="${student.EthnicityID ?? ""}">
+                      data-nsn="${nsn}"
+                      data-first="${firstName}"
+                      data-last="${lastName}"
+                      data-pref="${preferredName}"
+                      data-ethnicity="${ethnicityID}">
                 ✏️ Edit
               </button>
             </div>
@@ -210,68 +247,98 @@ block content %}
     });
   }
 
-  function fetchStudents(query) {
-    return fetch(
-      `/Students/search?q=${encodeURIComponent(query)}&t=${Date.now()}`
-    )
-      .then((response) => response.json())
-      .then((data) => {
-        renderStudents(data);
-        return data; // return for callers that want to re-use it
-      });
+  async function fetchStudents(query) {
+    const response = await fetch(
+    `/Students/search?q=${encodeURIComponent(query)}&t=${Date.now()}`
+  );
+
+  const text = await response.text();
+
+  console.log("Student search status:", response.status);
+  console.log("Student search raw response:", text.slice(0, 500));
+
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch (err) {
+    throw new Error(
+      `Search returned non-JSON response. HTTP ${response.status}. First part: ${text.slice(0, 120)}`
+    );
+  }
+
+  if (!response.ok) {
+    throw new Error(data?.error || data?.message || `HTTP ${response.status}`);
+  }
+
+  if (!Array.isArray(data)) {
+    throw new Error("Student search did not return an array");
+  }
+
+  latestStudents = data.map(normaliseStudent);
+  renderStudents(latestStudents);
+
+  return latestStudents;
   }
 
   function populateModalFromStudent(student) {
-    document.getElementById("edit-nsn").value = student.NSN ?? "";
-    document.getElementById("edit-first-name").value = student.FirstName ?? "";
-    document.getElementById("edit-last-name").value = student.LastName ?? "";
-    document.getElementById("edit-preferred-name").value =
-      student.PreferredName ?? "";
-    document.getElementById("edit-ethnicity").value = student.EthnicityID ?? "";
+    const safeStudent = normaliseStudent(student);
+
+    document.getElementById("edit-nsn").value = safeStudent.NSN;
+    document.getElementById("edit-first-name").value = safeStudent.FirstName;
+    document.getElementById("edit-last-name").value = safeStudent.LastName;
+    document.getElementById("edit-preferred-name").value = safeStudent.PreferredName;
+    document.getElementById("edit-ethnicity").value = safeStudent.EthnicityID;
   }
 
-  // Re-load the modal fields from the server data (ensures persisted values)
   async function reloadModalFromServerByNSN(nsn) {
     const query = searchInput.value.trim();
     if (query.length < 2) return false;
 
-    const data = await fetch(
-      `/Students/search?q=${encodeURIComponent(query)}&t=${Date.now()}`
-    ).then((r) => r.json());
-
-    renderStudents(data);
+    const data = await fetchStudents(query);
 
     const updated = Array.isArray(data)
       ? data.find((s) => String(s.NSN) === String(nsn))
       : null;
+
     if (updated) {
       populateModalFromStudent(updated);
       return true;
     }
+
     return false;
   }
 
   searchInput.addEventListener("input", () => {
     clearTimeout(debounceTimer);
+
     const query = searchInput.value.trim();
+
     if (query.length < 2) {
       resultsList.innerHTML = "";
+      latestStudents = [];
       return;
     }
+
     debounceTimer = setTimeout(() => {
       fetchStudents(query).catch((err) => {
         console.error("❌ Error fetching students:", err);
-        showNotification("❌ Search failed.", "danger");
+        showNotification(`❌ Search failed: ${err.message}`, "danger");
       });
     }, 800);
   });
 
   sortSelect.addEventListener("change", () => {
+    if (latestStudents.length > 0) {
+      renderStudents(latestStudents);
+      return;
+    }
+
     const query = searchInput.value.trim();
+
     if (query.length >= 2) {
       fetchStudents(query).catch((err) => {
         console.error("❌ Error fetching students:", err);
-        showNotification("❌ Search failed.", "danger");
+        showNotification(`❌ Search failed: ${err.message}`, "danger");
       });
     }
   });
@@ -293,6 +360,7 @@ block content %}
     const modal = new bootstrap.Modal(
       document.getElementById("editStudentModal")
     );
+
     modal.show();
   });
 
@@ -300,7 +368,7 @@ block content %}
     .getElementById("editStudentModal")
     .addEventListener("hidden.bs.modal", () => {
       clearModalNotification();
-      // put button text back just in case
+
       const saveBtn = document.getElementById("save-btn");
       saveBtn.disabled = false;
       saveBtn.textContent = "Save Changes";
@@ -336,6 +404,7 @@ block content %}
 
         let body;
         const ct = resp.headers.get("content-type") || "";
+
         if (ct.includes("application/json")) {
           body = await resp.json();
         } else {
@@ -351,35 +420,32 @@ block content %}
             `❌ Update failed: ${body.message || `HTTP ${resp.status}`}`,
             "danger"
           );
+
           saveBtn.disabled = false;
           saveBtn.textContent = "Save Changes";
           return;
         }
 
-        // Re-load from server and show persisted values in the modal
         const found = await reloadModalFromServerByNSN(nsn);
 
         showModalNotification(
           found
             ? "✅ Updated successfully"
-            : "✅ Updated successfully (but couldn’t re-load the updated row)",
+            : "✅ Updated successfully, but couldn’t re-load the updated row",
           "success"
         );
 
-        // Keep the modal open (so user sees success + confirmed fields)
-        // Button returns to normal state
         saveBtn.disabled = false;
         saveBtn.textContent = "Save Changes";
 
-        // Also show a page notification if you want
         showNotification("✅ Student updated!", "success");
       } catch (err) {
         console.error("❌ Error:", err);
-        showModalNotification("❌ Unexpected error", "danger");
+        showModalNotification(`❌ Unexpected error: ${err.message}`, "danger");
+
         saveBtn.disabled = false;
         saveBtn.textContent = "Save Changes";
       }
     });
 </script>
-
 {% endblock %}

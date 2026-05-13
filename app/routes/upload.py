@@ -5,6 +5,7 @@ import threading
 import warnings
 import pandas as pd
 from flask import Blueprint, current_app, render_template, request, session, flash, redirect, url_for, send_file, jsonify, abort
+from app.utils.anonymise import anonymise_entities, anonymise_entity_name, demo_mode_on
 from app.utils.database import get_db_engine, log_alert, get_terms, get_years
 from werkzeug.utils import secure_filename
 from app.routes.auth import login_required
@@ -179,7 +180,7 @@ def classlistupload():
                     }
                 )
                 funders = [dict(row._mapping) for row in result]
-
+        funders = anonymise_entities(funders, "Funder")
         if request.method == 'POST':
             action = request.form.get('action')
 
@@ -914,19 +915,22 @@ def get_schools_for_funder():
                 text("EXEC FlaskHelperFunctions :Request, @Number=:Number"),
                 {"Request": "FilterSchoolID", "Number": funder_id}
             )
-            schools = [row.School for row in result]
+
+            schools = []
+            for row in result:
+                school_name = row.School
+
+                if demo_mode_on():
+                    school_name = anonymise_entity_name(
+                        school_name,
+                        "School",
+                        original_value=school_name
+                    )
+
+                schools.append(school_name)
 
         return jsonify(schools)
 
     except Exception as e:
-        traceback.print_exc()
-        try:
-            log_alert(
-                email=session.get("user_email"), role=session.get("user_role"),
-                entity_id=session.get("user_id"),
-                link=url_for("upload_bp.get_schools_for_funder", _external=True),
-                message=f"/get_schools_for_funder failed: {e}\n{traceback.format_exc()}"[:4000],
-            )
-        except Exception:
-            pass
+        current_app.logger.exception("Failed to get schools for funder")
         return jsonify([]), 500

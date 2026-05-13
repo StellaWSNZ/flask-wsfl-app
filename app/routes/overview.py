@@ -717,6 +717,7 @@ def get_entities():
         return jsonify([]), 500
 
 
+        
 
 @overview_bp.get("/providers")
 @login_required
@@ -741,8 +742,24 @@ def providers_by_funder():
                 {"Request": "ProvidersByFunder", "FunderID": funder_id}
             ).mappings().all()
 
-        providers = [{"id": r["ProviderID"], "name": r["Description"]} for r in rows]
-        return jsonify(providers)
+        providers = [
+            {
+                "id": r["ProviderID"],
+                "description": r["Description"]
+            }
+            for r in rows
+        ]
+
+        providers = anonymise_entities(providers, "Provider")
+
+        return jsonify([
+            {
+                "id": p["id"],
+                "name": p["description"]
+            }
+            for p in providers
+        ])
+
 
     except Exception as e:
         # Log unexpected failure to DB and app logs

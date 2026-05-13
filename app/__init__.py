@@ -38,7 +38,7 @@ def create_app():
 
     app.config["SQLALCHEMY_DATABASE_URI"] = db_url
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-
+    app.config["DEMO_MODE"] = os.getenv("DEMO_MODE", "0") == "1"
     db.init_app(app)
 
     # -----------------------------

@@ -145,7 +145,7 @@ def staff_maintenance():
         staff_data = pd.DataFrame()
         columns = []
         hidden_staff = []
-
+        staff_data2 = None
         if selected_entity_type and selected_entity_id:
             try:
                 with engine.connect() as conn:

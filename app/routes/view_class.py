@@ -2111,6 +2111,7 @@ def get_class_students(class_id):
             "DateOfBirth": str(m.get("DateOfBirth") or "")[:10],
             "Deletable": m.get("Deletable"),
         })
+    out = anonymise_student_records(out)
     return jsonify(out)
 
 @class_bp.route("/search_students")

@@ -216,8 +216,11 @@ def anonymise_students_df(df: pd.DataFrame) -> pd.DataFrame:
             last = str(fake["LastName"]).lower()
             df.at[idx, "Email"] = f"{first}.{last}@example.com"
 
+        if "NSN" in df.columns:
+            df["NSN"] = df["NSN"].astype("object")
+
         if "NSN" in df.columns and pd.notna(row.get("NSN")):
-            df.at[idx, "NSN"] = fake_nsn(row["NSN"])
+            df.at[idx, "NSN"] = str(fake_nsn(row["NSN"]))
 
         if "DateOfBirth" in df.columns and pd.notna(row.get("DateOfBirth")):
             df.at[idx, "DateOfBirth"] = fake_birthdate(row["DateOfBirth"])
@@ -673,3 +676,212 @@ def anonymise_survey_details(title, details, subject_first, subject_last, review
         return f"{title} about {fake_subject} by {fake_reviewer}"
 
     return details
+
+def anonymise_student_records(records):
+    if not demo_mode_on() or not records:
+        return records
+
+    fake_names = load_alt_names("student")
+    out = []
+
+    for i, row in enumerate(records):
+        row = dict(row)
+
+        key = row.get("NSN") or i
+        fake = fake_names.iloc[int(key) % len(fake_names)]
+
+        first = fake.get("FirstName", f"Student{i + 1}")
+        last = fake.get("LastName", "Learner")
+
+        row["FirstName"] = first
+        row["PreferredName"] = first
+        row["LastName"] = last
+
+        if row.get("NSN") is not None:
+            row["NSN"] = 900000000 + i
+
+        # Optional: safer to hide actual DOB
+        if "DateOfBirth" in row:
+            row["DateOfBirth"] = ""
+
+        out.append(row)
+
+    return out
+
+
+import pandas as pd
+
+def anonymise_student_rows(rows):
+    if not demo_mode_on() or not rows:
+        return rows
+
+    df = pd.DataFrame(rows)
+
+    for idx, row in df.iterrows():
+
+        student_key = (
+            row.get("NSN")
+            or row.get("StudentID")
+            or f"{row.get('FirstName', '')}|{row.get('LastName', '')}"
+        )
+
+        fake = get_fake_identity(student_key, "student")
+
+        if "FirstName" in df.columns:
+            df.at[idx, "FirstName"] = fake["FirstName"]
+
+        if "PreferredName" in df.columns:
+            df.at[idx, "PreferredName"] = fake["PreferredName"]
+
+        if "LastName" in df.columns:
+            df.at[idx, "LastName"] = fake["LastName"]
+
+        if "FullName" in df.columns:
+            df.at[idx, "FullName"] = (
+                f"{fake['FirstName']} {fake['LastName']}"
+            )
+
+        if "NSN" in df.columns:
+            df["NSN"] = df["NSN"].astype("object")
+
+        if "NSN" in df.columns and pd.notna(row.get("NSN")):
+            df.at[idx, "NSN"] = str(fake_nsn(row["NSN"]))
+
+        if "DateOfBirth" in df.columns:
+            df.at[idx, "DateOfBirth"] = ""
+
+    return df.to_dict("records")
+
+
+def anonymise_student_search_rows(rows, query=None):
+    if not demo_mode_on() or not rows:
+        return rows
+
+    df = pd.DataFrame(rows)
+
+    if "NSN" in df.columns:
+        df["NSN"] = df["NSN"].astype("object")
+
+    q = (query or "").strip()
+    q_lower = q.lower()
+
+    fake_names = load_alt_names("student")
+
+    used_fake_names = set()
+
+    for idx, row in df.iterrows():
+
+        student_key = (
+            row.get("NSN")
+            or row.get("StudentID")
+            or f"{row.get('FirstName', '')}|{row.get('LastName', '')}|{row.get('DateOfBirth', '')}"
+        )
+
+        fake = get_fake_identity(student_key, "student")
+
+        fake_first = str(fake["FirstName"])
+        fake_preferred = str(fake["PreferredName"])
+        fake_last = str(fake["LastName"])
+
+        # Make demo search results visually match the search query
+        if q_lower:
+            matching_fake_names = fake_names[
+                fake_names["FirstName"].astype(str).str.lower().str.startswith(q_lower)
+                | fake_names["PreferredName"].astype(str).str.lower().str.startswith(q_lower)
+                | fake_names["LastName"].astype(str).str.lower().str.startswith(q_lower)
+            ]
+
+            if not matching_fake_names.empty:
+
+                start_idx = stable_index(student_key, len(matching_fake_names))
+
+                matched_fake = None
+
+                for offset in range(len(matching_fake_names)):
+                    real_idx = (start_idx + offset) % len(matching_fake_names)
+
+                    candidate = matching_fake_names.iloc[real_idx]
+
+                    candidate_key = (
+                        str(candidate["FirstName"]).strip().lower(),
+                        str(candidate["LastName"]).strip().lower(),
+                        str(candidate["PreferredName"]).strip().lower(),
+                    )
+
+                    if candidate_key not in used_fake_names:
+                        matched_fake = candidate
+                        used_fake_names.add(candidate_key)
+                        break
+
+                if matched_fake is not None:
+                    fake_first = str(matched_fake["FirstName"])
+                    fake_preferred = str(matched_fake["PreferredName"])
+                    fake_last = str(matched_fake["LastName"])
+
+            else:
+                clean_query = q[:20].title()
+
+                fake_first = clean_query
+                fake_preferred = clean_query
+
+        fake_identity_key = (
+            fake_first.strip().lower(),
+            fake_last.strip().lower(),
+            fake_preferred.strip().lower(),
+        )
+
+        if fake_identity_key in used_fake_names:
+            continue
+
+        used_fake_names.add(fake_identity_key)
+
+        if "FirstName" in df.columns:
+            df.at[idx, "FirstName"] = fake_first
+
+        if "PreferredName" in df.columns:
+            df.at[idx, "PreferredName"] = fake_preferred
+
+        if "LastName" in df.columns:
+            df.at[idx, "LastName"] = fake_last
+
+        if "FullName" in df.columns:
+            df.at[idx, "FullName"] = f"{fake_preferred} {fake_last}"
+
+        if "Name" in df.columns:
+            df.at[idx, "Name"] = f"{fake_preferred} {fake_last}"
+
+        if "NSN" in df.columns and pd.notna(row.get("NSN")):
+            df.at[idx, "NSN"] = str(fake_nsn(row["NSN"]))
+
+        if "DateOfBirth" in df.columns:
+            df.at[idx, "DateOfBirth"] = ""
+            if "LatestSchoolName" in df.columns:
+
+                school_id = (
+                    row.get("LatestMOENumber")
+                    or row.get("MOENumber")
+                    or row.get("SchoolID")
+                    or row.get("SchoolName")
+                )
+
+                df.at[idx, "LatestSchoolName"] = get_fake_school_name(school_id)
+    out = df.to_dict("records")
+
+    seen = set()
+    unique_rows = []
+
+    for row in out:
+
+        key = (
+            str(row.get("FirstName", "")).strip().lower(),
+            str(row.get("LastName", "")).strip().lower(),
+            str(row.get("PreferredName", "")).strip().lower(),
+        )
+
+        if key in seen:
+            continue
+
+        seen.add(key)
+        unique_rows.append(row)
+
+    return unique_rows
