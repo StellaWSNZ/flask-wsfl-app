@@ -120,7 +120,7 @@ def fake_class_name(class_id, moe_number=None) -> str:
 
 
 def get_fake_school_name(moe_number):
-    if not demo_mode_on:
+    if not demo_mode_on():
         return moe_number
     if pd.isna(moe_number):
         return moe_number

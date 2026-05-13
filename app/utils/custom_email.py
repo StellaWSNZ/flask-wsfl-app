@@ -4,7 +4,15 @@ from itsdangerous import URLSafeTimedSerializer
 from flask import current_app, render_template, url_for
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 import os
+from app.utils.anonymise import demo_mode_on
+def safe_recipients(recipients):
+    """
+    In demo mode, redirect all outgoing emails to Stella.
+    """
+    if demo_mode_on():
+        return ["stellajanemcgann@gmail.com"]
 
+    return recipients
 
 def send_reset_email(mail, email, token):
     reset_url = url_for(
@@ -15,7 +23,7 @@ def send_reset_email(mail, email, token):
 
     msg = Message(
         subject="Water Skills for Life – Reset your password",
-        recipients=[email],
+        recipients=safe_recipients([email]),
         sender=current_app.config.get("MAIL_DEFAULT_SENDER"),
     )
 
@@ -100,7 +108,7 @@ def send_survey_invite_email(
     msg = Message(
         subject=subject,
         sender=("WSFL Administration Team", current_app.config["MAIL_DEFAULT_SENDER"]),
-        recipients=[recipient_email],
+        recipients=safe_recipients([recipient_email]),
     )
     msg.reply_to = requester_email
 
@@ -145,7 +153,7 @@ def send_survey_reminder_email(
     msg = Message(
         subject="Reminder: Complete Your Self Review",
         sender=("WSFL Administration Team", current_app.config["MAIL_DEFAULT_SENDER"]),
-        recipients=[email]
+        recipients=safe_recipients([email])
     )
 
     # reply-to = person who triggered it
@@ -185,7 +193,7 @@ def send_survey_invitation_email(mail, email, firstname, lastname, role, user_id
 
     msg = Message(
         subject="Your Self Review Survey Link",
-        recipients=[email],
+        recipients=safe_recipients([email]),
         sender=(f"{requested_by} via WSFL", current_app.config["MAIL_DEFAULT_SENDER"])
     )
     if from_org == "None":
@@ -281,7 +289,7 @@ def send_elearning_reminder_email(
     msg = Message(
         subject="Reminder: Complete Your eLearning Courses",
         sender=("WSFL Administration Team", current_app.config["MAIL_DEFAULT_SENDER"]),
-        recipients=[email]
+        recipients=safe_recipients([email])
     )
 
     # If your mail setup/version supports it:
@@ -359,7 +367,7 @@ def send_class_list_reminder_email(
     msg = Message(
         subject=f"Reminder: Upload your class lists for Term {term}, {calendar_year}",
         sender=("WSFL Administration Team", current_app.config["MAIL_DEFAULT_SENDER"]),
-        recipients=[recipient_email],
+        recipients=safe_recipients([recipient_email]),
     )
 
     msg.reply_to = requester_email
