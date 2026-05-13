@@ -10,14 +10,20 @@ from sqlalchemy import create_engine
 import os, urllib.parse
 from dotenv import load_dotenv
 
+from dotenv import load_dotenv
+from sqlalchemy import create_engine
+from app.utils.anonymise import demo_mode_on
+import os
+
+
 def get_db_engine():
     load_dotenv()
 
-    #env = os.getenv("FLASK_ENV", "local").lower()
-    db_url = os.getenv("DB_URL")
-        
-    
-    
+    if demo_mode_on():
+        db_url = os.getenv("DEMO_DB_URL")
+    else:
+        db_url = os.getenv("DB_URL")
+
     engine = create_engine(
         db_url,
         pool_pre_ping=True,
@@ -27,7 +33,6 @@ def get_db_engine():
         pool_timeout=30,
         future=True,
     )
-    
 
     return engine
     
