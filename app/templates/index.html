@@ -530,39 +530,60 @@
       <div class="col-md-6">
 
         {% if student_summary %}
-        <div class="card summary-card compact mb-3 student-summary-card">
-          <div class="card-body">
-            <h5 class="card-title text-primary mb-3">Student Summary</h5>
+<div class="card summary-card compact mb-3 student-summary-card">
+  <div class="card-body">
+    <h5 class="card-title text-primary mb-3">Student Summary</h5>
 
-            <div class="row align-items-center">
-              <div class="col-6">
-                <div class="student-ytd-number">
-                  {{ "{:,}".format(student_summary.StudentYTD or 0) }}
-                </div>
-                <div class="student-ytd-label">
-                  students this funding year to date
-                </div>
-              </div>
-
-              <div class="col-6 student-summary-text text-muted">
-                <p class="mb-2">
-                  Last full funding year:
-                  <strong class="text-dark">
-                    {{ "{:,}".format(student_summary.StudentLastFullFundingYear or 0) }}
-                  </strong>
-                </p>
-
-                <p class="mb-0">
-                  All-time unique students:
-                  <strong class="text-dark">
-                    {{ "{:,}".format(student_summary.StudentUnique or 0) }}
-                  </strong>
-                </p>
-              </div>
-            </div>
-          </div>
+    <div class="row align-items-center">
+      
+      <!-- LEFT -->
+      <div class="col-5">
+        <div class="student-ytd-number">
+          {{ "{:,}".format(student_summary.TotalStudentsYTD or student_summary.StudentYTD or 0) }}
         </div>
-        {% endif %}
+
+        <div class="student-ytd-label">
+          total students this funding year to date
+        </div>
+      </div>
+
+      <!-- RIGHT -->
+      <!-- RIGHT -->
+<div class="col-7 student-summary-text text-muted">
+
+  <p class="mb-2">
+    Loaded students (Funding YTD):
+    <strong class="text-dark">
+      {{ "{:,}".format(student_summary.StudentYTD or 0) }}
+    </strong>
+  </p>
+
+  <p class="mb-2">
+    Students without complete data (Funding YTD):
+    <strong class="text-dark">
+      {{ "{:,}".format(student_summary.StudentsWithoutDataYTD or 0) }}
+    </strong>
+  </p>
+
+  <p class="mb-2">
+    Loaded students (Last full funding year):
+    <strong class="text-dark">
+      {{ "{:,}".format(student_summary.StudentLastFullFundingYear or 0) }}
+    </strong>
+  </p>
+
+  <p class="mb-0">
+    All-time unique loaded students:
+    <strong class="text-dark">
+      {{ "{:,}".format(student_summary.StudentUnique or 0) }}
+    </strong>
+  </p>
+
+</div>
+    </div>
+  </div>
+</div>
+{% endif %}
 
         {% if sportnz_table %}
         <div class="card summary-card">

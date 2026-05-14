@@ -121,6 +121,7 @@ def draw_target_panel(
     label_col: str = "Description",
     target_col: str = "Target",
     count_col: str = "TargetCount",  # actual count lane (yes, name is legacy)
+    incomplete_col: str = "IncompleteStudentCount",
     sort_by: str = "Description",
     max_rows: Optional[int] = None,
     style: Optional[PanelStyle] = None,
@@ -282,7 +283,8 @@ def draw_target_panel(
         label = getattr(r, label_col) if hasattr(r, label_col) else ""
         target_val = getattr(r, target_col) if hasattr(r, target_col) else 0
         count_val = getattr(r, count_col) if hasattr(r, count_col) else 0
-
+        incomplete_val = getattr(r, incomplete_col) if hasattr(r, incomplete_col) else 0
+        loaded_complete = max(0, count_val - incomplete_val)
         try:
             target_val = float(target_val) if target_val is not None else 0.0
         except Exception:
@@ -349,14 +351,25 @@ def draw_target_panel(
                 transform=ax.transAxes,
             )
         )
+        complete_val = max(0.0, count_val - incomplete_val)
 
-        # Actual bar (clamp + overflow arrow)
         overflow = count_val > max_target
-        count_w = (max_target if overflow else count_val) * unit_w
+
+        # Clamp widths if overflowing
+        display_total = max_target if overflow else count_val
+        display_incomplete = min(incomplete_val, display_total)
+        display_complete = max(0.0, display_total - display_incomplete)
+
+        complete_w = display_complete * unit_w
+        incomplete_w = display_incomplete * unit_w
+
+        # -------------------------
+        # Complete-data portion
+        # -------------------------
         ax.add_patch(
             Rectangle(
                 (bar_x, row_y),
-                count_w,
+                complete_w,
                 bar_h,
                 facecolor=getattr(style, "count_fill", "none"),
                 edgecolor=style.count_edge,
@@ -365,6 +378,50 @@ def draw_target_panel(
             )
         )
 
+        # -------------------------
+        # Incomplete-data portion
+        # -------------------------
+        if incomplete_w > 0:
+            # Base rectangle
+            ax.add_patch(
+                Rectangle(
+                    (bar_x + complete_w, row_y),
+                    incomplete_w,
+                    bar_h,
+                    facecolor=style.count_edge,
+                    edgecolor=style.count_edge,
+                    linewidth=0.8,
+                    transform=ax.transAxes,
+                )
+            )
+
+            # White hatch overlay
+            ax.add_patch(
+                Rectangle(
+                    (bar_x + complete_w, row_y),
+                    incomplete_w,
+                    bar_h,
+                    facecolor="none",
+                    edgecolor="#FFFFFF",
+                    linewidth=0.0,
+                    hatch="///",
+                    transform=ax.transAxes,
+                )
+            )
+
+            ax.text(
+                bar_x + complete_w + incomplete_w + 0.004,
+                y_count_c,
+                f"{_fmt_int(incomplete_val)} without data",
+                transform=ax.transAxes,
+                ha="left",
+                va="center",
+                color=style.count_edge,
+                fontfamily=family,
+                fontsize=7.5,
+            )
+
+        # Overflow arrow
         if overflow and show_overflow_arrow:
             ax.text(
                 bar_x + bar_w - 0.002,
@@ -459,7 +516,6 @@ def compute_row_height_dynamic(
 
     return max(min_row_h, min(max_row_h, row_h))
 
-
 def draw_key_panel(
     ax,
     *,
@@ -470,7 +526,7 @@ def draw_key_panel(
     height: float,
     style: PanelStyle,
     header_text: str = "KEY:",
-    pad: float = 0.008,
+    pad: float = 0.006,
 ):
     panel_ratio = 0.20
     poly = rounded_rect_polygon(
@@ -482,6 +538,7 @@ def draw_key_panel(
         corners_round=style.panel_coords,
         n_arc=64,
     )
+
     ax.add_patch(
         mpatches.Polygon(
             list(poly.exterior.coords),
@@ -494,9 +551,8 @@ def draw_key_panel(
     )
 
     left = x + pad
-    top = y + height - pad
     center_x = x + width / 2
-    key_y = top - 0.012
+    key_y = y + height - pad - 0.012
 
     fig = ax.figure
     fig.canvas.draw()
@@ -530,21 +586,29 @@ def draw_key_panel(
     w_key = _text_w_axes(header_text, fontsize=10, fontweight="semibold") if header_text else 0.0
     w_target = _text_w_axes("Target", fontsize=10)
     w_actual = _text_w_axes("Actual", fontsize=10)
+    w_incomplete = _text_w_axes("Without complete data", fontsize=10)
 
     total_w = (
         w_key
         + (gap_after_key if header_text else 0.0)
+
         + sw_w
         + gap_swatch_label
         + w_target
         + gap_item
+
         + sw_w
         + gap_swatch_label
         + w_actual
-    )
-    start_x = max(left, center_x - total_w / 2)
+        + gap_item
 
-    cursor_x = start_x
+        + sw_w
+        + gap_swatch_label
+        + w_incomplete
+    )
+
+    cursor_x = max(left, center_x - total_w / 2)
+
     if header_text:
         ax.text(
             cursor_x,
@@ -560,6 +624,7 @@ def draw_key_panel(
         )
         cursor_x += w_key + gap_after_key
 
+    # Target
     ax.add_patch(
         Rectangle(
             (cursor_x, key_y - sw_h / 2),
@@ -571,7 +636,9 @@ def draw_key_panel(
             transform=ax.transAxes,
         )
     )
+
     cursor_x += sw_w + gap_swatch_label
+
     ax.text(
         cursor_x,
         key_y,
@@ -583,8 +650,10 @@ def draw_key_panel(
         fontsize=10,
         color=style.label_color,
     )
+
     cursor_x += w_target + gap_item
 
+    # Actual
     ax.add_patch(
         Rectangle(
             (cursor_x, key_y - sw_h / 2),
@@ -596,7 +665,9 @@ def draw_key_panel(
             transform=ax.transAxes,
         )
     )
+
     cursor_x += sw_w + gap_swatch_label
+
     ax.text(
         cursor_x,
         key_y,
@@ -609,23 +680,67 @@ def draw_key_panel(
         color=style.label_color,
     )
 
-    note = (
-        "Note: Target = amount in funding agreements; student actuals = unique students; "
-        "kaiako actuals = completed assessments."
+    cursor_x += w_actual + gap_item
+
+    # Without complete data
+    ax.add_patch(
+        Rectangle(
+            (cursor_x, key_y - sw_h / 2),
+            sw_w,
+            sw_h,
+            facecolor=style.count_edge,
+            edgecolor="#FFFFFF",
+            linewidth=0.8,
+            hatch="///",
+            transform=ax.transAxes,
+        )
     )
+
+    cursor_x += sw_w + gap_swatch_label
+
+    ax.text(
+        cursor_x,
+        key_y,
+        "Without complete data",
+        transform=ax.transAxes,
+        ha="left",
+        va="center",
+        fontfamily=family,
+        fontsize=10,
+        color=style.label_color,
+    )
+
+    note_line_1 = (
+    "Target = amount in funding agreements; hatched sections = students without complete data."
+    )
+
+    note_line_2 = (
+        "Student actuals include incomplete records where shown; kaiako actuals = completed assessments."
+    )
+
     ax.text(
         center_x,
-        key_y - 0.012,
-        note,
+        key_y - 0.010,
+        note_line_1,
         transform=ax.transAxes,
         ha="center",
         va="top",
         fontfamily=family,
-        fontsize=9,
+        fontsize=8,
         color=style.small_text_color,
-        linespacing=1.25,
     )
 
+    ax.text(
+        center_x,
+        key_y - 0.024,
+        note_line_2,
+        transform=ax.transAxes,
+        ha="center",
+        va="top",
+        fontfamily=family,
+        fontsize=8,
+        color=style.small_text_color,
+    )
 
 # =========================
 # Data loader (uses existing conn)
@@ -818,9 +933,9 @@ def build_funder_targets_counts_figure(
         ax,
         family=family,
         x=0.04,
-        y=0.015,
+        y=0.013,
         width=0.92,
-        height=0.05,
+        height=0.06,
         style=style,
         header_text="",
     )
